@@ -1,24 +1,24 @@
-# GStreamer Video Analytics Plugins
-This is preview of the product functionality that is being introduced to gain early developer feedback. Comments, questions, and suggestions are encouraged and should be submitted to [the GitHub Issues page](https://github.com/opencv/gst-video-analytics/issues)
+# GStreamer* Video Analytics Plugins
+This is preview of the product functionality that is being introduced to gain early developer feedback. Comments, questions, and suggestions are encouraged and should be submitted to [the GitHub* Issues page](https://github.com/opencv/gst-video-analytics/issues)
 
 ## Overview
-This repository contains a collection of GStreamer elements to enable CNN model based video analytics capabilities (such as object detection, classification, recognition) in GStreamer framework.
+This repository contains a collection of GStreamer* elements to enable CNN model based video analytics capabilities (such as object detection, classification, recognition) in GStreamer* framework.
 The complete solution leverages
-* Open source GStreamer framework for pipeline management
-* GStreamer plugins for input and output such as media files and real-time streaming from camera or network
+* Open source GStreamer* framework for pipeline management
+* GStreamer* plugins for input and output such as media files and real-time streaming from camera or network
 * Video decode and encode plugins, either CPU optimized plugins or GPU-accelerated plugins [based on VAAPI](https://github.com/GStreamer/gstreamer-vaapi)
 
 and additionally installs the following Deep Learning specific elements from this repository
-* Inference plugins leveraging [Intel OpenVINO](https://software.intel.com/en-us/openvino-toolkit) for high performance inference using CNN models
+* Inference plugins leveraging [Intel&reg; OpenVINO&trade; Toolkit](https://software.intel.com/en-us/openvino-toolkit) for high performance inference using CNN models
 * Visualization of computer vision results (such as bounding boxes and labels of detected objects) on top of video stream
 
 ## License
-GStreamer Video Analytics Plugins are licensed under [MIT license](LICENSE).
+GStreamer* Video Analytics Plugins are licensed under [MIT license](LICENSE).
 
 ## Prerequisites
 ### Hardware
-* Refer to OpenVINO SDK for [hardware requirements for inference elements](https://software.intel.com/en-us/openvino-toolkit/hardware);
-* On platforms with Intel Gen graphics, refer to gstreamer-vaapi for [HW accelerated video decode and encode requirements](https://github.com/GStreamer/gstreamer-vaapi).
+* Refer to Intel&reg; OpenVINO&trade; Toolkit for [hardware requirements for inference elements](https://software.intel.com/en-us/openvino-toolkit/hardware);
+* On platforms with Intel&reg; Processor Graphics, refer to gstreamer-vaapi for [HW accelerated video decode and encode requirements](https://github.com/GStreamer/gstreamer-vaapi).
 ### Software
 * Linux* system with kernel >= 4.15
 * GStreamer framework >= 1.14
@@ -27,7 +27,7 @@ GStreamer Video Analytics Plugins are licensed under [MIT license](LICENSE).
 [This link](https://github.com/opencv/gst-video-analytics/wiki/Build-and-Run) provides detailed instructions how to build plugins and run samples in [docker container](https://github.com/opencv/gst-video-analytics/wiki/Acquire-docker-image-and-run-docker-container) or [directly on host machine](https://github.com/opencv/gst-video-analytics/wiki/Build-on-host-machine).
 
 ## Samples
-See [command-line examples](samples/shell) and [C++ example](samples/cpp/face_attributes)
+See [command-line examples](/samples/shell) and [C++ example](/samples/cpp/face_attributes)
 
 ## Reporting Bugs and Feature Requests
 Bugs and requests can be reported [on Issues page](https://github.com/opencv/gst-video-analytics/issues)
