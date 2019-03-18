@@ -1,0 +1,19 @@
+{
+    "person2": {
+        "features": [
+            "features/person2_0_frame_0_idx_0.tensor",
+            "features/person2_1_frame_0_idx_0.tensor"
+        ]
+    },
+    "person1": {
+        "features": [
+            "features/person1_1_frame_0_idx_0.tensor",
+            "features/person1_0_frame_0_idx_0.tensor"
+        ]
+    },
+    "person3": {
+        "features": [
+            "features/person3_0_frame_0_idx_0.tensor"
+        ]
+    }
+}

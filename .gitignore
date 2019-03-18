@@ -1,0 +1,24 @@
+CMakeCache.txt
+CMakeFiles
+CMakeFiles.txt.user
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+build
+.vscode
+.idea
+_release
+
+# Compiled Object files
+*.o
+*.obj
+
+# Compiled Dynamic libraries
+*.so
+
+# Compiled Static libraries
+*.a

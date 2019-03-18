@@ -1,0 +1,6 @@
+.git/
+.gitignore
+build/
+_release/
+docker/**/*.tgz
+docker/**/*.tar.gz
