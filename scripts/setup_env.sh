@@ -5,9 +5,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-export LIBVA_DRIVER_NAME=iHD
 export GST_VAAPI_ALL_DRIVERS=1
-export LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
 
 export GST_SAMPLES_DIR=$(dirname "$BASH_SOURCE")/../samples
 
