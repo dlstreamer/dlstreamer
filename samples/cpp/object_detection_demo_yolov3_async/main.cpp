@@ -2,6 +2,12 @@
  * Copyright (C) <2018-2019> Intel Corporation
  *
  * SPDX-License-Identifier: MIT
+ *
+ * object_detection_demo_yolov3_async implementation based on object_detection_demo_yolov3_async
+ * See https://github.com/opencv/open_model_zoo/tree/2018/demos/object_detection_demo_yolov3_async
+ * Differences:
+ * ParseYOLOV3Output function changed for working with gva tensors
+ * Adapted code style to match with Video Analytics GStreamer* plugins project
  ******************************************************************************/
 
 #include <experimental/filesystem>
