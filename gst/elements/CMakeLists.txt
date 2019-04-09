@@ -59,7 +59,6 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-        ie_cpu_extension
         ${OpenCV_LIBS}
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}

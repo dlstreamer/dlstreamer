@@ -38,7 +38,7 @@ PUBLIC
         IE::inference_engine
         logger
 PRIVATE
-        ie_cpu_extension
+        IE::ie_cpu_extension
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION lib/va-gstreamer-plugins)
