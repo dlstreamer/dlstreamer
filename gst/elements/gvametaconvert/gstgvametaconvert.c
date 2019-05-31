@@ -1,12 +1,11 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gstgvametaconvert.h"
 
-#include "gva_utils.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -50,10 +49,10 @@ static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 #define DEFAULT_MODEL NULL
 #define DEFAULT_LAYER_NAME NULL
 #define DEFAULT_THRESHOLD 0.5
-#define DEFAULT_CONVERTER "json"
+#define DEFAULT_CONVERTER GST_GVA_METACONVERT_JSON
 #define DEFAULT_SIGNAL_HANDOFFS FALSE
 #define DEFAULT_INFERENCE_ID NULL
-#define DEFAULT_METHOD NULL
+#define DEFAULT_METHOD GST_GVA_METACONVERT_ALL
 #define DEFAULT_SOURCE NULL
 #define DEFAULT_TAGS NULL
 #define DEFAULT_INCLUDE_NO_DETECTIONS FALSE
@@ -81,11 +80,7 @@ enum {
 #define DMA_BUFFER_CAPS
 #endif
 
-#ifndef DISABLE_VAAPI
-#define VA_SURFACE_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:VASurface", "{ NV12 }") "; "
-#else
 #define VA_SURFACE_CAPS
-#endif
 
 #define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA }")
 
@@ -98,6 +93,57 @@ enum {
 G_DEFINE_TYPE_WITH_CODE(GstGvaMetaConvert, gst_gva_meta_convert, GST_TYPE_BASE_TRANSFORM,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_meta_convert_debug_category, "gvametaconvert", 0,
                                                 "debug category for gvametaconvert element"));
+
+GType gst_gva_metaconvert_get_converter(void) {
+    static GType gva_metaconvert_converter_type = 0;
+    static const GEnumValue converter_types[] = {
+        {GST_GVA_METACONVERT_TENSOR2TEXT, "Tensor to text conversion", "tensor2text"},
+        {GST_GVA_METACONVERT_JSON, "Conversion to json file", "json"},
+        {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection", "dump-detection"},
+        {GST_GVA_METACONVERT_DUMP_CLASSIFICATION, "Dump classification", "dump-classification"},
+        {GST_GVA_METACONVERT_DUMP_TENSORS, "Dump tensors", "dump-tensors"},
+        {GST_GVA_METACONVERT_TENSORS_TO_FILE, "Tensors to file", "tensors-to-file"},
+        {GST_GVA_METACONVERT_ADD_FULL_FRAME_ROI, "Add fullframe ROI", "add-fullframe-roi"},
+        {0, NULL, NULL}};
+
+    if (!gva_metaconvert_converter_type) {
+        gva_metaconvert_converter_type = g_enum_register_static("GstGVAMetaconvertConverterType", converter_types);
+    }
+    return gva_metaconvert_converter_type;
+}
+
+#define GST_TYPE_GVA_METACONVERT_METHOD (gst_gva_metaconvert_get_method())
+static GType gst_gva_metaconvert_get_method(void) {
+    static GType gva_metaconvert_method_type = 0;
+    static const GEnumValue method_types[] = {{GST_GVA_METACONVERT_ALL, "All conversion", "all"},
+                                              {GST_GVA_METACONVERT_DETECTION, "Detection conversion", "detection"},
+                                              {GST_GVA_METACONVERT_TENSOR, "Tensor conversion", "tensor"},
+                                              {GST_GVA_METACONVERT_MAX, "Max conversion", "max"},
+                                              {GST_GVA_METACONVERT_INDEX, "Index conversion", "index"},
+                                              {GST_GVA_METACONVERT_COMPOUND, "Compound conversion", "compound"},
+                                              {0, NULL, NULL}};
+
+    if (!gva_metaconvert_method_type) {
+        gva_metaconvert_method_type = g_enum_register_static("GstGVAMetaconvertMethodType", method_types);
+    }
+    return gva_metaconvert_method_type;
+}
+
+static void gst_gva_metaconvert_set_converter(GstGvaMetaConvert *gvametaconvert,
+                                              GstGVAMetaconvertConverterType converter_type) {
+    GST_DEBUG_OBJECT(gvametaconvert, "setting converter to %d", converter_type);
+
+    GHashTable *converters = get_converters();
+    convert_function_type convert_function = g_hash_table_lookup(converters, GINT_TO_POINTER(converter_type));
+
+    if (convert_function) {
+        gvametaconvert->converter = converter_type;
+        gvametaconvert->convert_function = convert_function;
+    } else
+        g_assert_not_reached();
+
+    g_hash_table_destroy(converters);
+}
 
 static void gst_gva_meta_convert_class_init(GstGvaMetaConvertClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
@@ -144,12 +190,14 @@ static void gst_gva_meta_convert_class_init(GstGvaMetaConvertClass *klass) {
                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(gobject_class, PROP_CONVERTER,
-                                    g_param_spec_string("converter", "Conversion group", "Conversion group",
-                                                        DEFAULT_CONVERTER, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                    g_param_spec_enum("converter", "Conversion group", "Conversion group",
+                                                      GST_TYPE_GVA_METACONVERT_CONVERTER, DEFAULT_CONVERTER,
+                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(gobject_class, PROP_METHOD,
-                                    g_param_spec_string("method", "Conversion method", "Conversion method",
-                                                        DEFAULT_METHOD, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                    g_param_spec_enum("method", "Conversion method", "Conversion method",
+                                                      GST_TYPE_GVA_METACONVERT_METHOD, DEFAULT_METHOD,
+                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(gobject_class, PROP_LOCATION,
                                     g_param_spec_string("location", "Location for the output files", "Path to folder",
@@ -188,10 +236,8 @@ static void gst_gva_meta_convert_cleanup(GstGvaMetaConvert *gvametaconvert) {
 
     g_free(gvametaconvert->inference_id);
     g_free(gvametaconvert->layer_name);
-    g_free(gvametaconvert->converter);
     g_free(gvametaconvert->source);
     g_free(gvametaconvert->tags);
-    g_free(gvametaconvert->method);
     g_free(gvametaconvert->location);
 }
 
@@ -206,21 +252,13 @@ static void gst_gva_meta_convert_reset(GstGvaMetaConvert *gvametaconvert) {
     gvametaconvert->model = g_strdup(DEFAULT_MODEL);
     gvametaconvert->layer_name = g_strdup(DEFAULT_LAYER_NAME);
     gvametaconvert->inference_id = g_strdup(DEFAULT_INFERENCE_ID);
-    gvametaconvert->converter = g_strdup(DEFAULT_CONVERTER);
-    gvametaconvert->method = g_strdup(DEFAULT_METHOD);
+    gvametaconvert->method = DEFAULT_METHOD;
     gvametaconvert->source = g_strdup(DEFAULT_SOURCE);
     gvametaconvert->tags = g_strdup(DEFAULT_TAGS);
     gvametaconvert->include_no_detections = DEFAULT_INCLUDE_NO_DETECTIONS;
     gvametaconvert->signal_handoffs = DEFAULT_SIGNAL_HANDOFFS;
     gvametaconvert->threshold = DEFAULT_THRESHOLD;
-    gvametaconvert->convert_function = NULL;
-    for (int i = 0;; i++) {
-        if (!gvametaconvert->converter || !converters[i].name)
-            break;
-        if (!g_strcmp0(gvametaconvert->converter, converters[i].name)) {
-            gvametaconvert->convert_function = converters[i].function;
-        }
-    }
+    gst_gva_metaconvert_set_converter(gvametaconvert, DEFAULT_CONVERTER);
     gvametaconvert->location = g_strdup(DEFAULT_LOCATION);
 }
 
@@ -265,18 +303,10 @@ void gst_gva_meta_convert_set_property(GObject *object, guint property_id, const
         gvametaconvert->inference_id = g_value_dup_string(value);
         break;
     case PROP_CONVERTER:
-        gvametaconvert->converter = g_value_dup_string(value);
-        gvametaconvert->convert_function = NULL;
-        for (int i = 0;; i++) {
-            if (!gvametaconvert->converter || !converters[i].name)
-                break;
-            if (!g_strcmp0(gvametaconvert->converter, converters[i].name)) {
-                gvametaconvert->convert_function = converters[i].function;
-            }
-        }
+        gst_gva_metaconvert_set_converter(gvametaconvert, g_value_get_enum(value));
         break;
     case PROP_METHOD:
-        gvametaconvert->method = g_value_dup_string(value);
+        gvametaconvert->method = g_value_get_enum(value);
         break;
     case PROP_SOURCE:
         gvametaconvert->source = g_value_dup_string(value);
@@ -315,10 +345,10 @@ void gst_gva_meta_convert_get_property(GObject *object, guint property_id, GValu
         g_value_set_string(value, gvametaconvert->layer_name);
         break;
     case PROP_CONVERTER:
-        g_value_set_string(value, gvametaconvert->converter);
+        g_value_set_enum(value, gvametaconvert->converter);
         break;
     case PROP_METHOD:
-        g_value_set_string(value, gvametaconvert->method);
+        g_value_set_enum(value, gvametaconvert->method);
         break;
     case PROP_SOURCE:
         g_value_set_string(value, gvametaconvert->source);

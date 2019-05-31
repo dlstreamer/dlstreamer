@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,26 +14,23 @@
 #include <opencv2/opencv.hpp>
 
 extern "C" {
-static cv::Scalar index2color(int index) {
-    switch (index & 7) {
-    case 0:
-        return cv::Scalar(0, 0, 255);
-    case 1:
-        return cv::Scalar(0, 255, 0);
-    case 2:
-        return cv::Scalar(255, 0, 0);
-    case 3:
-        return cv::Scalar(0, 255, 255);
-    case 4:
-        return cv::Scalar(255, 255, 0);
-    case 5:
-        return cv::Scalar(255, 0, 255);
-    case 6:
-        return cv::Scalar(127, 127, 127);
-    case 7:
-        return cv::Scalar(0, 0, 0);
+static cv::Scalar color_table[8] = {cv::Scalar(0, 0, 255),     cv::Scalar(0, 255, 0),   cv::Scalar(255, 0, 0),
+                                    cv::Scalar(0, 255, 255),   cv::Scalar(255, 255, 0), cv::Scalar(255, 0, 255),
+                                    cv::Scalar(127, 127, 127), cv::Scalar(0, 0, 0)};
+
+static cv::Scalar index2color(int index, int fourcc) {
+    int tmp;
+    cv::Scalar color(0, 0, 0);
+
+    color = color_table[index & 7];
+
+    if (fourcc == InferenceBackend::FOURCC_RGBA || fourcc == InferenceBackend::FOURCC_RGBX) {
+        tmp = color[0];
+        color[0] = color[2];
+        color[2] = tmp;
     }
-    return cv::Scalar(0, 0, 0);
+
+    return color;
 }
 
 int Fourcc2OpenCVType(int fourcc) {
@@ -71,30 +68,47 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
     // construct text labels
     GVA::RegionOfInterestList roi_list(buffer);
     for (GVA::RegionOfInterest &roi : roi_list) {
-        std::string text;
+        std::string text, labels_text, id;
         gint object_id = 0;
+        int simple_hash = 0;
+
         for (GVA::Tensor &tensor : roi) {
             std::string label = tensor.label();
             if (!label.empty()) {
-                text += label + " ";
+                labels_text += label + " ";
             }
             if (gst_structure_has_field(tensor.gst_structure(), "object_id")) {
                 object_id = tensor.object_id();
             }
         }
 
-        GstVideoRegionOfInterestMeta *meta = roi.meta();
-        if (meta->roi_type) {
-            text += " ";
-            text += g_quark_to_string(meta->roi_type);
+        if (object_id && (-1 != object_id)) {
+            text = std::to_string(object_id) + ":";
         }
 
-        // draw rectangle with text
-        cv::Scalar color = index2color(meta->roi_type + object_id); // TODO: Is it good mapping to colors?
+        text += labels_text;
+
+        GstVideoRegionOfInterestMeta *meta = roi.meta();
+        if (meta->roi_type) {
+            std::hash<std::string> myhash;
+            const gchar *type = g_quark_to_string(meta->roi_type);
+
+            text += type;
+            simple_hash = (int)myhash(type);
+            if (-1 != object_id)
+                simple_hash += (int)object_id;
+        }
+
+        // draw rectangle
+        cv::Scalar color = index2color(simple_hash, image.format); // TODO: Is it good mapping to colors?
         cv::Point2f bbox_min(meta->x, meta->y);
         cv::Point2f bbox_max(meta->x + meta->w, meta->y + meta->h);
         cv::rectangle(mat, bbox_min, bbox_max, color, 2);
-        cv::Point2f pos(meta->x, meta->y - 5);
+
+        // put text
+        cv::Point2f pos(meta->x, meta->y - 5.f);
+        if (pos.y < 0)
+            pos.y = meta->y + 30.f;
         cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
     }
 

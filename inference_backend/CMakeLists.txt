@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -17,8 +17,4 @@ INTERFACE
 
 add_subdirectory(image_inference/openvino)
 add_subdirectory(pre_proc)
-add_subdirectory(pre_proc/opencv)
-if(NOT ${DISABLE_VAAPI})
-    add_subdirectory(pre_proc/vaapi)
-endif()
 add_subdirectory(logger)

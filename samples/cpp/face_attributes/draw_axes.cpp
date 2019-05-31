@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  * Reused 2 functions from interactive_face_detection_demo

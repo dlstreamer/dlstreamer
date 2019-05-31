@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.1)
 
 set (TARGET_NAME "image_inference_openvino")
 
-find_package(InferenceEngine 1.0 REQUIRED)
+find_package(InferenceEngine 1.6 REQUIRED)
 
 find_package(PkgConfig REQUIRED)
 

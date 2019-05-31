@@ -1,0 +1,19 @@
+cmake_minimum_required(VERSION 3.3)  # contains fix for FindDoxygen
+
+set(DOCS_TARGET_NAME "doxygendocs")
+find_package(Doxygen)
+
+if (NOT DOXYGEN_FOUND)
+    message(SEND_ERROR "Doxygen is not found; documentation won't be built")
+endif (NOT DOXYGEN_FOUND)
+
+# doxygen options
+set(DOXYGEN_LATEX_MAKEINDEX_CMD makeindex)  # mandatory due to bug in FindDoxygen
+set(DOXYGEN_FILE_PATTERNS *.h *.c *.md)
+set(DOXYGEN_USE_MDFILE_AS_MAINPAGE index.md)
+set(DOXYGEN_ENABLE_PREPROCESSING NO)  # so covered with preprocessor conditions will produce documentation too
+set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_DOCDIR})
+
+doxygen_add_docs(${DOCS_TARGET_NAME})
+
+add_custom_target(doc ALL DEPENDS ${DOCS_TARGET_NAME})

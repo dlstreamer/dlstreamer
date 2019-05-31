@@ -1,11 +1,16 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#ifndef __GVA_TENSOR_INFO_H__
-#define __GVA_TENSOR_INFO_H__
+/**
+ * @file gva_tensor_meta.h
+ * @brief This file contains helper functions to control _GstGVATensorMeta instances
+ */
+
+#ifndef __GVA_TENSOR_META_H__
+#define __GVA_TENSOR_META_H__
 
 #include <gst/gst.h>
 
@@ -16,208 +21,125 @@
 G_BEGIN_DECLS
 
 /**
- * GVAPrecision:
- * @UNSPECIFIED: default value
- * @FP32: 32bit floating point value
- * @U8: unsignned 8bit integer value
- *
- * Enum value to be used with inference engine APIs to specify precision
+ * @brief This enum describes model layer precision
  */
 typedef enum {
-    UNSPECIFIED = 255,
-    FP32 = 10,
-    U8 = 40,
+    UNSPECIFIED = 255, /**< default value */
+    FP32 = 10,         /**< 32bit floating point value */
+    U8 = 40,           /**< unsigned 8bit integer value */
 } GVAPrecision;
 
 /**
- * GVALayout:
- * @ANY: unspecified layout
- * @NCHW: NCWH layout
- * @NHWC: NHWC layout
- *
- * Enum value to be used with inference engine APIs to specify layer laouts
+ * @brief Enum value to be used with inference engine APIs to specify layer layouts
  */
 typedef enum {
-    ANY = 0,
-    NCHW = 1,
-    NHWC = 2,
+    ANY = 0,  /**< unspecified layout */
+    NCHW = 1, /**< NCWH layout */
+    NHWC = 2, /**< NHWC layout */
 } GVALayout;
 
 typedef struct _GstGVATensorMeta GstGVATensorMeta;
 
 /**
- * GstGVATensorMeta:
- * @meta: parent meta object
- * @precision: tensor precision see (#GVAPrecision)
- * @rank: tensor rank
- * @dims: array describing tensor's dimensions
- * @layout: tensor layout see (#GVALayout)
- * @layer_name: tensor output layer name
- * @model_name: model name
- * @data: tensor data
- * @total_bytes: tensor size in bytes
- * @element_id: TBD
- * @labels: array of strings can be used to assign text attributes to the #GVADetection.
+ * @brief This struct represents raw tensor metadata and contains instance of parent GstMeta and fields describing
+ * inference result tensor
  */
 struct _GstGVATensorMeta {
-    GstMeta meta;
-    GVAPrecision precision;
-    guint rank;
-    size_t dims[GVA_TENSOR_MAX_RANK];
-    GVALayout layout;
-    gchar *layer_name;
-    gchar *model_name;
-    void *data;
-    size_t total_bytes;
-    const gchar *element_id;
+    GstMeta meta;                     /**< parent meta object */
+    GVAPrecision precision;           /**< tensor precision (see GVAPrecision) */
+    guint rank;                       /**< tensor rank */
+    size_t dims[GVA_TENSOR_MAX_RANK]; /**< array describing tensor's dimensions */
+    GVALayout layout;                 /**< tensor layout (see GVALayout) */
+    gchar *layer_name;                /**< tensor output layer name */
+    gchar *model_name;                /**< model name */
+    void *data;                       /**< tensor data */
+    size_t total_bytes;               /**< tensor size in bytes */
+    const gchar *element_id;          /**< id of GStreamer pipeline element that produced current tensor */
 };
 
 /**
- * gst_gva_tensor_meta_get_info:
- * Returns: #GstMetaInfo for the registered meta type
+ * @brief This function registers, if needed, and returns GstMetaInfo for _GstGVATensorMeta
+ * @return GstMetaInfo* for registered type
  */
 const GstMetaInfo *gst_gva_tensor_meta_get_info(void);
 
 /**
- * gst_gva_tensor_meta_api_get_type:
- *
- * Returns: type for APIs binded to the #GstGVATensorMeta
+ * @brief This function registers, if needed, and returns a GType for api "GstGVATensorMetaAPI" and associate it with
+ * GVA_TENSOR_META_TAG tag
+ * @return GType type
  */
 GType gst_gva_tensor_meta_api_get_type(void);
 
 /**
- * gst_gva_tensor_meta_get_info:
- *
- * Register meta API if needed and
- *
- * Returns: #GstMetaInfo for registered type
+ * @def GST_GVA_TENSOR_META_INFO
+ * @brief This macro calls gst_gva_tensor_meta_get_info
+ * @return const GstMetaInfo* for registered type
  */
 #define GST_GVA_TENSOR_META_INFO (gst_gva_tensor_meta_get_info())
 
 /**
- * GST_GVA_TENSOR_META_GET:
- * @buf: #GstBuffer where meta will be created
- *
- * Adds #GstGVATensorMeta to the passed #GstBuffer
- *
- * Returns: pointer to the create Meta
+ * @def GST_GVA_TENSOR_META_GET
+ * @brief This macro retrieves ptr to _GstGVATensorMeta instance for passed buf
+ * @param buf GstBuffer* of which metadata is retrieved
+ * @return _GstGVATensorMeta* instance attached to buf
  */
 #define GST_GVA_TENSOR_META_GET(buf) ((GstGVATensorMeta *)gst_buffer_get_meta(buf, gst_gva_tensor_meta_api_get_type()))
 
 /**
- * GST_GVA_TENSOR_META_ITERATE:
- * @buf: #GstBuffer to iterate through
- * @state: variable (of #gpointer type) containing loop state
- *
- * Helper macro to iterate through all detection metas of #GstBuffer
- * |[<!--language="C" -->
- *   gpointer state = NULL;
- *   while (meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state)) {
- *   // ...
- *   }
- *
- * Returns: #GstGVATensorMeta
+ * @def GST_GVA_TENSOR_META_ITERATE
+ * @brief This macro iterates through _GstGVATensorMeta instances for passed buf, retrieving the next _GstGVATensorMeta.
+ * If state points to NULL, the first _GstGVATensorMeta is returned
+ * @param buf GstBuffer* of which metadata is iterated and retrieved
+ * @param state gpointer* that updates with opaque pointer after macro call.
+ * @return _GstGVATensorMeta* instance attached to buf
  */
 #define GST_GVA_TENSOR_META_ITERATE(buf, state)                                                                        \
     ((GstGVATensorMeta *)gst_buffer_iterate_meta_filtered(buf, state, gst_gva_tensor_meta_api_get_type()))
 
 /**
- * GST_GVA_TENSOR_META_ADD:
- * @buf: #GstBuffer where to create #GstGVATensorMeta
- *
- * Creates #GstGVATensorMeta and
- *
- * Returns: pointer to newly created meta
+ * @def GST_GVA_TENSOR_META_ADD
+ * @brief This macro attaches new _GstGVATensorMeta instance to passed buf
+ * @param buf GstBuffer* to which metadata will be attached
+ * @return _GstGVATensorMeta* of the newly added instance attached to buf
  */
 #define GST_GVA_TENSOR_META_ADD(buf)                                                                                   \
     ((GstGVATensorMeta *)gst_buffer_add_meta(buf, gst_gva_tensor_meta_get_info(), NULL))
 
 /**
- * GST_GVA_TENSOR_META_COUNT:
- * @buf: #GstBuffer to be processed
- *
- * Calculate a number of #GstGVATensorMeta in GstBuffer
- *
- * Returns: number of #GstGVATensorMeta metas
+ * @def GST_GVA_TENSOR_META_COUNT
+ * @brief This macro counts the number of _GstGVATensorMeta instances attached to passed buf
+ * @param buf GstBuffer* of which metadata instances are counted
+ * @return guint number of _GstGVATensorMeta instances attached to passed buf
  */
 #define GST_GVA_TENSOR_META_COUNT(buf) (gst_buffer_get_n_meta(buf, gst_gva_tensor_meta_api_get_type()))
 
 /**
- * find_tensor_meta:
- * @buffer: #GstBuffer where it looks for the meta
- * @model_name: substring that should be in meta's model_name
- * @output_layer: substring that should be in meta's output_layer name
- *
- * Looks for the tensor meta conforming to passed parameters
- *
- * Returns: found meta or NULL otherwise
+ * @brief This function searches for first _GstGVATensorMeta instance that satisfies passed parameters
+ * @param buffer GstBuffer* that is searched for metadata
+ * @param model_name substring that should be in _GstGVATensorMeta instance's model_name
+ * @param output_layer substring that should be in _GstGVATensorMeta instance's layer_name
+ * @return GstGVATensorMeta* for found instance or NULL if none are found
  */
 GstGVATensorMeta *find_tensor_meta(GstBuffer *buffer, const char *model_name, const char *output_layer);
 
 /**
- * find_tensor_meta_ext:
- * @buffer: #GstBuffer where it looks for the meta
- * @model_name: substring that should be in meta's model_name
- * @output_layer: substring that should be in meta's output_layer name
- * @element_id: element_id in meta
- * Looks for the tensor meta conforming to passed parameters
- *
- * Returns: found meta or NULL otherwise
+ * @brief This function searches for first _GstGVATensorMeta instance that satisfies passed parameters
+ * @param buffer GstBuffer* that is searched for metadata
+ * @param model_name substring that should be in _GstGVATensorMeta instance's model_name
+ * @param output_layer substring that should be in _GstGVATensorMeta instance's layer_name
+ * @param element_id element_id substring that should be in _GstGVATensorMeta instance's element_id
+ * @return GstGVATensorMeta* for found instance or NULL if none are found
  */
 GstGVATensorMeta *find_tensor_meta_ext(GstBuffer *buffer, const char *model_name, const char *output_layer,
                                        const char *element_id);
 
 /**
- * gva_tensor_number_elements:
- * @meta: #GstGVATensorMeta to get value
- *
- * Returns: number of elements in tensor
- */
-guint gva_tensor_number_elements(GstGVATensorMeta *meta);
-
-/**
- * gva_tensor_size:
- * @meta: #GstGVATensorMeta to get value
- *
- * Returns: tensor's size
+ * @brief This function returns number of elements in tensor as product of its dimensions
+ * @param meta _GstGVATensorMeta to get value from
+ * @return number of elements
  */
 guint gva_tensor_size(GstGVATensorMeta *meta);
 
-/**
- * gva_tensor_element_size:
- * @meta: #GstGVATensorMeta to get value
- *
- * Returns: Size of tensor's element
- */
-guint gva_tensor_element_size(GstGVATensorMeta *meta);
-
-/**
- * gva_tensor_get_element:
- * @meta: #GstGVATensorMeta to get value
- * @index: index  of element to get
- *
- * Returns: One element form the tensor by it's index
- */
-void *gva_tensor_get_element(GstGVATensorMeta *meta, int index);
-
 G_END_DECLS
 
-/////////////////////////////////////////////////////////////////////////////////////////
-// These are functions working with tensors produced by gvaclassify element,
-// with tensor first dimension representing number detected objects.
-
-#ifndef __GTK_DOC_IGNORE__
-#ifdef __cplusplus
-template <typename T>
-T *GVATensorGetElement(GstGVATensorMeta *meta, int index) {
-    int number_elements = gva_tensor_number_elements(meta);
-    if (index < 0 || index > number_elements)
-        return nullptr;
-    if (meta->total_bytes != number_elements * sizeof(T))
-        return nullptr;
-    return (T *)((int8_t *)meta->data + index * meta->total_bytes / number_elements);
-}
-#endif
-
-#endif /* __GTK_DOC_IGNORE__ */
-#endif /* __GVA_TENSOR_INFO_H__ */
+#endif /* __GVA_TENSOR_META_H__ */

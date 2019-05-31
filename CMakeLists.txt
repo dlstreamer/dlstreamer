@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -18,7 +18,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 3)
+set(VERSION_MINOR 4)
 
 if (NOT DEFINED VERSION_PATCH)
     set(VERSION_PATCH 0)
@@ -62,6 +62,9 @@ set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BU
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/bin)
 set (CMAKE_DOCDIR ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/doc)
 
+# Workaround for OpenVINO R1
+find_package(Threads REQUIRED)
+
 # Common compilation flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wuninitialized -Warray-bounds -fstack-protector-strong")
@@ -82,11 +85,9 @@ set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
-
 ###############################################################################
-option(DISABLE_VAAPI "Parameter to disable VAAPI support" ON)
+option(HAVE_GAPI "Parameter to enable GAPI for image preprocessing" OFF)
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
-
 option(ENABLE_DOCUMENTATION "Parameter to enable documentation generation" OFF)
 
 configure_file(cmake/config.h.in configs/config.h @ONLY)

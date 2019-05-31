@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -12,10 +12,9 @@ then
     source $BASEDIR/scripts/setup_env.sh
 fi
 
-$BASEDIR/scripts/build.sh
 
 FILE=${1:-$BASEDIR/../video-examples/Pexels_Videos_4786.h264}
 
+$BASEDIR/scripts/build.sh && \
 $BASEDIR/build/intel64/Release/bin/object_detection_demo_yolov3_async \
-    -i $FILE \
-   
+    -i $FILE

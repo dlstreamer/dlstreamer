@@ -1,10 +1,16 @@
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 cmake_minimum_required(VERSION 3.1)
+
+add_subdirectory(opencv_utils)
+add_subdirectory(opencv)
+if(${HAVE_GAPI})
+    add_subdirectory(gapi)
+endif()
 
 set (TARGET_NAME "pre_proc")
 
@@ -14,7 +20,10 @@ file (GLOB MAIN_HEADERS *.h)
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 
-target_link_libraries(${TARGET_NAME} inference_backend)
+target_link_libraries(${TARGET_NAME}
+PRIVATE
+        inference_backend
+)
 
 target_include_directories(${TARGET_NAME}
 PUBLIC

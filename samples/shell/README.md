@@ -4,7 +4,7 @@ See links
 [Data flow](https://github.com/opencv/gst-video-analytics/wiki/Data-flow),
 [Metadata](https://github.com/opencv/gst-video-analytics/wiki/Metadata),
 [Properties](https://github.com/opencv/gst-video-analytics/wiki/Elements)
-for more details about plugins functionality and parameters. 
+for more details about plugins functionality and parameters.
 
 The optional environment variable
 ```
@@ -49,7 +49,7 @@ Demonstrates vehicle and license-plate detection, and two classification models 
 ### __vehicle_and_pedestrian_classification.sh__ <br>
 Demonstrates vehicle/bike/pedestrian detection, and two classification models separately for vehicle and pedestians
   * __detection model__: person-vehicle-bike-detection-crossroad-007
-  * __1st classification model:__ person-attributes-recognition-crossroad-0200
+  * __1st classification model:__ person-attributes-recognition-crossroad-0230
   * __2nd classification model:__ vehicle-attributes-recognition-barrier-0039
   * __converters used:__
     * converter=attributes method=compound

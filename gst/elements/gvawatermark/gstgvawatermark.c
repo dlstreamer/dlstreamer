@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -43,13 +43,10 @@ enum { PROP_0 };
 #define DMA_BUFFER_CAPS
 #endif
 
-#ifndef DISABLE_VAAPI
-#define VA_SURFACE_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:VASurface", "{ NV12 }") "; "
-#else
 #define VA_SURFACE_CAPS
-#endif
 
 #define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA }")
+
 #define WATERMARK_CAPS DMA_BUFFER_CAPS VA_SURFACE_CAPS SYSTEM_MEM_CAPS
 #define VIDEO_SINK_CAPS WATERMARK_CAPS
 #define VIDEO_SRC_CAPS WATERMARK_CAPS

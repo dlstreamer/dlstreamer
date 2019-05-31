@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -24,14 +24,14 @@ using namespace InferenceBackend;
 class OpenVINOImageInference : public ImageInference {
   public:
     OpenVINOImageInference(std::string devices, std::string model, int batch_size, int nireq,
-                           const std::map<std::string, std::string> &config, CallbackFunc callback);
+                           const std::map<std::string, std::string> &config, Allocator *allocator,
+                           CallbackFunc callback);
 
     virtual ~OpenVINOImageInference();
+
     virtual void SubmitImage(const Image &image, IFramePtr user_data, std::function<void(Image &)> preProcessor);
 
     virtual const std::string &GetModelName() const;
-
-    virtual const std::string &GetLayerTypeByLayerName(const std::string &layer_name) const;
 
     virtual bool IsQueueFull();
 
@@ -40,33 +40,38 @@ class OpenVINOImageInference : public ImageInference {
     virtual void Close();
 
   protected:
-    typedef struct {
+    struct BatchRequest {
         InferenceEngine::InferRequest::Ptr infer_request;
         std::vector<IFramePtr> buffers;
-    } BatchRequest;
+        std::vector<InferenceBackend::Allocator::AllocContext *> alloc_context;
+    };
 
-    void GetNextImageBuffer(BatchRequest &request, Image *image);
+    void GetNextImageBuffer(std::shared_ptr<BatchRequest> request, Image *image);
 
     void WorkingFunction();
 
     bool resize_by_inference;
+    Allocator *allocator;
     CallbackFunc callback;
 
     // Inference Engine
     std::vector<InferenceEngine::InferencePlugin::Ptr> plugins;
     InferenceEngine::ConstInputsDataMap inputs;
-    std::map<std::string, std::string> layerNameToType;
+    InferenceEngine::ConstOutputsDataMap outputs;
     std::string modelName;
 
     // Threading
     int batch_size;
     std::thread working_thread;
-    SafeQueue<BatchRequest> freeRequests;
-    SafeQueue<BatchRequest> workingRequests;
+    SafeQueue<std::shared_ptr<BatchRequest>> freeRequests;
+    SafeQueue<std::shared_ptr<BatchRequest>> workingRequests;
 
     // VPP
     std::unique_ptr<PreProc> sw_vpp;
-    std::unique_ptr<PreProc> vaapi_vpp;
     bool already_flushed;
     std::mutex flush_mutex;
+
+  private:
+    void SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image *pSrc,
+                                       std::function<void(Image &)> preProcessor);
 };

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,12 +10,7 @@
 
 namespace InferenceBackend {
 
-enum class MemoryType {
-    ANY = 0,
-    SYSTEM = 1,
-    OPENCL = 2,
-    VAAPI = 3,
-};
+enum class MemoryType { ANY = 0, SYSTEM = 1, OPENCL = 2 };
 
 enum FourCC {
     FOURCC_NV12 = 0x3231564E,
@@ -26,7 +21,8 @@ enum FourCC {
     FOURCC_RGBA = 0x41424752,
     FOURCC_RGBX = 0x58424752,
     FOURCC_RGBP = 0x50424752,
-    FOURCC_I420 = 0x30323449
+    FOURCC_RGBP_F32 = 0x07282024,
+    FOURCC_I420 = 0x30323449,
 };
 
 struct Rectangle {
@@ -38,18 +34,15 @@ struct Rectangle {
 
 struct Image {
     MemoryType type;
+    static const unsigned MAX_PLANES_NUMBER = 4;
     union {
-        uint8_t *planes[4]; // if type==SYSTEM
-        void *cl_mem;       // if type==OPENCL
-        struct {            // if type==VAAPI
-            void *va_display;
-            unsigned int va_surface;
-        };
+        uint8_t *planes[MAX_PLANES_NUMBER]; // if type==SYSTEM
+        void *cl_mem;                       // if type==OPENCL
     };
     int format; // FourCC
     int width;
     int height;
-    int stride[4];
+    int stride[MAX_PLANES_NUMBER];
     Rectangle rect;
 };
 

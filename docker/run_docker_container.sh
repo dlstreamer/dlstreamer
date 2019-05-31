@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,13 +10,13 @@ set -e
 VIDEO_EXAMPLES_PATH=""
 INTEL_MODELS_PATH=""
 MODELS_PATH=""
-IMAGE_NAME="gstreamer-plugins"
+IMAGE_NAME=""
 
 for i in "$@"
 do
 case $i in
     -h|--help)
-    echo "usage: sudo ./run_gstreamer_plugin_container.sh [--video-examples-path=<path>]"
+    echo "usage: sudo ./run_docker_container.sh [--video-examples-path=<path>]"
     echo "[--intel-models-path=<path>] [--models-path=<path>] [--image-name=<name>]"
     exit 0
     ;;
@@ -47,6 +47,10 @@ docker run -it --privileged --net=host \
     -v ~/.Xauthority:/root/.Xauthority \
     -v /tmp/.X11-unix/:/tmp/.X11-unix/ \
     -e DISPLAY=$DISPLAY \
+    -e HTTP_PROXY=$HTTP_PROXY \
+    -e HTTPS_PROXY=$HTTPS_PROXY \
+    -e http_proxy=$http_proxy \
+    -e https_proxy=$https_proxy \
     \
     -v $INTEL_MODELS_PATH:/root/intel_models \
     -v $MODELS_PATH:/root/models \

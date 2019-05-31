@@ -8,7 +8,8 @@
   "output_postproc": [
     {
       "labels": ["","vehicle","license-plate"],
-      "converter": "DetectionOutput"
+      "converter": "DetectionOutput",
+      "layer_name": "DetectionOutput_"
     }
   ]
 }

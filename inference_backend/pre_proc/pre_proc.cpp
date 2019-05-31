@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,18 +7,18 @@
 #include "inference_backend/pre_proc.h"
 #include "config.h"
 
+using namespace InferenceBackend;
+
 namespace InferenceBackend {
 
-PreProc *CreatePreProcOpenCV();
-PreProc *CreatePreProcVAAPI();
-
 PreProc *PreProc::Create(MemoryType type) {
-#ifndef DISABLE_VAAPI
-    if (type == MemoryType::VAAPI)
-        return CreatePreProcVAAPI();
+    if (type == MemoryType::SYSTEM) {
+#ifdef HAVE_GAPI
+        return CreatePreProcGAPI();
 #endif
-    if (type == MemoryType::SYSTEM)
         return CreatePreProcOpenCV();
+    }
+
     return nullptr;
 }
 

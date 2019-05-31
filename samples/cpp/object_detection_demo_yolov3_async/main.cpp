@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  *
@@ -10,7 +10,7 @@
  * Adapted code style to match with Video Analytics GStreamer* plugins project
  ******************************************************************************/
 
-#include <experimental/filesystem>
+#include <dirent.h>
 #include <gio/gio.h>
 #include <gst/gst.h>
 #include <opencv2/opencv.hpp>
@@ -32,12 +32,28 @@ std::vector<std::string> SplitString(const std::string input, char delimiter = '
     return tokens;
 }
 
+void ExploreDir(std::string search_dir, const std::string &model_name, std::vector<std::string> &result) {
+    if (auto dir_handle = opendir(search_dir.c_str())) {
+        while (auto file_handle = readdir(dir_handle)) {
+            if ((!file_handle->d_name) || (file_handle->d_name[0] == '.'))
+                continue;
+            if (file_handle->d_type == DT_DIR)
+                ExploreDir(search_dir + file_handle->d_name + "/", model_name, result);
+            if (file_handle->d_type == DT_REG) {
+                std::string name(file_handle->d_name);
+                if (name == model_name)
+                    result.push_back(search_dir + "/" + name);
+            }
+        }
+        closedir(dir_handle);
+    }
+}
+
 std::vector<std::string> FindModel(const std::vector<std::string> &search_dirs, const std::string &model_name) {
     std::vector<std::string> result = {};
-    for (std::string dir : search_dirs)
-        for (auto &p : std::experimental::filesystem::recursive_directory_iterator(dir))
-            if (p.path().filename() == model_name)
-                result.push_back(p.path().string());
+    for (const std::string &dir : search_dirs) {
+        ExploreDir(dir + "/", model_name, result);
+    }
     return result;
 }
 
@@ -50,18 +66,20 @@ std::map<std::string, std::string> FindModels(const std::vector<std::string> &se
                                               const std::vector<std::string> &model_names,
                                               const std::string &precision) {
     std::map<std::string, std::string> result;
-    for (std::string model_name : model_names) {
+    for (const std::string &model_name : model_names) {
         std::vector<std::string> model_paths = FindModel(search_dirs, model_name);
         if (model_paths.empty())
-            throw std::runtime_error("Can't find file for model: " + model_name);
+            continue;
         result[model_name] = model_paths.front();
-        for (auto &model_path : model_paths)
+        for (const auto &model_path : model_paths)
             // TODO extract precision from xml file
             if (to_upper_case(model_path).find(to_upper_case(precision)) != std::string::npos) {
                 result[model_name] = model_path;
                 break;
             }
     }
+    if (result.empty())
+        throw std::runtime_error("Can't find file for model");
     return result;
 }
 
@@ -72,7 +90,7 @@ const std::string env_models_path =
                                ? std::string() + getenv("INTEL_CVSDK_DIR") + "/deployment_tools/intel_models" + "/"
                                : "");
 
-const std::vector<std::string> default_detection_model_names = {"yolov3.xml"};
+const std::vector<std::string> default_detection_model_names = {"yolov3.xml", "frozen_darknet_yolov3_model.xml"};
 
 gchar *input_file = NULL;
 gchar const *detection_model = NULL;
@@ -212,7 +230,7 @@ void DrawObjects(std::vector<DetectionObject> &objects, cv::Mat &frame) {
                 objects[j].confidence = 0;
     }
     // Drawing boxes
-    for (auto &object : objects) {
+    for (const auto &object : objects) {
         if (object.confidence < 0)
             continue;
         guint label = object.class_id;
@@ -294,7 +312,10 @@ int main(int argc, char *argv[]) {
     if (detection_model == NULL) {
         std::map<std::string, std::string> model_paths =
             FindModels(SplitString(env_models_path), default_detection_model_names, model_precision);
-        detection_model = g_strdup(model_paths["yolov3.xml"].c_str());
+        for (const std::string &default_model_name : default_detection_model_names) {
+            if (!model_paths[default_model_name].empty())
+                detection_model = g_strdup(model_paths[default_model_name].c_str());
+        }
     }
 
     if (!detection_model) {
@@ -305,7 +326,7 @@ int main(int argc, char *argv[]) {
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
     gchar const *capfilter = "video/x-raw";
     gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
-                                   : "fpsdisplaysink video-sink=glimagesink sync=false";
+                                   : "fpsdisplaysink video-sink=ximagesink sync=false";
 
     // Build the pipeline
     auto launch_str =

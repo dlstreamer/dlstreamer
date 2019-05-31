@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  *
@@ -37,6 +37,15 @@ bool file_exists(const std::string &name) {
     return f.good();
 }
 
+const std::string gallery_file_format = ".json";
+bool ends_with(const std::string &str, const std::string &end_str) {
+    if (str.length() < end_str.length()) {
+        size_t file_format_first_index = str.length() - end_str.length();
+        return (str.substr(file_format_first_index) != end_str);
+    }
+    return false;
+}
+
 inline char separator() {
 #ifdef _WIN32
     return '\\';
@@ -60,8 +69,17 @@ const int EmbeddingsGallery::unknown_id = TrackedObject::UNKNOWN_LABEL_IDX;
 
 EmbeddingsGallery::EmbeddingsGallery(const std::string &ids_list, double threshold) : reid_threshold(threshold) {
     if (ids_list.empty()) {
-        std::cout << "Warning: face reid gallery is empty!"
-                  << "\n";
+        g_warning("Face reid gallery is empty!");
+        return;
+    }
+
+    if (ends_with(ids_list, gallery_file_format)) {
+        g_warning("Face reid gallery '%s' is not json-file!", ids_list.c_str());
+        return;
+    }
+
+    if (!g_file_test(ids_list.c_str(), G_FILE_TEST_EXISTS)) {
+        g_warning("Face reid gallery '%s' does not exist!", ids_list.c_str());
         return;
     }
 
@@ -74,13 +92,13 @@ EmbeddingsGallery::EmbeddingsGallery(const std::string &ids_list, double thresho
         std::vector<cv::Mat> features;
 
         if (!item.isMap()) {
-            std::cout << "Warning: wrong json format. " << label << " is not a mapping" << std::endl;
+            g_warning("Wrong json format. %s is not a mapping", label.c_str());
             continue;
         }
 
         cv::FileNode features_item = item["features"];
         if (features_item.isNone()) {
-            std::cout << "Warning: no features for label: " << label << std::endl;
+            g_warning("No features for label: %s", label.c_str());
             continue;
         }
 
@@ -103,7 +121,7 @@ EmbeddingsGallery::EmbeddingsGallery(const std::string &ids_list, double thresho
                 features.push_back(emb);
                 idx_to_id.push_back(id); // this line fixed. Was: (total_images)
             } else {
-                std::cout << "Warning: Failed to open feature file: " << path << std::endl;
+                g_warning("Failed to open feature file: %s", path.c_str());
             }
         }
         identities.emplace_back(features, label, id);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,6 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#cmakedefine DISABLE_VAAPI
+#cmakedefine HAVE_GAPI
 
 #endif

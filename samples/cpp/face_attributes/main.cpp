@@ -1,11 +1,11 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include <algorithm>
-#include <experimental/filesystem>
+#include <dirent.h>
 #include <gio/gio.h>
 #include <gst/gst.h>
 #include <opencv2/opencv.hpp>
@@ -29,12 +29,28 @@ std::vector<std::string> SplitString(const std::string input, char delimiter = '
     return tokens;
 }
 
+void ExploreDir(std::string search_dir, const std::string &model_name, std::vector<std::string> &result) {
+    if (auto dir_handle = opendir(search_dir.c_str())) {
+        while (auto file_handle = readdir(dir_handle)) {
+            if ((!file_handle->d_name) || (file_handle->d_name[0] == '.'))
+                continue;
+            if (file_handle->d_type == DT_DIR)
+                ExploreDir(search_dir + file_handle->d_name + "/", model_name, result);
+            if (file_handle->d_type == DT_REG) {
+                std::string name(file_handle->d_name);
+                if (name == model_name)
+                    result.push_back(search_dir + "/" + name);
+            }
+        }
+        closedir(dir_handle);
+    }
+}
+
 std::vector<std::string> FindModel(const std::vector<std::string> &search_dirs, const std::string &model_name) {
     std::vector<std::string> result = {};
-    for (std::string dir : search_dirs)
-        for (auto &p : experimental::filesystem::recursive_directory_iterator(dir))
-            if (p.path().filename() == model_name)
-                result.push_back(p.path().string());
+    for (std::string dir : search_dirs) {
+        ExploreDir(dir + "/", model_name, result);
+    }
     return result;
 }
 
@@ -72,7 +88,7 @@ const std::string env_models_path =
 const std::vector<std::string> default_detection_model_names = {"face-detection-adas-0001.xml"};
 
 const std::vector<std::string> default_classification_model_names = {
-    "facial-landmarks-35-adas-0001.xml", "age-gender-recognition-retail-0013.xml",
+    "facial-landmarks-35-adas-0002.xml", "age-gender-recognition-retail-0013.xml",
     "emotions-recognition-retail-0003.xml", "head-pose-estimation-adas-0001.xml"};
 
 gchar const *detection_model = NULL;
@@ -206,7 +222,7 @@ int main(int argc, char *argv[]) {
     if (classification_models == NULL) {
         std::map<std::string, std::string> model_paths =
             FindModels(SplitString(env_models_path), default_classification_model_names, model_precision);
-        std::string classification_models_str = model_paths["facial-landmarks-35-adas-0001.xml"] + "," +
+        std::string classification_models_str = model_paths["facial-landmarks-35-adas-0002.xml"] + "," +
                                                 model_paths["age-gender-recognition-retail-0013.xml"] + "," +
                                                 model_paths["emotions-recognition-retail-0003.xml"] + "," +
                                                 model_paths["head-pose-estimation-adas-0001.xml"];
@@ -216,11 +232,11 @@ int main(int argc, char *argv[]) {
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
     gchar const *capfilter = "video/x-raw";
     gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
-                                   : "fpsdisplaysink video-sink=glimagesink sync=false";
+                                   : "fpsdisplaysink video-sink=ximagesink sync=false";
 
     // Build the pipeline
     auto launch_str = g_strdup_printf("filesrc location=%s ! %s ! capsfilter caps=\"%s\" ! "
-                                      "gvainference model=%s device=%s batch-size=%d ! queue ! "
+                                      "gvadetect model=%s device=%s batch-size=%d ! queue ! "
                                       "gvaclassify  model=%s device=%s batch-size=%d ! queue ! "
                                       "gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! %s",
                                       input_file, preprocess_pipeline, capfilter, detection_model, device, batch_size,

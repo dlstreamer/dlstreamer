@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,6 +17,7 @@
 namespace InferenceBackend {
 
 class OutputBlob;
+class Allocator;
 
 class ImageInference {
   public:
@@ -32,12 +33,12 @@ class ImageInference {
         CallbackFunc;
 
     static Ptr make_shared(MemoryType type, std::string devices, std::string model, int batch_size, int nireq,
-                           const std::map<std::string, std::string> &config, CallbackFunc callback);
+                           const std::map<std::string, std::string> &config, Allocator *allocator,
+                           CallbackFunc callback);
 
     virtual void SubmitImage(const Image &image, IFramePtr user_data, std::function<void(Image &)> preProcessor) = 0;
 
     virtual const std::string &GetModelName() const = 0;
-    virtual const std::string &GetLayerTypeByLayerName(const std::string &layer_name) const = 0;
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -56,6 +57,13 @@ class OutputBlob {
     virtual Layout GetLayout() const = 0;
     virtual Precision GetPrecision() const = 0;
     virtual const void *GetData() const = 0;
+};
+
+class Allocator {
+  public:
+    struct AllocContext;
+    virtual void Alloc(size_t size, void *&buffer_ptr, AllocContext *&alloc_context) = 0;
+    virtual void Free(AllocContext *alloc_context) = 0;
 };
 
 #define __CONFIG_KEY(name) KEY_##name

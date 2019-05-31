@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,7 +14,6 @@ typedef struct _GstGvaIdentify GstGvaIdentify;
 
 #ifdef __cplusplus
 
-#include "blob2metadata.h"
 #include "inference_backend/image_inference.h"
 #include "reid_gallery.h"
 #include "tracker.h"

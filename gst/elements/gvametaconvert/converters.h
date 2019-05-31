@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,11 +12,6 @@
 #include <gst/gst.h>
 #include <string.h>
 
-typedef struct {
-    const gchar *name;
-    convert_function_type function;
-} ConverterMap;
-
-extern ConverterMap converters[];
+GHashTable *get_converters();
 
 #endif /* __CONVERTERS_H__ */

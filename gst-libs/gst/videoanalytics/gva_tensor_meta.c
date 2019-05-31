@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -127,24 +127,6 @@ GstGVATensorMeta *find_tensor_meta(GstBuffer *buffer, const char *model_name, co
 }
 
 /////////////////////////////////////////////////////////////////////////////////////////
-
-guint gva_tensor_number_elements(GstGVATensorMeta *meta) {
-    return meta->dims[0] ? meta->dims[0] : 1;
-}
-
-guint gva_tensor_element_size(GstGVATensorMeta *meta) {
-    guint size = 1;
-    for (guint i = 1; i < meta->rank && i < GVA_TENSOR_MAX_RANK; i++) {
-        if (meta->dims[i])
-            size *= meta->dims[i];
-    }
-    return size;
-}
-
-void *gva_tensor_get_element(GstGVATensorMeta *meta, int index) {
-    int number_elements = gva_tensor_number_elements(meta);
-    return (int8_t *)meta->data + index * meta->total_bytes / number_elements;
-}
 
 guint gva_tensor_size(GstGVATensorMeta *meta) {
     guint size = 1;

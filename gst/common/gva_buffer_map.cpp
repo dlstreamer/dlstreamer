@@ -1,14 +1,11 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gva_buffer_map.h"
 #include "inference_backend/logger.h"
-#ifndef DISABLE_VAAPI
-#include "gst_vaapi_plugins_utils.h"
-#endif
 #include <gst/allocators/allocators.h>
 
 #define VA_CALL(_FUNC)                                                                                                 \
@@ -44,39 +41,26 @@ inline int gstFormatToFourCC(int format) {
 
 bool gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext, GstVideoInfo *info,
                     InferenceBackend::MemoryType memoryType) {
+    (void)(memoryType);
+
     image = {};
     mapContext = {};
+
+    guint n_planes = info->finfo->n_planes;
+    if (n_planes > InferenceBackend::Image::MAX_PLANES_NUMBER)
+        throw std::logic_error("Planes number " + std::to_string(n_planes) + " isn't supported");
 
     image.format = gstFormatToFourCC(info->finfo->format);
     image.width = static_cast<int>(info->width);
     image.height = static_cast<int>(info->height);
-    for (int i = 0; i < 4; i++) {
+    for (guint i = 0; i < n_planes; i++) {
         image.stride[i] = info->stride[i];
     }
-
-#ifndef DISABLE_VAAPI
-    GstMemory *mem = gst_buffer_get_memory(buffer, 0);
-    if (mem && gst_memory_is_type(mem, "GstVaapiVideoMemory")) {
-        image.type = InferenceBackend::MemoryType::VAAPI;
-        GstVaapi_GetDisplayAndSurface(buffer, image.va_display, image.va_surface);
-
-        if (memoryType == InferenceBackend::MemoryType::SYSTEM) {
-            void *surface_p;
-            mapContext.va_display = image.va_display;
-            VA_CALL(vaDeriveImage(image.va_display, image.va_surface, &mapContext.va_image));
-            VA_CALL(vaMapBuffer(image.va_display, mapContext.va_image.buf, &surface_p));
-            for (int i = 0; i < 4; i++) {
-                image.planes[i] = (uint8_t *)surface_p + info->offset[i];
-            }
-            image.type = InferenceBackend::MemoryType::SYSTEM;
-        }
-    } else
-#endif
     {
         if (!gst_buffer_map(buffer, &mapContext.gstMapInfo, GST_MAP_READ)) {
             GST_ERROR("gva_buffer_map: gst_buffer_map failed\n");
         }
-        for (int i = 0; i < 4; i++) {
+        for (guint i = 0; i < n_planes; i++) {
             image.planes[i] = mapContext.gstMapInfo.data + info->offset[i];
         }
     }
@@ -87,10 +71,4 @@ void gva_buffer_unmap(GstBuffer *buffer, InferenceBackend::Image &, BufferMapCon
     if (mapContext.gstMapInfo.size) {
         gst_buffer_unmap(buffer, &mapContext.gstMapInfo);
     }
-#ifndef DISABLE_VAAPI
-    if (mapContext.va_display) {
-        VA_CALL(vaUnmapBuffer(mapContext.va_display, mapContext.va_image.buf));
-        VA_CALL(vaDestroyImage(mapContext.va_display, mapContext.va_image.image_id));
-    }
-#endif
 }

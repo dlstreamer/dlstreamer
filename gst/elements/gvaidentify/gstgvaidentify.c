@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -56,13 +56,10 @@ enum { PROP_0, PROP_MODEL, PROP_GALLERY, PROP_THRESHOLD, PROP_TRACKER };
 #define DMA_BUFFER_CAPS
 #endif
 
-#ifndef DISABLE_VAAPI
-#define VA_SURFACE_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:VASurface", "{ NV12 }") "; "
-#else
 #define VA_SURFACE_CAPS
-#endif
 
 #define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA }")
+
 #define INFERENCE_CAPS DMA_BUFFER_CAPS VA_SURFACE_CAPS SYSTEM_MEM_CAPS
 #define VIDEO_SINK_CAPS INFERENCE_CAPS
 #define VIDEO_SRC_CAPS INFERENCE_CAPS
@@ -158,6 +155,44 @@ static void gst_gva_identify_reset(GstGvaIdentify *gvaidentify) {
     gvaidentify->initialized = FALSE;
 }
 
+static gboolean check_gva_identify_stopped(GstGvaIdentify *gvaidentify) {
+    GstState state;
+    gboolean is_stopped;
+
+    GST_OBJECT_LOCK(gvaidentify);
+    state = GST_STATE(gvaidentify);
+    is_stopped = state == GST_STATE_READY || state == GST_STATE_NULL;
+    GST_OBJECT_UNLOCK(gvaidentify);
+    return is_stopped;
+}
+
+static void gst_gva_identify_set_model(GstGvaIdentify *gvaidentify, const gchar *model_path) {
+
+    if (check_gva_identify_stopped(gvaidentify)) {
+        if (model_path != NULL) {
+            if (gvaidentify->model)
+                g_free(gvaidentify->model);
+            gvaidentify->model = g_strdup(model_path);
+            GST_INFO("Model : %s", gvaidentify->model);
+        } else {
+            g_warning("You cannot change 'model' property on gvaidentify when a file is open");
+        }
+    }
+}
+
+static void gst_gva_inference_set_gallery(GstGvaIdentify *gvaidentify, const gchar *gallery_path) {
+    if (check_gva_identify_stopped(gvaidentify)) {
+        if (gallery_path != NULL) {
+            if (gvaidentify->gallery)
+                g_free(gvaidentify->gallery);
+            gvaidentify->gallery = g_strdup(gallery_path);
+            GST_INFO("Gallery: %s", gvaidentify->gallery);
+        } else {
+            g_warning("You cannot change 'gallery' property on gvaidentify when a file is open");
+        }
+    }
+}
+
 static GstStateChangeReturn gst_gva_identify_change_state(GstElement *element, GstStateChange transition) {
     GstStateChangeReturn ret;
     GstGvaIdentify *gvaidentify;
@@ -194,10 +229,10 @@ void gst_gva_identify_set_property(GObject *object, guint property_id, const GVa
 
     switch (property_id) {
     case PROP_MODEL:
-        gvaidentify->model = g_value_dup_string(value);
+        gst_gva_identify_set_model(gvaidentify, g_value_get_string(value));
         break;
     case PROP_GALLERY:
-        gvaidentify->gallery = g_value_dup_string(value);
+        gst_gva_inference_set_gallery(gvaidentify, g_value_get_string(value));
         break;
     case PROP_TRACKER:
         gvaidentify->tracker = g_value_get_boolean(value);

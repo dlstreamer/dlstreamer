@@ -1,6 +1,6 @@
 #!/bin/python3
 # ==============================================================================
-# Copyright (C) <2018-2019> Intel Corporation
+# Copyright (C) 2018-2019 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -49,37 +49,34 @@ def get_models_path():
 
 def find_model_path(model_name, models_dir_list):
     model_path_list = []
+    file_pattern = "*{}.xml".format(model_name)
     for models_dir in models_dir_list:
         if not os.path.exists(models_dir):
             continue
-        for file_path in find_files(models_dir, "*.xml"):
-            if model_name.lower() in file_path.lower():
-                model_path_list.append(file_path)
+        model_path_list += find_files(models_dir, file_pattern)
     return model_path_list
 
-def find_models_paths(model_names, models_dir_list, precision="FP32"):
+def find_models_paths(model_names, models_dir_list):
     if not model_names:
         raise ValueError("Model names are not set")
     if not models_dir_list:
         raise ValueError("Model directories are not set")        
- 
+
     d = {}
     for model_name in model_names:
         d[model_name] = None
         model_path_list = find_model_path(model_name, models_dir_list)
         if not model_path_list:
             continue
-        l = list(filter(lambda x: precision.lower() in x.lower(), model_path_list))
-        if not l:
-            print("Warning: can't find model: {} with precission: {}".format(model_name, precision))
-            continue    
-        d[model_name] = l.pop()
+        if len(model_path_list) > 1:
+            print("Warning: Find few models with name: {}. Take the first.".format(model_name))
+        d[model_name] = model_path_list.pop(0)
     return d
 
 pipeline_template = "gst-launch-1.0 filesrc location={input_file} ! decodebin ! video/x-raw ! videoconvert ! \
-        gvainference model={detection_model} ! \
+        gvadetect model={detection_model} ! \
         gvaclassify model={identification_model} ! \
-        gvametaconvert model={identification_model} converter=tensors-to-file method={label} location={output_dir} ! \
+        gvametaconvert model={identification_model} converter=tensors-to-file tags={label} location={output_dir} ! \
         fakesink sync=false"
 feature_file_regexp_template = r"^{label}_\d+_frame_\d+_idx_\d+.tensor$"
 
@@ -87,7 +84,7 @@ feature_file_regexp_template = r"^{label}_\d+_frame_\d+_idx_\d+.tensor$"
 default_detection_model = "face-detection-adas-0001"
 default_identification_model = "face-reidentification-retail-0095"
 default_models_paths = None if not get_models_path() else get_models_path().split(":")
-models_paths = find_models_paths([default_detection_model, default_identification_model], default_models_paths, "FP32")
+models_paths = find_models_paths([default_detection_model, default_identification_model], default_models_paths)
 
 default_detection_path = models_paths.get(default_detection_model)
 default_identification_path = models_paths.get(default_identification_model)

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -50,6 +50,9 @@ GValue jsonvalue2gvalue(nlohmann::json::reference value) {
 
 std::map<std::string, GstStructure *> ReadModelProc(std::string filepath) {
     std::ifstream input_file(filepath);
+    if (!input_file) {
+        throw std::runtime_error("Error loading json file: " + filepath + ", File was not found.");
+    }
     json j;
     input_file >> j;
     input_file.close();

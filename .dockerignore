@@ -4,3 +4,4 @@ build/
 _release/
 docker/**/*.tgz
 docker/**/*.tar.gz
+.vscode

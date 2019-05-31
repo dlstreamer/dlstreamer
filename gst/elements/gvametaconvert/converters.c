@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,7 +11,6 @@
 #include "gva_json_meta.h"
 #include "gva_roi_meta.h"
 #include "gva_tensor_meta.h"
-#include "gva_utils.h"
 
 #define UNUSED(x) (void)(x)
 
@@ -30,14 +29,14 @@ int check_model_and_layer_name(GstStructure *s, gchar *model_name, gchar *layer_
 }
 
 void to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    if (!converter->method || g_strcmp0(converter->method, "all") == 0) {
+    if (converter->method == GST_GVA_METACONVERT_ALL) {
         all_to_json(converter, buffer);
-    } else if (g_strcmp0(converter->method, "detection") == 0) {
+    } else if (converter->method == GST_GVA_METACONVERT_DETECTION) {
         detection_to_json(converter, buffer);
-    } else if (g_strcmp0(converter->method, "tensor") == 0) {
+    } else if (converter->method == GST_GVA_METACONVERT_TENSOR) {
         tensor_to_json(converter, buffer);
     } else {
-        GST_DEBUG_OBJECT(converter, "Invalid method input \"%s\"", converter->method);
+        GST_DEBUG_OBJECT(converter, "Invalid method input");
     }
 }
 
@@ -50,6 +49,19 @@ void dump_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         GST_INFO("Detection: "
                  "id: %d, x: %d, y: %d, w: %d, h: %d, roi_type: %s",
                  meta->id, meta->x, meta->y, meta->w, meta->h, g_quark_to_string(meta->roi_type));
+    }
+}
+
+void dump_classification(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    UNUSED(converter);
+
+    GstVideoRegionOfInterestMeta *meta = NULL;
+    gpointer state = NULL;
+    while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
+        for (GList *l = meta->params; l; l = g_list_next(l)) {
+            GstStructure *s = (GstStructure *)l->data;
+            GST_DEBUG("Classification:\n\tmeta_id %d\n\tlabel %s", meta->id, gst_structure_get_string(s, "label"));
+        }
     }
 }
 
@@ -79,7 +91,7 @@ void dump_tensors(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                  "\t model: %s\n"
                  "\t dims: %zu,%zu,%zu,%zu,%zu\n"
                  "\t data: { %s... }\n",
-                 meta->element_id, meta->total_bytes, gva_tensor_number_elements(meta), meta->rank, meta->layer_name,
+                 meta->element_id, meta->total_bytes, gva_tensor_size(meta), meta->rank, meta->layer_name,
                  meta->model_name, meta->dims[0], meta->dims[1], meta->dims[2], meta->dims[3], meta->dims[4], buffer);
     }
 }
@@ -100,7 +112,7 @@ void tensors_to_file(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                 continue;
             char filename[PATH_MAX] = {0};
             g_snprintf(filename, sizeof(filename), "%s/%s_frame_%u_idx_%u.tensor", converter->location,
-                       converter->method ? converter->method : "default", frame_num, index);
+                       converter->tags ? converter->tags : "default", frame_num, index);
             FILE *f = fopen(filename, "wb");
             if (f) {
                 fwrite(data, sizeof(float), nbytes / sizeof(float), f);
@@ -133,6 +145,21 @@ void tensor2text(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     }
 }
 
-ConverterMap converters[] = {{"tensor2text", tensor2text},         {"json", to_json},
-                             {"dump-detection", dump_detection},   {"dump-tensors", dump_tensors},
-                             {"tensors-to-file", tensors_to_file}, {NULL, NULL}};
+void add_fullframe_roi(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    GstVideoInfo *info = converter->info;
+    gst_buffer_add_video_region_of_interest_meta(buffer, "full_frame", 0, 0, info->width, info->height);
+}
+
+GHashTable *get_converters() {
+    GHashTable *converters = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_TENSOR2TEXT), tensor2text);
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_JSON), to_json);
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_DUMP_DETECTION), dump_detection);
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_DUMP_CLASSIFICATION), dump_classification);
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_DUMP_TENSORS), dump_tensors);
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_TENSORS_TO_FILE), tensors_to_file);
+    g_hash_table_insert(converters, GINT_TO_POINTER(GST_GVA_METACONVERT_ADD_FULL_FRAME_ROI), add_fullframe_roi);
+
+    return converters;
+}
