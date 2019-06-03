@@ -11,7 +11,7 @@ The **gvaclassify** element typically inserted into pipeline after gvadetect and
 
 The **gvainference** element generates and attaches to the frame custom metadata _GstGVATensorMeta (as many instances as output layers in the model) containing tensor raw data and additional information such as tensor dimensions, data precision, etc.
 
-Taking the following pipeline as example
+Taking the following pipeline as example:
 ```
 MODEL1=face-detection-adas-0001
 MODEL2=age-gender-recognition-retail-0013

@@ -1,0 +1,26 @@
+# This will run on Travis' 'new' container-based infrastructure
+sudo: false 
+
+# Blacklist
+branches:
+  only:
+    - master
+
+# Install dependencies
+addons:
+  apt:
+    packages:
+      - doxygen
+
+# Build your code e.g. by calling make
+script:
+  - doxygen Doxyfile
+
+# Generate and deploy documentation
+deploy:
+  provider: pages
+  skip_cleanup: true
+  local_dir: html
+  github_token: $GH_REPO_TOKEN
+  on:
+    branch: master
