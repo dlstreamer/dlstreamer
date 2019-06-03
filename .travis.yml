@@ -14,13 +14,14 @@ addons:
 
 # Build your code e.g. by calling make
 script:
+  - cd gst-libs/gst/videoanalytics
   - doxygen Doxyfile
 
 # Generate and deploy documentation
 deploy:
   provider: pages
   skip_cleanup: true
-  local_dir: html
+  local_dir: gst-libs/gst/videoanalytics/html
   github_token: $GH_REPO_TOKEN
   on:
     branch: master
