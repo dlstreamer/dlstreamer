@@ -10,7 +10,7 @@ branches:
 addons:
   apt:
     packages:
-      - doxygen-1.8.15
+      - doxygen:1.8.7-2~trusty1
 
 # Build your code e.g. by calling make
 script:
