@@ -1,23 +1,23 @@
-# This will run on Travis' 'new' container-based infrastructure
-sudo: false 
+sudo: false
 
-# Blacklist
+dist: xenial
+
 branches:
   only:
     - master
 
-# Install dependencies
+# Install doxygen
 addons:
   apt:
     packages:
       - doxygen
 
-# Build your code e.g. by calling make
+# Build API reference
 script:
   - cd gst-libs/gst/videoanalytics
   - doxygen Doxyfile
 
-# Generate and deploy documentation
+# Deploy API reference
 deploy:
   provider: pages
   skip_cleanup: true
