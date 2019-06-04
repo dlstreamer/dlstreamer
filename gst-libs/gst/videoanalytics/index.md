@@ -28,7 +28,7 @@ The gvadetect detected three faces, it will attach three metadata objects each c
 
 "C"/C++ application can iterate objects and inference results using GStreamer API similar to code snapshot below
 
-```
+```sh
 #include <gst/video/video.h>
 void print_meta(GstBuffer *buffer) {
     gpointer state = NULL;
@@ -55,7 +55,7 @@ void print_meta(GstBuffer *buffer) {
 ```
 
 For C++ application the the header-only C++ utility gva_roi_meta.h helps to simplify the code above by C++ classes with get/set functions and C++ iterators for [GstVideoRegionOfInterestMeta](https://github.com/GStreamer/gst-plugins-base/blob/master/gst-libs/gst/video/gstvideometa.h#L275). GVA::RegionOfInterest and GVA::RegionOfInterestList are classes to refer and interate through metadata accordingly.  
-```
+```sh
 #include "gva_roi_meta.h"
 void PrintMeta(GstBuffer *buffer) {
     GVA::RegionOfInterestList roi_list(buffer);
