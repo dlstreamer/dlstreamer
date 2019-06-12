@@ -90,6 +90,9 @@ option(HAVE_GAPI "Parameter to enable GAPI for image preprocessing" OFF)
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
 option(ENABLE_DOCUMENTATION "Parameter to enable documentation generation" OFF)
 
+find_library(MQTT paho-mqtt3c)
+find_library(KAFKA rdkafka)
+
 configure_file(cmake/config.h.in configs/config.h @ONLY)
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/configs)
