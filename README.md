@@ -1,6 +1,8 @@
 # GStreamer Video Analytics (GVA) Plugin
 
 ## Overview
+<div align="center"><img src="intro.gif" width=900/></div>
+
 This repository contains GStreamer elements that enable CNN model-based video analytics capabilities in the GStreamer framework. These elements include such things as object detection, classification, and recognition. 
 
 The solution leverages:
