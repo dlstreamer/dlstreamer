@@ -3,7 +3,10 @@
 ## Overview
 <div align="center"><img src="intro.gif" width=900/></div>
 
-This repository contains GStreamer elements that enable CNN model-based video analytics capabilities in the GStreamer framework. These elements include such things as object detection, classification, and recognition. 
+This repository contains GStreamer elements that enable CNN model-based video analytics capabilities in the GStreamer framework. These elements include such things as object detection, classification, and recognition. Example above shows concise GStreamer pipeline that runs detection & emotion classification, using specific models on a video file:
+```sh
+gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! ximagesink sync=false
+```
 
 The solution leverages:
 * Open-source GStreamer framework for pipeline management
@@ -23,16 +26,6 @@ Diagram color key:
 * Oher Intel components: dark blue
 * Standard GStreamer components: gray
 * Linux kernel: green
-
-### Example
-The following command results in a GStreamer pipeline that runs detection & emotion classifications, using specific models on a video file:
-
-```sh
-gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! ximagesink sync=false
-```
-
-The output from this command, using a specific video, is:
-<div align="center"><img src="intro.gif" width=900/></div>
 
 ## License
 The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE).
