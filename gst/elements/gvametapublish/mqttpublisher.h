@@ -27,9 +27,9 @@ struct _MQTTPublishConfig {
     gboolean signal_handoffs;
 };
 
-MQTTClient* mqtt_open_connection(MQTTPublishConfig *gvametapublish);
-void mqtt_close_connection(MQTTClient* client);
-MetapublishStatusMessage mqtt_write_message(MQTTClient* client, MQTTPublishConfig *gvametapublish, GstBuffer *buffer);
+MQTTClient mqtt_open_connection(MQTTPublishConfig *gvametapublish);
+void mqtt_close_connection(MQTTClient client);
+MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig *gvametapublish, GstBuffer *buffer);
 
 #endif
 

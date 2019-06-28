@@ -35,7 +35,7 @@ gint CloseConnection() {
     MetapublishImpl *mp = getMPInstance();
     if (mp->type == PUBLISH_MQTT) {
         mqtt_close_connection(mp->mqtt_client);
-        //g_free(mp->mqtt_config);
+        g_free(mp->mqtt_config);
     }
     return 0;
 }
