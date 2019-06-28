@@ -14,12 +14,14 @@ using json = nlohmann::json;
 
 json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json res;
+    GstSegment converter_segment = converter->base_gvametaconvert.segment;
+    GstClockTime timestamp = gst_segment_to_stream_time(&converter_segment, GST_FORMAT_TIME, buffer->pts);
     if (converter->info)
         res["resolution"] = json::object({{"width", converter->info->width}, {"height", converter->info->height}});
     if (converter->source)
         res["source"] = converter->source;
-    if (buffer->pts)
-        res["timestamp"] = buffer->pts;
+    if (timestamp != G_MAXUINT64)
+        res["timestamp"] = timestamp - converter_segment.time;
     if (converter->tags && json::accept(converter->tags))
         res["tags"] = json::parse(converter->tags);
     return res;

@@ -5,10 +5,10 @@
  ******************************************************************************/
 
 #include "gstgvametapublish.h"
-#include "brokers.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
+#include "metapublish_impl.h"
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_publish_debug_category
@@ -46,8 +46,10 @@ enum {
 static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 
 // File specific constants
-#define DEFAULT_PUBLISH_METHOD "file"
+#define DEFAULT_PUBLISH_METHOD "mqtt"
 #define DEFAULT_FILE_PATH NULL
+#define OF_BATCH "batch"
+#define OF_STREAM "stream"
 #define DEFAULT_OUTPUT_FORMAT OF_BATCH
 
 // Broker specific constants
@@ -74,7 +76,7 @@ enum {
 /* pad templates */
 
 #ifdef SUPPORT_DMA_BUFFER
-#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:DMABuf", "{ I420 }") "; "
+#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:DMABuf", "{ NV12 }") "; "
 #else
 #define DMA_BUFFER_CAPS
 #endif
@@ -184,16 +186,6 @@ void gst_gva_meta_publish_set_property(GObject *object, guint property_id, const
     case PROP_PUBLISH_METHOD:
         g_free(gvametapublish->method);
         gvametapublish->method = g_value_dup_string(value);
-        for (int i = 0; i < lengthOfBrokers; i++) {
-            if (!g_strcmp0(gvametapublish->method, brokers[i].name)) {
-                gvametapublish->broker_function = brokers[i].function;
-                if (brokers[i].initializefunction != NULL)
-                    gvametapublish->broker_initializefunction = brokers[i].initializefunction;
-                if (brokers[i].finalizefunction != NULL)
-                    gvametapublish->broker_finalizefunction = brokers[i].finalizefunction;
-                break;
-            }
-        }
         break;
     case PROP_FILE_PATH:
         g_free(gvametapublish->file_path);
@@ -357,7 +349,7 @@ static gboolean gst_gva_meta_publish_set_caps(GstBaseTransform *trans, GstCaps *
 static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(trans);
 
-    if (!(gvametapublish->method) || gvametapublish->method == NULL) {
+    /*if (!(gvametapublish->method) || gvametapublish->method == NULL) {
         GST_ELEMENT_ERROR(gvametapublish, RESOURCE, NOT_FOUND, (NULL),
                           ("Error: Missing a required element property, Method=?\n"));
         return FALSE;
@@ -368,8 +360,20 @@ static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
             // TOBY: REPORT FILE EXISTS ERROR, etc
             return FALSE;
         }
-    }
+    }*/
 
+    //Create oop
+    MetapublishImpl *mp = getMPInstance();
+    if (!g_strcmp0(gvametapublish->method, "file")) {
+        mp->type = PUBLISH_FILE;
+    }
+    if (!g_strcmp0(gvametapublish->method, "kafka")) {
+        mp->type = PUBLISH_KAFKA;
+    }
+    if (!g_strcmp0(gvametapublish->method, "mqtt")) {
+        mp->type = PUBLISH_MQTT;
+    }
+    OpenConnection(gvametapublish);
     GST_DEBUG_OBJECT(gvametapublish, "start");
 
     return TRUE;
@@ -382,9 +386,13 @@ static gboolean gst_gva_meta_publish_stop(GstBaseTransform *trans) {
     if (gvametapublish == NULL)
         return FALSE;
 
-    if (gvametapublish->broker_finalizefunction) {
+    /*if (gvametapublish->broker_finalizefunction) {
         gvametapublish->broker_finalizefunction(gvametapublish);
-    }
+    }*/
+
+    printf("Attempt to Close Connection");
+    CloseConnection();
+    printf("Close Connection success");
 
     gst_gva_meta_publish_reset(gvametapublish);
 
@@ -407,7 +415,7 @@ static void gst_gva_meta_publish_before_transform(GstBaseTransform *trans, GstBu
     GstClockTime timestamp;
 
     timestamp = gst_segment_to_stream_time(&trans->segment, GST_FORMAT_TIME, GST_BUFFER_TIMESTAMP(buffer));
-    GST_LOG_OBJECT(gvametapublish, "Got stream time of %" GST_TIME_FORMAT, GST_TIME_ARGS(timestamp));
+    GST_LOG_OBJECT(gvametapublish, "Got stream time of %d" GST_TIME_FORMAT, GST_TIME_ARGS(timestamp));
     if (GST_CLOCK_TIME_IS_VALID(timestamp))
         gst_object_sync_values(GST_OBJECT(trans), timestamp);
 }
@@ -420,8 +428,8 @@ static GstFlowReturn gst_gva_meta_publish_transform_ip(GstBaseTransform *trans, 
         GST_DEBUG_OBJECT(gvametapublish, "Signal handoffs");
         g_signal_emit(gvametapublish, gst_interpret_signals[SIGNAL_HANDOFF], 0, buf);
 
-    } else if (gvametapublish->broker_function) {
-        gvametapublish->broker_function(gvametapublish, buf);
+    } else {
+        WriteMessage(gvametapublish, buf);
     }
 
     return GST_FLOW_OK;
