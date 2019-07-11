@@ -5,10 +5,10 @@
  ******************************************************************************/
 
 #include "gstgvametapublish.h"
+#include "metapublish_impl.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
-#include "metapublish_impl.h"
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_publish_debug_category
@@ -46,11 +46,9 @@ enum {
 static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 
 // File specific constants
-#define DEFAULT_PUBLISH_METHOD "mqtt"
+#define DEFAULT_PUBLISH_METHOD "file"
 #define DEFAULT_FILE_PATH NULL
-#define OF_BATCH "batch"
-#define OF_STREAM "stream"
-#define DEFAULT_OUTPUT_FORMAT OF_BATCH
+#define DEFAULT_OUTPUT_FORMAT BATCH
 
 // Broker specific constants
 #define DEFAULT_HOST NULL
@@ -349,20 +347,7 @@ static gboolean gst_gva_meta_publish_set_caps(GstBaseTransform *trans, GstCaps *
 static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(trans);
 
-    /*if (!(gvametapublish->method) || gvametapublish->method == NULL) {
-        GST_ELEMENT_ERROR(gvametapublish, RESOURCE, NOT_FOUND, (NULL),
-                          ("Error: Missing a required element property, Method=?\n"));
-        return FALSE;
-    }
-
-    if (gvametapublish->broker_initializefunction) {
-        if (!gvametapublish->broker_initializefunction(gvametapublish)) {
-            // TOBY: REPORT FILE EXISTS ERROR, etc
-            return FALSE;
-        }
-    }*/
-
-    //Create oop
+    // Create oop
     MetapublishImpl *mp = getMPInstance();
     if (!g_strcmp0(gvametapublish->method, "file")) {
         mp->type = PUBLISH_FILE;
@@ -390,9 +375,7 @@ static gboolean gst_gva_meta_publish_stop(GstBaseTransform *trans) {
         gvametapublish->broker_finalizefunction(gvametapublish);
     }*/
 
-    printf("Attempt to Close Connection");
-    CloseConnection();
-    printf("Close Connection success");
+    CloseConnection(gvametapublish);
 
     gst_gva_meta_publish_reset(gvametapublish);
 

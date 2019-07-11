@@ -24,6 +24,9 @@ MQTTClient mqtt_open_connection(MQTTPublishConfig *gvametapublish) {
 }
 
 void mqtt_close_connection(MQTTClient client) {
+    if (client == NULL) {
+        return;
+    }
     MQTTClient_disconnect(client, 60);
     MQTTClient_destroy(&client);
 }
@@ -37,10 +40,16 @@ MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig
     MetapublishStatusMessage returnMessage;
     returnMessage.responseMessage = (gchar *)g_malloc(1024);
 
+    if (client == NULL) {
+        returnMessage.responseCode = 0;
+        snprintf(returnMessage.responseMessage, 1024, "No mqtt client connection\n");
+        return returnMessage;
+    }
+
     GstGVAJSONMeta *jsonmeta = GST_GVA_JSON_META_GET(buffer);
     if (!jsonmeta) {
         returnMessage.responseCode = 0;
-        snprintf(returnMessage.responseMessage, 1024, "no json metadata found\n");
+        snprintf(returnMessage.responseMessage, 1024, "No json metadata found\n");
     } else {
         message.payload = jsonmeta->message;
         message.payloadlen = (gint)strlen(message.payload);

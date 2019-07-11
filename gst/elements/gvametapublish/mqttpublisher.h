@@ -8,11 +8,11 @@
 #define __MQTTPUBLISHER_H__
 
 #include "gva_json_meta.h"
+#include "statusmessage.h"
 #include <gst/gst.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "statusmessage.h"
 
 #ifdef PAHO_INC
 #include "MQTTClient.h"
