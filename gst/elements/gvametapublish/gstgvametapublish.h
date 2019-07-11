@@ -21,10 +21,6 @@ G_BEGIN_DECLS
 typedef struct _GstGvaMetaPublish GstGvaMetaPublish;
 typedef struct _GstGvaMetaPublishClass GstGvaMetaPublishClass;
 
-typedef void (*broker_function_type)(GstGvaMetaPublish *method, GstBuffer *buffer);
-typedef gboolean (*broker_initfunction_type)(GstGvaMetaPublish *method);
-typedef void (*broker_finalizefunction_type)(GstGvaMetaPublish *method);
-
 struct _GstGvaMetaPublish {
     GstBaseTransform base_gvametapublish;
     gchar *method;
@@ -35,9 +31,6 @@ struct _GstGvaMetaPublish {
     gchar *clientid;
     gchar *topic;
     gchar *timeout;
-    broker_initfunction_type broker_initializefunction;
-    broker_function_type broker_function;
-    broker_finalizefunction_type broker_finalizefunction;
     gboolean signal_handoffs;
 };
 

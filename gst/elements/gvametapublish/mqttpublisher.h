@@ -12,11 +12,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "statusmessage.h"
 
 #ifdef PAHO_INC
 #include "MQTTClient.h"
 typedef struct _MQTTPublishConfig MQTTPublishConfig;
-typedef struct _MQTTStatusMessage MQTTStatusMessage;
 
 struct _MQTTPublishConfig {
     gchar *host;
@@ -27,12 +27,10 @@ struct _MQTTPublishConfig {
     gboolean signal_handoffs;
 };
 
-struct _MQTTStatusMessage {
-    gint responseCode;
-    gchar *responseMessage;
-};
+MQTTClient mqtt_open_connection(MQTTPublishConfig *gvametapublish);
+void mqtt_close_connection(MQTTClient client);
+MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig *gvametapublish, GstBuffer *buffer);
 
-MQTTStatusMessage mqtt_publish(MQTTPublishConfig *config, GstBuffer *buffer);
 #endif
 
 #endif
