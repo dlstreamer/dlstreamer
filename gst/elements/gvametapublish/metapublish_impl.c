@@ -11,8 +11,27 @@ MetapublishImpl *getMPInstance() {
     if (instance == NULL) {
         instance = malloc(sizeof(*instance));
     }
+
     return instance;
 };
+
+void initializeMetaPublishImpl(GstGVAMetaPublishMethodType type) {
+    MetapublishImpl *mp = getMPInstance();
+
+    if (type == GST_GVA_METAPUBLISH_FILE) {
+        mp->type = PUBLISH_FILE;
+    }
+#ifdef KAFKA_INC
+    if (type == GST_GVA_METAPUBLISH_KAFKA) {
+        mp->type = PUBLISH_KAFKA;
+    }
+#endif
+#ifdef PAHO_INC
+    if (type == GST_GVA_METAPUBLISH_MQTT) {
+        mp->type = PUBLISH_MQTT;
+    }
+#endif
+}
 
 gint OpenConnection(GstGvaMetaPublish *gvametapublish) {
     MetapublishImpl *mp = getMPInstance();
@@ -21,6 +40,8 @@ gint OpenConnection(GstGvaMetaPublish *gvametapublish) {
         mp->mqtt_config = g_try_malloc(sizeof(MQTTPublishConfig));
         if (mp->mqtt_config == NULL) {
             GST_ERROR_OBJECT(gvametapublish, "Failed to allocate memory for MQTTPublishConfig");
+            GST_ELEMENT_ERROR(gvametapublish, RESOURCE, TOO_LAZY, ("metapublish initialization failed"),
+                              ("Failed to allocate memory for mqtt config"));
             return -1;
         }
         mp->mqtt_config->host = gvametapublish->host;
@@ -38,6 +59,8 @@ gint OpenConnection(GstGvaMetaPublish *gvametapublish) {
         mp->kafka_config = g_try_malloc(sizeof(KafkaPublishConfig));
         if (mp->kafka_config == NULL) {
             GST_ERROR_OBJECT(gvametapublish, "Failed to allocate memory for KafkaPublishConfig");
+            GST_ELEMENT_ERROR(gvametapublish, RESOURCE, TOO_LAZY, ("metapublish initialization failed"),
+                              ("Failed to allocate memory for kafka config"));
             return -1;
         }
         mp->kafka_config->address = gvametapublish->address;
@@ -52,6 +75,8 @@ gint OpenConnection(GstGvaMetaPublish *gvametapublish) {
         mp->file_config = g_try_malloc(sizeof(FilePublishConfig));
         if (mp->file_config == NULL) {
             GST_ERROR_OBJECT(gvametapublish, "Failed to allocate memory for FilePublishConfig");
+            GST_ELEMENT_ERROR(gvametapublish, RESOURCE, FAILED, ("metapublish initialization failed"),
+                              ("Failed to allocate memory for file config"));
             return -1;
         }
         mp->file_config->file_path = gvametapublish->file_path;
@@ -63,9 +88,11 @@ gint OpenConnection(GstGvaMetaPublish *gvametapublish) {
             mp->file_config->e_output_format = FILE_PUBLISH_BATCH;
         }
 
-        MetapublishStatusMessage status = file_open(mp->pFile, mp->file_config);
-        if (status.responseCode == -1) {
+        MetapublishStatusMessage status = file_open(&mp->pFile, mp->file_config);
+        if (status.responseCode <= -1) {
             GST_ERROR_OBJECT(gvametapublish, "%s", status.responseMessage);
+            GST_ELEMENT_ERROR(gvametapublish, RESOURCE, TOO_LAZY, ("metapublish initialization failed"),
+                              ("%s", status.responseMessage));
         } else {
             GST_INFO_OBJECT(gvametapublish, "%s", status.responseMessage);
         }
@@ -92,7 +119,7 @@ gint CloseConnection(GstGvaMetaPublish *gvametapublish) {
 #endif
 
     if (mp->type == PUBLISH_FILE) {
-        MetapublishStatusMessage status = file_close(mp->pFile, mp->file_config);
+        MetapublishStatusMessage status = file_close(&mp->pFile, mp->file_config);
         if (status.responseCode == -1) {
             GST_ERROR_OBJECT(gvametapublish, "%s", status.responseMessage);
         } else {
@@ -132,7 +159,7 @@ void WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuffer *buf) {
 #endif
 
     if (mp->type == PUBLISH_FILE) {
-        MetapublishStatusMessage status = file_write(mp->pFile, mp->file_config, buf);
+        MetapublishStatusMessage status = file_write(&mp->pFile, mp->file_config, buf);
         if (status.responseCode == -1) {
             GST_ERROR_OBJECT(gvametapublish, "%s", status.responseMessage);
         } else {

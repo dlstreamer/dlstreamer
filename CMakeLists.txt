@@ -89,9 +89,19 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 option(HAVE_GAPI "Parameter to enable GAPI for image preprocessing" OFF)
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
 option(ENABLE_DOCUMENTATION "Parameter to enable documentation generation" OFF)
+option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
+option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
 
-find_library(MQTT paho-mqtt3c)
-find_library(KAFKA rdkafka)
+message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
+if(${ENABLE_PAHO_INSTALLATION})
+    find_library(MQTT paho-mqtt3c)
+endif()
+
+message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
+if(${ENABLE_RDKAFKA_INSTALLATION})
+    find_library(KAFKA rdkafka)
+endif()
+
 
 configure_file(cmake/config.h.in configs/config.h @ONLY)
 

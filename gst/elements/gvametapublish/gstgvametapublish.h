@@ -21,9 +21,20 @@ G_BEGIN_DECLS
 typedef struct _GstGvaMetaPublish GstGvaMetaPublish;
 typedef struct _GstGvaMetaPublishClass GstGvaMetaPublishClass;
 
+typedef enum {
+    GST_GVA_METAPUBLISH_FILE,
+#ifdef PAHO_INC
+    GST_GVA_METAPUBLISH_MQTT,
+#endif
+#ifdef KAFKA_INC
+    GST_GVA_METAPUBLISH_KAFKA,
+#endif
+    GST_GVA_METAPUBLISH_NONE
+} GstGVAMetaPublishMethodType;
+
 struct _GstGvaMetaPublish {
     GstBaseTransform base_gvametapublish;
-    gchar *method;
+    GstGVAMetaPublishMethodType method;
     gchar *file_path;
     gchar *output_format;
     gchar *host;

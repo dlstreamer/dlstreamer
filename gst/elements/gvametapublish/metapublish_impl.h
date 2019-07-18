@@ -41,6 +41,7 @@ struct _MetapublishImpl {
 };
 
 MetapublishImpl *getMPInstance();
+void initializeMetaPublishImpl(GstGVAMetaPublishMethodType);
 
 gint OpenConnection(GstGvaMetaPublish *);
 gint CloseConnection(GstGvaMetaPublish *);
