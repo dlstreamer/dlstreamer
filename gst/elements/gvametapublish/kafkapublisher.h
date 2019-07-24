@@ -8,16 +8,18 @@
 #define __KAFKAPUBLISHER_H__
 
 #include "gva_json_meta.h"
+#include "statusmessage.h"
 #include <gst/gst.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
+#define MAX_RESPONSE_MESSAGE 1024
+
 #ifdef KAFKA_INC
 #include "librdkafka/rdkafka.h"
 
 typedef struct _KafkaPublishConfig KafkaPublishConfig;
-typedef struct _KafkaStatusMessage KafkaStatusMessage;
 
 struct _KafkaPublishConfig {
     gchar *address;
@@ -25,12 +27,10 @@ struct _KafkaPublishConfig {
     gboolean signal_handoffs;
 };
 
-struct _KafkaStatusMessage {
-    gint responseCode;
-    gchar *responseMessage;
-};
-
-KafkaStatusMessage kafka_publish(KafkaPublishConfig *config, GstBuffer *buffer);
+MetapublishStatusMessage kafka_open_connection(KafkaPublishConfig *, rd_kafka_t *, rd_kafka_topic_t *);
+MetapublishStatusMessage kafka_close_connection(rd_kafka_t *, rd_kafka_topic_t *);
+MetapublishStatusMessage kafka_write_message(rd_kafka_t *producerHandler, rd_kafka_topic_t *kafka_topic,
+                                             GstBuffer *buffer);
 #endif
 
 #endif
