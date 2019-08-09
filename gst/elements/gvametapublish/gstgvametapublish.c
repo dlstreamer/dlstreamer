@@ -5,7 +5,8 @@
  ******************************************************************************/
 
 #include "gstgvametapublish.h"
-#include "brokers.h"
+#include "metapublish_impl.h"
+#include "statusmessage.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -46,9 +47,9 @@ enum {
 static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 
 // File specific constants
-#define DEFAULT_PUBLISH_METHOD "file"
+#define DEFAULT_PUBLISH_METHOD GST_GVA_METAPUBLISH_FILE
 #define DEFAULT_FILE_PATH NULL
-#define DEFAULT_OUTPUT_FORMAT OF_BATCH
+#define DEFAULT_OUTPUT_FORMAT BATCH
 
 // Broker specific constants
 #define DEFAULT_HOST NULL
@@ -93,6 +94,25 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaMetaPublish, gst_gva_meta_publish, GST_TYPE_BASE_T
                         GST_DEBUG_CATEGORY_INIT(gst_gva_meta_publish_debug_category, "gvametapublish", 0,
                                                 "debug category for gvametapublish element"));
 
+#define GST_TYPE_GVA_METAPUBLISH_METHOD (gst_gva_metapublish_get_method())
+static GType gst_gva_metapublish_get_method(void) {
+    static GType gva_metapublish_method_type = 0;
+    static const GEnumValue method_types[] = {{GST_GVA_METAPUBLISH_FILE, "File publish", "file"},
+#ifdef PAHO_INC
+                                              {GST_GVA_METAPUBLISH_MQTT, "MQTT publish", "mqtt"},
+#endif
+#ifdef KAFKA_INC
+                                              {GST_GVA_METAPUBLISH_KAFKA, "Kafka publish", "kafka"},
+#endif
+                                              {0, NULL, NULL}};
+
+    if (!gva_metapublish_method_type) {
+        gva_metapublish_method_type = g_enum_register_static("GstGVAMetaPublishMethodType", method_types);
+    }
+
+    return gva_metapublish_method_type;
+}
+
 static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
 
@@ -125,10 +145,6 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gst_gva_meta_publish_transform_ip);
 
     g_object_class_install_property(
-        gobject_class, PROP_PUBLISH_METHOD,
-        g_param_spec_string("method", "Method", "Publishing method. Set to one of: 'file', 'kafka' or 'mqtt'",
-                            DEFAULT_PUBLISH_METHOD, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(
         gobject_class, PROP_FILE_PATH,
         g_param_spec_string("filepath", "FilePath",
                             "[method= file] Absolute path to output file for published inferences.", DEFAULT_FILE_PATH,
@@ -139,24 +155,41 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
                             "[method= file] Output format of published file. Set to one of: 'stream' (raw inference "
                             "per line) or 'batch' (each file holds array of JSON inferences)",
                             DEFAULT_OUTPUT_FORMAT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_HOST,
-                                    g_param_spec_string("host", "Host", "[method= kafka | mqtt] Broker host",
-                                                        DEFAULT_HOST, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_ADDRESS,
-                                    g_param_spec_string("address", "Address", "[method= kafka | mqtt] Broker address",
-                                                        DEFAULT_ADDRESS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_CLIENTID,
-                                    g_param_spec_string("clientid", "Clientid",
-                                                        "[method= kafka | mqtt] Broker client identifier",
-                                                        DEFAULT_CLIENTID, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_TIMEOUT,
-                                    g_param_spec_string("timeout", "Timeout", "[method= kafka | mqtt] Broker timeout",
-                                                        DEFAULT_TIMEOUT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_TOPIC,
-                                    g_param_spec_string("topic", "Topic",
-                                                        "[method= kafka | mqtt] Topic on which to send broker messages",
-                                                        DEFAULT_TOPIC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+    const guint metapublish_prop_len = 128;
+    gchar *method_help = g_malloc(metapublish_prop_len * sizeof(gchar));
+    g_strlcpy(method_help, "Publishing method. Set to one of: 'file'", metapublish_prop_len);
+    if (META_PUBLISH_MQTT) {
+        g_strlcat(method_help, ", 'mqtt'", metapublish_prop_len);
+    }
+    if (META_PUBLISH_KAFKA) {
+        g_strlcat(method_help, ", 'kafka'", metapublish_prop_len);
+    }
+    g_object_class_install_property(gobject_class, PROP_PUBLISH_METHOD,
+                                    g_param_spec_enum("method", "Publish method", method_help,
+                                                      GST_TYPE_GVA_METAPUBLISH_METHOD, DEFAULT_PUBLISH_METHOD,
+                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    if (META_PUBLISH_MQTT || META_PUBLISH_KAFKA) {
+        g_object_class_install_property(gobject_class, PROP_HOST,
+                                        g_param_spec_string("host", "Host", "[method= kafka | mqtt] Broker host",
+                                                            DEFAULT_HOST, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_object_class_install_property(gobject_class, PROP_ADDRESS,
+                                        g_param_spec_string("address", "Address",
+                                                            "[method= kafka | mqtt] Broker address", DEFAULT_ADDRESS,
+                                                            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_object_class_install_property(
+            gobject_class, PROP_CLIENTID,
+            g_param_spec_string("clientid", "Clientid", "[method= kafka | mqtt] Broker client identifier",
+                                DEFAULT_CLIENTID, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_object_class_install_property(gobject_class, PROP_TIMEOUT,
+                                        g_param_spec_string("timeout", "Timeout",
+                                                            "[method= kafka | mqtt] Broker timeout", DEFAULT_TIMEOUT,
+                                                            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_object_class_install_property(
+            gobject_class, PROP_TOPIC,
+            g_param_spec_string("topic", "Topic", "[method= kafka | mqtt] Topic on which to send broker messages",
+                                DEFAULT_TOPIC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    }
     g_object_class_install_property(
         gobject_class, PROP_SIGNAL_HANDOFFS,
         g_param_spec_boolean("signal-handoffs", "Signal handoffs", "Send signal before pushing the buffer",
@@ -178,22 +211,11 @@ static void gst_gva_meta_publish_init(GstGvaMetaPublish *gvametapublish) {
 void gst_gva_meta_publish_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(object);
 
-    GST_DEBUG_OBJECT(gvametapublish, "set_property");
+    GST_DEBUG_OBJECT(gvametapublish, "set_property %d", property_id);
 
     switch (property_id) {
     case PROP_PUBLISH_METHOD:
-        g_free(gvametapublish->method);
-        gvametapublish->method = g_value_dup_string(value);
-        for (int i = 0; i < lengthOfBrokers; i++) {
-            if (!g_strcmp0(gvametapublish->method, brokers[i].name)) {
-                gvametapublish->broker_function = brokers[i].function;
-                if (brokers[i].initializefunction != NULL)
-                    gvametapublish->broker_initializefunction = brokers[i].initializefunction;
-                if (brokers[i].finalizefunction != NULL)
-                    gvametapublish->broker_finalizefunction = brokers[i].finalizefunction;
-                break;
-            }
-        }
+        gvametapublish->method = g_value_get_enum(value);
         break;
     case PROP_FILE_PATH:
         g_free(gvametapublish->file_path);
@@ -239,7 +261,7 @@ void gst_gva_meta_publish_get_property(GObject *object, guint property_id, GValu
 
     switch (property_id) {
     case PROP_PUBLISH_METHOD:
-        g_value_set_string(value, gvametapublish->method);
+        g_value_set_enum(value, gvametapublish->method);
         break;
     case PROP_FILE_PATH:
         g_value_set_string(value, gvametapublish->file_path);
@@ -298,9 +320,6 @@ static void gst_gva_meta_publish_cleanup(GstGvaMetaPublish *gvametapublish) {
 
     GST_DEBUG_OBJECT(gvametapublish, "gst_gva_meta_publish_cleanup");
 
-    g_free(gvametapublish->method);
-    gvametapublish->method = NULL;
-
     g_free(gvametapublish->file_path);
     gvametapublish->file_path = NULL;
 
@@ -331,7 +350,7 @@ static void gst_gva_meta_publish_reset(GstGvaMetaPublish *gvametapublish) {
 
     gst_gva_meta_publish_cleanup(gvametapublish);
 
-    gvametapublish->method = g_strdup(DEFAULT_PUBLISH_METHOD);
+    gvametapublish->method = DEFAULT_PUBLISH_METHOD;
     gvametapublish->output_format = g_strdup(DEFAULT_OUTPUT_FORMAT);
     gvametapublish->file_path = g_strdup(DEFAULT_FILE_PATH);
     gvametapublish->host = g_strdup(DEFAULT_HOST);
@@ -357,19 +376,16 @@ static gboolean gst_gva_meta_publish_set_caps(GstBaseTransform *trans, GstCaps *
 static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(trans);
 
-    if (!(gvametapublish->method) || gvametapublish->method == NULL) {
-        GST_ELEMENT_ERROR(gvametapublish, RESOURCE, NOT_FOUND, (NULL),
-                          ("Error: Missing a required element property, Method=?\n"));
-        return FALSE;
-    }
+    initializeMetaPublishImpl(gvametapublish->method);
 
-    if (gvametapublish->broker_initializefunction) {
-        if (!gvametapublish->broker_initializefunction(gvametapublish)) {
-            // TOBY: REPORT FILE EXISTS ERROR, etc
-            return FALSE;
-        }
+    MetapublishStatusMessage status = OpenConnection(gvametapublish);
+    GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
+    g_free(status.responseMessage);
+    if (status.responseCode.ps == SUCCESS) {
+        gvametapublish->is_connection_open = TRUE;
+    } else {
+        gvametapublish->is_connection_open = FALSE;
     }
-
     GST_DEBUG_OBJECT(gvametapublish, "start");
 
     return TRUE;
@@ -382,8 +398,15 @@ static gboolean gst_gva_meta_publish_stop(GstBaseTransform *trans) {
     if (gvametapublish == NULL)
         return FALSE;
 
-    if (gvametapublish->broker_finalizefunction) {
-        gvametapublish->broker_finalizefunction(gvametapublish);
+    if (gvametapublish->is_connection_open) {
+        MetapublishStatusMessage status = CloseConnection(gvametapublish);
+        GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
+        g_free(status.responseMessage);
+        if (status.responseCode.ps == SUCCESS) {
+            gvametapublish->is_connection_open = FALSE;
+        } else {
+            gvametapublish->is_connection_open = TRUE;
+        }
     }
 
     gst_gva_meta_publish_reset(gvametapublish);
@@ -407,7 +430,7 @@ static void gst_gva_meta_publish_before_transform(GstBaseTransform *trans, GstBu
     GstClockTime timestamp;
 
     timestamp = gst_segment_to_stream_time(&trans->segment, GST_FORMAT_TIME, GST_BUFFER_TIMESTAMP(buffer));
-    GST_LOG_OBJECT(gvametapublish, "Got stream time of %" GST_TIME_FORMAT, GST_TIME_ARGS(timestamp));
+    GST_LOG_OBJECT(gvametapublish, "Got stream time of %d" GST_TIME_FORMAT, GST_TIME_ARGS(timestamp));
     if (GST_CLOCK_TIME_IS_VALID(timestamp))
         gst_object_sync_values(GST_OBJECT(trans), timestamp);
 }
@@ -416,12 +439,12 @@ static GstFlowReturn gst_gva_meta_publish_transform_ip(GstBaseTransform *trans, 
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(trans);
 
     if (gvametapublish->signal_handoffs) {
-
         GST_DEBUG_OBJECT(gvametapublish, "Signal handoffs");
         g_signal_emit(gvametapublish, gst_interpret_signals[SIGNAL_HANDOFF], 0, buf);
-
-    } else if (gvametapublish->broker_function) {
-        gvametapublish->broker_function(gvametapublish, buf);
+    } else if (gvametapublish->is_connection_open) {
+        MetapublishStatusMessage status = WriteMessage(gvametapublish, buf);
+        GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
+        g_free(status.responseMessage);
     }
 
     return GST_FLOW_OK;

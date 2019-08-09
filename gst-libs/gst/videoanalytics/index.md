@@ -11,8 +11,8 @@ The **gvaclassify** element typically inserted into pipeline after gvadetect and
 
 The **gvainference** element generates and attaches to the frame custom metadata _GstGVATensorMeta (as many instances as output layers in the model) containing tensor raw data and additional information such as tensor dimensions, data precision, etc.
 
-Taking the following pipeline as example:
-```sh
+Taking the following pipeline as example
+```
 MODEL1=face-detection-adas-0001
 MODEL2=age-gender-recognition-retail-0013
 MODEL3=emotions-recognition-retail-0003
@@ -27,8 +27,7 @@ gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
 The gvadetect detected three faces, it will attach three metadata objects each containing one GstStructure with detection results, the next gvaclassify will add two more GstStructure (model contains two output layers, age and gender) into each meta, and another gvaclassify will add one more GstStructure (emotion), resulting in three metadata objects each containing four GstStructure in 'GList *params' field: detection, age, gender, emotions.
 
 "C"/C++ application can iterate objects and inference results using GStreamer API similar to code snapshot below
-
-```sh
+```
 #include <gst/video/video.h>
 void print_meta(GstBuffer *buffer) {
     gpointer state = NULL;
@@ -54,8 +53,8 @@ void print_meta(GstBuffer *buffer) {
 }
 ```
 
-For C++ application the the header-only C++ utility gva_roi_meta.h helps to simplify the code above by C++ classes with get/set functions and C++ iterators for [GstVideoRegionOfInterestMeta](https://github.com/GStreamer/gst-plugins-base/blob/master/gst-libs/gst/video/gstvideometa.h#L275). GVA::RegionOfInterest and GVA::RegionOfInterestList are classes to refer and interate through metadata accordingly.  
-```sh
+For C++ application the the header-only C++ utility gva_roi_meta.h helps to simplify the code above by C++ classes with get/set functions and C++ iterators for [GstVideoRegionOfInterestMeta](https://github.com/GStreamer/gst-plugins-base/blob/master/gst-libs/gst/video/gstvideometa.h#L275). GVA::RegionOfInterest and GVA::RegionOfInterestList are classes to refer and interate through metadata accordingly.
+```
 #include "gva_roi_meta.h"
 void PrintMeta(GstBuffer *buffer) {
     GVA::RegionOfInterestList roi_list(buffer);

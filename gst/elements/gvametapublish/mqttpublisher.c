@@ -7,44 +7,84 @@
 #include "mqttpublisher.h"
 
 #ifdef PAHO_INC
-MQTTStatusMessage mqtt_publish(MQTTPublishConfig *gvametapublish, GstBuffer *buffer) {
+MQTTClient mqtt_open_connection(MQTTPublishConfig *gvametapublish) {
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
-    MQTTClient_message message = MQTTClient_message_initializer;
-    MQTTClient_deliveryToken token;
     gint c;
-    gulong Timeout;
-    Timeout = *(gvametapublish->timeout);
+
+    if (gvametapublish->clientid == NULL) {
+        return NULL;
+    }
 
     MQTTClient_create(&client, gvametapublish->bindaddress, gvametapublish->clientid, MQTTCLIENT_PERSISTENCE_NONE,
                       NULL);
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
 
-    MQTTStatusMessage returnMessage;
-    returnMessage.responseMessage = (gchar *)g_malloc(1024);
-
     if ((c = MQTTClient_connect(client, &conn_opts)) != MQTTCLIENT_SUCCESS) {
-        returnMessage.responseCode = -1;
-        snprintf(returnMessage.responseMessage, 1024, "failed to connect\n");
+        return NULL;
+    }
+    return client;
+}
+
+MetapublishStatusMessage mqtt_close_connection(MQTTClient client) {
+    MetapublishStatusMessage returnMessage;
+    returnMessage.codeType = MQTT;
+    returnMessage.responseCode.mps = MQTT_SUCCESS;
+    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
+
+    if (returnMessage.responseMessage == NULL) {
+        returnMessage.responseCode.mps = MQTT_ERROR;
+        return returnMessage;
+    }
+
+    if (client == NULL) {
+        returnMessage.responseCode.mps = MQTT_ERROR;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "No client to close\n");
+        return returnMessage;
+    }
+    MQTTClient_disconnect(client, 60);
+    MQTTClient_destroy(&client);
+
+    return returnMessage;
+}
+
+MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig *gvametapublish, GstBuffer *buffer) {
+    MQTTClient_message message = MQTTClient_message_initializer;
+    MQTTClient_deliveryToken token;
+    gulong Timeout;
+
+    if (gvametapublish->timeout == NULL) {
+        gvametapublish->timeout = "1000";
+    }
+
+    Timeout = *(gvametapublish->timeout);
+
+    MetapublishStatusMessage returnMessage;
+    returnMessage.codeType = MQTT;
+    returnMessage.responseMessage = (gchar *)g_malloc(MAX_RESPONSE_MESSAGE);
+
+    if (client == NULL) {
+        returnMessage.responseCode.mps = MQTT_ERROR_NO_CONNECTION;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "No mqtt client connection\n");
         return returnMessage;
     }
 
     GstGVAJSONMeta *jsonmeta = GST_GVA_JSON_META_GET(buffer);
     if (!jsonmeta) {
-        returnMessage.responseCode = 0;
-        snprintf(returnMessage.responseMessage, 1024, "no json metadata found\n");
+        returnMessage.responseCode.mps = MQTT_ERROR_NO_INFERENCE;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "No json metadata found\n");
     } else {
         message.payload = jsonmeta->message;
         message.payloadlen = (gint)strlen(message.payload);
         message.retained = 0;
         MQTTClient_publishMessage(client, gvametapublish->topic, &message, &token);
-        c = MQTTClient_waitForCompletion(client, token, Timeout);
-        returnMessage.responseCode = 0;
-        snprintf(returnMessage.responseMessage, 1024, "Message with delivery token %d delivered\n", token);
+        MQTTClient_waitForCompletion(client, token, Timeout);
+        returnMessage.responseCode.mps = MQTT_SUCCESS;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Message with delivery token %d delivered\n",
+                 token);
     }
-    MQTTClient_disconnect(client, 60);
-    MQTTClient_destroy(&client);
+
     return returnMessage;
 }
 #endif

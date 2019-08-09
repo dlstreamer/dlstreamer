@@ -21,13 +21,20 @@ G_BEGIN_DECLS
 typedef struct _GstGvaMetaPublish GstGvaMetaPublish;
 typedef struct _GstGvaMetaPublishClass GstGvaMetaPublishClass;
 
-typedef void (*broker_function_type)(GstGvaMetaPublish *method, GstBuffer *buffer);
-typedef gboolean (*broker_initfunction_type)(GstGvaMetaPublish *method);
-typedef void (*broker_finalizefunction_type)(GstGvaMetaPublish *method);
+typedef enum {
+    GST_GVA_METAPUBLISH_FILE,
+#ifdef PAHO_INC
+    GST_GVA_METAPUBLISH_MQTT,
+#endif
+#ifdef KAFKA_INC
+    GST_GVA_METAPUBLISH_KAFKA,
+#endif
+    GST_GVA_METAPUBLISH_NONE
+} GstGVAMetaPublishMethodType;
 
 struct _GstGvaMetaPublish {
     GstBaseTransform base_gvametapublish;
-    gchar *method;
+    GstGVAMetaPublishMethodType method;
     gchar *file_path;
     gchar *output_format;
     gchar *host;
@@ -35,10 +42,8 @@ struct _GstGvaMetaPublish {
     gchar *clientid;
     gchar *topic;
     gchar *timeout;
-    broker_initfunction_type broker_initializefunction;
-    broker_function_type broker_function;
-    broker_finalizefunction_type broker_finalizefunction;
     gboolean signal_handoffs;
+    gboolean is_connection_open;
 };
 
 struct _GstGvaMetaPublishClass {

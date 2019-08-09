@@ -12,14 +12,17 @@
 
 using json = nlohmann::json;
 
-json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+json get_frame_data(GstGvaMetaConvert *converter) {
     json res;
+    GstSegment converter_segment = converter->base_gvametaconvert.segment;
+    GstClockTime timestamp = gst_segment_to_stream_time(&converter_segment, GST_FORMAT_TIME,
+                                                        converter_segment.position);
     if (converter->info)
         res["resolution"] = json::object({{"width", converter->info->width}, {"height", converter->info->height}});
     if (converter->source)
         res["source"] = converter->source;
-    if (buffer->pts)
-        res["timestamp"] = buffer->pts;
+    if (timestamp != G_MAXUINT64)
+        res["timestamp"] = timestamp - converter_segment.time;
     if (converter->tags && json::accept(converter->tags))
         res["tags"] = json::parse(converter->tags);
     return res;
@@ -156,7 +159,7 @@ json convert_roi_tensor(GstBuffer *buffer) {
 }
 
 void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    json jframe = get_frame_data(converter, buffer);
+    json jframe = get_frame_data(converter);
     json jroi_detection = convert_roi_detection(buffer);
     json jroi_tensor = convert_roi_tensor(buffer);
     if (jroi_detection.is_null()) {
@@ -178,7 +181,7 @@ void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 }
 
 void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    json jframe = get_frame_data(converter, buffer);
+    json jframe = get_frame_data(converter);
     json jroi_detection = convert_roi_detection(buffer);
     if (jroi_detection.is_null()) {
         if (!converter->include_no_detections) {
@@ -196,7 +199,7 @@ void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 }
 
 void tensor_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    json jframe = get_frame_data(converter, buffer);
+    json jframe = get_frame_data(converter);
     json jroi_tensor = convert_roi_tensor(buffer);
     if (!jroi_tensor.is_null()) {
         jframe.update(jroi_tensor);
