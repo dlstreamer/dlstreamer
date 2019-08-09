@@ -46,6 +46,12 @@ The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE
 
 ## Samples
 See the [command-line examples](samples/shell) and [C++ example](samples/cpp/face_attributes)
+NOTE: For running samples, the wiki should be modified to use 2018 branch of open_model_zoo as the master version downloads version 6 models which are not supported by this version of OpenVino and the models do not run). Then use the following command to download the models (the 2018 branch version of downloader does not take list file as cmd line parameter):
+
+```sh
+cd ~/gva/open_model_zoo/model_downloader
+python3 downloader.py -c ./list_topologies.yml --name `paste -s -d ',' ~/gva/gstreamer-plugins/samples/model_downloader_configs/intel_models_for_samples.LST` -o ~/gva/data/models/intel/
+```
 
 ## Reporting Bugs and Feature Requests
 Report bugs and requests [on the issues page](https://github.com/opencv/gst-video-analytics/issues)
