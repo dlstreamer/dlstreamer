@@ -1,5 +1,5 @@
 {
-  "json_schema_version" : 1.0,
+  "json_schema_version": 1.0,
   "input_preproc": [
     {
       "format": "BGR"
@@ -9,15 +9,28 @@
     {
       "layer_name": "color",
       "attribute_name": "color",
-      "labels": ["white","gray","yellow","red","green","blue","black"],
-      "converter": "attributes",
+      "labels": [
+        "white",
+        "gray",
+        "yellow",
+        "red",
+        "green",
+        "blue",
+        "black"
+      ],
+      "converter": "tensor_to_label",
       "method": "max"
     },
     {
       "layer_name": "type",
       "attribute_name": "type",
-      "labels": ["car,van,truck,bus"],
-      "converter": "attributes",
+      "labels": [
+        "car",
+        "van",
+        "truck",
+        "bus"
+      ],
+      "converter": "tensor_to_label",
       "method": "max"
     }
   ]

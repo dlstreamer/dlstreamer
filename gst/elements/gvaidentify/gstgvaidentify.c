@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "gstgvaidentify.h"
+#include "gva_caps.h"
 
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -24,7 +25,6 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_identify_debug_category);
 
 #define DEFAULT_MODEL NULL
 #define DEFAULT_GALLERY ""
-#define DEFAULT_META_FORMAT ""
 
 #define DEFAULT_MIN_THRESHOLD 0.
 #define DEFAULT_MAX_THRESHOLD 1.
@@ -50,20 +50,6 @@ static GstStateChangeReturn gst_gva_identify_change_state(GstElement *element, G
 
 enum { PROP_0, PROP_MODEL, PROP_GALLERY, PROP_THRESHOLD, PROP_TRACKER };
 
-#ifdef SUPPORT_DMA_BUFFER
-#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:DMABuf", "{ I420 }") "; "
-#else
-#define DMA_BUFFER_CAPS
-#endif
-
-#define VA_SURFACE_CAPS
-
-#define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA }")
-
-#define INFERENCE_CAPS DMA_BUFFER_CAPS VA_SURFACE_CAPS SYSTEM_MEM_CAPS
-#define VIDEO_SINK_CAPS INFERENCE_CAPS
-#define VIDEO_SRC_CAPS INFERENCE_CAPS
-
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaIdentify, gst_gva_identify, GST_TYPE_BASE_TRANSFORM,
@@ -78,9 +64,9 @@ static void gst_gva_identify_class_init(GstGvaIdentifyClass *klass) {
     /* Setting up pads and setting metadata should be moved to
        base_class_init if you intend to subclass this class. */
     gst_element_class_add_pad_template(
-        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(VIDEO_SRC_CAPS)));
-    gst_element_class_add_pad_template(element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-                                                                           gst_caps_from_string(VIDEO_SINK_CAPS)));
+        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
+    gst_element_class_add_pad_template(
+        element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
 
     gst_element_class_set_static_metadata(element_class, ELEMENT_LONG_NAME, "Video", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");

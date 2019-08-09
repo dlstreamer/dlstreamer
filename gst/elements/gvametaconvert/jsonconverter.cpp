@@ -12,11 +12,10 @@
 
 using json = nlohmann::json;
 
-json get_frame_data(GstGvaMetaConvert *converter) {
+json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json res;
     GstSegment converter_segment = converter->base_gvametaconvert.segment;
-    GstClockTime timestamp = gst_segment_to_stream_time(&converter_segment, GST_FORMAT_TIME,
-                                                        converter_segment.position);
+    GstClockTime timestamp = gst_segment_to_stream_time(&converter_segment, GST_FORMAT_TIME, buffer->pts);
     if (converter->info)
         res["resolution"] = json::object({{"width", converter->info->width}, {"height", converter->info->height}});
     if (converter->source)
@@ -33,8 +32,18 @@ json convert_roi_detection(GstBuffer *buffer) {
     gpointer state = NULL;
     json res;
     while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
-
         json jobject = json::object();
+        jobject.push_back({"x", meta->x});
+        jobject.push_back({"y", meta->y});
+        jobject.push_back({"w", meta->w});
+        jobject.push_back({"h", meta->h});
+        if (meta->id != 0) {
+            jobject.push_back({"id", meta->id});
+        }
+        const gchar *roi_type = g_quark_to_string(meta->roi_type);
+        if (roi_type) {
+            jobject.push_back({"roi_type", roi_type});
+        }
         for (GList *l = meta->params; l; l = g_list_next(l)) {
             GstStructure *s = (GstStructure *)l->data;
             const gchar *s_name = gst_structure_get_name(s);
@@ -124,10 +133,6 @@ json convert_roi_tensor(GstBuffer *buffer) {
             if (gst_structure_get_double(s, "confidence", &confidence_value)) {
                 jobject.push_back(json::object_t::value_type("confidence", confidence_value));
             }
-            int object_id_value;
-            if (gst_structure_get_int(s, "object_id", &object_id_value)) {
-                jobject.push_back(json::object_t::value_type("object_id", object_id_value));
-            }
             int label_id_value;
             if (gst_structure_get_int(s, "label_id", &label_id_value)) {
                 jobject.push_back(json::object_t::value_type("label_id", label_id_value));
@@ -159,7 +164,7 @@ json convert_roi_tensor(GstBuffer *buffer) {
 }
 
 void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    json jframe = get_frame_data(converter);
+    json jframe = get_frame_data(converter, buffer);
     json jroi_detection = convert_roi_detection(buffer);
     json jroi_tensor = convert_roi_tensor(buffer);
     if (jroi_detection.is_null()) {
@@ -181,7 +186,7 @@ void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 }
 
 void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    json jframe = get_frame_data(converter);
+    json jframe = get_frame_data(converter, buffer);
     json jroi_detection = convert_roi_detection(buffer);
     if (jroi_detection.is_null()) {
         if (!converter->include_no_detections) {
@@ -199,7 +204,7 @@ void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 }
 
 void tensor_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    json jframe = get_frame_data(converter);
+    json jframe = get_frame_data(converter, buffer);
     json jroi_tensor = convert_roi_tensor(buffer);
     if (!jroi_tensor.is_null()) {
         jframe.update(jroi_tensor);

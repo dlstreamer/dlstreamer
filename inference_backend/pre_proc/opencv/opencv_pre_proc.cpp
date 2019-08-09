@@ -20,19 +20,19 @@ PreProc *InferenceBackend::CreatePreProcOpenCV() {
 }
 
 OpenCV_VPP::OpenCV_VPP() {
-    Type = MemoryType::SYSTEM;
 }
 
 OpenCV_VPP::~OpenCV_VPP() {
 }
 
-void OpenCV_VPP::Convert(const Image &src, Image &dst, bool bAllocateDestination) {
+void OpenCV_VPP::Convert(const Image &rawSrc, Image &dst, bool bAllocateDestination) {
     ITT_TASK("OpenCV_VPP");
 
     if (bAllocateDestination) {
         throw std::runtime_error("OpenCV_VPP: bAllocateDestination==true not supported");
     }
 
+    Image src = ApplyCrop(rawSrc);
     // if identical format and resolution
     if (src.format == dst.format && src.format == FourCC::FOURCC_RGBP && src.width == dst.width &&
         src.height == dst.height) {

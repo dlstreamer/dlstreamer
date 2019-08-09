@@ -29,6 +29,9 @@ class Identify {
     std::unique_ptr<Tracker> tracker;
     std::unique_ptr<EmbeddingsGallery> gallery;
     GstGvaIdentify *masterGstElement_;
+
+    void IdentifyObjects(GstBuffer *buffer);
+    void TrackObjects(GstBuffer *buffer, GstVideoInfo *info);
 };
 #else /* __cplusplus */
 

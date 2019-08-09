@@ -5,16 +5,20 @@
  ******************************************************************************/
 
 #pragma once
-
 #include "image.h"
 
 namespace InferenceBackend {
 
+enum class PreProcessType {
+    Invalid,
+    OpenCV,
+    GAPI,
+    VAAPI,
+};
+
 class PreProc {
   public:
-    MemoryType Type;
-
-    static PreProc *Create(MemoryType type);
+    static PreProc *Create(PreProcessType type);
 
     virtual ~PreProc() {
     }
@@ -24,7 +28,9 @@ class PreProc {
 };
 
 int GetPlanesCount(int fourcc);
+Image ApplyCrop(const Image &src);
 
 PreProc *CreatePreProcGAPI();
 PreProc *CreatePreProcOpenCV();
+PreProc *CreatePreProcVAAPI();
 } // namespace InferenceBackend

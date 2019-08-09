@@ -13,6 +13,7 @@
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
 
+#define LANDMARKS_POINT_COLOR_INDEX 1
 extern "C" {
 static cv::Scalar color_table[8] = {cv::Scalar(0, 0, 255),     cv::Scalar(0, 255, 0),   cv::Scalar(255, 0, 0),
                                     cv::Scalar(0, 255, 255),   cv::Scalar(255, 255, 0), cv::Scalar(255, 0, 255),
@@ -61,32 +62,41 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
     // map GstBuffer to cv::Mat
     InferenceBackend::Image image;
     BufferMapContext mapContext;
-    gva_buffer_map(buffer, image, mapContext, info, InferenceBackend::MemoryType::SYSTEM);
+    GstMemory *mem = gst_buffer_get_memory(buffer, 0);
+    GstMapFlags mapFlags = (mem && gst_is_fd_memory(mem)) ? GST_MAP_READWRITE : GST_MAP_READ; // TODO
+    gst_memory_unref(mem);
+
+    gva_buffer_map(buffer, image, mapContext, info, InferenceBackend::MemoryType::SYSTEM, mapFlags);
     int format = Fourcc2OpenCVType(image.format);
     cv::Mat mat(image.height, image.width, format, image.planes[0], info->stride[0]);
 
     // construct text labels
     GVA::RegionOfInterestList roi_list(buffer);
     for (GVA::RegionOfInterest &roi : roi_list) {
-        std::string text, labels_text, id;
-        gint object_id = 0;
-        int simple_hash = 0;
+        std::string text;
+        int object_id = roi.meta()->id;
+        int color_index = object_id;
+
+        if (object_id > 0) {
+            text = std::to_string(object_id) + ": ";
+        }
 
         for (GVA::Tensor &tensor : roi) {
             std::string label = tensor.label();
             if (!label.empty()) {
-                labels_text += label + " ";
+                text += label + " ";
             }
-            if (gst_structure_has_field(tensor.gst_structure(), "object_id")) {
-                object_id = tensor.object_id();
+            if (tensor.model_name().find("landmarks") != std::string::npos ||
+                tensor.get_string("format") == "landmark_points") {
+                std::vector<float> data = tensor.data<float>();
+                for (guint i = 0; i < data.size() / 2; i++) {
+                    int x_lm = roi.meta()->x + roi.meta()->w * data[2 * i];
+                    int y_lm = roi.meta()->y + roi.meta()->h * data[2 * i + 1];
+                    cv::circle(mat, cv::Point(x_lm, y_lm), 1 + static_cast<int>(0.012 * roi.meta()->w),
+                               color_table[LANDMARKS_POINT_COLOR_INDEX], -1);
+                }
             }
         }
-
-        if (object_id && (-1 != object_id)) {
-            text = std::to_string(object_id) + ":";
-        }
-
-        text += labels_text;
 
         GstVideoRegionOfInterestMeta *meta = roi.meta();
         if (meta->roi_type) {
@@ -94,13 +104,11 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
             const gchar *type = g_quark_to_string(meta->roi_type);
 
             text += type;
-            simple_hash = (int)myhash(type);
-            if (-1 != object_id)
-                simple_hash += (int)object_id;
+            color_index += (int)myhash(type);
         }
 
         // draw rectangle
-        cv::Scalar color = index2color(simple_hash, image.format); // TODO: Is it good mapping to colors?
+        cv::Scalar color = index2color(color_index, image.format); // TODO: Is it good mapping to colors?
         cv::Point2f bbox_min(meta->x, meta->y);
         cv::Point2f bbox_max(meta->x + meta->w, meta->y + meta->h);
         cv::rectangle(mat, bbox_min, bbox_max, color, 2);

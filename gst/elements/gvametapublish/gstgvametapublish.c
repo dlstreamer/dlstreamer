@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "gstgvametapublish.h"
+#include "gva_caps.h"
 #include "metapublish_impl.h"
 #include "statusmessage.h"
 #include <gst/base/gstbasetransform.h>
@@ -72,22 +73,6 @@ enum {
     PROP_SIGNAL_HANDOFFS,
 };
 
-/* pad templates */
-
-#ifdef SUPPORT_DMA_BUFFER
-#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:DMABuf", "{ I420 }") "; "
-#else
-#define DMA_BUFFER_CAPS
-#endif
-
-#define VA_SURFACE_CAPS
-
-#define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA }")
-
-#define INFERENCE_CAPS DMA_BUFFER_CAPS VA_SURFACE_CAPS SYSTEM_MEM_CAPS
-#define VIDEO_SINK_CAPS INFERENCE_CAPS
-#define VIDEO_SRC_CAPS INFERENCE_CAPS
-
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaMetaPublish, gst_gva_meta_publish, GST_TYPE_BASE_TRANSFORM,
@@ -120,10 +105,10 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
 
     gst_element_class_add_pad_template(
         GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(VIDEO_SRC_CAPS)));
+        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
     gst_element_class_add_pad_template(
         GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(VIDEO_SINK_CAPS)));
+        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
 
     gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(klass), ELEMENT_LONG_NAME, "Metadata", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");
@@ -376,15 +361,19 @@ static gboolean gst_gva_meta_publish_set_caps(GstBaseTransform *trans, GstCaps *
 static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(trans);
 
-    initializeMetaPublishImpl(gvametapublish->method);
+    MetapublishStatusMessage status = initializeMetaPublishImpl(gvametapublish->method);
 
-    MetapublishStatusMessage status = OpenConnection(gvametapublish);
-    GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
-    g_free(status.responseMessage);
-    if (status.responseCode.ps == SUCCESS) {
-        gvametapublish->is_connection_open = TRUE;
-    } else {
+    if (status.responseCode.ps == ERROR) {
         gvametapublish->is_connection_open = FALSE;
+    } else {
+        status = OpenConnection(gvametapublish);
+        GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
+        g_free(status.responseMessage);
+        if (status.responseCode.ps == SUCCESS) {
+            gvametapublish->is_connection_open = TRUE;
+        } else {
+            gvametapublish->is_connection_open = FALSE;
+        }
     }
     GST_DEBUG_OBJECT(gvametapublish, "start");
 

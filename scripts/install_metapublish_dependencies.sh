@@ -1,7 +1,15 @@
 #!/bin/bash
+# ==============================================================================
+# Copyright (C) 2018-2019 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+# ==============================================================================
 
 CURDIR=$PWD
 cd /tmp/
+
+sudo apt update && sudo apt install -y --no-install-recommends \
+    uuid-dev
 
 wget -O - https://github.com/eclipse/paho.mqtt.c/archive/v1.3.0.tar.gz | tar -xz
 cd paho.mqtt.c-1.3.0

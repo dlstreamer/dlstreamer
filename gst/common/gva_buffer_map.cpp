@@ -8,30 +8,26 @@
 #include "inference_backend/logger.h"
 #include <gst/allocators/allocators.h>
 
-#define VA_CALL(_FUNC)                                                                                                 \
-    {                                                                                                                  \
-        ITT_TASK(#_FUNC);                                                                                              \
-        VAStatus _status = _FUNC;                                                                                      \
-        if (_status != VA_STATUS_SUCCESS) {                                                                            \
-            GST_ERROR(#_FUNC " failed, sts=%d: %s", _status, vaErrorStr(_status));                                     \
-        }                                                                                                              \
-    }
+using namespace InferenceBackend;
 
 inline int gstFormatToFourCC(int format) {
     switch (format) {
     case GST_VIDEO_FORMAT_NV12:
         GST_DEBUG("GST_VIDEO_FORMAT_NV12");
-        return InferenceBackend::FourCC::FOURCC_NV12;
+        return FourCC::FOURCC_NV12;
     case GST_VIDEO_FORMAT_BGRx:
         GST_DEBUG("GST_VIDEO_FORMAT_BGRx");
-        return InferenceBackend::FourCC::FOURCC_BGRX;
+        return FourCC::FOURCC_BGRX;
     case GST_VIDEO_FORMAT_BGRA:
         GST_DEBUG("GST_VIDEO_FORMAT_BGRA");
-        return InferenceBackend::FourCC::FOURCC_BGRA;
+        return FourCC::FOURCC_BGRA;
+    case GST_VIDEO_FORMAT_RGBA:
+        GST_DEBUG("GST_VIDEO_FORMAT_RGBA");
+        return FourCC::FOURCC_RGBA;
 #if VA_MAJOR_VERSION >= 1
     case GST_VIDEO_FORMAT_I420:
         GST_DEBUG("GST_VIDEO_FORMAT_I420");
-        return InferenceBackend::FourCC::FOURCC_I420;
+        return FourCC::FOURCC_I420;
 #endif
     }
 
@@ -39,15 +35,14 @@ inline int gstFormatToFourCC(int format) {
     return 0;
 }
 
-bool gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext, GstVideoInfo *info,
-                    InferenceBackend::MemoryType memoryType) {
-    (void)(memoryType);
-
+bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_context, GstVideoInfo *info,
+                    MemoryType memory_type, GstMapFlags map_flags) {
     image = {};
-    mapContext = {};
+    map_context = {};
+    bool status = true;
 
     guint n_planes = info->finfo->n_planes;
-    if (n_planes > InferenceBackend::Image::MAX_PLANES_NUMBER)
+    if (n_planes > Image::MAX_PLANES_NUMBER)
         throw std::logic_error("Planes number " + std::to_string(n_planes) + " isn't supported");
 
     image.format = gstFormatToFourCC(info->finfo->format);
@@ -56,19 +51,41 @@ bool gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMap
     for (guint i = 0; i < n_planes; i++) {
         image.stride[i] = info->stride[i];
     }
-    {
-        if (!gst_buffer_map(buffer, &mapContext.gstMapInfo, GST_MAP_READ)) {
-            GST_ERROR("gva_buffer_map: gst_buffer_map failed\n");
+
+    image.type = memory_type;
+    switch (memory_type) {
+    case MemoryType::SYSTEM: {
+        if (!gst_buffer_map(buffer, &map_context.gstMapInfo, map_flags)) {
+            status = false;
+            GST_ERROR("gva_buffer_map: gst_buffer_map failed");
+            break;
         }
-        for (guint i = 0; i < n_planes; i++) {
-            image.planes[i] = mapContext.gstMapInfo.data + info->offset[i];
-        }
+        for (guint i = 0; i < n_planes; i++)
+            image.planes[i] = map_context.gstMapInfo.data + info->offset[i];
+        break;
     }
-    return true;
+    case MemoryType::DMA_BUFFER: {
+        GstMemory *mem = gst_buffer_get_memory(buffer, 0);
+        image.dma_fd = gst_fd_memory_get_fd(mem);
+        gst_memory_unref(mem);
+        if (!image.dma_fd) {
+            status = false;
+            GST_ERROR("gva_buffer_map: gst_fd_memory_get_fd failed");
+        }
+        break;
+    }
+    default: {
+        GST_ERROR("gva_buffer_map: unsupported memory type");
+        status = false;
+        break;
+    }
+    }
+
+    return status;
 }
 
-void gva_buffer_unmap(GstBuffer *buffer, InferenceBackend::Image &, BufferMapContext &mapContext) {
-    if (mapContext.gstMapInfo.size) {
-        gst_buffer_unmap(buffer, &mapContext.gstMapInfo);
+void gva_buffer_unmap(GstBuffer *buffer, Image &, BufferMapContext &map_context) {
+    if (map_context.gstMapInfo.size) {
+        gst_buffer_unmap(buffer, &map_context.gstMapInfo);
     }
 }

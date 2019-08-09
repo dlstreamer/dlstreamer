@@ -326,7 +326,7 @@ int main(int argc, char *argv[]) {
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
     gchar const *capfilter = "video/x-raw";
     gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
-                                   : "fpsdisplaysink video-sink=ximagesink sync=false";
+                                   : "fpsdisplaysink video-sink=xvimagesink sync=false";
 
     // Build the pipeline
     auto launch_str =

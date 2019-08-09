@@ -1,0 +1,15 @@
+{
+    "input_preproc": [
+        {
+            "color_format": "BGR"
+        }
+    ],
+    "json_schema_version": 1,
+    "output_postproc": [
+        {
+            "converter": "tensor_to_bbox_yolo_v2_tiny",
+            "layer_name": "model/yolo_outputs/YoloRegion",
+            "nms_threshold": 0.9
+        }
+    ]
+}

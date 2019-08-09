@@ -18,14 +18,14 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 4)
+set(VERSION_MINOR 5)
 
-if (NOT DEFINED VERSION_PATCH)
+if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
     set(VERSION_PATCH 0)
     message(WARNING "VERSION_PATCH is undefined. Set default value ${VERSION_PATCH}.")
 endif()
 
-if (NOT DEFINED GIT_INFO)
+if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "git_unknown")
     message(WARNING "GIT_INFO is undefined. Set default value ${GIT_INFO}.")
 endif()
@@ -60,14 +60,14 @@ endif()
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
 set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/lib)
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/bin)
-set (CMAKE_DOCDIR ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/doc)
+set (CMAKE_SAMPLES_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/samples)
 
 # Workaround for OpenVINO R1
 find_package(Threads REQUIRED)
 
 # Common compilation flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror -Wuninitialized -Warray-bounds -fstack-protector-strong")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wuninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations")
 
 # Additional compilation flags aplied to specific targets
 set(C_FLAGS -Wall -Wextra)
@@ -86,9 +86,23 @@ set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 ###############################################################################
-option(HAVE_GAPI "Parameter to enable GAPI for image preprocessing" OFF)
+option(HAVE_VAAPI "Parameter to enable VAAPI for image preprocessing" OFF)
+option(SUPPORT_DMA_BUFFER "Parameter to enable DMA buffer" OFF)
+option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
+option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
+
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
-option(ENABLE_DOCUMENTATION "Parameter to enable documentation generation" OFF)
+
+message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
+if(${ENABLE_PAHO_INSTALLATION})
+    find_library(MQTT paho-mqtt3c)
+endif()
+
+message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
+if(${ENABLE_RDKAFKA_INSTALLATION})
+    find_library(KAFKA rdkafka)
+endif()
+
 
 configure_file(cmake/config.h.in configs/config.h @ONLY)
 

@@ -5,7 +5,7 @@
 
 This repository contains GStreamer elements that enable CNN model-based video analytics capabilities in the GStreamer framework. These elements include such things as object detection, classification, and recognition. Example above shows concise GStreamer pipeline that runs detection & emotion classification, using specific models on a video file:
 ```sh
-gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! ximagesink sync=false
+gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! xvimagesink sync=false
 ```
 
 The solution leverages:
@@ -14,34 +14,24 @@ The solution leverages:
 * Video decode and encode plugins, including either CPU-optimized plugins or GPU-accelerated plugins, [based on VAAPI](https://github.com/GStreamer/gstreamer-vaapi)
 
 In addition, the solution installs the following Deep Learning-specific elements, also available in this repository:
-* Inference plugins leveraging [Intel OpenVINO](https://software.intel.com/en-us/openvino-toolkit) for high-performance inference using CNN models
+* Inference plugins leveraging [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) for high-performance inference using CNN models
 * Visualization of computer vision results (such as bounding boxes and labels of detected objects) on top of video stream
-
-The following diagram shows how the GVA plugin fits into the common software stack. 
-
-<div align="center"><img src="https://user-images.githubusercontent.com/26006277/58497636-11285480-8185-11e9-80da-b812877bc898.png" width=900/></div>
-
-Diagram color key:
-* GVA plugin components: light blue
-* Oher Intel components: dark blue
-* Standard GStreamer components: gray
-* Linux kernel: green
 
 ## License
 The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE).
 
 ## Prerequisites
 ### Hardware
-* The Intel(R) OpenVINO(TM) toolkit has information about the [hardware requirements for inference elements](https://software.intel.com/en-us/openvino-toolkit/hardware)
+* OpenVINO<sup>&#8482;</sup> Toolkit has information about the [hardware requirements for inference elements](https://software.intel.com/en-us/openvino-toolkit/hardware)
 * On platforms with Intel Gen graphics, see the gstreamer-vaapi for [hardware accelerated video decode and encode requirements](https://github.com/GStreamer/gstreamer-vaapi)
 
 ### Software
-* Intel(R) OpenVINO(TM) toolkit 2019 R1 (Inference Engine 1.6.0) or above
+* OpenVINO<sup>&#8482;</sup> Toolkit 2019 R2 (Inference Engine 2.0.0) or above
 * Linux* system with kernel 4.15 or above
 * GStreamer framework 1.14 or above
 
 ## Getting Started
-* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5BR1.2%5D)
+* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5Bdevelop%5D)
 * [API reference](https://opencv.github.io/gst-video-analytics/)
 
 ## Samples
@@ -61,10 +51,10 @@ Report bugs and requests [on the issues page](https://github.com/opencv/gst-vide
 [Details](https://github.com/opencv/gst-video-analytics/wiki/Model-preparation) about how to prepare Tensorflow*, Caffe*, and other models for the inference plugins
 
 ### Plugins parameters
-[Elements list](https://github.com/opencv/gst-video-analytics/wiki/Elements) and properties list for each element
+[Elements list](https://github.com/opencv/gst-video-analytic/wiki/Elements) and properties list for each element
 
 ## How to contribute
-Pull requests aren't monitored, so if you have bug fix or an idea to improve this project, post a description on the [issues page](https://github.com/opencv/gst-video-analytics/issues). 
+Pull requests aren't monitored, so if you have bug fix or an idea to improve this project, post a description on the [issues page](https://github.com/opencv/gst-video-analytics/issues).
 
 ---
 \* Other names and brands may be claimed as the property of others.

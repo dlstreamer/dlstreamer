@@ -36,5 +36,4 @@ PRIVATE
         ${GLIB2_LIBRARIES}
         ${GSTREAMER_LIBRARIES}
         gstvideoanalyticsmeta
-        common
     )

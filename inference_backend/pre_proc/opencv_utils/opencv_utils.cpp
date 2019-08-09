@@ -14,7 +14,6 @@ namespace InferenceBackend {
 namespace Utils {
 
 void ImageToMat(const Image &src, cv::Mat &dst) {
-    // TODO: add I420 support
     switch (src.format) {
     case FOURCC_BGRX:
     case FOURCC_BGRA:
@@ -104,6 +103,5 @@ cv::Mat ResizeMat(const cv::Mat &orig_image, const size_t height, const size_t w
     }
     return resized_image;
 }
-
 } // namespace Utils
 } // namespace InferenceBackend

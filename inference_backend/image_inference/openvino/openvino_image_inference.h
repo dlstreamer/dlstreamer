@@ -9,6 +9,7 @@
 #include "inference_backend/image_inference.h"
 #include "inference_backend/pre_proc.h"
 
+#include <atomic>
 #include <inference_engine.hpp>
 #include <map>
 #include <string>
@@ -27,11 +28,14 @@ class OpenVINOImageInference : public ImageInference {
                            const std::map<std::string, std::string> &config, Allocator *allocator,
                            CallbackFunc callback);
 
+    void CreateInferRequests();
+
     virtual ~OpenVINOImageInference();
 
     virtual void SubmitImage(const Image &image, IFramePtr user_data, std::function<void(Image &)> preProcessor);
 
     virtual const std::string &GetModelName() const;
+    virtual void GetModelInputInfo(int *width, int *height, int *format) const;
 
     virtual bool IsQueueFull();
 
@@ -40,6 +44,8 @@ class OpenVINOImageInference : public ImageInference {
     virtual void Close();
 
   protected:
+    bool initialized;
+
     struct BatchRequest {
         InferenceEngine::InferRequest::Ptr infer_request;
         std::vector<IFramePtr> buffers;
@@ -48,9 +54,8 @@ class OpenVINOImageInference : public ImageInference {
 
     void GetNextImageBuffer(std::shared_ptr<BatchRequest> request, Image *image);
 
-    void WorkingFunction();
+    void WorkingFunction(std::shared_ptr<BatchRequest> request);
 
-    bool resize_by_inference;
     Allocator *allocator;
     CallbackFunc callback;
 
@@ -59,19 +64,22 @@ class OpenVINOImageInference : public ImageInference {
     InferenceEngine::ConstInputsDataMap inputs;
     InferenceEngine::ConstOutputsDataMap outputs;
     std::string modelName;
+    InferenceEngine::CNNNetwork network;
 
     // Threading
-    int batch_size;
-    std::thread working_thread;
+    const int batch_size;
     SafeQueue<std::shared_ptr<BatchRequest>> freeRequests;
-    SafeQueue<std::shared_ptr<BatchRequest>> workingRequests;
 
     // VPP
     std::unique_ptr<PreProc> sw_vpp;
-    bool already_flushed;
+
+    std::mutex mutex_;
+    std::mutex inference_completion_mutex_;
+    std::atomic<unsigned int> requests_processing_;
+    std::condition_variable request_processed_;
     std::mutex flush_mutex;
 
   private:
-    void SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image *pSrc,
+    void SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image &src,
                                        std::function<void(Image &)> preProcessor);
 };

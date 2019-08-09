@@ -11,7 +11,7 @@ The **gvaclassify** element typically inserted into pipeline after gvadetect and
 
 The **gvainference** element generates and attaches to the frame custom metadata _GstGVATensorMeta (as many instances as output layers in the model) containing tensor raw data and additional information such as tensor dimensions, data precision, etc.
 
-Taking the following pipeline as example
+Taking the following pipeline as example:
 ```
 MODEL1=face-detection-adas-0001
 MODEL2=age-gender-recognition-retail-0013
@@ -22,7 +22,7 @@ gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
     gvadetect   model=$(MODEL_PATH $MODEL1) ! queue ! \
     gvaclassify model=$(MODEL_PATH $MODEL2) model-proc=$(PROC_PATH $MODEL2) ! queue ! \
     gvaclassify model=$(MODEL_PATH $MODEL3) model-proc=$(PROC_PATH $MODEL3) ! queue ! \
-    gvawatermark ! videoconvert ! fpsdisplaysink video-sink=ximagesink sync=false
+    gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false
 ```
 The gvadetect detected three faces, it will attach three metadata objects each containing one GstStructure with detection results, the next gvaclassify will add two more GstStructure (model contains two output layers, age and gender) into each meta, and another gvaclassify will add one more GstStructure (emotion), resulting in three metadata objects each containing four GstStructure in 'GList *params' field: detection, age, gender, emotions.
 

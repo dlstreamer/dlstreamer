@@ -10,10 +10,10 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
-#include "converters.h"
-#include "gva_json_meta.h"
-
 #include "config.h"
+#include "converters.h"
+#include "gva_caps.h"
+#include "gva_json_meta.h"
 
 #define UNUSED(x) (void)(x)
 
@@ -72,22 +72,6 @@ enum {
     PROP_LOCATION
 };
 
-/* pad templates */
-
-#ifdef SUPPORT_DMA_BUFFER
-#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:DMABuf", "{ I420 }") "; "
-#else
-#define DMA_BUFFER_CAPS
-#endif
-
-#define VA_SURFACE_CAPS
-
-#define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA }")
-
-#define INFERENCE_CAPS DMA_BUFFER_CAPS VA_SURFACE_CAPS SYSTEM_MEM_CAPS
-#define VIDEO_SINK_CAPS INFERENCE_CAPS
-#define VIDEO_SRC_CAPS INFERENCE_CAPS
-
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaMetaConvert, gst_gva_meta_convert, GST_TYPE_BASE_TRANSFORM,
@@ -98,10 +82,10 @@ GType gst_gva_metaconvert_get_converter(void) {
     static GType gva_metaconvert_converter_type = 0;
     static const GEnumValue converter_types[] = {
         {GST_GVA_METACONVERT_TENSOR2TEXT, "Tensor to text conversion", "tensor2text"},
-        {GST_GVA_METACONVERT_JSON, "Conversion to json file", "json"},
-        {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection", "dump-detection"},
-        {GST_GVA_METACONVERT_DUMP_CLASSIFICATION, "Dump classification", "dump-classification"},
-        {GST_GVA_METACONVERT_DUMP_TENSORS, "Dump tensors", "dump-tensors"},
+        {GST_GVA_METACONVERT_JSON, "Conversion to GstGVAJSONMeta", "json"},
+        {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection to GST debug log", "dump-detection"},
+        {GST_GVA_METACONVERT_DUMP_CLASSIFICATION, "Dump classification to GST debug log", "dump-classification"},
+        {GST_GVA_METACONVERT_DUMP_TENSORS, "Dump tensors to GST debug log", "dump-tensors"},
         {GST_GVA_METACONVERT_TENSORS_TO_FILE, "Tensors to file", "tensors-to-file"},
         {GST_GVA_METACONVERT_ADD_FULL_FRAME_ROI, "Add fullframe ROI", "add-fullframe-roi"},
         {0, NULL, NULL}};
@@ -154,10 +138,10 @@ static void gst_gva_meta_convert_class_init(GstGvaMetaConvertClass *klass) {
        base_class_init if you intend to subclass this class. */
     gst_element_class_add_pad_template(
         GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(VIDEO_SRC_CAPS)));
+        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
     gst_element_class_add_pad_template(
         GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(VIDEO_SINK_CAPS)));
+        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
 
     gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(klass), ELEMENT_LONG_NAME, "Video", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");

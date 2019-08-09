@@ -74,6 +74,7 @@ class Tensor {
         ANY = 0,  /**< unspecified layout */
         NCHW = 1, /**< NCWH layout */
         NHWC = 2, /**< NHWC layout */
+        NC = 193  /**< NC layout */
     };
 
     /**

@@ -32,13 +32,15 @@ class ImageInference {
     typedef std::function<void(std::map<std::string, std::shared_ptr<OutputBlob>> blobs, std::vector<IFramePtr> frames)>
         CallbackFunc;
 
-    static Ptr make_shared(MemoryType type, std::string devices, std::string model, int batch_size, int nireq,
+    static Ptr make_shared(MemoryType type, const std::string &devices, const std::string &model,
+                           const unsigned int batch_size, const unsigned int nireq,
                            const std::map<std::string, std::string> &config, Allocator *allocator,
                            CallbackFunc callback);
 
     virtual void SubmitImage(const Image &image, IFramePtr user_data, std::function<void(Image &)> preProcessor) = 0;
 
     virtual const std::string &GetModelName() const = 0;
+    virtual void GetModelInputInfo(int *width, int *height, int *format) const = 0;
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -50,7 +52,7 @@ class ImageInference {
 class OutputBlob {
   public:
     using Ptr = std::shared_ptr<OutputBlob>;
-    enum class Layout { ANY = 0, NCHW = 1, NHWC = 2 };
+    enum class Layout { ANY = 0, NCHW = 1, NHWC = 2, NC = 193 };
     enum class Precision { FP32 = 10, U8 = 40 };
     virtual ~OutputBlob() = default;
     virtual const std::vector<size_t> &GetDims() const = 0;
@@ -70,6 +72,8 @@ class Allocator {
 #define __DECLARE_CONFIG_KEY(name) static constexpr auto __CONFIG_KEY(name) = #name
 __DECLARE_CONFIG_KEY(CPU_EXTENSION);          // library with implementation of custom layers
 __DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS); // number inference requests running in parallel
-__DECLARE_CONFIG_KEY(RESIZE_BY_INFERENCE);    // experimental, don't use
+__DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
+__DECLARE_CONFIG_KEY(PRE_PROCESSOR_TYPE);
+__DECLARE_CONFIG_KEY(IMAGE_FORMAT);
 
 } // namespace InferenceBackend
