@@ -46,6 +46,7 @@ The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE
 
 ## Samples
 See the [command-line examples](samples/shell) and [C++ example](samples/cpp/face_attributes)
+
 NOTE: For running samples, the wiki should be modified to use 2018 branch of open_model_zoo as the master version downloads version 6 models which are not supported by this version of OpenVino and the models do not run). Then use the following command to download the models (the 2018 branch version of downloader does not take list file as cmd line parameter):
 
 ```sh
