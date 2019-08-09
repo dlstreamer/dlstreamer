@@ -20,7 +20,7 @@ source $BASEDIR/scripts/path_extractor.sh
 FILE=${1:-$VIDEO_EXAMPLES_DIR/People_On_The_Street.mp4}
 
 MODEL1=person-vehicle-bike-detection-crossroad-0078
-MODEL2=person-attributes-recognition-crossroad-0230
+MODEL2=person-attributes-recognition-crossroad-0200
 MODEL3=vehicle-attributes-recognition-barrier-0039
 
 MODEL1_PROC=person-vehicle-bike-detection-crossroad-0078
