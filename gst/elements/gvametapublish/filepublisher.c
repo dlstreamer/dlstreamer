@@ -61,7 +61,12 @@ MetapublishStatusMessage file_open(FILE **pFile, FilePublishConfig *config) {
         returnMessage.responseCode.fps = FILE_ERROR;
         return returnMessage;
     }
-    if (config->file_path == NULL || strlen(config->file_path) < MIN_FILE_LEN) {
+    if (config->file_path == NULL) {
+        returnMessage.responseCode.fps = FILE_ERROR_INVALID_FILEPATH;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
+                 "filepath property for gvametapublish has not been set\n");
+        return returnMessage;
+    } else if (strlen(config->file_path) < MIN_FILE_LEN) {
         returnMessage.responseCode.fps = FILE_ERROR_INVALID_FILEPATH;
         snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
                  "Error initializing file %s - You must specify absolute path not shorter than %d symbols to an "

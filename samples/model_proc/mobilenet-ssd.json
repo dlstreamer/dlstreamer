@@ -1,33 +1,37 @@
 {
-    "input_preproc": [{
-        "color_format": "BGR"
-    }],
+    "input_preproc": [
+        {
+            "color_format": "BGR"
+        }
+    ],
     "json_schema_version": 1,
-    "output_postproc": [{
-        "converter": "DetectionOutput",
-        "labels": [
-            "background",
-            "aeroplane",
-            "bicycle",
-            "bird",
-            "boat",
-            "bottle",
-            "bus",
-            "car",
-            "cat",
-            "chair",
-            "cow",
-            "diningtable",
-            "dog",
-            "horse",
-            "motorbike",
-            "person",
-            "pottedplant",
-            "sheep",
-            "sofa",
-            "train",
-            "tvmonitor"
-        ],
-        "layer_name": "detection_out"
-    }]
+    "output_postproc": [
+        {
+            "converter": "tensor_to_bbox_ssd",
+            "labels": [
+                "background",
+                "aeroplane",
+                "bicycle",
+                "bird",
+                "boat",
+                "bottle",
+                "bus",
+                "car",
+                "cat",
+                "chair",
+                "cow",
+                "diningtable",
+                "dog",
+                "horse",
+                "motorbike",
+                "person",
+                "pottedplant",
+                "sheep",
+                "sofa",
+                "train",
+                "tvmonitor"
+            ],
+            "layer_name": "detection_out"
+        }
+    ]
 }

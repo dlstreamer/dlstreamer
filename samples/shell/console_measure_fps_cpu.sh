@@ -16,7 +16,13 @@ source $BASEDIR/scripts/setlocale.sh
 #import GET_MODEL_PATH
 source $BASEDIR/scripts/path_extractor.sh
 
-FILE=${1:-$VIDEO_EXAMPLES_DIR/Pexels_Videos_4786.mp4}
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./console_measure_fps_cpu.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
 
 MODEL=vehicle-license-plate-detection-barrier-0106
 

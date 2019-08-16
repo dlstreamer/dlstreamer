@@ -1,11 +1,36 @@
 {
   "json_schema_version": 1.0,
-  "input": [{
-    "color_format": "BGR"
-  }],
-  "output": [{
-    "labels": ["plane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "table", "dog", "horse", "motorcycle", "person", "plant", "sheep", "sofa", "train", "monitor"],
-    "converter": "attributes",
-    "method": "max"
-  }]
+  "input": [
+    {
+      "color_format": "BGR"
+    }
+  ],
+  "output": [
+    {
+      "labels": [
+        "plane",
+        "bicycle",
+        "bird",
+        "boat",
+        "bottle",
+        "bus",
+        "car",
+        "cat",
+        "chair",
+        "cow",
+        "table",
+        "dog",
+        "horse",
+        "motorcycle",
+        "person",
+        "plant",
+        "sheep",
+        "sofa",
+        "train",
+        "monitor"
+      ],
+      "converter": "tensor_to_label",
+      "method": "max"
+    }
+  ]
 }

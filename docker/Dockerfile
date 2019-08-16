@@ -199,6 +199,14 @@ RUN git clone ${SVT_VP9_REPO} && \
     make install DESTDIR=/home/build && \
     make install
 
+#include(transform360.m4)
+# Fetch gmmlib
+ARG GMMLIB_VER=intel-gmmlib-18.3.0
+ARG GMMLIB_REPO=https://github.com/intel/gmmlib/archive/${GMMLIB_VER}.tar.gz
+
+RUN wget -O - ${GMMLIB_REPO} | tar xz && mv gmmlib-${GMMLIB_VER} gmmlib;
+
+
 # Build libdrm
 ARG LIBDRM_VER=2.4.96
 ARG LIBDRM_REPO=https://dri.freedesktop.org/libdrm/libdrm-${LIBDRM_VER}.tar.gz
@@ -213,34 +221,73 @@ RUN wget -O - ${LIBDRM_REPO} | tar xz && \
     make install ;
 
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libx11-dev xorg-dev libgl1-mesa-dev openbox
+# Build libva
+ARG LIBVA_VER=2.4.0
+ARG LIBVA_REPO=https://github.com/intel/libva/archive/${LIBVA_VER}.tar.gz
+
+RUN apt-get remove libva*
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libdrm-dev libx11-dev xorg-dev libgl1-mesa-dev openbox
+
+RUN wget -O - ${LIBVA_REPO} | tar xz && \
+    cd libva-${LIBVA_VER} && \
+    ./autogen.sh --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu && \
+    make -j8 && \
+    make install DESTDIR=/home/build && \
+    make install;
+
+
+# Build libva-utils
+ARG LIBVA_UTILS_VER=2.4.0
+ARG LIBVA_UTILS_REPO=https://github.com/intel/libva-utils/archive/${LIBVA_UTILS_VER}.tar.gz
+
+RUN wget -O - ${LIBVA_UTILS_REPO} | tar xz; \
+    cd libva-utils-${LIBVA_UTILS_VER}; \
+    ./autogen.sh --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu; \
+    make -j8; \
+    make install DESTDIR=/home/build; \
+    make install;
+
+
+# Build media driver
+ARG MEDIA_DRIVER_VER=intel-media-kbl-19.1.0
+ARG MEDIA_DRIVER_REPO=https://github.com/VCDP/media-driver/archive/${MEDIA_DRIVER_VER}.tar.gz
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libdrm-dev libpciaccess-dev libx11-dev xorg-dev libgl1-mesa-dev
+
+RUN wget -O - ${MEDIA_DRIVER_REPO} | tar xz && mv media-driver-${MEDIA_DRIVER_VER} media-driver && \
+    mkdir -p media-driver/build && \
+    cd media-driver/build && \
+    cmake -DBUILD_TYPE=release -DBUILD_ALONG_WITH_CMRTLIB=1 -DMEDIA_VERSION="2.0.0" -DBS_DIR_GMMLIB=/home/gmmlib/Source/GmmLib -DBS_DIR_COMMON=/home/gmmlib/Source/Common -DBS_DIR_INC=/home/gmmlib/Source/inc -DBS_DIR_MEDIA=/home/media-driver -Wno-dev -DCMAKE_INSTALL_PREFIX=/usr .. && \
+    make -j8 && \
+    make install DESTDIR=/home/build && \
+    make install
+
+
 
 # Build Intel(R) Media SDK
-ARG MSDK_REPO=https://github.com/Intel-Media-SDK/MediaSDK/releases/download/intel-mediasdk-19.1.0/MediaStack.tar.gz
+ARG MSDK_VER=MSS-KBL-2019-R1
+ARG MSDK_REPO=https://github.com/Intel-Media-SDK/MediaSDK/archive/${MSDK_VER}.tar.gz
 
-RUN wget -O - ${MSDK_REPO} | tar xz && \
-    cd MediaStack && \
-    \
-    cp -r opt/ /home/build && \
-    cp -r etc/ /home/build && \
-    \
-    cp -a opt/. /opt/ && \
-    cp -a etc/. /opt/ && \
-    ldconfig
+RUN wget -O - ${MSDK_REPO} | tar xz && mv MediaSDK-${MSDK_VER} MediaSDK && \
+    mkdir -p MediaSDK/build && \
+    cd MediaSDK/build && \
+    cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_INSTALL_INCLUDEDIR=include/mfx -DBUILD_SAMPLES=OFF -DENABLE_OPENCL=OFF -Wno-dev .. && \
+    make -j8 && \
+    make install DESTDIR=/home/build && \
+    make install;
 
+#install OpenCL
 
-ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
-ENV LIBVA_DRIVER_NAME=iHD
-ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/mediasdk/lib64/pkgconfig
-ENV GST_VAAPI_ALL_DRIVERS=1
+RUN mkdir neo
 
-#clinfo needs to be installed after build directory is copied over
-RUN mkdir neo && cd neo && \
-    wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-gmmlib_18.4.1_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-igc-core_18.50.1270_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-igc-opencl_18.50.1270_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-opencl_19.04.12237_amd64.deb && \
-    wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-ocloc_19.04.12237_amd64.deb && \
+RUN cd neo && wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-gmmlib_18.4.1_amd64.deb
+RUN cd neo && wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-igc-core_18.50.1270_amd64.deb
+RUN cd neo && wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-igc-opencl_18.50.1270_amd64.deb
+RUN cd neo && wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-opencl_19.04.12237_amd64.deb
+RUN cd neo && wget https://github.com/intel/compute-runtime/releases/download/19.04.12237/intel-ocloc_19.04.12237_amd64.deb
+
+RUN cd neo && \
     dpkg -i *.deb && \
     dpkg-deb -x intel-gmmlib_18.4.1_amd64.deb /home/build/ && \
     dpkg-deb -x intel-igc-core_18.50.1270_amd64.deb /home/build/ && \
@@ -248,11 +295,19 @@ RUN mkdir neo && cd neo && \
     dpkg-deb -x intel-opencl_19.04.12237_amd64.deb /home/build/ && \
     dpkg-deb -x intel-ocloc_19.04.12237_amd64.deb /home/build/
 
+#clinfo needs to be installed after build directory is copied over
+
+ARG PYTHON_VER=3.6.6
+ARG PYTHON_REPO=https://www.python.org/ftp/python/${PYTHON_VER}/Python-${PYTHON_VER}.tgz
+
+RUN apt-get install -y python3 python3-pip python3-setuptools python-yaml
+
+
 # Build DLDT-Inference Engine
-ARG DLDT_VER=2019_R1.1
+ARG DLDT_VER=2019_R2
 ARG DLDT_REPO=https://github.com/opencv/dldt.git
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install --no-install-recommends -y -q --no-install-recommends libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev python3 python3-pip python3-setuptools python-yaml
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev
 
 RUN git clone -b ${DLDT_VER} ${DLDT_REPO} && \
     cd dldt && \
@@ -492,10 +547,10 @@ RUN wget ${OPENCV_REPO} && \
 
 RUN apt-get install -y -q --no-install-recommends gtk-doc-tools
 
-ARG PAHO_INSTALL=true
+ARG ENABLE_PAHO_INSTALLATION=false
 ARG PAHO_VER=1.3.0
 ARG PAHO_REPO=https://github.com/eclipse/paho.mqtt.c/archive/v${PAHO_VER}.tar.gz
-RUN if [ "$PAHO_INSTALL" = "true" ] ; then \
+RUN if [ "$ENABLE_PAHO_INSTALLATION" = "true" ] ; then \
         wget -O - ${PAHO_REPO} | tar -xz && \
         cd paho.mqtt.c-${PAHO_VER} && \
         make && \
@@ -531,15 +586,19 @@ RUN if [ "$PAHO_INSTALL" = "true" ] ; then \
         echo "PAHO install disabled"; \
     fi
 
-ARG RDKAFKA_INSTALL=true
+ARG ENABLE_RDKAFKA_INSTALLATION=false
 ARG RDKAFKA_VER=1.0.0
 ARG RDKAFKA_REPO=https://github.com/edenhill/librdkafka/archive/v${RDKAFKA_VER}.tar.gz
-RUN wget -O - ${RDKAFKA_REPO} | tar -xz && \
+RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
+        wget -O - ${RDKAFKA_REPO} | tar -xz && \
         cd librdkafka-${RDKAFKA_VER} && \
         ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu/ && \
         make && \
         make install && \
-        make install DESTDIR=/home/build
+        make install DESTDIR=/home/build; \
+    else \
+        echo "KAFKA install disabled"; \
+    fi
 
 FROM ubuntu:16.04
 LABEL Description="This is the base image for GSTREAMER & DLDT Ubuntu 16.04 LTS"
@@ -548,12 +607,12 @@ WORKDIR /root
 
 # Prerequisites
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libxv1 libxcb-shm0 libxcb-shape0 libxcb-xfixes0 libsdl2-2.0-0 libasound2 libvdpau1 \
-libnuma1 libass5 libssl1.0.0 libglib2.0 libpango-1.0-0 libpangocairo-1.0-0 gobject-introspection libudev1 libx11-xcb1 libgl1-mesa-glx libxrandr2 libegl1-mesa \
+libnuma1 libass5 libssl1.0.0 libglib2.0 libpango-1.0-0 libpangocairo-1.0-0 gobject-introspection libdrm-intel1 libudev1 libx11-xcb1 libgl1-mesa-glx libxrandr2 libegl1-mesa \
 libpng12-0 libvisual-0.4-0 libtheora0 libcdparanoia0 libsoup2.4-1 libjpeg8 libjpeg-turbo8 python3 python3-pip python-yaml \
-libgtk2.0 clinfo \
+libgtk2.0 libdrm2 clinfo \
 \
 libusb-1.0-0-dev libboost-all-dev libjson-c-dev \
-build-essential cmake ocl-icd-opencl-dev wget gcovr vim git gdb ca-certificates libssl-dev \
+build-essential cmake ocl-icd-opencl-dev wget gcovr vim git gdb ca-certificates libssl-dev uuid-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install
@@ -567,21 +626,21 @@ RUN echo "\
 /opt/intel/dldt/inference-engine/external/mkltiny_lnx_20190131/lib\n\
 /opt/intel/dldt/inference-engine/external/vpu/hddl/lib" > /etc/ld.so.conf.d/opencv-dldt-gst.conf && ldconfig
 
-ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
+ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV LIBVA_DRIVER_NAME=iHD
-ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/mediasdk/lib64/pkgconfig:${PKG_CONFIG_PATH}
 ENV GST_VAAPI_ALL_DRIVERS=1
-
 ENV DISPLAY=:0.0
-
 ENV InferenceEngine_DIR=/opt/intel/dldt/inference-engine/share
-
+ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
 ENV LIBRARY_PATH=${LIBRARY_PATH}:/usr/lib
-ENV PATH=/usr/bin:/opt/intel/mediasdk/bin:${PATH}
+ENV PATH=${PATH}:/usr/bin
+ENV HDDL_INSTALL_DIR=/opt/intel/dldt/inference-engine/external/vpu/hddl
 ARG GIT_INFO
 ARG SOURCE_REV
 
 COPY . gstreamer-plugins
+ARG ENABLE_PAHO_INSTALLATION=false
+ARG ENABLE_RDKAFKA_INSTALLATION=false
 
 RUN mkdir -p gstreamer-plugins/build \
         && cd gstreamer-plugins/build \
@@ -590,6 +649,8 @@ RUN mkdir -p gstreamer-plugins/build \
         -DVERSION_PATCH=${SOURCE_REV} \
         -DGIT_INFO=${GIT_INFO} \
         -DBUILD_SHARED_LIBS=ON \
+        -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
+        -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
         -DCMAKE_INSTALL_PREFIX=/usr .. \
         && make -j $(nproc) \
         && make install \

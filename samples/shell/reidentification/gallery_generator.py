@@ -106,7 +106,8 @@ if __name__ == "__main__":
     args = parse_arg()
 
     output_path = args.output
-    features_out = os.path.join(output_path, "features")
+    gallery_folder = os.path.join(output_path, "gallery")
+    features_out = os.path.join(gallery_folder, "features")
     relative_features_out = os.path.relpath(features_out, output_path)
     os.makedirs(features_out)
 
@@ -135,7 +136,7 @@ if __name__ == "__main__":
         regexp = re.compile(feature_file_regexp_template.format(label=label))
         gallery[label]['features'] = [os.path.join(relative_features_out, x) for x in output_files if regexp.match(x)]
         pass
-    with open(os.path.join(output_path, "gallery.json"), 'w') as f:
+    with open(os.path.join(gallery_folder, "gallery.json"), 'w') as f:
         json.dump(gallery, f)
         pass
     pass

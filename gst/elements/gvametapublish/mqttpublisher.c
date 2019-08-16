@@ -7,17 +7,26 @@
 #include "mqttpublisher.h"
 
 #ifdef PAHO_INC
+#include <uuid/uuid.h>
+
 MQTTClient mqtt_open_connection(MQTTPublishConfig *gvametapublish) {
     MQTTClient client;
     MQTTClient_connectOptions conn_opts = MQTTClient_connectOptions_initializer;
     gint c;
 
+    char *clientid;
+
     if (gvametapublish->clientid == NULL) {
-        return NULL;
+        uuid_t binuuid;
+        uuid_generate_random(binuuid);
+        char uuid[37]; // 36 character UUID string plus terminating character
+        uuid_unparse(binuuid, uuid);
+        clientid = uuid;
+    } else {
+        clientid = gvametapublish->clientid;
     }
 
-    MQTTClient_create(&client, gvametapublish->bindaddress, gvametapublish->clientid, MQTTCLIENT_PERSISTENCE_NONE,
-                      NULL);
+    MQTTClient_create(&client, gvametapublish->bindaddress, clientid, MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
 

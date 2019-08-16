@@ -12,24 +12,22 @@ if [ -n ${GST_SAMPLES_DIR} ]
 then
     source $BASEDIR/scripts/setup_env.sh
 fi
+source $BASEDIR/scripts/setlocale.sh
 
-FILE=${1:-$VIDEO_EXAMPLES_DIR/Pexels_Videos_4786_960x540.mp4}
+source $BASEDIR/scripts/path_extractor.sh
+
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./vehicle_detection_publish_file.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
+
 MODEL=vehicle-license-plate-detection-barrier-0106
-PRECISION=${2:-\"FP32\"}
-OUTFILE=${3:-"metapublish_report.json"}
 
-GET_MODEL_PATH() {
-    for path in ${MODELS_PATH//:/ }; do
-        paths=$(find $path -name "$1.xml" -print)
-        if [ ! -z "$paths" ];
-        then
-            echo $(grep -l "precision=$PRECISION" $paths)
-            exit 0
-        fi
-    done
-    echo -e "\e[31mModel $1.xml file was not found. Please set MODELS_PATH\e[0m" 1>&2
-    exit 1
-}
+OUTFILE=${2:-"metapublish_report.json"}
+OUTFORMAT=${3:-"batch"}  # values: batch, stream
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL)
 
@@ -40,6 +38,6 @@ gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
                 gvawatermark ! videoconvert ! fakesink \
                 filesrc location=${FILE} ! decodebin ! video/x-raw ! videoconvert ! gvadetect inference-id=inf0 ! \
                 gvametaconvert converter=json method=all ! \
-                gvametapublish method=file filepath=${OUTFILE} outputformat=batch  ! \
+                gvametapublish method=file filepath=${OUTFILE} outputformat=${OUTFORMAT}  ! \
                 queue ! gvawatermark ! videoconvert ! fakesink
 

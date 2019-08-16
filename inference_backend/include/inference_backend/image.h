@@ -10,7 +10,12 @@
 
 namespace InferenceBackend {
 
-enum class MemoryType { ANY = 0, SYSTEM = 1, OPENCL = 2 };
+enum class MemoryType {
+    ANY = 0,
+    SYSTEM = 1,
+    DMA_BUFFER = 2,
+    VAAPI = 3,
+};
 
 enum FourCC {
     FOURCC_NV12 = 0x3231564E,
@@ -37,13 +42,27 @@ struct Image {
     static const unsigned MAX_PLANES_NUMBER = 4;
     union {
         uint8_t *planes[MAX_PLANES_NUMBER]; // if type==SYSTEM
-        void *cl_mem;                       // if type==OPENCL
+        int dma_fd;                         // if type==DMA_BUFFER
+        struct {
+            uint32_t va_surface_id;
+            void *va_display;
+        };
     };
     int format; // FourCC
     int width;
     int height;
     int stride[MAX_PLANES_NUMBER];
     Rectangle rect;
+};
+
+// Map DMA/VAAPI image into system memory
+class ImageMap {
+  public:
+    virtual Image Map(const Image &image) = 0;
+    virtual void Unmap() = 0;
+
+    static ImageMap *Create();
+    virtual ~ImageMap() = default;
 };
 
 } // namespace InferenceBackend

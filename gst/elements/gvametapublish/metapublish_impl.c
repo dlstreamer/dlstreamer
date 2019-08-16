@@ -15,10 +15,28 @@ MetapublishImpl *getMPInstance() {
     return instance;
 };
 
-void initializeMetaPublishImpl(GstGVAMetaPublishMethodType type) {
+MetapublishStatusMessage initializeMetaPublishImpl(GstGVAMetaPublishMethodType type) {
     MetapublishImpl *mp = getMPInstance();
 
+    MetapublishStatusMessage returnMessage;
+    returnMessage.codeType = GENERAL;
+    returnMessage.responseCode.ps = SUCCESS;
+    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
+
+    if (returnMessage.responseMessage == NULL) {
+        returnMessage.responseCode.ps = ERROR;
+        return returnMessage;
+    }
+
+    if (mp == NULL) {
+        returnMessage.responseCode.ps = ERROR;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
+                 "Failed to allocate memory for MetapublishImpl\n");
+        return returnMessage;
+    }
+
     mp->type = type;
+    return returnMessage;
 }
 
 MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
@@ -31,6 +49,13 @@ MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
 
     if (returnMessage.responseMessage == NULL) {
         returnMessage.responseCode.ps = ERROR;
+        return returnMessage;
+    }
+
+    if (mp == NULL) {
+        returnMessage.responseCode.ps = ERROR;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
+                 "Failed to allocate memory for MetapublishImpl\n");
         return returnMessage;
     }
 
@@ -57,13 +82,6 @@ MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
             returnMessage.responseCode.ps = ERROR;
             snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
                      "Failed to Open MQTT Connection, No Address provided\n");
-            return returnMessage;
-        }
-
-        if (mp->mqtt_config->clientid == NULL) {
-            returnMessage.responseCode.ps = ERROR;
-            snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
-                     "Failed to Open MQTT Connection, No Client ID provided\n");
             return returnMessage;
         }
 
@@ -104,7 +122,7 @@ MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
         mp->kafka_config->signal_handoffs = gvametapublish->signal_handoffs;
 
         MetapublishStatusMessage status =
-            kafka_open_connection(mp->kafka_config, mp->kafka_producerHandler, mp->kafka_rkt);
+            kafka_open_connection(mp->kafka_config, &mp->kafka_producerHandler, &mp->kafka_rkt);
         if (status.responseCode.kps != KAFKA_SUCCESS) {
             returnMessage.responseCode.ps = ERROR;
             snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Failed to open Kafka Connection\n");
@@ -165,6 +183,12 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
         returnMessage.responseCode.ps = ERROR;
         return returnMessage;
     }
+    if (mp == NULL) {
+        returnMessage.responseCode.ps = ERROR;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
+                 "Failed to allocate memory for MetapublishImpl\n");
+        return returnMessage;
+    }
 
     MetapublishStatusMessage status;
 
@@ -176,7 +200,7 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
 #endif
 #ifdef KAFKA_INC
     if (mp->type == GST_GVA_METAPUBLISH_KAFKA) {
-        status = kafka_close_connection(mp->kafka_producerHandler, mp->kafka_rkt);
+        status = kafka_close_connection(&mp->kafka_producerHandler, &mp->kafka_rkt);
         g_free(mp->kafka_config);
     }
 #endif
@@ -236,6 +260,13 @@ MetapublishStatusMessage WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuff
         return returnMessage;
     }
 
+    if (mp == NULL) {
+        returnMessage.responseCode.ps = ERROR;
+        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
+                 "Failed to allocate memory for MetapublishImpl\n");
+        return returnMessage;
+    }
+
 #ifdef PAHO_INC
     if (mp->type == GST_GVA_METAPUBLISH_MQTT) {
         status = mqtt_write_message(mp->mqtt_client, mp->mqtt_config, buf);
@@ -243,7 +274,7 @@ MetapublishStatusMessage WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuff
 #endif
 #ifdef KAFKA_INC
     if (mp->type == GST_GVA_METAPUBLISH_KAFKA) {
-        status = kafka_write_message(mp->kafka_producerHandler, mp->kafka_rkt, buf);
+        status = kafka_write_message(&mp->kafka_producerHandler, &mp->kafka_rkt, buf);
     }
 #endif
     if (mp->type == GST_GVA_METAPUBLISH_FILE) {

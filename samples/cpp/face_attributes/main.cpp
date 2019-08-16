@@ -214,33 +214,33 @@ int main(int argc, char *argv[]) {
     if (env_models_path.empty()) {
         throw std::runtime_error("Enviroment variable MODELS_PATH is not set");
     }
+    std::map<std::string, std::string> model_paths;
+    std::string classify_str = "";
     if (detection_model == NULL) {
-        std::map<std::string, std::string> model_paths =
-            FindModels(SplitString(env_models_path), default_detection_model_names, model_precision);
+        for (const auto &model_to_path :
+             FindModels(SplitString(env_models_path), default_detection_model_names, model_precision))
+            model_paths.emplace(model_to_path);
         detection_model = g_strdup(model_paths["face-detection-adas-0001.xml"].c_str());
     }
     if (classification_models == NULL) {
-        std::map<std::string, std::string> model_paths =
-            FindModels(SplitString(env_models_path), default_classification_model_names, model_precision);
-        std::string classification_models_str = model_paths["facial-landmarks-35-adas-0002.xml"] + "," +
-                                                model_paths["age-gender-recognition-retail-0013.xml"] + "," +
-                                                model_paths["emotions-recognition-retail-0003.xml"] + "," +
-                                                model_paths["head-pose-estimation-adas-0001.xml"];
-        classification_models = g_strdup(classification_models_str.c_str());
+        for (const auto &model_to_path :
+             FindModels(SplitString(env_models_path), default_classification_model_names, model_precision))
+            classify_str += "gvaclassify model=" + model_to_path.second + " device=" + device +
+                            " batch-size=" + std::to_string(batch_size) + " ! queue ! ";
     }
 
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
     gchar const *capfilter = "video/x-raw";
     gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
-                                   : "fpsdisplaysink video-sink=ximagesink sync=false";
+                                   : "fpsdisplaysink video-sink=xvimagesink sync=false";
 
     // Build the pipeline
     auto launch_str = g_strdup_printf("filesrc location=%s ! %s ! capsfilter caps=\"%s\" ! "
                                       "gvadetect model=%s device=%s batch-size=%d ! queue ! "
-                                      "gvaclassify  model=%s device=%s batch-size=%d ! queue ! "
+                                      "%s"
                                       "gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! %s",
                                       input_file, preprocess_pipeline, capfilter, detection_model, device, batch_size,
-                                      classification_models, device, batch_size, sink);
+                                      classify_str.c_str(), sink);
     g_print("PIPELINE: %s \n", launch_str);
     GstElement *pipeline = gst_parse_launch(launch_str, NULL);
     g_free(launch_str);

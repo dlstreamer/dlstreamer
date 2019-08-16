@@ -17,6 +17,9 @@
 
 #include <ext_list.hpp>
 
+#include <chrono>
+#include <ie_compound_blob.h>
+
 // For debuging purposes uncomment the following to lines
 // #include <opencv2/opencv.hpp>
 // #include <string>
@@ -32,35 +35,67 @@ inline std::string fileNameNoExt(const std::string &filepath) {
     return filepath.substr(0, pos);
 }
 
-inline int getNumberChannels(int format) {
+inline int GetNumberChannels(int format) {
     switch (format) {
     case InferenceBackend::FOURCC_BGRA:
-        return 4;
     case InferenceBackend::FOURCC_BGRX:
+    case InferenceBackend::FOURCC_RGBA:
+    case InferenceBackend::FOURCC_RGBX:
         return 4;
     case InferenceBackend::FOURCC_BGR:
         return 3;
-    case InferenceBackend::FOURCC_RGBA:
-        return 4;
-    case InferenceBackend::FOURCC_RGBX:
-        return 4;
     }
     return 0;
 }
 
-inline InferenceEngine::Blob::Ptr wrapMat2Blob(const Image &image) {
+IE::ColorFormat FormatNameToIEColorFormat(const std::string &format) {
+    static const std::map<std::string, IE::ColorFormat> formatMap{
+        {"NV12", IE::ColorFormat::NV12}, {"RGB", IE::ColorFormat::RGB},   {"BGR", IE::ColorFormat::BGR},
+        {"RGBX", IE::ColorFormat::RGBX}, {"BGRX", IE::ColorFormat::BGRX}, {"RGBA", IE::ColorFormat::RGBX},
+        {"BGRA", IE::ColorFormat::BGRX}};
+    auto iter = formatMap.find(format);
+    if (iter != formatMap.end()) {
+        return iter->second;
+    } else {
+        GVA_ERROR("Unsupported color format by Inference Engine preprocessing");
+        return IE::ColorFormat::RAW;
+    }
+}
+
+IE::Blob::Ptr WrapImage2Blob(const Image &image) {
     GVA_DEBUG(__FUNCTION__);
     ITT_TASK(__FUNCTION__);
+    if (image.format != InferenceBackend::FOURCC_NV12) {
+        int channels = GetNumberChannels(image.format);
+        if (image.stride[0] != channels * image.width)
+            throw std::runtime_error("Doesn't support conversion from not dense image");
 
-    int channels = getNumberChannels(image.format);
-    if (image.stride[0] != channels * image.width)
-        throw std::runtime_error("Doesn't support conversion from not dense image");
+        IE::TensorDesc tensor_desc(IE::Precision::U8, {1, (size_t)channels, (size_t)image.height, (size_t)image.width},
+                                   IE::Layout::NHWC);
+        IE::Blob::Ptr image_blob = IE::make_shared_blob<uint8_t>(tensor_desc, image.planes[0]);
 
-    InferenceEngine::TensorDesc tDesc(InferenceEngine::Precision::U8,
-                                      {1, (size_t)channels, (size_t)image.height, (size_t)image.width},
-                                      InferenceEngine::Layout::NHWC);
+        if (image.rect.width && image.rect.height) {
+            IE::ROI crop_roi(
+                {0, (size_t)image.rect.x, (size_t)image.rect.y, (size_t)image.rect.width, (size_t)image.rect.height});
+            image_blob = IE::make_shared_blob(image_blob, crop_roi);
+        }
+        return image_blob;
+    } else { // InferenceBackend::FOURCC_NV12
+        Image cropedImage = ApplyCrop(image);
+        const size_t input_width = (size_t)cropedImage.width;
+        const size_t input_height = (size_t)cropedImage.height;
+        IE::TensorDesc y_desc(IE::Precision::U8, {1, 1, input_height - input_height % 2, input_width - input_width % 2},
+                              IE::Layout::NHWC);
+        IE::TensorDesc uv_desc(IE::Precision::U8, {1, 2, input_height / 2, input_width / 2}, IE::Layout::NHWC);
 
-    return InferenceEngine::make_shared_blob<uint8_t>(tDesc, image.planes[0]);
+        // Create blob for Y plane from raw data
+        IE::Blob::Ptr y_blob = IE::make_shared_blob<uint8_t>(y_desc, cropedImage.planes[0]);
+        // Create blob for UV plane from raw data
+        IE::Blob::Ptr uv_blob = IE::make_shared_blob<uint8_t>(uv_desc, cropedImage.planes[1]);
+        // Create NV12Blob from Y and UV blobs
+        IE::Blob::Ptr image_blob = IE::make_shared_blob<IE::NV12Blob>(y_blob, uv_blob);
+        return image_blob;
+    }
 }
 
 inline size_t GetTensorSize(InferenceEngine::TensorDesc desc) {
@@ -87,6 +122,29 @@ inline std::vector<std::string> split(const std::string &s, char delimiter) {
     }
     return tokens;
 }
+
+// std::map<std::string, std::string> configured_ie_config(const std::map<std::string, std::string> &config) {
+//     std::map<std::string, std::string> ie_config(config);
+
+//     const std::string &cpu_extension = ie_config.count(KEY_CPU_EXTENSION) ? ie_config.at(KEY_CPU_EXTENSION) : "";
+//     const std::string &preProcessorName = ie_config.count(KEY_PRE_PROCESSOR_TYPE) ?
+//     ie_config.at(KEY_PRE_PROCESSOR_TYPE) : ""; const std::string &imageFormatName = ie_config.count(KEY_IMAGE_FORMAT)
+//     ? ie_config.at(KEY_IMAGE_FORMAT) : "";
+
+//     ie_config.erase(KEY_CPU_EXTENSION);
+//     ie_config.erase(KEY_PRE_PROCESSOR_TYPE);
+//     ie_config.erase(KEY_IMAGE_FORMAT);
+
+//     return std::tie(ie_config, cpu_extension, preProcessorName, imageFormatName);
+// }
+
+// InferenceEngine::CNNNetwork create_cnn_network(const std::string &model) {
+//     InferenceEngine::CNNNetReader network_reader;
+//     network_reader.ReadNetwork(model);
+//     network_reader.ReadWeights(fileNameNoExt(model) + ".bin");
+//     modelName = network_reader.getName();
+//     return network_reader.getNetwork();
+// }
 
 } // namespace
 
@@ -130,19 +188,54 @@ OpenVINOImageInference::~OpenVINOImageInference() {
 OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string model, int batch_size, int nireq,
                                                const std::map<std::string, std::string> &config, Allocator *allocator,
                                                CallbackFunc callback)
-    : allocator(allocator), batch_size(batch_size), already_flushed(false) {
 
-    GVA_DEBUG("Image Inference construct")
+    : allocator(allocator), batch_size(batch_size) {
 
-    resize_by_inference =
-        config.count(KEY_RESIZE_BY_INFERENCE) > 0 ? config.at(KEY_RESIZE_BY_INFERENCE) == "TRUE" : false;
+    GVA_DEBUG("Image Inference construct");
+
+    std::atomic_init(&requests_processing_, static_cast<unsigned int>(0));
 
     auto devices_vec = split(devices, '-');
-    std::string cpu_extension = config.count(KEY_CPU_EXTENSION) ? config.at(KEY_CPU_EXTENSION) : "";
+    const std::string &cpu_extension = config.count(KEY_CPU_EXTENSION) ? config.at(KEY_CPU_EXTENSION) : "";
+    const std::string &preProcessorName = config.count(KEY_PRE_PROCESSOR_TYPE) ? config.at(KEY_PRE_PROCESSOR_TYPE) : "";
+    const std::string &imageFormatName = config.count(KEY_IMAGE_FORMAT) ? config.at(KEY_IMAGE_FORMAT) : "";
     // TODO: Inference Engine asserts if unknown key passed
     std::map<std::string, std::string> ie_config(config);
-    ie_config.erase(KEY_RESIZE_BY_INFERENCE);
     ie_config.erase(KEY_CPU_EXTENSION);
+    ie_config.erase(KEY_PRE_PROCESSOR_TYPE);
+    ie_config.erase(KEY_IMAGE_FORMAT);
+
+    // Load network (.xml and .bin files)
+    InferenceEngine::CNNNetReader network_reader;
+    network_reader.ReadNetwork(model);
+    network_reader.ReadWeights(fileNameNoExt(model) + ".bin");
+    modelName = network_reader.getName();
+    InferenceEngine::CNNNetwork network = network_reader.getNetwork();
+
+    // Check model input
+    IE::InputsDataMap model_inputs_info(network.getInputsInfo());
+    if (model_inputs_info.size() == 0) {
+        throw std::logic_error("Input layer not found");
+    }
+    auto &input = model_inputs_info.begin()->second;
+    input->setPrecision(IE::Precision::U8);
+    input->getInputData()->setLayout(IE::Layout::NCHW);
+
+    if (preProcessorName.compare("ie") == 0) {
+        input->getPreProcess().setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
+        input->getPreProcess().setColorFormat(FormatNameToIEColorFormat(imageFormatName));
+    } else {
+        PreProcessType preProcessorType = PreProcessType::Invalid;
+        if (preProcessorName.empty() || preProcessorName.compare("opencv") == 0)
+            preProcessorType = PreProcessType::OpenCV;
+        else if (preProcessorName.compare("g-api") == 0)
+            preProcessorType = PreProcessType::GAPI;
+        sw_vpp.reset(PreProc::Create(preProcessorType));
+        if (!sw_vpp.get()) {
+            // TODO ERROR
+        }
+    }
+    network.setBatchSize(batch_size);
 
     for (const std::string &device : devices_vec) { // '-' separated list of devices
         IE::InferencePlugin::Ptr plugin;
@@ -154,6 +247,7 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
         plugins.push_back(plugin);
 
         // Extension for custom layers
+
         if (device.find("CPU") != std::string::npos) {
             // library with custom layers
             plugin->AddExtension(std::make_shared<IE::Extensions::Cpu::CpuExtensions>());
@@ -165,33 +259,11 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
             }
         }
 
-        // Load network (.xml and .bin files)
-        InferenceEngine::CNNNetReader netReader;
-        netReader.ReadNetwork(model);
-        netReader.ReadWeights(fileNameNoExt(model) + ".bin");
-        modelName = netReader.getName();
+        // Loading a model to the device
+        auto executable_network = plugin->LoadNetwork(network, ie_config);
 
-        // Check model input
-        IE::InputsDataMap inputInfo(netReader.getNetwork().getInputsInfo());
-        if (inputInfo.size() == 0) { //!= 1) {
-            throw std::logic_error("Input layer not found");
-        }
-        auto &input = inputInfo.begin()->second;
-        input->setPrecision(IE::Precision::U8);
-        if (resize_by_inference) {
-            input->getPreProcess().setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
-            input->getInputData()->setLayout(IE::Layout::NHWC);
-        } else {
-            input->getInputData()->setLayout(IE::Layout::NCHW);
-        }
-
-        netReader.getNetwork().setBatchSize(batch_size);
-
-        // LoadNetwork
-        auto network = plugin->LoadNetwork(netReader.getNetwork(), ie_config);
-
-        inputs = network.GetInputsInfo();
-        outputs = network.GetOutputsInfo();
+        inputs = executable_network.GetInputsInfo();
+        outputs = executable_network.GetOutputsInfo();
         std::map<std::string, InferenceEngine::TensorDesc> layers;
         for (auto input : inputs) {
             layers[input.first] = input.second->getTensorDesc();
@@ -199,9 +271,31 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
         for (auto output : outputs) {
             layers[output.first] = output.second->getTensorDesc();
         }
+
+        if (nireq == 0) {
+            try {
+                nireq = executable_network.GetMetric(IE::Metrics::METRIC_OPTIMAL_NUMBER_OF_INFER_REQUESTS)
+                            .as<unsigned int>();
+                nireq += 1; // One additional for pre-processing parallelization with inference
+                std::string msg = "Setting the optimal number of inference request: nireq=" + std::to_string(nireq);
+                GVA_WARNING(msg.c_str());
+            } catch (const std::exception &e) {
+                std::string msg = std::string("Failed to get the optimal number of inference request.\n") + e.what();
+                std::throw_with_nested(std::runtime_error(msg));
+            }
+        }
+
         for (int i = 0; i < nireq; i++) {
             std::shared_ptr<BatchRequest> req = std::make_shared<BatchRequest>();
-            req->infer_request = network.CreateInferRequestPtr();
+            req->infer_request = executable_network.CreateInferRequestPtr();
+            auto completion_callback = [this, req]() {
+                // TODO: check if mutex is not useless
+                std::lock_guard<std::mutex> lock(this->inference_completion_mutex_);
+                this->WorkingFunction(req);
+                this->requests_processing_ -= this->batch_size;
+                this->request_processed_.notify_all();
+            };
+            req->infer_request->SetCompletionCallback(completion_callback);
             if (allocator) {
                 for (auto layer : layers) {
                     size_t nbytes = GetTensorSize(layer.second);
@@ -228,9 +322,8 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
             freeRequests.push(req);
         }
     }
-
+    initialized = true;
     this->callback = callback;
-    working_thread = std::thread(&OpenVINOImageInference::WorkingFunction, this);
 }
 
 bool OpenVINOImageInference::IsQueueFull() {
@@ -261,101 +354,29 @@ void OpenVINOImageInference::GetNextImageBuffer(std::shared_ptr<BatchRequest> re
     image->stride[2] = image->width;
 }
 
-__inline Image ApplyCrop(const Image &src) {
-    GVA_DEBUG(__FUNCTION__);
-    Image dst = src;
-    dst.rect = {};
-
-    int planes_count = GetPlanesCount(src.format);
-    if (!src.rect.width && !src.rect.height) {
-        dst = src;
-        for (int i = 0; i < planes_count; i++)
-            dst.planes[i] = src.planes[i];
-        return dst;
-    }
-
-    if (src.rect.x >= src.width || src.rect.y >= src.height || src.rect.x + src.rect.width <= 0 ||
-        src.rect.y + src.rect.height <= 0) {
-        throw std::runtime_error("ERROR: ApplyCrop: Requested rectangle is out of image boundaries\n");
-    }
-
-    int rect_x = std::max(src.rect.x, 0);
-    int rect_y = std::max(src.rect.y, 0);
-    int rect_width = std::min(src.rect.width - (rect_x - src.rect.x), src.width - rect_x);
-    int rect_height = std::min(src.rect.height - (rect_y - src.rect.y), src.height - rect_y);
-
-    switch (src.format) {
-    case InferenceBackend::FOURCC_NV12: {
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x;
-        dst.planes[1] = src.planes[1] + (rect_y / 2) * src.stride[1] + rect_x;
-        break;
-    }
-    case InferenceBackend::FOURCC_I420: {
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x;
-        dst.planes[1] = src.planes[1] + (rect_y / 2) * src.stride[1] + (rect_x / 2);
-        dst.planes[2] = src.planes[2] + (rect_y / 2) * src.stride[2] + (rect_x / 2);
-        break;
-    }
-    case InferenceBackend::FOURCC_RGBP: {
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x;
-        dst.planes[1] = src.planes[1] + rect_y * src.stride[1] + rect_x;
-        dst.planes[2] = src.planes[2] + rect_y * src.stride[2] + rect_x;
-        break;
-    }
-    case InferenceBackend::FOURCC_BGR: {
-        int channels = 3;
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x * channels;
-        break;
-    }
-    default: {
-        int channels = 4;
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x * channels;
-        break;
-    }
-    }
-
-    if (rect_width)
-        dst.width = rect_width;
-    if (rect_height)
-        dst.height = rect_height;
-
-    return dst;
-}
-
-void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image *pSrc,
+void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image &srcImg,
                                                            std::function<void(Image &)> preProcessor) {
-    if (resize_by_inference) {
-        auto frameBlob = wrapMat2Blob(*pSrc);
-
-        if (inputs.begin() == inputs.end())
-            throw std::runtime_error("Inputs data map is empty.");
-        std::string inputName = inputs.begin()->first; // assuming one input layer
+    if (!sw_vpp.get()) {
+        auto frameBlob = WrapImage2Blob(srcImg);
+        std::string inputName = inputs.begin()->first;
         request->infer_request->SetBlob(inputName, frameBlob);
     } else {
-        Image dst = {};
-        GetNextImageBuffer(request, &dst);
-
-        if (pSrc->planes[0] != dst.planes[0]) { // only convert if different buffers
-            if (!sw_vpp.get())
-                sw_vpp.reset(PreProc::Create(MemoryType::SYSTEM));
-#ifdef HAVE_GAPI
+        Image dstImg = {};
+        GetNextImageBuffer(request, &dstImg);
+        if (srcImg.planes[0] != dstImg.planes[0]) { // only convert if different buffers
             try {
-                sw_vpp->Convert(*pSrc, dst);
+                sw_vpp->Convert(srcImg, dstImg);
+                // You can check preProcessor result with the following code snippet:
+                // ----------------------------------------------
+                // cv::Mat mat(dst.height, dst.width, CV_8UC1, dst.planes[1], dst.stride[1]);
+                // static int counter;
+                // cv::imwrite(std::string("") + std::to_string(counter) + "_pre" + ".png", mat);
+                // preProcessor(dst);
+                // cv::imwrite(std::string("") + std::to_string(counter++) + "_post" + ".png", mat);
+                preProcessor(dstImg);
             } catch (const std::exception &e) {
-                std::throw_with_nested(std::runtime_error("Error while GAPI preprocessing"));
+                std::throw_with_nested(std::runtime_error("Error while preprocessing"));
             }
-#else
-            Image src = ApplyCrop(*pSrc);
-            sw_vpp->Convert(src, dst);
-#endif
-            // You can check preProcessor result with the following code snippet:
-            // ----------------------------------------------
-            // cv::Mat mat(dst.height, dst.width, CV_8UC1, dst.planes[1], dst.stride[1]);
-            // static int counter;
-            // cv::imwrite(std::string("") + std::to_string(counter) + "_pre" + ".png", mat);
-            // preProcessor(dst);
-            // cv::imwrite(std::string("") + std::to_string(counter++) + "_post" + ".png", mat);
-            preProcessor(dst);
         }
     }
 }
@@ -364,15 +385,13 @@ void OpenVINOImageInference::SubmitImage(const Image &image, IFramePtr user_data
                                          std::function<void(Image &)> preProcessor) {
     GVA_DEBUG(__FUNCTION__);
     ITT_TASK(__FUNCTION__);
-    const Image *pSrc = &image;
 
-    // front() call blocks if freeRequests is empty, i.e all requests still in workingRequests list and not completed
+    ++requests_processing_;
     auto request = freeRequests.pop();
 
-    SubmitImageSoftwarePreProcess(request, pSrc, preProcessor);
+    SubmitImageSoftwarePreProcess(request, image, preProcessor);
 
     request->buffers.push_back(user_data);
-
     // start inference asynchronously if enough buffers for batching
     if (request->buffers.size() >= (size_t)batch_size) {
 #if 1 // TODO: remove when license-plate-recognition-barrier model will take one input
@@ -387,7 +406,6 @@ void OpenVINOImageInference::SubmitImage(const Image &image, IFramePtr user_data
         }
 #endif
         request->infer_request->StartAsync();
-        workingRequests.push(request);
     } else {
         freeRequests.push_front(request);
     }
@@ -397,83 +415,43 @@ const std::string &OpenVINOImageInference::GetModelName() const {
     return modelName;
 }
 
+void OpenVINOImageInference::GetModelInputInfo(int *width, int *height, int *format) const {
+    auto dims = inputs.begin()->second->getDims();
+    if (dims.size() < 2)
+        throw std::runtime_error("Incorrect model input dimensions");
+    *width = dims[0];
+    *height = dims[1];
+    *format = FOURCC_RGBP;
+}
+
 void OpenVINOImageInference::Flush() {
-    std::lock_guard<std::mutex> lock(flush_mutex);
-    if (already_flushed) {
-        return;
+    std::unique_lock<std::mutex> lk(mutex_);
+    if (requests_processing_ != 0) {
+        request_processed_.wait_for(lk, std::chrono::seconds(1), [this] { return requests_processing_ == 0; });
     }
-
-    if (!working_thread.joinable())
-        return;
-
-    already_flushed = true;
-    auto request = freeRequests.pop();
-    if (!request->buffers.empty()) {
-        request->infer_request->StartAsync();
-        workingRequests.push(request);
-    }
-    workingRequests.waitEmpty();
 }
 
 void OpenVINOImageInference::Close() {
     Flush();
-    if (working_thread.joinable()) {
-        // add empty request
-        std::shared_ptr<BatchRequest> req = std::make_shared<BatchRequest>();
-        workingRequests.push(req);
-        // wait for thread reaching empty request
-        working_thread.join();
-    }
-    if (allocator) {
-        while (!freeRequests.empty()) {
-            auto req = freeRequests.pop();
+    while (!freeRequests.empty()) {
+        auto req = freeRequests.pop();
+        // as earlier set callbacks own shared pointers we need to set lambdas with the empty capture lists
+        req->infer_request->SetCompletionCallback([] {});
+        if (allocator) {
             for (auto ac : req->alloc_context)
                 allocator->Free(ac);
         }
     }
 }
 
-void OpenVINOImageInference::WorkingFunction() {
+void OpenVINOImageInference::WorkingFunction(std::shared_ptr<BatchRequest> request) {
     GVA_DEBUG(__FUNCTION__);
-    for (;;) {
-        ITT_TASK(__FUNCTION__);
-        auto request = workingRequests.front();
-        if (request->buffers.empty()) {
-            break;
-        }
-        IE::StatusCode sts;
-        {
-            ITT_TASK("Wait Inference");
-            sts = request->infer_request->Wait(IE::IInferRequest::WaitMode::RESULT_READY);
-        }
-        if (IE::OK == sts) {
-            try {
-                std::map<std::string, OutputBlob::Ptr> output_blobs;
-                for (auto output : outputs) {
-                    const std::string &name = output.first;
-                    output_blobs[name] = std::make_shared<IEOutputBlob>(request->infer_request->GetBlob(name));
-                }
-                callback(output_blobs, request->buffers);
-            } catch (const std::exception &exc) {
-#ifdef DEBUG
-                printf("Exception in inference callback: %s", exc.what());
-#endif
-            }
-        } else {
-#ifdef DEBUG
-            printf("Inference Error: %d", sts);
-#endif
-        }
-
-        // move request from workingRequests to freeRequests list
-        request = workingRequests.pop();
-        request->buffers.clear();
-        freeRequests.push(request);
+    std::map<std::string, OutputBlob::Ptr> output_blobs;
+    for (auto output : outputs) {
+        const std::string &name = output.first;
+        output_blobs[name] = std::make_shared<IEOutputBlob>(request->infer_request->GetBlob(name));
     }
-}
-
-ImageInference::Ptr ImageInference::make_shared(MemoryType, std::string devices, std::string model, int batch_size,
-                                                int nireq, const std::map<std::string, std::string> &config,
-                                                Allocator *allocator, CallbackFunc callback) {
-    return std::make_shared<OpenVINOImageInference>(devices, model, batch_size, nireq, config, allocator, callback);
+    callback(output_blobs, request->buffers);
+    request->buffers.clear();
+    freeRequests.push(request);
 }

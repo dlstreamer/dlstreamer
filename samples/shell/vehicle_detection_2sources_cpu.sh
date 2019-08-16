@@ -17,7 +17,13 @@ source $BASEDIR/scripts/setlocale.sh
 #import GET_MODEL_PATH
 source $BASEDIR/scripts/path_extractor.sh
 
-FILE=${1:-$VIDEO_EXAMPLES_DIR/Pexels_Videos_4786_960x540.mp4}
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./vehicle_detection_2sources_cpu.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
 
 MODEL=vehicle-license-plate-detection-barrier-0106
 
@@ -27,6 +33,6 @@ DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
                 filesrc location=$FILE ! decodebin ! video/x-raw ! videoconvert ! \
                 gvadetect inference-id=inf0 model=$DETECT_MODEL_PATH device=CPU every-nth-frame=1 batch-size=1 ! queue ! \
-                gvawatermark ! videoconvert ! fpsdisplaysink video-sink=ximagesink sync=false \
+                gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false \
                 filesrc location=${FILE} ! decodebin ! video/x-raw ! videoconvert ! gvadetect inference-id=inf0 ! \
-                queue ! gvawatermark ! videoconvert ! fpsdisplaysink video-sink=ximagesink sync=false
+                queue ! gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false

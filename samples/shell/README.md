@@ -1,10 +1,10 @@
 # Shell samples
 The shell samples demonstrate pipeline contruction and execution from command line through gst-launch utility.
 See links
-[Data flow](https://github.com/opencv/gst-video-analytics/wiki/Data-flow),
-[Metadata](https://github.com/opencv/gst-video-analytics/wiki/Metadata),
-[Properties](https://github.com/opencv/gst-video-analytics/wiki/Elements)
-for more details about plugins functionality and parameters.
+[Data flow](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Data-flow),
+[Metadata](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Metadata),
+[Properties](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Elements)
+for more details about plugins functionality and parameters. 
 
 The optional environment variable
 ```
@@ -70,20 +70,3 @@ Demonstrates object detection on two source simultaniously with batching optimiz
 
 ### __vehicle_detection_2sources_gpu.sh__ <br>
 Same as previous but offloading inference from CPU to GPU
-
-GVA plugins options and values:
-* inference-id - the name of inference engine instance. Can be used to refer to the inference results originator element or to share IE instance between gvainference elements
-* model - the name of IE model. Can be used to refer to the inference results originator model.
-* layer_name - the name of IE model's output layer. Can be used to refer to the inference results output layer in multilayer output case.
-* labels-file - the name of file with labels to be used in postprocessing stage
-* converter - the name of __gvametaconvert__ data interpreter, one of the following:
-  * attributes
-  * tensor2text
-  * json
-  * as-detections
-  * dump-detection
-  * dump-tensors
-* method - the method of _attributes_ (see above) data interpreter, one of the following:
-   * max
-   * compound - depending on threshold, even or odd label (from labels-file) will be selected
-   * index

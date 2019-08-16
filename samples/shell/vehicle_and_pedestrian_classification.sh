@@ -17,7 +17,13 @@ source $BASEDIR/scripts/setlocale.sh
 #import GET_MODEL_PATH and PROC_PATH
 source $BASEDIR/scripts/path_extractor.sh
 
-FILE=${1:-$VIDEO_EXAMPLES_DIR/People_On_The_Street.mp4}
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./vehicle_and_pedestrian_classification.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
 
 MODEL1=person-vehicle-bike-detection-crossroad-0078
 MODEL2=person-attributes-recognition-crossroad-0200
@@ -42,4 +48,4 @@ gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
   gvadetect   model=$DETECT_MODEL_PATH model-proc=$(PROC_PATH $MODEL1_PROC) device=$DEVICE ! queue ! \
   gvaclassify model=$CLASS_MODEL_PATH model-proc=$(PROC_PATH $MODEL2_PROC) device=$DEVICE object-class=person ! queue ! \
   gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$(PROC_PATH $MODEL3_PROC) device=$DEVICE object-class=vehicle ! queue ! \
-  gvawatermark ! videoconvert ! fpsdisplaysink video-sink=ximagesink sync=false
+  gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false

@@ -55,12 +55,15 @@ PRIVATE
     ${GSTVIDEO_LIBRARIES}
     ${GSTALLOC_LIBRARIES}
     common
+    image_inference
     image_inference_openvino
-    pre_proc
-    opencv_pre_proc
     logger
     jsonconvert
 )
+
+if(${HAVE_VAAPI})
+        target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async_preproc)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PRIVATE
@@ -68,7 +71,7 @@ PRIVATE
 )
 if (MQTT)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPAHO_INC ")
-        target_link_libraries(${TARGET_NAME} PRIVATE paho-mqtt3c)
+        target_link_libraries(${TARGET_NAME} PRIVATE paho-mqtt3c uuid)
         target_compile_definitions(${TARGET_NAME} PRIVATE META_PUBLISH_MQTT=1)
         message("MQTT support will be available in metapublish element")
 else()
@@ -84,8 +87,4 @@ if (KAFKA)
 else()
         target_compile_definitions(${TARGET_NAME} PRIVATE META_PUBLISH_KAFKA=0)
         message("Kafka support will not be available. Ensure required libraries (librdkafka) are installed, and rebuild plugin with -DKAFKA=1 before attempting to use Kafka")
-endif()
-
-if(${HAVE_GAPI})
-    target_link_libraries(${TARGET_NAME} PRIVATE gapi_pre_proc)
 endif()

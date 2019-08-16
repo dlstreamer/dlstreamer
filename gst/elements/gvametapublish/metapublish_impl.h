@@ -40,7 +40,7 @@ struct _MetapublishImpl {
 };
 
 MetapublishImpl *getMPInstance();
-void initializeMetaPublishImpl(GstGVAMetaPublishMethodType);
+MetapublishStatusMessage initializeMetaPublishImpl(GstGVAMetaPublishMethodType);
 
 MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *);
 MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *);

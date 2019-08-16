@@ -14,6 +14,12 @@ fi
 
 $BASEDIR/scripts/build.sh
 
-FILE=${1:-$BASEDIR/../video-examples/Fun_at_a_Fair.mp4}
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./build_and_run.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
 
 $BASEDIR/build/intel64/Release/bin/face_attributes -i $FILE

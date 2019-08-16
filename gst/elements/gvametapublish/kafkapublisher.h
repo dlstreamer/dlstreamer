@@ -27,10 +27,9 @@ struct _KafkaPublishConfig {
     gboolean signal_handoffs;
 };
 
-MetapublishStatusMessage kafka_open_connection(KafkaPublishConfig *, rd_kafka_t *, rd_kafka_topic_t *);
-MetapublishStatusMessage kafka_close_connection(rd_kafka_t *, rd_kafka_topic_t *);
-MetapublishStatusMessage kafka_write_message(rd_kafka_t *producerHandler, rd_kafka_topic_t *kafka_topic,
-                                             GstBuffer *buffer);
+MetapublishStatusMessage kafka_open_connection(KafkaPublishConfig *, rd_kafka_t **, rd_kafka_topic_t **);
+MetapublishStatusMessage kafka_close_connection(rd_kafka_t **, rd_kafka_topic_t **);
+MetapublishStatusMessage kafka_write_message(rd_kafka_t **, rd_kafka_topic_t **, GstBuffer *);
 #endif
 
 #endif

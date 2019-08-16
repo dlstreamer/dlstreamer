@@ -1,5 +1,5 @@
 {
-  "json_schema_version" : 1.0,
+  "json_schema_version": 1.0,
   "input_preproc": [
     {
       "color_format": "BGR"
@@ -8,8 +8,13 @@
   "output_postproc": [
     {
       "layer_name": "detection_out",
-      "labels": ["","person","vehicle","bike"],
-      "converter": "DetectionOutput"
+      "labels": [
+        "",
+        "person",
+        "vehicle",
+        "bike"
+      ],
+      "converter": "tensor_to_bbox_ssd"
     }
   ]
 }

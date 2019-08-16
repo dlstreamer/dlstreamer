@@ -1,14 +1,18 @@
 {
-    "input_preproc": [{
-        "color_format": "BGR"
-    }],
+    "input_preproc": [
+        {
+            "color_format": "BGR"
+        }
+    ],
     "json_schema_version": 1,
-    "output_postproc": [{
-        "converter": "DetectionOutput",
-        "labels": [
-            "background",
-            "vehicle"
-        ],
-        "layer_name": "detection_out"
-    }]
+    "output_postproc": [
+        {
+            "converter": "tensor_to_bbox_ssd",
+            "labels": [
+                "background",
+                "vehicle"
+            ],
+            "layer_name": "detection_out"
+        }
+    ]
 }

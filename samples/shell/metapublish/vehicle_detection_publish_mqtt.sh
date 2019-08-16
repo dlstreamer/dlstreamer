@@ -12,11 +12,18 @@ if [ -n ${GST_SAMPLES_DIR} ]
 then
     source $BASEDIR/scripts/setup_env.sh
 fi
+source $BASEDIR/scripts/setlocale.sh
 
 #import GET_MODEL_PATH
 source $BASEDIR/scripts/path_extractor.sh
 
-FILE=${1:-$VIDEO_EXAMPLES_DIR/Pexels_Videos_4786_960x540.mp4}
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./vehicle_detection_publish_mqtt.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
 
 MODEL=vehicle-license-plate-detection-barrier-0106
 

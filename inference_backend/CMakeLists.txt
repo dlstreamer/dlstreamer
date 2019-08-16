@@ -15,6 +15,6 @@ INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include/
 )
 
-add_subdirectory(image_inference/openvino)
+add_subdirectory(image_inference)
 add_subdirectory(pre_proc)
 add_subdirectory(logger)

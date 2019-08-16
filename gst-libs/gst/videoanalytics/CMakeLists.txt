@@ -40,10 +40,4 @@ PUBLIC
         ${GLIB2_LIBRARIES}
 )
 
-
-# TODO: perhaps we need to create a function
-if(${ENABLE_DOCUMENTATION})
-        include(${CMAKE_CURRENT_SOURCE_DIR}/CMakeDoxygenDocs.txt)
-endif()
-
 install(TARGETS ${TARGET_NAME} DESTINATION lib/va-gstreamer-plugins)

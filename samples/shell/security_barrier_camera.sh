@@ -17,7 +17,13 @@ source $BASEDIR/scripts/setlocale.sh
 #import GET_MODEL_PATH and PROC_PATH
 source $BASEDIR/scripts/path_extractor.sh
 
-FILE=${1:-$VIDEO_EXAMPLES_DIR/Pexels_Videos_4786.mp4}
+if [ -z ${1} ]; then
+  echo "ERROR set path to video"
+  echo "Usage: ./security_barrier_camera.sh <path/to/your/video/sample>"
+  exit
+fi
+
+FILE=${1}
 
 MODEL1=vehicle-license-plate-detection-barrier-0106
 MODEL2=vehicle-attributes-recognition-barrier-0039
@@ -44,4 +50,4 @@ gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
   gvadetect   model=$DETECT_MODEL_PATH model-proc=$(PROC_PATH $MODEL1_PROC) device=$DEVICE ! queue ! \
   gvaclassify model=$CLASS_MODEL_PATH  model-proc=$(PROC_PATH $MODEL2_PROC) device=$DEVICE object-class=vehicle ! queue ! \
   gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$(PROC_PATH $MODEL3_PROC) device=$DEVICE object-class=license-plate ! queue ! \
-  gvawatermark ! videoconvert ! fpsdisplaysink video-sink=ximagesink sync=false
+  gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false

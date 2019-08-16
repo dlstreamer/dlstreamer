@@ -1,3 +1,9 @@
+# ==============================================================================
+# Copyright (C) 2018-2019 Intel Corporation
+#
+# SPDX-License-Identifier: MIT
+# ==============================================================================
+
 # Below is a workaround for OpenVINO Inference Engine to work correctly on some systems
 # with unexpected system locale settings (e.g., on systems with RU locale).
 # If Inference Engine is used with such unexpected locales, we assume it may produce wrong results

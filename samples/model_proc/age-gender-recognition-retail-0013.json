@@ -1,25 +1,28 @@
 {
-    "json_schema_version" : 1.0,
-    "input_preproc" : [
+    "json_schema_version": 1.0,
+    "input_preproc": [
         {
-            "layer_name" : "data",
-            "color_format" : "BGR"
+            "layer_name": "data",
+            "color_format": "BGR"
         }
     ],
-    "output_postproc" : [
+    "output_postproc": [
         {
-            "layer_name" : "prob",
-            "attribute_name" : "gender",
-            "labels" : [ "Female", "Male" ],
-            "converter" : "attributes",
-            "method" : "max"
+            "layer_name": "prob",
+            "attribute_name": "gender",
+            "labels": [
+                "Female",
+                "Male"
+            ],
+            "converter": "tensor_to_label",
+            "method": "max"
         },
         {
-            "layer_name" : "age_conv3",
-            "attribute_name" : "age",
-            "converter" : "tensor2text",
-            "tensor2text_scale" : 100.0,
-            "tensor2text_precision" : 0
+            "layer_name": "age_conv3",
+            "attribute_name": "age",
+            "converter": "tensor_to_text",
+            "tensor_to_text_scale": 100.0,
+            "tensor_to_text_precision": 0
         }
     ]
 }

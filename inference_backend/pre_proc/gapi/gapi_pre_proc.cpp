@@ -24,7 +24,6 @@ PreProc *InferenceBackend::CreatePreProcGAPI() {
 }
 
 GAPI_VPP::GAPI_VPP() {
-    Type = MemoryType::SYSTEM;
 }
 
 GAPI_VPP::~GAPI_VPP() {

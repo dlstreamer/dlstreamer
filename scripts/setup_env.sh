@@ -17,6 +17,6 @@ GST_PLUGIN_BUILD=${GST_HOME}/build/intel64/Release/lib
 export VIDEO_EXAMPLES_DIR=${VIDEO_EXAMPLES_DIR:-$DEFAULT_VIDEO_DIR}
 export GST_PLUGIN_PATH=$GST_PLUGIN_BUILD:$GST_PLUGIN_PATH
 
-export MODELS_PATH=${MODELS_PATH:-/opt/intel/computer_vision_sdk/deployment_tools/intel_models}
+export MODELS_PATH=${MODELS_PATH:-/opt/intel/openvino/deployment_tools/intel_models}
 
 echo [setup_env.sh] GStreamer-plugins environment initialized
