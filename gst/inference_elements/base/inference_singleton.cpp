@@ -78,7 +78,10 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
 }
 
 void initExistingElements(InferenceRefs *infRefs) {
-    assert(infRefs->masterElement);
+    if (!infRefs->masterElement) {
+        g_error(
+            "There is no master element. Please, check if all of mandatory parameters are set, for example 'model'.");
+    }
     for (auto elem : infRefs->elementsToInit) {
         fillElementProps(elem, infRefs->masterElement, infRefs->proxy);
     }

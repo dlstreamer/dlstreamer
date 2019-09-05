@@ -254,24 +254,12 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
 }
 
 GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstStateChange transition) {
-    GstStateChangeReturn ret;
     GvaBaseInference *base_inference;
 
     base_inference = GVA_BASE_INFERENCE(element);
     GST_DEBUG_OBJECT(base_inference, "gva_base_inference_change_state");
 
-    ret = GST_ELEMENT_CLASS(gva_base_inference_parent_class)->change_state(element, transition);
-
-    switch (transition) {
-    case GST_STATE_CHANGE_READY_TO_NULL: {
-        gva_base_inference_init(base_inference);
-        break;
-    }
-    default:
-        break;
-    }
-
-    return ret;
+    return GST_ELEMENT_CLASS(gva_base_inference_parent_class)->change_state(element, transition);
 }
 
 gboolean check_gva_base_inference_stopped(GvaBaseInference *base_inference) {
@@ -286,11 +274,7 @@ gboolean check_gva_base_inference_stopped(GvaBaseInference *base_inference) {
 }
 
 void gva_base_inference_set_model(GvaBaseInference *base_inference, const gchar *model_path) {
-    if (model_path == NULL) {
-        g_error("'model' is set to null");
-    } else if (!g_file_test(model_path, G_FILE_TEST_EXISTS)) {
-        g_error("path %s set in 'model' does not exist", model_path);
-    } else if (check_gva_base_inference_stopped(base_inference)) {
+    if (check_gva_base_inference_stopped(base_inference)) {
         if (base_inference->model)
             g_free(base_inference->model);
         base_inference->model = g_strdup(model_path);
@@ -301,11 +285,7 @@ void gva_base_inference_set_model(GvaBaseInference *base_inference, const gchar 
 }
 
 void gva_base_inference_set_model_proc(GvaBaseInference *base_inference, const gchar *model_proc_path) {
-    if (model_proc_path == NULL) {
-        g_warning("'model_proc_path' is set to null");
-    } else if (!g_file_test(model_proc_path, G_FILE_TEST_EXISTS)) {
-        g_warning("path %s set in 'model-proc' does not exist", model_proc_path);
-    } else if (check_gva_base_inference_stopped(base_inference)) {
+    if (check_gva_base_inference_stopped(base_inference)) {
         if (base_inference->model_proc)
             g_free(base_inference->model_proc);
         base_inference->model_proc = g_strdup(model_proc_path);
@@ -468,6 +448,16 @@ gboolean gva_base_inference_start(GstBaseTransform *trans) {
 
     if (!base_inference->inference_id) {
         base_inference->inference_id = g_strdup(GST_ELEMENT_NAME(GST_ELEMENT(base_inference)));
+
+        if (base_inference->model == NULL) {
+            g_error("'model' is set to null");
+        } else if (!g_file_test(base_inference->model, G_FILE_TEST_EXISTS)) {
+            g_error("path %s set in 'model' does not exist", base_inference->model);
+        }
+    }
+
+    if (base_inference->model_proc != NULL && !g_file_test(base_inference->model_proc, G_FILE_TEST_EXISTS)) {
+        g_warning("path %s set in 'model-proc' does not exist", base_inference->model_proc);
     }
 
     GError *error = NULL;

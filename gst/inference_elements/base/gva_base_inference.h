@@ -58,5 +58,6 @@ typedef struct _GvaBaseInferenceClass {
 } GvaBaseInferenceClass;
 
 GType gva_base_inference_get_type(void);
+gboolean check_gva_base_inference_stopped(GvaBaseInference *base_inference);
 
 G_END_DECLS

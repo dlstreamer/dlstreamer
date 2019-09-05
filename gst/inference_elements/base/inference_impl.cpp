@@ -215,11 +215,13 @@ void InferenceImpl::PushOutput() {
             break; // inference not completed yet
         }
         GstBuffer *buffer = front.writable_buffer ? front.writable_buffer : front.buffer;
-        GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(front.filter), buffer);
-        if (ret != GST_FLOW_OK) {
-            GST_WARNING("Inference gst_pad_push returned status %d", ret);
-        }
 
+        if (!check_gva_base_inference_stopped(front.filter)) {
+            GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(front.filter), buffer);
+            if (ret != GST_FLOW_OK) {
+                GST_WARNING("Inference gst_pad_push returned status %d", ret);
+            }
+        }
         output_frames.pop_front();
     }
 }
