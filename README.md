@@ -31,7 +31,7 @@ The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE
 * GStreamer framework 1.14 or above
 
 ## Getting Started
-* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5Bdevelop%5D)
+* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5BR3%5D)
 * [API reference](https://opencv.github.io/gst-video-analytics/)
 
 ## Samples
