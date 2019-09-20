@@ -18,7 +18,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 5)
+set(VERSION_MINOR 6)
 
 if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
     set(VERSION_PATCH 0)
@@ -62,7 +62,6 @@ set (CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BU
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/bin)
 set (CMAKE_SAMPLES_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${BIN_FOLDER}/${CMAKE_BUILD_TYPE}/samples)
 
-# Workaround for OpenVINO R1
 find_package(Threads REQUIRED)
 
 # Common compilation flags
@@ -87,7 +86,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2")
 
 ###############################################################################
 option(HAVE_VAAPI "Parameter to enable VAAPI for image preprocessing" OFF)
-option(SUPPORT_DMA_BUFFER "Parameter to enable DMA buffer" OFF)
+option(SUPPORT_DMA_BUFFER "Parameter to enable DMABuf in sink/source caps" OFF)
 option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
 option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
 

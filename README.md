@@ -31,7 +31,7 @@ The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE
 * GStreamer framework 1.14 or above
 
 ## Getting Started
-* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5BR2%5D)
+* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5Bdevelop%5D)
 * [API reference](https://opencv.github.io/gst-video-analytics/)
 
 ## Samples
@@ -51,7 +51,7 @@ Report bugs and requests [on the issues page](https://github.com/opencv/gst-vide
 [Details](https://github.com/opencv/gst-video-analytics/wiki/Model-preparation) about how to prepare Tensorflow*, Caffe*, and other models for the inference plugins
 
 ### Plugins parameters
-[Elements list](https://github.com/opencv/gst-video-analytic/wiki/Elements) and properties list for each element
+[Elements list](https://github.com/opencv/gst-video-analytics/wiki/Elements) and properties list for each element
 
 ## How to contribute
 Pull requests aren't monitored, so if you have bug fix or an idea to improve this project, post a description on the [issues page](https://github.com/opencv/gst-video-analytics/issues).

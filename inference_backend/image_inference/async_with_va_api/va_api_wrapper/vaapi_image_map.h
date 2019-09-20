@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,13 +11,13 @@
 
 namespace InferenceBackend {
 
-class VAAPIImageMap : public ImageMap {
+class VaApiImageMap : public ImageMap {
   public:
-    VAAPIImageMap();
-    ~VAAPIImageMap();
+    VaApiImageMap();
+    ~VaApiImageMap();
 
-    Image Map(const Image &image);
-    void Unmap();
+    Image Map(const Image &image) override;
+    void Unmap() override;
 
   protected:
     VADisplay va_display;

@@ -29,9 +29,11 @@ MODEL=vehicle-license-plate-detection-barrier-0106
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 
+PRE_PROC=opencv
+
 export GST_VAAPI_ALL_DRIVERS=1
 
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} -v \
                filesrc location=${FILE} ! decodebin ! vaapipostproc ! video/x-raw,format=BGRA,width=300,height=300 ! \
-               gvadetect model=$DETECT_MODEL_PATH device=GPU every-nth-frame=1 batch-size=1 ! \
-               fpsdisplaysink video-sink=fakesink silent=true sync=false
+               gvadetect model=$DETECT_MODEL_PATH device=GPU pre-proc=$PRE_PROC every-nth-frame=1 batch-size=1 ! \
+               gvafpscounter ! fakesink

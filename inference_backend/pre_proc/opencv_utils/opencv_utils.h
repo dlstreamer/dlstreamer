@@ -7,8 +7,6 @@
 #include "inference_backend/image.h"
 #include <opencv2/imgproc.hpp>
 
-using namespace InferenceBackend;
-
 namespace InferenceBackend {
 
 namespace Utils {

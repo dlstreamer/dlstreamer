@@ -9,7 +9,6 @@
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 
-#include "fps_meter.h"
 #include "gva_caps.h"
 #include "gva_roi_meta.h"
 #include "watermark.h"
@@ -123,7 +122,6 @@ static gboolean gst_gva_watermark_start(GstBaseTransform *trans) {
     GstGvaWatermark *gvawatermark = GST_GVA_WATERMARK(trans);
 
     GST_DEBUG_OBJECT(gvawatermark, "start");
-    fps_meter_init(&gvawatermark->fps_meter);
     return TRUE;
 }
 
@@ -152,9 +150,6 @@ static GstFlowReturn gst_gva_watermark_transform_ip(GstBaseTransform *trans, Gst
 
     GST_DEBUG_OBJECT(gvawatermark, "transform_ip");
 
-    if (fps_meter_new_frame(&gvawatermark->fps_meter, 1000)) {
-        GST_INFO_OBJECT(gvawatermark, "fps %.2f", gvawatermark->fps_meter.fps);
-    }
     if (!gst_pad_is_linked(GST_BASE_TRANSFORM_SRC_PAD(trans))) {
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }

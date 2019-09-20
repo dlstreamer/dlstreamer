@@ -5,7 +5,6 @@
  ******************************************************************************/
 
 #include "gva_buffer_map.h"
-#include "inference_backend/logger.h"
 #include <gst/allocators/allocators.h>
 
 using namespace InferenceBackend;
@@ -15,6 +14,9 @@ inline int gstFormatToFourCC(int format) {
     case GST_VIDEO_FORMAT_NV12:
         GST_DEBUG("GST_VIDEO_FORMAT_NV12");
         return FourCC::FOURCC_NV12;
+    case GST_VIDEO_FORMAT_BGR:
+        GST_DEBUG("GST_VIDEO_FORMAT_BGR");
+        return FourCC::FOURCC_BGR;
     case GST_VIDEO_FORMAT_BGRx:
         GST_DEBUG("GST_VIDEO_FORMAT_BGRx");
         return FourCC::FOURCC_BGRX;
@@ -54,7 +56,7 @@ bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
 
     image.type = memory_type;
     switch (memory_type) {
-    case MemoryType::SYSTEM: {
+    case MemoryType::SYSTEM:
         if (!gst_buffer_map(buffer, &map_context.gstMapInfo, map_flags)) {
             status = false;
             GST_ERROR("gva_buffer_map: gst_buffer_map failed");
@@ -63,7 +65,6 @@ bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
         for (guint i = 0; i < n_planes; i++)
             image.planes[i] = map_context.gstMapInfo.data + info->offset[i];
         break;
-    }
     case MemoryType::DMA_BUFFER: {
         GstMemory *mem = gst_buffer_get_memory(buffer, 0);
         image.dma_fd = gst_fd_memory_get_fd(mem);
@@ -74,11 +75,23 @@ bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
         }
         break;
     }
-    default: {
+    case MemoryType::VAAPI:
+        image.va_display = gst_mini_object_get_qdata(&buffer->mini_object, g_quark_from_static_string("VADisplay"));
+        image.va_surface_id =
+            (uint64_t)gst_mini_object_get_qdata(&buffer->mini_object, g_quark_from_static_string("VASurfaceID"));
+        if (!image.va_display) {
+            status = false;
+            GST_ERROR("gva_buffer_map: failed to get VADisplay=%p", image.va_display);
+        }
+        if ((int)image.va_surface_id < 0) {
+            status = false;
+            GST_ERROR("gva_buffer_map: failed to get VASurfaceID=%d", image.va_surface_id);
+        }
+        break;
+    default:
         GST_ERROR("gva_buffer_map: unsupported memory type");
         status = false;
         break;
-    }
     }
 
     return status;

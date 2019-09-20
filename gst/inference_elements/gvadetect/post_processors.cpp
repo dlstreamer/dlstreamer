@@ -27,23 +27,35 @@ gboolean TensorToBBoxSSD(const InferenceBackend::OutputBlob::Ptr &blob, std::vec
         GST_ERROR("Blob data pointer is null");
         return false;
     }
-    auto dims = blob->GetDims();
-    auto layout = blob->GetLayout();
+    const gchar *converter = gst_structure_get_string(layer_post_proc, "converter");
 
-    guint object_size = 0;
-    guint max_proposal_count = 0;
-    switch (layout) {
-    case InferenceBackend::OutputBlob::Layout::NCHW:
-        object_size = dims[3];
-        max_proposal_count = dims[2];
-        break;
-    default:
-        GST_ERROR("Only NCHW output layout for converter '%s' is supported, boxes won't be extracted\n",
-                  gst_structure_get_string(layer_post_proc, "converter"));
+    // Check whether we can handle this blob
+    auto dims = blob->GetDims();
+    guint dims_size = dims.size();
+    static const guint min_dims_size = 2;
+    if (dims_size < min_dims_size) {
+        GST_ERROR("Output blob converter '%s': Output blob with inference results has %d dimensions, but it should "
+                  "have at least %d. Boxes won't be extracted\n",
+                  converter, dims_size, min_dims_size);
         return false;
     }
-    if (object_size != 7) { // SSD DetectionOutput format
-        GST_ERROR("Only NCHW with W == 7 is supported, boxes won't be extracted\n");
+
+    guint object_size = dims[dims_size - 1];
+    guint max_proposal_count = dims[dims_size - 2];
+    for (guint i = min_dims_size + 1; i < dims_size; ++i) {
+        if (dims[dims_size - i] != 1) {
+            GST_ERROR("Output blob converter '%s': All output blob dimensions, except object size and max objects "
+                      "count, must be equal to 1. Boxes won't be extracted\n",
+                      converter);
+            return false;
+        }
+    }
+
+    static const guint supported_object_size = 7;
+    if (object_size != supported_object_size) { // SSD DetectionOutput format
+        GST_ERROR("Output blob converter '%s': Object size dimension of output blob is set to %d and doesn't equal to "
+                  "supported - %d. Boxes won't be extracted\n",
+                  converter, object_size, supported_object_size);
         return false;
     }
 
@@ -124,24 +136,30 @@ gboolean TensorToBBoxSSD(const InferenceBackend::OutputBlob::Ptr &blob, std::vec
 }
 
 struct DetectedObject {
-    gint x;
-    gint y;
-    gint width;
-    gint height;
+    gfloat x;
+    gfloat y;
+    gfloat w;
+    gfloat h;
+    gint class_id;
     gfloat confidence;
-    explicit DetectedObject(gfloat x, gfloat y, gfloat h, gfloat w, gfloat confidence, gfloat h_scale = 1.f,
-                            gfloat w_scale = 1.f)
-        : x(static_cast<gint>((x - w / 2) * w_scale)), y(static_cast<gint>((y - h / 2) * h_scale)),
-          width(static_cast<gint>(w * w_scale)), height(static_cast<gint>(h * h_scale)), confidence(confidence) {
+
+    DetectedObject(gfloat x, gfloat y, gfloat w, gfloat h, gint class_id, gfloat confidence, gfloat h_scale = 1.f,
+                   gfloat w_scale = 1.f) {
+        this->x = (x - w / 2) * w_scale;
+        this->y = (y - h / 2) * h_scale;
+        this->w = w * w_scale;
+        this->h = h * h_scale;
+        this->class_id = class_id;
+        this->confidence = confidence;
     }
-    DetectedObject() = default;
-    ~DetectedObject() = default;
-    DetectedObject(const DetectedObject &) = default;
-    DetectedObject(DetectedObject &&) = default;
-    DetectedObject &operator=(const DetectedObject &) = default;
-    DetectedObject &operator=(DetectedObject &&) = default;
     bool operator<(const DetectedObject &other) const {
         return this->confidence < other.confidence;
+    }
+    void clip() {
+        this->x = (this->x < 0.0) ? 0.0 : (this->x > 1.0) ? 1.0 : this->x;
+        this->y = (this->y < 0.0) ? 0.0 : (this->y > 1.0) ? 1.0 : this->y;
+        this->w = (this->w < 0.0) ? 0.0 : (this->x + this->w > 1.0) ? 1.0 - this->x : this->w;
+        this->h = (this->h < 0.0) ? 0.0 : (this->y + this->h > 1.0) ? 1.0 - this->y : this->h;
     }
 };
 
@@ -152,23 +170,22 @@ std::vector<DetectedObject> run_nms(std::vector<DetectedObject> candidates, gdou
     while (candidates.size() > 0) {
         auto p_first_candidate = candidates.begin();
         const auto &first_candidate = *p_first_candidate;
-        double first_candidate_area = first_candidate.width * first_candidate.height;
+        double first_candidate_area = first_candidate.w * first_candidate.h;
 
         for (auto p_candidate = p_first_candidate + 1; p_candidate != candidates.end();) {
             const auto &candidate = *p_candidate;
 
-            gdouble inter_width = std::min(first_candidate.x + first_candidate.width, candidate.x + candidate.width) -
+            gdouble inter_width = std::min(first_candidate.x + first_candidate.w, candidate.x + candidate.w) -
                                   std::max(first_candidate.x, candidate.x);
-            gdouble inter_height =
-                std::min(first_candidate.y + first_candidate.height, candidate.y + candidate.height) -
-                std::max(first_candidate.y, candidate.y);
+            gdouble inter_height = std::min(first_candidate.y + first_candidate.h, candidate.y + candidate.h) -
+                                   std::max(first_candidate.y, candidate.y);
             if (inter_width <= 0.0 || inter_height <= 0.0) {
                 ++p_candidate;
                 continue;
             }
 
             gdouble inter_area = inter_width * inter_height;
-            gdouble candidate_area = candidate.width * candidate.height;
+            gdouble candidate_area = candidate.w * candidate.h;
 
             gdouble overlap = inter_area / std::min(candidate_area, first_candidate_area);
             if (overlap > threshold)
@@ -197,14 +214,6 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
     gint image_width = frames[0].roi.w;
     gint image_height = frames[0].roi.h;
     GstGvaDetect *gva_detect = (GstGvaDetect *)frames[0].gva_base_inference;
-
-    switch (blob->GetLayout()) {
-    case InferenceBackend::OutputBlob::Layout::NC:
-        break;
-    default:
-        GST_ERROR("Only NC output layout for converter '%s' is supported, boxes won't be extracted\n", converter);
-        return false;
-    }
 
     gint kAnchorSN = 13;
     gint kOutBlobItemN = 25;
@@ -241,10 +250,10 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
                     GST_WARNING_OBJECT(gva_detect, "scale weired %f", scale);
                 }
 
-                gfloat cx = (j + x_pred) * image_width / kAnchorSN;
-                gfloat cy = (i + y_pred) * image_height / kAnchorSN;
-                gfloat w = std::exp(w_pred) * anchor_w * image_width / kAnchorSN;
-                gfloat h = std::exp(h_pred) * anchor_h * image_height / kAnchorSN;
+                gfloat cx = (j + x_pred) / kAnchorSN;
+                gfloat cy = (i + y_pred) / kAnchorSN;
+                gfloat w = std::exp(w_pred) * anchor_w / kAnchorSN;
+                gfloat h = std::exp(h_pred) * anchor_h / kAnchorSN;
 
                 std::pair<gint, gfloat> max_info = std::make_pair(0, 0.f);
 
@@ -261,7 +270,7 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
                 }
 
                 if (max_info.second > gva_detect->threshold) {
-                    DetectedObject object(cx, cy, h, w, max_info.second);
+                    DetectedObject object(cx, cy, w, h, max_info.first, max_info.second);
                     objects.push_back(object);
                 }
             }
@@ -272,11 +281,26 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
     gst_structure_get_double(layer_post_proc, "nms_threshold", &nms_threshold);
     objects = run_nms(objects, nms_threshold);
 
-    for (const DetectedObject &object : objects)
-        gst_buffer_add_video_region_of_interest_meta(frames[0].buffer, "", (object.x >= 0) ? object.x : 0,
-                                                     (object.y >= 0) ? object.y : 0, object.width, object.height);
+    GValueArray *labels = nullptr;
 
-    // TODO: add ROI meta params?
+    gst_structure_get_array(layer_post_proc, "labels", &labels); // TODO: free in the end?
+
+    const gchar *label = NULL;
+    for (DetectedObject &object : objects) {
+        object.clip();
+
+        label = g_value_get_string(labels->values + object.class_id); // TODO: make me safe please!
+        GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
+            frames[0].buffer, label, object.x * image_width, object.y * image_height, object.w * image_width,
+            object.h * image_height);
+
+        GstStructure *s = gst_structure_copy(layer_post_proc);
+        gst_structure_set(s, "confidence", G_TYPE_DOUBLE, object.confidence, "label_id", G_TYPE_INT, object.class_id,
+                          "x_min", G_TYPE_DOUBLE, object.x, "x_max", G_TYPE_DOUBLE, object.x + object.w, "y_min",
+                          G_TYPE_DOUBLE, object.y, "y_max", G_TYPE_DOUBLE, object.y + object.h, NULL);
+
+        gst_video_region_of_interest_meta_add_param(meta, s);
+    }
 
     return true;
 }
@@ -288,16 +312,17 @@ bool ConvertBlobToDetectionResults(const InferenceBackend::OutputBlob::Ptr &blob
     if (layer_post_proc == nullptr)
         throw std::runtime_error("Post proc layer is null during post processing. Cannot access null object.");
 
-    std::string converter = gst_structure_has_field(layer_post_proc, "converter")
-                                ? (std::string)gst_structure_get_string(layer_post_proc, "converter")
-                                : "";
+    std::string converter = "tensor_to_bbox_ssd"; // default post processing
+    if (gst_structure_has_field(layer_post_proc, "converter"))
+        converter = (std::string)gst_structure_get_string(layer_post_proc, "converter");
+    else
+        gst_structure_set(layer_post_proc, "converter", G_TYPE_STRING, converter.c_str(), NULL);
 
     static std::map<std::string, std::function<bool(const InferenceBackend::OutputBlob::Ptr &,
                                                     std::vector<InferenceROI>, GstStructure *)>>
         do_conversion{
-            {"", TensorToBBoxSSD}, // default post processing
-            {"tensor_to_bbox_ssd", TensorToBBoxSSD},
-            {"DetectionOutput", TensorToBBoxSSD}, // GVA plugin R1.2 backward compatibility
+            {"tensor_to_bbox_ssd", TensorToBBoxSSD}, // default post processing
+            {"DetectionOutput", TensorToBBoxSSD},    // GVA plugin R1.2 backward compatibility
             {"tensor_to_bbox_yolo_v2_tiny", TensorToBBoxYoloV2Tiny},
         };
 

@@ -15,7 +15,9 @@
 #include "inference_backend/logger.h"
 #include "plugins_holder.h"
 
+#ifdef ENABLE_CPU_EXTENSIONS
 #include <ext_list.hpp>
+#endif
 
 #include <chrono>
 #include <ie_compound_blob.h>
@@ -25,6 +27,7 @@
 // #include <string>
 
 namespace IE = InferenceEngine;
+using namespace InferenceBackend;
 
 namespace {
 
@@ -123,29 +126,6 @@ inline std::vector<std::string> split(const std::string &s, char delimiter) {
     return tokens;
 }
 
-// std::map<std::string, std::string> configured_ie_config(const std::map<std::string, std::string> &config) {
-//     std::map<std::string, std::string> ie_config(config);
-
-//     const std::string &cpu_extension = ie_config.count(KEY_CPU_EXTENSION) ? ie_config.at(KEY_CPU_EXTENSION) : "";
-//     const std::string &preProcessorName = ie_config.count(KEY_PRE_PROCESSOR_TYPE) ?
-//     ie_config.at(KEY_PRE_PROCESSOR_TYPE) : ""; const std::string &imageFormatName = ie_config.count(KEY_IMAGE_FORMAT)
-//     ? ie_config.at(KEY_IMAGE_FORMAT) : "";
-
-//     ie_config.erase(KEY_CPU_EXTENSION);
-//     ie_config.erase(KEY_PRE_PROCESSOR_TYPE);
-//     ie_config.erase(KEY_IMAGE_FORMAT);
-
-//     return std::tie(ie_config, cpu_extension, preProcessorName, imageFormatName);
-// }
-
-// InferenceEngine::CNNNetwork create_cnn_network(const std::string &model) {
-//     InferenceEngine::CNNNetReader network_reader;
-//     network_reader.ReadNetwork(model);
-//     network_reader.ReadWeights(fileNameNoExt(model) + ".bin");
-//     modelName = network_reader.getName();
-//     return network_reader.getNetwork();
-// }
-
 } // namespace
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -205,49 +185,63 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
     ie_config.erase(KEY_PRE_PROCESSOR_TYPE);
     ie_config.erase(KEY_IMAGE_FORMAT);
 
-    // Load network (.xml and .bin files)
-    InferenceEngine::CNNNetReader network_reader;
-    network_reader.ReadNetwork(model);
-    network_reader.ReadWeights(fileNameNoExt(model) + ".bin");
-    modelName = network_reader.getName();
-    InferenceEngine::CNNNetwork network = network_reader.getNetwork();
+    std::function<void(IE::InputsDataMap &)> initPreprocessor =
+        [this, preProcessorName, imageFormatName](IE::InputsDataMap &model_inputs_info) {
+            if (model_inputs_info.size() == 0) {
+                throw std::logic_error("Input layer not found");
+            }
+            auto &input = model_inputs_info.begin()->second;
+            input->setPrecision(IE::Precision::U8);
+            input->getInputData()->setLayout(IE::Layout::NCHW);
 
-    // Check model input
-    IE::InputsDataMap model_inputs_info(network.getInputsInfo());
-    if (model_inputs_info.size() == 0) {
-        throw std::logic_error("Input layer not found");
-    }
-    auto &input = model_inputs_info.begin()->second;
-    input->setPrecision(IE::Precision::U8);
-    input->getInputData()->setLayout(IE::Layout::NCHW);
+            if (preProcessorName.compare("ie") == 0) {
+                input->getPreProcess().setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
+                input->getPreProcess().setColorFormat(FormatNameToIEColorFormat(imageFormatName));
+            } else {
+                PreProcessType preProcessorType = PreProcessType::Invalid;
+                if (preProcessorName.empty() || preProcessorName == "opencv")
+                    preProcessorType = PreProcessType::OpenCV;
+                else if (preProcessorName == "g-api")
+                    preProcessorType = PreProcessType::GAPI;
+                else if (preProcessorName == "vaapi")
+                    preProcessorType = PreProcessType::VAAPI;
+                this->sw_vpp.reset(PreProc::Create(preProcessorType));
+                if (!this->sw_vpp.get()) {
+                    // TODO ERROR
+                }
+            }
+        };
 
-    if (preProcessorName.compare("ie") == 0) {
-        input->getPreProcess().setResizeAlgorithm(IE::ResizeAlgorithm::RESIZE_BILINEAR);
-        input->getPreProcess().setColorFormat(FormatNameToIEColorFormat(imageFormatName));
-    } else {
-        PreProcessType preProcessorType = PreProcessType::Invalid;
-        if (preProcessorName.empty() || preProcessorName.compare("opencv") == 0)
-            preProcessorType = PreProcessType::OpenCV;
-        else if (preProcessorName.compare("g-api") == 0)
-            preProcessorType = PreProcessType::GAPI;
-        sw_vpp.reset(PreProc::Create(preProcessorType));
-        if (!sw_vpp.get()) {
-            // TODO ERROR
-        }
+    bool is_ir_model = true;
+    InferenceEngine::CNNNetwork network;
+    try {
+        // Load IR network (.xml and .bin files)
+        InferenceEngine::CNNNetReader network_reader;
+        network_reader.ReadNetwork(
+            model); // TODO: what exception can be thrown here? Use it in catch-clause to set is_ir_model
+        network_reader.ReadWeights(fileNameNoExt(model) + ".bin");
+        modelName = network_reader.getName();
+        network = network_reader.getNetwork();
+
+        // Check model input
+        IE::InputsDataMap model_inputs_info(network.getInputsInfo());
+        initPreprocessor(model_inputs_info);
+        network.setBatchSize(batch_size);
+    } catch (std::exception &e) {
+        // TODO: add warning that `model` couln't be read as xml file and will be treated as precompiled
+        is_ir_model = false;
     }
-    network.setBatchSize(batch_size);
 
     for (const std::string &device : devices_vec) { // '-' separated list of devices
         IE::InferencePlugin::Ptr plugin;
         try {
             plugin = PluginsHolderSingleton::getInstance().getPluginPtr(device);
         } catch (const std::exception &e) {
-            std::throw_with_nested(std::runtime_error("Can not create plugin for device: " + device));
+            std::throw_with_nested(std::runtime_error("Could not create plugin for device: " + device));
         }
-        plugins.push_back(plugin);
 
         // Extension for custom layers
-
+#ifdef ENABLE_CPU_EXTENSIONS
         if (device.find("CPU") != std::string::npos) {
             // library with custom layers
             plugin->AddExtension(std::make_shared<IE::Extensions::Cpu::CpuExtensions>());
@@ -258,9 +252,35 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
                 plugin->AddExtension(extension_ptr);
             }
         }
+#endif
+        plugins.push_back(plugin);
 
-        // Loading a model to the device
-        auto executable_network = plugin->LoadNetwork(network, ie_config);
+        InferenceEngine::ExecutableNetwork executable_network;
+        if (is_ir_model) {
+            // Loading IR model to the device
+            executable_network = plugin->LoadNetwork(network, ie_config);
+        } else {
+            try {
+                // Importing pre-compiled model to the device
+                executable_network = plugin->ImportNetwork(model, ie_config);
+            } catch (const std::exception &e) {
+                std::throw_with_nested(std::runtime_error("Couldn't read network/import pre-compiled model '" + model +
+                                                          "' for device: " + device));
+            }
+
+            // Check model input
+            IE::ConstInputsDataMap const_model_inputs_info(executable_network.GetInputsInfo());
+            IE::InputsDataMap model_inputs_info;
+
+            // Workaround IE API to fill model_inputs_info with mutable pointers
+            std::for_each(const_model_inputs_info.begin(), const_model_inputs_info.end(),
+                          [&](std::pair<const std::string, IE::InputInfo::CPtr> pair) {
+                              model_inputs_info.emplace(pair.first,
+                                                        std::const_pointer_cast<IE::InputInfo>(pair.second));
+                          });
+
+            initPreprocessor(model_inputs_info);
+        }
 
         inputs = executable_network.GetInputsInfo();
         outputs = executable_network.GetOutputsInfo();

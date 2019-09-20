@@ -10,8 +10,6 @@
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
 
-#include "fps_meter.h"
-
 G_BEGIN_DECLS
 
 #define GST_TYPE_GVA_WATERMARK (gst_gva_watermark_get_type())
@@ -25,7 +23,6 @@ typedef struct _GstGvaWatermarkClass GstGvaWatermarkClass;
 
 struct _GstGvaWatermark {
     GstBaseTransform base_gvawatermark;
-    fps_meter_s fps_meter;
     GstVideoInfo info;
 };
 

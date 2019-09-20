@@ -69,5 +69,5 @@ PRIVATE
 )
 
 if(${HAVE_VAAPI})
-    target_link_libraries(${TARGET_NAME} PRIVATE vaapi_pre_proc image_inference_async_preproc)
+    target_link_libraries(${TARGET_NAME} PRIVATE va_api_wrapper image_inference_async)
 endif()

@@ -28,6 +28,7 @@ FILE=${1}
 MODEL=vehicle-license-plate-detection-barrier-0106
 
 DEVICE=CPU
+PRE_PROC=opencv
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 
@@ -54,7 +55,7 @@ fi
 # Note that two pipelines create instances of singleton element 'inf0', so we can specify parameters only in first instance
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
                 filesrc location=$FILE ! decodebin ! video/x-raw ! videoconvert ! \
-                gvadetect inference-id=inf0 model=$DETECT_MODEL_PATH device=$DEVICE every-nth-frame=1 batch-size=1 ! queue ! \
+                gvadetect inference-id=inf0 model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC every-nth-frame=1 batch-size=1 ! queue ! \
                 gvawatermark ! videoconvert ! fakesink \
                 filesrc location=${FILE} ! decodebin ! video/x-raw ! videoconvert ! gvadetect inference-id=inf0 ! \
                 gvametaconvert converter=json method=all ! \

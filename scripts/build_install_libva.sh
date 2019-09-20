@@ -6,7 +6,6 @@
 
 sudo -E apt-get install libpciaccess-dev autoconf libtool
 
-#unset intel media sdk variables
 #unset LIBVA_DRIVERS_PATH
 #unset LIBVA_DRIVER_NAME
 

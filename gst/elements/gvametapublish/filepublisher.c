@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,17 @@
 #define UNUSED(x) (void)(x)
 
 // Caller is responsible to remove or rename existing inference file before processing
+
+static inline gboolean need_line_separator(FILE *pFile, const PublishOutputFormat eOutFormat) {
+    return ((ftell(pFile) > 1 && eOutFormat == FILE_PUBLISH_BATCH) || pFile == stdout);
+}
 FilePublishStatus do_initialize_file(FILE **pFile, const char *pathfile, const PublishOutputFormat eOutFormat) {
+    int result = strcmp(pathfile, "stdout");
+    if (result == 0) {
+        *pFile = stdout;
+        fputs("[", *pFile);
+        return FILE_SUCCESS;
+    }
     *pFile = fopen(pathfile, "r");
     if (*pFile == NULL) {
         *pFile = fopen(pathfile, "w+");
@@ -27,10 +37,8 @@ FilePublishStatus do_initialize_file(FILE **pFile, const char *pathfile, const P
 
 FilePublishStatus do_write_inference(FILE **pFile, const PublishOutputFormat eOutFormat, const gchar *inference) {
     if (*pFile != NULL) {
-        if (ftell(*pFile) > 1) {
-            if (eOutFormat == FILE_PUBLISH_BATCH) {
-                fputs(",", *pFile);
-            }
+        if (need_line_separator(*pFile, eOutFormat)) {
+            fputs(",", *pFile);
             // Line feed for each record when producing either Stream or Batch
             fputs("\n", *pFile);
         }
@@ -43,7 +51,7 @@ FilePublishStatus do_write_inference(FILE **pFile, const PublishOutputFormat eOu
 
 FilePublishStatus do_finalize_file(FILE **pFile, const PublishOutputFormat eOutFormat) {
     if (*pFile != NULL) {
-        if (eOutFormat == FILE_PUBLISH_BATCH && ftell(*pFile) > 1) {
+        if (need_line_separator(*pFile, eOutFormat)) {
             fputs("]", *pFile);
         }
         fclose(*pFile);

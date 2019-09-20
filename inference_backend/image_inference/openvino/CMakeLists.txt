@@ -37,8 +37,13 @@ target_link_libraries(${TARGET_NAME}
 PUBLIC
         IE::inference_engine
         logger
-PRIVATE
-        IE::ie_cpu_extension
 )
+if(TARGET IE::ie_cpu_extension)
+        add_definitions(-DENABLE_CPU_EXTENSIONS)
+        target_link_libraries(${TARGET_NAME}
+        PRIVATE
+                IE::ie_cpu_extension
+        )
+endif()
 
-install(TARGETS ${TARGET_NAME} DESTINATION lib/va-gstreamer-plugins)
+install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)

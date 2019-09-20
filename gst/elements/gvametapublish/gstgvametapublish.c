@@ -49,7 +49,7 @@ static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 
 // File specific constants
 #define DEFAULT_PUBLISH_METHOD GST_GVA_METAPUBLISH_FILE
-#define DEFAULT_FILE_PATH NULL
+#define DEFAULT_FILE_PATH STDOUT
 #define DEFAULT_OUTPUT_FORMAT BATCH
 
 // Broker specific constants

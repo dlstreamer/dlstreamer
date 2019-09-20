@@ -23,6 +23,8 @@ file (GLOB MAIN_SRC
     gvametapublish/*.c
     gvawatermark/*.cpp
     gvawatermark/*.c
+    gvafpscounter/*.cpp
+    gvafpscounter/*.c
 )
 
 file (GLOB MAIN_HEADERS
@@ -30,6 +32,7 @@ file (GLOB MAIN_HEADERS
     gvametaconvert/*.h
     gvametapublish/*.h
     gvawatermark/*.h
+    gvafpscounter/*.h
 )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -42,6 +45,7 @@ PUBLIC
     gvametaconvert
     gvametapublish
     gvawatermark
+    gvafpscounter
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTVIDEO_INCLUDE_DIRS}
@@ -62,7 +66,7 @@ PRIVATE
 )
 
 if(${HAVE_VAAPI})
-        target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async_preproc)
+        target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async)
 endif()
 
 target_include_directories(${TARGET_NAME}

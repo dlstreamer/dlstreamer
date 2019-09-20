@@ -21,7 +21,7 @@ PreProc *PreProc::Create(PreProcessType type) {
         break;
 #ifdef HAVE_VAAPI
     case PreProcessType::VAAPI:
-        pProc = CreatePreProcVAAPI();
+        pProc = CreatePreProcOpenCV();
         break;
 #endif
     }

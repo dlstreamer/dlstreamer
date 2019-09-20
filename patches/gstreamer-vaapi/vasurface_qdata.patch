@@ -1,0 +1,18 @@
+diff --git a/gst/vaapi/gstvaapivideometa.c b/gst/vaapi/gstvaapivideometa.c
+index 08040a9d..82b3cb8e 100644
+--- a/gst/vaapi/gstvaapivideometa.c
++++ b/gst/vaapi/gstvaapivideometa.c
+@@ -586,6 +586,13 @@ gst_vaapi_video_meta_set_surface_proxy (GstVaapiVideoMeta * meta,
+     if (crop_rect)
+       gst_vaapi_video_meta_set_render_rect (meta, crop_rect);
+   }
++
++  if (proxy && meta != NULL && meta->buffer != NULL) {
++    gst_mini_object_set_qdata(&meta->buffer->mini_object, g_quark_from_static_string("VADisplay"),
++                              gst_vaapi_display_get_display(gst_vaapi_video_meta_get_display(meta)), NULL);
++    gst_mini_object_set_qdata(&meta->buffer->mini_object, g_quark_from_static_string("VASurfaceID"),
++                              (void*)gst_vaapi_surface_proxy_get_surface_id(proxy), NULL);
++  }
+ }
+ 
+ /**

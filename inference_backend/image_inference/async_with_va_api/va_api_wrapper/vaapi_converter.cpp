@@ -1,45 +1,25 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include <algorithm>
-#include <assert.h>
-#include <fcntl.h>
-#include <memory.h>
 #include <stdexcept>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string>
-#include <unistd.h>
 #include <va/va.h>
-#include <va/va_drm.h>
 #include <va/va_drmcommon.h>
 
-#include "vaapi_pre_proc.h"
+#include "inference_backend/pre_proc.h"
+#include "vaapi_converter.h"
+#include "vaapi_images.h"
 #include "vaapi_utils.h"
 
-namespace InferenceBackend {
+using namespace InferenceBackend;
 
-PreProc *CreatePreProcVAAPI() {
-    return new VAAPIPreProc();
-}
+namespace {
 
-VAAPIPreProc::~VAAPIPreProc() {
-    if (va_context != VA_INVALID_ID) {
-        vaDestroyContext(va_display, va_context);
-    }
-    if (va_config != VA_INVALID_ID) {
-        vaDestroyContext(va_display, va_config);
-    }
-    if (va_display) {
-        vaTerminate(va_display);
-    }
-}
-
-static uint32_t Fourcc2RTFormat(int format_fourcc) {
-    switch (format_fourcc) {
+uint32_t FourCc2RTFormat(int format_four_cc) {
+    switch (format_four_cc) {
 #if VA_MAJOR_VERSION >= 1
     case VA_FOURCC_I420:
         return VA_FOURCC_I420;
@@ -53,40 +33,21 @@ static uint32_t Fourcc2RTFormat(int format_fourcc) {
     }
 }
 
-VAAPIPreProc::VAAPIPreProc() {
-    int fd = open("/dev/dri/renderD128", O_RDWR);
-    if (!fd) {
-        throw std::runtime_error("Error opening VAAPI device");
-    }
-
-    va_display = vaGetDisplayDRM(fd);
-    if (!va_display) {
-        throw std::runtime_error("Error opening VAAPI display");
-    }
-
-    int major_version = 0, minor_version = 0;
-    VA_CALL(vaInitialize(va_display, &major_version, &minor_version))
-
-    VA_CALL(vaCreateConfig(va_display, VAProfileNone, VAEntrypointVideoProc, nullptr, 0, &va_config))
-
-    VA_CALL(vaCreateContext(va_display, va_config, 0, 0, VA_PROGRESSIVE, 0, 0, &va_context))
-}
-
-static VASurfaceID CreateVASurface(VADisplay dpy, const Image &src) {
+VASurfaceID CreateVASurface(VADisplay dpy, const Image &src) {
     VASurfaceAttrib surface_attrib;
     surface_attrib.type = VASurfaceAttribPixelFormat;
     surface_attrib.flags = VA_SURFACE_ATTRIB_SETTABLE;
     surface_attrib.value.type = VAGenericValueTypeInteger;
     surface_attrib.value.value.i = src.format;
 
-    unsigned int rtformat = Fourcc2RTFormat(src.format);
+    unsigned int rt_format = FourCc2RTFormat(src.format);
 
     VASurfaceID va_surface_id;
-    VA_CALL(vaCreateSurfaces(dpy, rtformat, src.width, src.height, &va_surface_id, 1, &surface_attrib, 1))
+    VA_CALL(vaCreateSurfaces(dpy, rt_format, src.width, src.height, &va_surface_id, 1, &surface_attrib, 1))
     return va_surface_id;
 }
 
-static VASurfaceID CreateVASurfaceFromDMA(VADisplay vpy, const Image &src) {
+VASurfaceID CreateVASurfaceFromDMA(VADisplay vpy, const Image &src) {
     if (src.type != InferenceBackend::MemoryType::DMA_BUFFER) {
         throw std::runtime_error("MemoryType=DMA_BUFFER expected");
     }
@@ -118,12 +79,12 @@ static VASurfaceID CreateVASurfaceFromDMA(VADisplay vpy, const Image &src) {
     attribs[1].value.type = VAGenericValueTypePointer;
     attribs[1].value.value.p = &external;
 
-    VA_CALL(vaCreateSurfaces(vpy, Fourcc2RTFormat(src.format), src.width, src.height, &va_surface_id, 1, attribs, 2))
+    VA_CALL(vaCreateSurfaces(vpy, FourCc2RTFormat(src.format), src.width, src.height, &va_surface_id, 1, attribs, 2))
 
     return va_surface_id;
 }
 
-static VASurfaceID CreateVASurfaceFromAlignedBuffer(VADisplay dpy, Image &src) {
+/* static VASurfaceID CreateVASurfaceFromAlignedBuffer(VADisplay dpy, Image &src) {
     if (src.type != InferenceBackend::MemoryType::SYSTEM) {
         throw std::runtime_error("MemoryType=SYSTEM expected");
     }
@@ -137,7 +98,7 @@ static VASurfaceID CreateVASurfaceFromAlignedBuffer(VADisplay dpy, Image &src) {
     external.buffers = buffers;
     external.flags = VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR;
     external.num_planes = GetPlanesCount(src.format);
-    for (int i = 0; i < external.num_planes; i++) {
+    for (uint32_t i = 0; i < external.num_planes; i++) {
         external.pitches[i] = src.stride[i];
         external.offsets[i] = src.planes[i] - src.planes[0];
         external.data_size += src.stride[i] * src.height;
@@ -155,17 +116,31 @@ static VASurfaceID CreateVASurfaceFromAlignedBuffer(VADisplay dpy, Image &src) {
     attribs[1].value.value.p = (void *)&external;
 
     VASurfaceID va_surface_id;
-    VA_CALL(vaCreateSurfaces(dpy, Fourcc2RTFormat(src.format), src.width, src.height, &va_surface_id, 1, attribs, 2))
+    VA_CALL(vaCreateSurfaces(dpy, FourCc2RTFormat(src.format), src.width, src.height, &va_surface_id, 1, attribs, 2))
 
     return va_surface_id;
+}*/
+
+} // anonymous namespace
+
+VaApiConverter::VaApiConverter(VaApiContext *context) : _context(context) {
 }
 
-void VAAPIPreProc::Convert(const Image &src, Image &dst, bool /*bAllocateDestination*/) {
-    VASurfaceID src_surface = CreateVASurfaceFromDMA(va_display, src);
+void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
+    VASurfaceID src_surface;
+    Image &dst = va_api_dst.image;
+
+    if (src.type == MemoryType::VAAPI) {
+        src_surface = src.va_surface_id;
+    } else if (src.type == MemoryType::DMA_BUFFER) {
+        src_surface = CreateVASurfaceFromDMA(_context->Display(), src);
+    } else {
+        throw std::runtime_error("VaApiConverter::Convert: unsupported MemoryType");
+    }
 
     if (dst.type == MemoryType::ANY) {
-        dst.va_surface_id = CreateVASurface(va_display, dst);
-        dst.va_display = va_display;
+        dst.va_surface_id = CreateVASurface(_context->Display(), dst);
+        dst.va_display = _context->Display();
         dst.type = MemoryType::VAAPI;
     }
     VASurfaceID dst_surface = dst.va_surface_id;
@@ -182,25 +157,18 @@ void VAAPIPreProc::Convert(const Image &src, Image &dst, bool /*bAllocateDestina
     // pipeline_param.filter_flags = VA_FILTER_SCALING_HQ; // High-quality scaling method
 
     VABufferID pipeline_param_buf_id = VA_INVALID_ID;
-    VA_CALL(vaCreateBuffer(va_display, va_context, VAProcPipelineParameterBufferType, sizeof(pipeline_param), 1,
-                           &pipeline_param, &pipeline_param_buf_id));
+    VA_CALL(vaCreateBuffer(_context->Display(), _context->Id(), VAProcPipelineParameterBufferType,
+                           sizeof(pipeline_param), 1, &pipeline_param, &pipeline_param_buf_id));
 
-    VA_CALL(vaBeginPicture(va_display, va_context, dst_surface))
+    VA_CALL(vaBeginPicture(_context->Display(), _context->Id(), dst_surface))
 
-    VA_CALL(vaRenderPicture(va_display, va_context, &pipeline_param_buf_id, 1))
+    VA_CALL(vaRenderPicture(_context->Display(), _context->Id(), &pipeline_param_buf_id, 1))
 
-    VA_CALL(vaEndPicture(va_display, va_context))
+    VA_CALL(vaEndPicture(_context->Display(), _context->Id()))
 
-    VA_CALL(vaDestroyBuffer(va_display, pipeline_param_buf_id))
+    VA_CALL(vaDestroyBuffer(_context->Display(), pipeline_param_buf_id))
 
-    VA_CALL(vaDestroySurfaces(va_display, &src_surface, 1))
-}
-
-void VAAPIPreProc::ReleaseImage(const Image &image) {
-    if (image.type == MemoryType::VAAPI && image.va_surface_id && image.va_surface_id != VA_INVALID_ID) {
-        VA_CALL(vaDestroySurfaces(va_display, (uint32_t *)&image.va_surface_id, 1))
-        image.type == MemoryType::ANY;
+    if (src.type == MemoryType::DMA_BUFFER) {
+        VA_CALL(vaDestroySurfaces(_context->Display(), &src_surface, 1))
     }
 }
-
-} // namespace InferenceBackend

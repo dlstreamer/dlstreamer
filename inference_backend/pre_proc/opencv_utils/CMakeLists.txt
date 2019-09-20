@@ -43,4 +43,4 @@ PRIVATE
         ${OpenCV_LIBS}
 )
 
-install(TARGETS ${TARGET_NAME} DESTINATION lib/va-gstreamer-plugins)
+install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)

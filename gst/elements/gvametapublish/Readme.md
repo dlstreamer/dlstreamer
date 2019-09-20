@@ -24,19 +24,19 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
     vehicle_detection_publish_mqtt.sh
     vehicle_detection_publish_kafka.sh
 
-3. Create your own pipeline and add gvametapublish element with the following parameters: 
+3. Create your own pipeline and add gvametapublish element with the following parameters:
 
     gvametapublish method=file filepath=/root/video-example/detections_2019.json
     1. Optionally provide outputformat=stream to have raw JSON inferences written to the file, or outputformat=batch (default) to have the file populated as an array of JSON inferences:
 
     gvametapublish method=file filepath="/root/video-examples/detections_2019.json" outputformat=stream ! \
 
-    2. To publish data to mqtt broker: 
+    2. To publish data to mqtt broker:
 
-    gvametapublish method=mqtt address=127.0.0.1:1883 clientid=clientIdValue topic=topicName timeout=timeoutValue 
+    gvametapublish method=mqtt address=127.0.0.1:1883 clientid=clientIdValue topic=topicName timeout=timeoutValue
 
     3. To publish data to kafka broker:
 
-    gvametapublish method=kafka address=127.0.0.1:9092 topic=topicName 
+    gvametapublish method=kafka address=127.0.0.1:9092 topic=topicName
 
 Note: *method is a required property of gvametapublish element.

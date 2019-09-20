@@ -10,6 +10,7 @@
 
 #include "gstgvaclassify.h"
 #include "gstgvadetect.h"
+#include "gstgvafpscounter.h"
 #include "gstgvaidentify.h"
 #include "gstgvainference.h"
 #include "gstgvametaconvert.h"
@@ -33,6 +34,9 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
 
     if (!gst_element_register(plugin, "gvawatermark", GST_RANK_NONE, GST_TYPE_GVA_WATERMARK))
+        return FALSE;
+
+    if (!gst_element_register(plugin, "gvafpscounter", GST_RANK_NONE, GST_TYPE_GVA_FPSCOUNTER))
         return FALSE;
 
     if (!gst_element_register(plugin, "gvametapublish", GST_RANK_NONE, GST_TYPE_GVA_META_PUBLISH))

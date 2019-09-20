@@ -6,13 +6,14 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set (TARGET_NAME "image_inference_async_preproc")
+set (TARGET_NAME "va_api_wrapper")
 
-find_package(PkgConfig REQUIRED)
+find_package(PkgConfig)
+pkg_search_module(VA va libva REQUIRED)
+pkg_search_module(VADRM va-drm libva-drm REQUIRED)
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.c
         )
 
 file (GLOB MAIN_HEADERS
@@ -24,12 +25,16 @@ set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${VA_INCLUDE_DIRS}
+PRIVATE
+    ${VADRM_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
+        ${VA_LIBRARIES}
         logger
+PRIVATE
+        ${VADRM_LIBRARIES}
 )
-
-install(TARGETS ${TARGET_NAME} DESTINATION lib/va-gstreamer-plugins)

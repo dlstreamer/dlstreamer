@@ -20,6 +20,7 @@ source $BASEDIR/scripts/path_extractor.sh
 MODEL=ssd300
 
 DEVICE=CPU
+PRE_PROC=opencv
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 
@@ -33,5 +34,5 @@ FILE=${1}
 
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} filesrc location=${FILE} ! \
                decodebin ! video/x-raw ! videoconvert ! \
-               gvadetect model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
+               gvadetect model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
                gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false

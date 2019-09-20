@@ -117,6 +117,11 @@ std::shared_ptr<InferenceBackend::Image> CreateImage(GstBuffer *buffer, GstVideo
                                                      InferenceBackend::MemoryType mem_type, GstMapFlags map_flags) {
     std::unique_ptr<InferenceBackend::Image> unique_image = std::unique_ptr<InferenceBackend::Image>(new Image);
     std::shared_ptr<BufferMapContext> map_context = std::make_shared<BufferMapContext>();
+    if (!map_context) {
+        GST_ERROR("Could not create buffer map_context");
+        return nullptr;
+    }
+
     if (!gva_buffer_map(buffer, *unique_image, *map_context, info, mem_type, map_flags)) {
         GST_ERROR("Buffer mapping failed");
         return nullptr;
@@ -263,9 +268,13 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
 
     InferenceBackend::MemoryType mem_type = InferenceBackend::MemoryType::SYSTEM;
     if (std::string(gva_base_inference->pre_proc_name) == "vaapi") {
+#ifdef HAVE_VAAPI
+        mem_type = MemoryType::VAAPI;
+#elif defined(SUPPORT_DMA_BUFFER)
         GstMemory *mem = gst_buffer_get_memory(buffer, 0);
         mem_type = gst_is_fd_memory(mem) ? MemoryType::DMA_BUFFER : MemoryType::SYSTEM;
         gst_memory_unref(mem);
+#endif
     }
     try {
         std::shared_ptr<InferenceBackend::Image> image = CreateImage(buffer, info, mem_type, GST_MAP_READ);
@@ -386,6 +395,8 @@ void InferenceImpl::InferenceCompletionCallback(
         auto inference_result = std::dynamic_pointer_cast<InferenceResult>(frame);
         model = inference_result->model;
         InferenceROI inference_roi = inference_result->inference_frame;
+        inference_result->image = nullptr; // if image_deleter set, call image_deleter including gst_buffer_unref before
+                                           // gst_buffer_make_writable
 
         if (post_proc == nullptr)
             post_proc = inference_roi.gva_base_inference->post_proc;
@@ -394,19 +405,24 @@ void InferenceImpl::InferenceCompletionCallback(
 
         for (OutputFrame &output_frame : output_frames) {
             if (output_frame.buffer == inference_roi.buffer) {
-                if (output_frame.inference_count == 0)
-                    // This condition is necessary if two items in output_frames refer to the same buffer.
-                    // If current output_frame.inference_count equals 0, then inference for this output_frame already
-                    // happened, but buffer wasn't pushed further by pipeline yet. We skip this buffer to find another,
-                    // to which current inference callback really belongs
-                    continue;
-                if (output_frame.writable_buffer) {
-                    // check if we have writable version of this buffer (this function called multiple times
-                    // on same buffer)
-                    inference_roi.buffer = output_frame.writable_buffer;
-                } else {
-                    inference_roi.buffer = gst_buffer_make_writable(inference_roi.buffer);
-                    output_frame.writable_buffer = inference_roi.buffer;
+                if (output_frame.filter->is_full_frame) { // except gvaclassify because it doesn't attach new metadata
+                    if (output_frame.inference_count == 0)
+                        // This condition is necessary if two items in output_frames refer to the same buffer.
+                        // If current output_frame.inference_count equals 0, then inference for this output_frame
+                        // already happened, but buffer wasn't pushed further by pipeline yet. We skip this buffer to
+                        // find another, to which current inference callback really belongs
+                        continue;
+                    if (output_frame.writable_buffer) {
+                        // check if we have writable version of this buffer (this function called multiple times
+                        // on same buffer)
+                        inference_roi.buffer = output_frame.writable_buffer;
+                    } else {
+                        if (!gst_buffer_is_writable(inference_roi.buffer)) {
+                            GST_WARNING_OBJECT(output_frame.filter, "Making a writable buffer requires buffer copy");
+                        }
+                        inference_roi.buffer = gst_buffer_make_writable(inference_roi.buffer);
+                        output_frame.writable_buffer = inference_roi.buffer;
+                    }
                 }
                 --output_frame.inference_count;
                 break;

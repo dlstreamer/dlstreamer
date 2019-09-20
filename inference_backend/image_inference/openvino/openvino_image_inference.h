@@ -20,19 +20,18 @@
 #include "inference_backend/logger.h"
 #include "safe_queue.h"
 
-using namespace InferenceBackend;
-
-class OpenVINOImageInference : public ImageInference {
+class OpenVINOImageInference : public InferenceBackend::ImageInference {
   public:
     OpenVINOImageInference(std::string devices, std::string model, int batch_size, int nireq,
-                           const std::map<std::string, std::string> &config, Allocator *allocator,
+                           const std::map<std::string, std::string> &config, InferenceBackend::Allocator *allocator,
                            CallbackFunc callback);
 
     void CreateInferRequests();
 
     virtual ~OpenVINOImageInference();
 
-    virtual void SubmitImage(const Image &image, IFramePtr user_data, std::function<void(Image &)> preProcessor);
+    virtual void SubmitImage(const InferenceBackend::Image &image, IFramePtr user_data,
+                             std::function<void(InferenceBackend::Image &)> preProcessor);
 
     virtual const std::string &GetModelName() const;
     virtual void GetModelInputInfo(int *width, int *height, int *format) const;
@@ -52,11 +51,11 @@ class OpenVINOImageInference : public ImageInference {
         std::vector<InferenceBackend::Allocator::AllocContext *> alloc_context;
     };
 
-    void GetNextImageBuffer(std::shared_ptr<BatchRequest> request, Image *image);
+    void GetNextImageBuffer(std::shared_ptr<BatchRequest> request, InferenceBackend::Image *image);
 
     void WorkingFunction(std::shared_ptr<BatchRequest> request);
 
-    Allocator *allocator;
+    InferenceBackend::Allocator *allocator;
     CallbackFunc callback;
 
     // Inference Engine
@@ -71,7 +70,7 @@ class OpenVINOImageInference : public ImageInference {
     SafeQueue<std::shared_ptr<BatchRequest>> freeRequests;
 
     // VPP
-    std::unique_ptr<PreProc> sw_vpp;
+    std::unique_ptr<InferenceBackend::PreProc> sw_vpp;
 
     std::mutex mutex_;
     std::mutex inference_completion_mutex_;
@@ -80,6 +79,6 @@ class OpenVINOImageInference : public ImageInference {
     std::mutex flush_mutex;
 
   private:
-    void SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image &src,
-                                       std::function<void(Image &)> preProcessor);
+    void SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const InferenceBackend::Image &src,
+                                       std::function<void(InferenceBackend::Image &)> preProcessor);
 };

@@ -34,6 +34,7 @@ MODEL2_PROC=vehicle-attributes-recognition-barrier-0039
 MODEL3_PROC=license-plate-recognition-barrier-0001
 
 DEVICE=CPU
+PRE_PROC=opencv
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL1 )
 CLASS_MODEL_PATH=$(GET_MODEL_PATH $MODEL2 )
@@ -47,7 +48,7 @@ echo LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 # If you try to set a different batch-size, the initialization of GVA plugins will not be successful.
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
   filesrc location=${FILE} ! decodebin ! video/x-raw ! videoconvert ! \
-  gvadetect   model=$DETECT_MODEL_PATH model-proc=$(PROC_PATH $MODEL1_PROC) device=$DEVICE ! queue ! \
-  gvaclassify model=$CLASS_MODEL_PATH  model-proc=$(PROC_PATH $MODEL2_PROC) device=$DEVICE object-class=vehicle ! queue ! \
-  gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$(PROC_PATH $MODEL3_PROC) device=$DEVICE object-class=license-plate ! queue ! \
+  gvadetect   model=$DETECT_MODEL_PATH model-proc=$(PROC_PATH $MODEL1_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
+  gvaclassify model=$CLASS_MODEL_PATH  model-proc=$(PROC_PATH $MODEL2_PROC) device=$DEVICE pre-proc=$PRE_PROC object-class=vehicle ! queue ! \
+  gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$(PROC_PATH $MODEL3_PROC) device=$DEVICE pre-proc=$PRE_PROC object-class=license-plate ! queue ! \
   gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false

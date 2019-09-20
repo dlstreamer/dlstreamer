@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -27,6 +27,7 @@ struct _FilePublishConfig {
 
 #define BATCH "batch"
 #define STREAM "stream"
+#define STDOUT "stdout"
 #define MIN_FILE_LEN 4
 
 MetapublishStatusMessage file_open(FILE **pFile, FilePublishConfig *config);

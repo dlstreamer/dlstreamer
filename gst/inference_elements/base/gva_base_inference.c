@@ -128,7 +128,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         gobject_class, PROP_BATCH_SIZE,
         g_param_spec_uint("batch-size", "Batch size",
                           "Number frames for batching. "
-                          "Note: There are several limitations and it's not recommended to use it. "
+                          "Note: There are several limitations and it`s not recommended to use it. "
                           "Before use it make sure that all network layers have batch in the first "
                           "dimension, otherwise it works incorrectly.",
                           DEFAULT_MIN_BATCH_SIZE, DEFAULT_MAX_BATCH_SIZE, DEFAULT_BATCH_SIZE,

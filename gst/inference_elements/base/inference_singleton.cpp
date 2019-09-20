@@ -69,11 +69,13 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     COPY_GSTRING(targetElem->model_proc, masterElem->model_proc);
     targetElem->batch_size = masterElem->batch_size;
     targetElem->every_nth_frame = masterElem->every_nth_frame;
+    targetElem->adaptive_skip = masterElem->adaptive_skip;
     targetElem->nireq = masterElem->nireq;
     targetElem->cpu_streams = masterElem->cpu_streams;
     targetElem->gpu_streams = masterElem->gpu_streams;
     COPY_GSTRING(targetElem->infer_config, masterElem->infer_config);
     COPY_GSTRING(targetElem->allocator_name, masterElem->allocator_name);
+    COPY_GSTRING(targetElem->pre_proc_name, masterElem->pre_proc_name);
     // no need to copy inference_id because it should match already.
 }
 

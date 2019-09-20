@@ -32,5 +32,4 @@ Image ApplyCrop(const Image &src);
 
 PreProc *CreatePreProcGAPI();
 PreProc *CreatePreProcOpenCV();
-PreProc *CreatePreProcVAAPI();
 } // namespace InferenceBackend

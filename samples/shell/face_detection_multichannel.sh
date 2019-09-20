@@ -28,12 +28,14 @@ fi
 FILE=${1}
 CHANNELS_COUNT=${2:-2}
 DEVICE=CPU
+PRE_PROC=opencv
+
 MODEL=face-detection-retail-0004
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 
 PIPELINE_STR=" filesrc location=${FILE} ! decodebin ! video/x-raw ! videoconvert ! \
-             gvadetect inference-id=inf0 model=$DETECT_MODEL_PATH device=$DEVICE batch-size=1 nireq=5 ! queue ! \
+             gvadetect inference-id=inf0 model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC batch-size=1 nireq=5 ! queue ! \
              gvawatermark ! \
              videoconvert ! fpsdisplaysink video-sink=fakesink sync=false async-handling=true"
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) <2018-2019> Intel Corporation
+ * Copyright (C) 2018-2019 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,20 +7,22 @@
 #include "vaapi_image_map.h"
 #include "vaapi_utils.h"
 
+#include "inference_backend/logger.h"
+
 namespace InferenceBackend {
 
 ImageMap *ImageMap::Create() {
-    return new VAAPIImageMap();
+    return new VaApiImageMap();
 }
 
-VAAPIImageMap::VAAPIImageMap() : va_display(0), va_image({}) {
+VaApiImageMap::VaApiImageMap() : va_display(nullptr), va_image({}) {
 }
 
-VAAPIImageMap::~VAAPIImageMap() {
+VaApiImageMap::~VaApiImageMap() {
     Unmap();
 }
 
-Image VAAPIImageMap::Map(const Image &image) {
+Image VaApiImageMap::Map(const Image &image) {
     if (image.type != MemoryType::VAAPI)
         throw std::runtime_error("VAAPIImageMap supports only MemoryType::VAAPI");
 
@@ -64,10 +66,16 @@ Image VAAPIImageMap::Map(const Image &image) {
     return image_sys;
 }
 
-void VAAPIImageMap::Unmap() {
+void VaApiImageMap::Unmap() {
     if (va_display) {
-        VA_CALL(vaUnmapBuffer(va_display, va_image.buf))
-        VA_CALL(vaDestroyImage(va_display, va_image.image_id))
+        try {
+            VA_CALL(vaUnmapBuffer(va_display, va_image.buf))
+            VA_CALL(vaDestroyImage(va_display, va_image.image_id))
+        } catch (const std::exception &e) {
+            std::string error_message =
+                std::string("VA buffer unmapping (destroying) failed with exception: ") + e.what();
+            GVA_WARNING(error_message.c_str());
+        }
     }
 }
 } // namespace InferenceBackend

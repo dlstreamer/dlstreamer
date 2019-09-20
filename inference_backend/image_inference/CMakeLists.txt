@@ -11,7 +11,7 @@ set (TARGET_NAME "image_inference")
 add_subdirectory(openvino)
 
 if(${HAVE_VAAPI})
-add_subdirectory(async_preproc)
+        add_subdirectory(async_with_va_api)
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -34,7 +34,7 @@ target_include_directories(${TARGET_NAME}
 PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/openvino
-        ${CMAKE_CURRENT_SOURCE_DIR}/async_preproc
+        ${CMAKE_CURRENT_SOURCE_DIR}/async_with_va_api
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -43,4 +43,4 @@ PUBLIC
         logger
 )
 
-install(TARGETS ${TARGET_NAME} DESTINATION lib/va-gstreamer-plugins)
+install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)

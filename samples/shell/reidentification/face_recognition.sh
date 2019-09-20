@@ -33,6 +33,7 @@ LANDMARKS_MODEL_PROC=landmarks-regression-retail-0009
 IDENTIFICATION_MODEL_PROC=face-reidentification-retail-0095
 
 DEVICE=CPU
+PRE_PROC=opencv
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $DETECTION_MODEL )
 LANDMARKS_MODEL_PATH=$(GET_MODEL_PATH $LANDMARKS_MODEL )
@@ -44,8 +45,8 @@ echo LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
   filesrc location=${INPUT} ! decodebin ! video/x-raw ! videoconvert ! \
-  gvadetect model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
-  gvaclassify model=$LANDMARKS_MODEL_PATH model-proc=$(PROC_PATH $LANDMARKS_MODEL_PROC) device=$DEVICE ! queue ! \
-  gvaclassify model=$IDENTIFICATION_MODEL_PATH model-proc=$(PROC_PATH $IDENTIFICATION_MODEL_PROC) device=$DEVICE ! queue ! \
+  gvadetect model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
+  gvaclassify model=$LANDMARKS_MODEL_PATH model-proc=$(PROC_PATH $LANDMARKS_MODEL_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
+  gvaclassify model=$IDENTIFICATION_MODEL_PATH model-proc=$(PROC_PATH $IDENTIFICATION_MODEL_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
   gvaidentify gallery=${GALLERY} ! queue ! \
   gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false
