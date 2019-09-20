@@ -1,7 +1,7 @@
 # Shell samples
 The shell samples demonstrate pipeline contruction and execution from command line through gst-launch utility.
 See links
-[Data flow](https://github.com/video-analytics/gstreamer-plugins/wiki/Data-flow),
+[Data flow](https://github.com/opencv/gst-video-analytics/wiki/Data-flow),
 [Metadata](https://github.com/opencv/gst-video-analytics/wiki/Metadata),
 [Properties](https://github.com/opencv/gst-video-analytics/wiki/Elements)
 for more details about plugins functionality and parameters.
