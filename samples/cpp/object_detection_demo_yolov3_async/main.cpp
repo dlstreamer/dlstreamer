@@ -111,7 +111,7 @@ static GOptionEntry opt_entries[] = {
     {"batch", 'b', 0, G_OPTION_ARG_INT, &batch_size, "Batch size", NULL},
     {"threshold", 't', 0, G_OPTION_ARG_DOUBLE, &threshold, "Confidence threshold for detection (0 - 1)", NULL},
     {"no-display", 'n', 0, G_OPTION_ARG_NONE, &no_display, "Run without display", NULL},
-    {}};
+    GOptionEntry()};
 
 GstGVATensorMeta *gst_buffer_iterate_tensor_meta(GstBuffer *buffer, gpointer *state) {
     static GQuark gva_tensor_meta_tag = g_quark_from_static_string(GVA_TENSOR_META_TAG);

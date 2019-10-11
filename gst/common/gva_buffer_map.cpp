@@ -39,8 +39,8 @@ inline int gstFormatToFourCC(int format) {
 
 bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_context, GstVideoInfo *info,
                     MemoryType memory_type, GstMapFlags map_flags) {
-    image = {};
-    map_context = {};
+    image = Image();
+    map_context = BufferMapContext();
     bool status = true;
 
     guint n_planes = info->finfo->n_planes;

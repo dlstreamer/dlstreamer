@@ -51,7 +51,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
         std::vector<InferenceBackend::Allocator::AllocContext *> alloc_context;
     };
 
-    void GetNextImageBuffer(std::shared_ptr<BatchRequest> request, InferenceBackend::Image *image);
+    InferenceBackend::Image GetNextImageBuffer(std::shared_ptr<BatchRequest> request);
 
     void WorkingFunction(std::shared_ptr<BatchRequest> request);
 

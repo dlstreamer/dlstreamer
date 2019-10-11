@@ -113,7 +113,7 @@ static GOptionEntry opt_entries[] = {
     {"batch", 'b', 0, G_OPTION_ARG_INT, &batch_size, "Batch size", NULL},
     {"threshold", 't', 0, G_OPTION_ARG_DOUBLE, &threshold, "Confidence threshold for detection (0 - 1)", NULL},
     {"no-display", 'n', 0, G_OPTION_ARG_NONE, &no_display, "Run without display", NULL},
-    {}};
+    GOptionEntry()};
 
 // This structure will be used to pass user data (such as memory type) to the callback function.
 

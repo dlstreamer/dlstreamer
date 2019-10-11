@@ -66,7 +66,7 @@ RUN mkdir neo && cd neo && \
 FROM base AS dldt-binaries
 WORKDIR /home
 
-ARG OpenVINO_VERSION=2019.2.275
+ARG OpenVINO_VERSION=2019.3.334
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     cpio

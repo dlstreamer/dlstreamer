@@ -77,7 +77,8 @@ function (set_compile_flags TARGET)
 endfunction(set_compile_flags)
 
 ####################################
-## to use C++11
+## to use C/C++11
+set (CMAKE_C_STANDARD 11)
 set (CMAKE_CXX_STANDARD 11)
 set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 ####################################

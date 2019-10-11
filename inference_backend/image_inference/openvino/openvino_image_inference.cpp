@@ -169,11 +169,9 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
                                                const std::map<std::string, std::string> &config, Allocator *allocator,
                                                CallbackFunc callback)
 
-    : allocator(allocator), batch_size(batch_size) {
+    : allocator(allocator), batch_size(batch_size), requests_processing_(0U) {
 
     GVA_DEBUG("Image Inference construct");
-
-    std::atomic_init(&requests_processing_, static_cast<unsigned int>(0));
 
     auto devices_vec = split(devices, '-');
     const std::string &cpu_extension = config.count(KEY_CPU_EXTENSION) ? config.at(KEY_CPU_EXTENSION) : "";
@@ -350,7 +348,7 @@ bool OpenVINOImageInference::IsQueueFull() {
     return freeRequests.empty();
 }
 
-void OpenVINOImageInference::GetNextImageBuffer(std::shared_ptr<BatchRequest> request, Image *image) {
+Image OpenVINOImageInference::GetNextImageBuffer(std::shared_ptr<BatchRequest> request) {
     GVA_DEBUG(__FUNCTION__);
     ITT_TASK(__FUNCTION__);
 
@@ -360,18 +358,19 @@ void OpenVINOImageInference::GetNextImageBuffer(std::shared_ptr<BatchRequest> re
     auto blob = request->infer_request->GetBlob(inputName);
     auto blobSize = blob.get()->dims();
 
-    *image = {};
-    image->width = blobSize[0];
-    image->height = blobSize[1];
-    image->format = FOURCC_RGBP;
+    Image image = Image();
+    image.width = blobSize[0];
+    image.height = blobSize[1];
+    image.format = FOURCC_RGBP;
     int batchIndex = request->buffers.size();
-    int plane_size = image->width * image->height;
-    image->planes[0] = blob->buffer().as<uint8_t *>() + batchIndex * plane_size * blobSize[2];
-    image->planes[1] = image->planes[0] + plane_size;
-    image->planes[2] = image->planes[1] + plane_size;
-    image->stride[0] = image->width;
-    image->stride[1] = image->width;
-    image->stride[2] = image->width;
+    int plane_size = image.width * image.height;
+    image.planes[0] = blob->buffer().as<uint8_t *>() + batchIndex * plane_size * blobSize[2];
+    image.planes[1] = image.planes[0] + plane_size;
+    image.planes[2] = image.planes[1] + plane_size;
+    image.stride[0] = image.width;
+    image.stride[1] = image.width;
+    image.stride[2] = image.width;
+    return image;
 }
 
 void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image &srcImg,
@@ -381,8 +380,7 @@ void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<Batch
         std::string inputName = inputs.begin()->first;
         request->infer_request->SetBlob(inputName, frameBlob);
     } else {
-        Image dstImg = {};
-        GetNextImageBuffer(request, &dstImg);
+        Image dstImg = GetNextImageBuffer(request);
         if (srcImg.planes[0] != dstImg.planes[0]) { // only convert if different buffers
             try {
                 sw_vpp->Convert(srcImg, dstImg);

@@ -65,7 +65,7 @@ RUN mkdir neo && cd neo && \
 FROM base AS dldt-internal
 WORKDIR /home
 
-ARG DLDT_VER=2019_R2
+ARG DLDT_VER=2019_R3
 ARG DLDT_REPO=https://github.com/opencv/dldt.git
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev python3 python3-pip python3-setuptools python-yaml

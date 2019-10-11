@@ -327,7 +327,7 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     std::vector<GstVideoRegionOfInterestMeta *> metas;
     GstVideoRegionOfInterestMeta full_frame_meta;
     if (gva_base_inference->is_full_frame) {
-        full_frame_meta = {};
+        full_frame_meta = GstVideoRegionOfInterestMeta();
         full_frame_meta.x = 0;
         full_frame_meta.y = 0;
         full_frame_meta.w = info->width;
