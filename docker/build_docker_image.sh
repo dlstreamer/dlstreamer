@@ -19,7 +19,7 @@ else
 fi
 
 BASEDIR=$(dirname "$0")
-docker build -f ${BASEDIR}/${dockerfile} -t gstreamer-plugins:$tag \
+docker build -f ${BASEDIR}/${dockerfile} -t gst-video-analytics:$tag \
     --build-arg http_proxy=${HTTP_PROXY} \
     --build-arg https_proxy=${HTTPS_PROXY} \
     ${BASEDIR}/..
