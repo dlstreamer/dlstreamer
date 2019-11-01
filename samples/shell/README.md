@@ -4,7 +4,7 @@ See links
 [Data flow](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Data-flow),
 [Metadata](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Metadata),
 [Properties](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Elements)
-for more details about plugins functionality and parameters.
+for more details about plugins functionality and parameters. 
 
 The optional environment variable
 ```

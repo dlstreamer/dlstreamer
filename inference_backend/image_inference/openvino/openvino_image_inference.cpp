@@ -84,20 +84,30 @@ IE::Blob::Ptr WrapImage2Blob(const Image &image) {
         }
         return image_blob;
     } else { // InferenceBackend::FOURCC_NV12
-        Image cropedImage = ApplyCrop(image);
-        const size_t input_width = (size_t)cropedImage.width;
-        const size_t input_height = (size_t)cropedImage.height;
-        IE::TensorDesc y_desc(IE::Precision::U8, {1, 1, input_height - input_height % 2, input_width - input_width % 2},
-                              IE::Layout::NHWC);
-        IE::TensorDesc uv_desc(IE::Precision::U8, {1, 2, input_height / 2, input_width / 2}, IE::Layout::NHWC);
+        const size_t imageWidth = (size_t)image.width;
+        const size_t imageHeight = (size_t)image.height;
+        IE::TensorDesc planeY(IE::Precision::U8, {1, 1, imageHeight, imageWidth}, IE::Layout::NHWC);
+        IE::TensorDesc planeUV(IE::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, IE::Layout::NHWC);
 
-        // Create blob for Y plane from raw data
-        IE::Blob::Ptr y_blob = IE::make_shared_blob<uint8_t>(y_desc, cropedImage.planes[0]);
-        // Create blob for UV plane from raw data
-        IE::Blob::Ptr uv_blob = IE::make_shared_blob<uint8_t>(uv_desc, cropedImage.planes[1]);
-        // Create NV12Blob from Y and UV blobs
-        IE::Blob::Ptr image_blob = IE::make_shared_blob<IE::NV12Blob>(y_blob, uv_blob);
-        return image_blob;
+        IE::ROI crop_roi_y({
+            0,
+            (size_t)((image.rect.x & 0x1) ? image.rect.x - 1 : image.rect.x),
+            (size_t)((image.rect.y & 0x1) ? image.rect.y - 1 : image.rect.y),
+            (size_t)((image.rect.width & 0x1) ? image.rect.width - 1 : image.rect.width),
+            (size_t)((image.rect.height & 0x1) ? image.rect.height - 1 : image.rect.height),
+        });
+
+        IE::ROI crop_roi_uv({0, (size_t)image.rect.x / 2, (size_t)image.rect.y / 2, (size_t)image.rect.width / 2,
+                             (size_t)image.rect.height / 2});
+
+        IE::Blob::Ptr blobY = IE::make_shared_blob<uint8_t>(planeY, image.planes[0]);
+        IE::Blob::Ptr blobUV = IE::make_shared_blob<uint8_t>(planeUV, image.planes[1]);
+
+        IE::Blob::Ptr y_plane_with_roi = IE::make_shared_blob(blobY, crop_roi_y);
+        IE::Blob::Ptr uv_plane_with_roi = IE::make_shared_blob(blobUV, crop_roi_uv);
+
+        IE::Blob::Ptr nv12Blob = IE::make_shared_blob<IE::NV12Blob>(y_plane_with_roi, uv_plane_with_roi);
+        return nv12Blob;
     }
 }
 
@@ -203,7 +213,12 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
                     preProcessorType = PreProcessType::GAPI;
                 else if (preProcessorName == "vaapi")
                     preProcessorType = PreProcessType::VAAPI;
-                this->sw_vpp.reset(PreProc::Create(preProcessorType));
+                try {
+                    this->sw_vpp.reset(PreProc::Create(preProcessorType));
+                } catch (const std::exception &e) {
+                    std::rethrow_if_nested(e);
+                }
+
                 if (!this->sw_vpp.get()) {
                     // TODO ERROR
                 }
@@ -212,12 +227,13 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
 
     bool is_ir_model = true;
     InferenceEngine::CNNNetwork network;
+    std::string model_bin = "";
     try {
         // Load IR network (.xml and .bin files)
         InferenceEngine::CNNNetReader network_reader;
-        network_reader.ReadNetwork(
-            model); // TODO: what exception can be thrown here? Use it in catch-clause to set is_ir_model
-        network_reader.ReadWeights(fileNameNoExt(model) + ".bin");
+        network_reader.ReadNetwork(model);
+        model_bin = fileNameNoExt(model) + ".bin";
+        network_reader.ReadWeights(model_bin);
         modelName = network_reader.getName();
         network = network_reader.getNetwork();
 
@@ -225,9 +241,13 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
         IE::InputsDataMap model_inputs_info(network.getInputsInfo());
         initPreprocessor(model_inputs_info);
         network.setBatchSize(batch_size);
-    } catch (std::exception &e) {
-        // TODO: add warning that `model` couln't be read as xml file and will be treated as precompiled
+    } catch (InferenceEngine::details::InferenceEngineException &e) {
+        GVA_WARNING(("Could not read IR model from files: " + model + ", " + model_bin +
+                     ". Model will be treated as pre-compiled.")
+                        .c_str());
         is_ir_model = false;
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Error during loading IR model from " + model));
     }
 
     for (const std::string &device : devices_vec) { // '-' separated list of devices
@@ -356,15 +376,16 @@ Image OpenVINOImageInference::GetNextImageBuffer(std::shared_ptr<BatchRequest> r
         throw std::runtime_error("Inputs data map is empty.");
     std::string inputName = inputs.begin()->first; // assuming one input layer
     auto blob = request->infer_request->GetBlob(inputName);
-    auto blobSize = blob.get()->dims();
+    auto dims = blob->getTensorDesc().getDims();
+    std::reverse(dims.begin(), dims.end());
 
     Image image = Image();
-    image.width = blobSize[0];
-    image.height = blobSize[1];
+    image.width = dims[0];
+    image.height = dims[1];
     image.format = FOURCC_RGBP;
     int batchIndex = request->buffers.size();
     int plane_size = image.width * image.height;
-    image.planes[0] = blob->buffer().as<uint8_t *>() + batchIndex * plane_size * blobSize[2];
+    image.planes[0] = blob->buffer().as<uint8_t *>() + batchIndex * plane_size * dims[2];
     image.planes[1] = image.planes[0] + plane_size;
     image.planes[2] = image.planes[1] + plane_size;
     image.stride[0] = image.width;
@@ -434,7 +455,8 @@ const std::string &OpenVINOImageInference::GetModelName() const {
 }
 
 void OpenVINOImageInference::GetModelInputInfo(int *width, int *height, int *format) const {
-    auto dims = inputs.begin()->second->getDims();
+    auto dims = inputs.begin()->second->getTensorDesc().getDims();
+    std::reverse(dims.begin(), dims.end());
     if (dims.size() < 2)
         throw std::runtime_error("Incorrect model input dimensions");
     *width = dims[0];

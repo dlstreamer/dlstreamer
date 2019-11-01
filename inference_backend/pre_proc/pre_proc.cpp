@@ -26,7 +26,7 @@ PreProc *PreProc::Create(PreProcessType type) {
 #endif
     }
     if (pProc == nullptr)
-        throw std::runtime_error("ERROR: Failed to create a preprocessor\n");
+        std::throw_with_nested(std::runtime_error("ERROR: Failed to create a preprocessor\n"));
     return pProc;
 }
 

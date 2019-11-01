@@ -6,11 +6,11 @@
 
 #include "gstgvametapublish.h"
 #include "gva_caps.h"
-#include "metapublish_impl.h"
 #include "statusmessage.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
+#include <stdio.h>
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_publish_debug_category
@@ -186,7 +186,6 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
 }
 
 static void gst_gva_meta_publish_init(GstGvaMetaPublish *gvametapublish) {
-
     GST_DEBUG_OBJECT(gvametapublish, "gst_gva_meta_publish_init");
     GST_DEBUG_OBJECT(gvametapublish, "%s", GST_ELEMENT_NAME(GST_ELEMENT(gvametapublish)));
 
@@ -361,12 +360,10 @@ static gboolean gst_gva_meta_publish_set_caps(GstBaseTransform *trans, GstCaps *
 static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
     GstGvaMetaPublish *gvametapublish = GST_GVA_META_PUBLISH(trans);
 
-    MetapublishStatusMessage status = initializeMetaPublishImpl(gvametapublish->method);
-
-    if (status.responseCode.ps == ERROR) {
-        gvametapublish->is_connection_open = FALSE;
-    } else {
-        status = OpenConnection(gvametapublish);
+    if (gvametapublish) {
+        gvametapublish->instance_impl.type = gvametapublish->method;
+        GST_DEBUG_OBJECT(gvametapublish, "Assigned new instance METHOD: %u", gvametapublish->instance_impl.type);
+        MetapublishStatusMessage status = OpenConnection(gvametapublish);
         GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
         g_free(status.responseMessage);
         if (status.responseCode.ps == SUCCESS) {
@@ -399,6 +396,7 @@ static gboolean gst_gva_meta_publish_stop(GstBaseTransform *trans) {
     }
 
     gst_gva_meta_publish_reset(gvametapublish);
+    // gst_gva_meta_publish_cleanup(gvametapublish);
 
     return TRUE;
 }

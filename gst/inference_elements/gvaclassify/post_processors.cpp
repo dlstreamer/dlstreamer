@@ -15,6 +15,7 @@
 #include "gva_base_inference.h"
 #include "gva_roi_meta.h"
 #include "gva_utils.h"
+#include "post_processors_util.h"
 
 #include "post_processors.h"
 
@@ -56,7 +57,7 @@ bool TensorToLabel(GstStructure *s, const float *data, gsize nbytes) {
     if (!gst_structure_get_array(s, "labels", &labels))
         return false;
     if (!bIndex) {
-        if (labels->n_values != (bCompound ? 2 : 1) * nbytes / sizeof(float)) {
+        if (labels->n_values > (bCompound ? 2 : 1) * nbytes / sizeof(float)) {
             g_value_array_free(labels);
             return false;
         }
@@ -123,6 +124,28 @@ bool TensorToLabel(GstStructure *s, const float *data, gsize nbytes) {
     return true;
 }
 
+bool TensorToLabelMoviTL(GstStructure *s, const float *data, size_t size_in_bytes) {
+    if (s == nullptr || data == nullptr || size_in_bytes == 0)
+        return false;
+
+    float *dequantized_data = new float[size_in_bytes];
+
+    // scale
+    auto original_data = reinterpret_cast<const uint8_t *>(data);
+    for (size_t i = 0; i < size_in_bytes; i++) {
+        dequantized_data[i] = dequantize(original_data[i]);
+    }
+
+    // softmax
+    softMax(dequantized_data, size_in_bytes);
+
+    // now it's back to probability
+    bool result = TensorToLabel(s, dequantized_data, size_in_bytes * sizeof(float));
+    delete[] dequantized_data;
+
+    return result;
+}
+
 G_GNUC_END_IGNORE_DEPRECATIONS
 
 bool TensorToText(GstStructure *s, const float *data, gsize nbytes) {
@@ -143,8 +166,8 @@ bool TensorToText(GstStructure *s, const float *data, gsize nbytes) {
 
 bool ConvertBlobToClassificationResults(GstStructure *s) {
     // get buffer and its size from s
-    gsize nbytes = 0;
-    const float *data = (const float *)gva_get_tensor_data(s, &nbytes);
+    gsize size_in_bytes = 0;
+    const float *data = (const float *)gva_get_tensor_data(s, &size_in_bytes);
     if (not data)
         return false;
 
@@ -155,7 +178,8 @@ bool ConvertBlobToClassificationResults(GstStructure *s) {
         {"tensor_to_label", TensorToLabel},
         {"attributes", TensorToLabel}, // GVA plugin R1.2 backward compatibility
         {"tensor_to_text", TensorToText},
-        {"tensor2text", TensorToText}, // GVA plugin R1.2 backward compatibility
+        {"tensor2text", TensorToText},                  // GVA plugin R1.2 backward compatibility
+        {"tensor_to_label_moviTL", TensorToLabelMoviTL} // for movi Tensorflow-lite based model
     };
 
     if (do_conversion.find(converter) == do_conversion.end()) { // Wrong converter set in model-proc file
@@ -177,7 +201,7 @@ bool ConvertBlobToClassificationResults(GstStructure *s) {
         return false;
     }
 
-    return do_conversion[converter](s, data, nbytes);
+    return do_conversion[converter](s, data, size_in_bytes);
 }
 
 void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &output_blobs,

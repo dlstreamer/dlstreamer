@@ -3,44 +3,12 @@
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
+#include "gstgvametapublish.h"
 
 #include "metapublish_impl.h"
 
-MetapublishImpl *getMPInstance() {
-    static MetapublishImpl *instance = NULL;
-    if (instance == NULL) {
-        instance = malloc(sizeof(*instance));
-    }
-
-    return instance;
-};
-
-MetapublishStatusMessage initializeMetaPublishImpl(GstGVAMetaPublishMethodType type) {
-    MetapublishImpl *mp = getMPInstance();
-
-    MetapublishStatusMessage returnMessage;
-    returnMessage.codeType = GENERAL;
-    returnMessage.responseCode.ps = SUCCESS;
-    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-
-    if (returnMessage.responseMessage == NULL) {
-        returnMessage.responseCode.ps = ERROR;
-        return returnMessage;
-    }
-
-    if (mp == NULL) {
-        returnMessage.responseCode.ps = ERROR;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
-                 "Failed to allocate memory for MetapublishImpl\n");
-        return returnMessage;
-    }
-
-    mp->type = type;
-    return returnMessage;
-}
-
 MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
-    MetapublishImpl *mp = getMPInstance();
+    MetapublishImpl *mp = &gvametapublish->instance_impl;
 
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = GENERAL;
@@ -65,6 +33,7 @@ MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
         if (mp->mqtt_config == NULL) {
             GST_ERROR_OBJECT(gvametapublish, "Failed to allocate memory for MQTTPublishConfig");
             GST_ELEMENT_ERROR(gvametapublish, RESOURCE, TOO_LAZY, ("metapublish initialization failed"),
+
                               ("Failed to allocate memory for mqtt config"));
             returnMessage.responseCode.ps = ERROR;
             snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
@@ -167,12 +136,12 @@ MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
     }
 
     returnMessage.responseCode.ps = SUCCESS;
-    snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Open Connection Successful\n");
+    snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "MetaPublish Target Opened Successfully\n");
     return returnMessage;
 }
 
 MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
-    MetapublishImpl *mp = getMPInstance();
+    MetapublishImpl *mp = &gvametapublish->instance_impl;
 
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = GENERAL;
@@ -247,7 +216,7 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
 }
 
 MetapublishStatusMessage WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuffer *buf) {
-    MetapublishImpl *mp = getMPInstance();
+    MetapublishImpl *mp = &gvametapublish->instance_impl;
     MetapublishStatusMessage status;
 
     MetapublishStatusMessage returnMessage;

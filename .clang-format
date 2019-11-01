@@ -1,8 +1,8 @@
 ---
-# Language:        Cpp
-BasedOnStyle:  LLVM
-ColumnLimit:     120
-IndentWidth:     4
+# Language: Cpp
+BasedOnStyle: LLVM
+ColumnLimit: 120
+IndentWidth: 4
 AllowShortFunctionsOnASingleLine: None
 AllowShortBlocksOnASingleLine: false
 AlwaysBreakTemplateDeclarations: Yes

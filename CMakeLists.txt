@@ -90,6 +90,7 @@ option(HAVE_VAAPI "Parameter to enable VAAPI for image preprocessing" OFF)
 option(SUPPORT_DMA_BUFFER "Parameter to enable DMABuf in sink/source caps" OFF)
 option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
 option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
+option(USE_VPUSMM "Parameter to use VPUSMM" OFF)
 
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
 

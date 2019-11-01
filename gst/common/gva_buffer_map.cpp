@@ -6,6 +6,9 @@
 
 #include "gva_buffer_map.h"
 #include <gst/allocators/allocators.h>
+#ifdef USE_VPUSMM
+#include <vpusmm/vpusmm.h>
+#endif
 
 using namespace InferenceBackend;
 
@@ -37,6 +40,43 @@ inline int gstFormatToFourCC(int format) {
     return 0;
 }
 
+#ifdef USE_VPUSMM
+int gva_dmabuffer_import(GstBuffer *buffer) {
+    int fd = 0;
+    GstMemory *mem = gst_buffer_get_memory(buffer, 0);
+    if (!mem || !gst_is_dmabuf_memory(mem)) {
+        GST_ERROR("gva_buffer_map: get_dmabuf_memory failed");
+    } else {
+        int fd = gst_dmabuf_memory_get_fd(mem);
+        if (fd <= 0) {
+            GST_ERROR("gva_buffer_map: get_dmabuf_fd failed");
+        } else {
+            long int phyAddr = vpusmm_import_dmabuf(fd, VPU_DEFAULT);
+            if (phyAddr <= 0) {
+                GST_ERROR("gva_buffer_map: import dmabuf fd failed %d\n", fd);
+            }
+        }
+    }
+    gst_memory_unref(mem);
+    return fd;
+}
+
+void gva_dmabuffer_unimport(GstBuffer *buffer) {
+    GstMemory *mem = gst_buffer_get_memory(buffer, 0);
+    if (!mem || !gst_is_dmabuf_memory(mem)) {
+        GST_ERROR("gva_buffer_map: get_dmabuf_memory failed");
+    } else {
+        int fd = gst_dmabuf_memory_get_fd(mem);
+        if (fd <= 0) {
+            GST_ERROR("gva_buffer_map: get_dmabuf_fd failed");
+        } else {
+            vpusmm_unimport_dmabuf(fd);
+        }
+    }
+    gst_memory_unref(mem);
+}
+#endif
+
 bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_context, GstVideoInfo *info,
                     MemoryType memory_type, GstMapFlags map_flags) {
     image = Image();
@@ -64,14 +104,17 @@ bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
         }
         for (guint i = 0; i < n_planes; i++)
             image.planes[i] = map_context.gstMapInfo.data + info->offset[i];
+#ifdef USE_VPUSMM
+        gva_dmabuffer_import(buffer);
+#endif
         break;
     case MemoryType::DMA_BUFFER: {
         GstMemory *mem = gst_buffer_get_memory(buffer, 0);
-        image.dma_fd = gst_fd_memory_get_fd(mem);
+        image.dma_fd = gst_fd_memory_get_fd(mem); // gst_dmabuf_memory_get_fd?
         gst_memory_unref(mem);
-        if (!image.dma_fd) {
+        if (image.dma_fd <= 0) {
             status = false;
-            GST_ERROR("gva_buffer_map: gst_fd_memory_get_fd failed");
+            GST_ERROR("gva_buffer_map: gva_dmabuffer_import failed");
         }
         break;
     }
@@ -99,6 +142,9 @@ bool gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
 
 void gva_buffer_unmap(GstBuffer *buffer, Image &, BufferMapContext &map_context) {
     if (map_context.gstMapInfo.size) {
+#ifdef USE_VPUSMM
+        gva_dmabuffer_unimport(buffer);
+#endif
         gst_buffer_unmap(buffer, &map_context.gstMapInfo);
     }
 }

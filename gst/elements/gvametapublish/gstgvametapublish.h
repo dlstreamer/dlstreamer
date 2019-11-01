@@ -22,15 +22,27 @@ typedef struct _GstGvaMetaPublish GstGvaMetaPublish;
 typedef struct _GstGvaMetaPublishClass GstGvaMetaPublishClass;
 
 typedef enum {
-    GST_GVA_METAPUBLISH_FILE,
+    GST_GVA_METAPUBLISH_FILE = 1,
 #ifdef PAHO_INC
-    GST_GVA_METAPUBLISH_MQTT,
+    GST_GVA_METAPUBLISH_MQTT = 2,
 #endif
 #ifdef KAFKA_INC
-    GST_GVA_METAPUBLISH_KAFKA,
+    GST_GVA_METAPUBLISH_KAFKA = 3,
 #endif
-    GST_GVA_METAPUBLISH_NONE
+    GST_GVA_METAPUBLISH_NONE = 4
 } GstGVAMetaPublishMethodType;
+
+// For OpenConnection, etc. used within gstgvametapublish.c
+#include "metapublish_impl.h"
+
+#include "filepublisher_types.h"
+
+#ifdef PAHO_INC
+#include "mqttpublisher_types.h"
+#endif
+#ifdef KAFKA_INC
+#include "kafkapublisher_types.h"
+#endif
 
 struct _GstGvaMetaPublish {
     GstBaseTransform base_gvametapublish;
@@ -44,6 +56,7 @@ struct _GstGvaMetaPublish {
     gchar *timeout;
     gboolean signal_handoffs;
     gboolean is_connection_open;
+    MetapublishImpl instance_impl;
 };
 
 struct _GstGvaMetaPublishClass {

@@ -9,5 +9,6 @@
 
 #cmakedefine SUPPORT_DMA_BUFFER
 #cmakedefine HAVE_VAAPI
+#cmakedefine USE_VPUSMM
 
 #endif

@@ -15,6 +15,7 @@
 
 #include "gstgvadetect.h"
 #include "post_processors.h"
+#include "post_processors_util.h"
 
 namespace {
 
@@ -135,6 +136,7 @@ gboolean TensorToBBoxSSD(const InferenceBackend::OutputBlob::Ptr &blob, std::vec
     return true;
 }
 
+namespace YoloV2Tiny {
 struct DetectedObject {
     gfloat x;
     gfloat y;
@@ -165,7 +167,7 @@ struct DetectedObject {
 
 std::vector<DetectedObject> run_nms(std::vector<DetectedObject> candidates, gdouble threshold) {
     std::vector<DetectedObject> nms_candidates;
-    std::sort(candidates.begin(), candidates.end());
+    std::sort(candidates.rbegin(), candidates.rend());
 
     while (candidates.size() > 0) {
         auto p_first_candidate = candidates.begin();
@@ -201,9 +203,74 @@ std::vector<DetectedObject> run_nms(std::vector<DetectedObject> candidates, gdou
     return nms_candidates;
 }
 
-bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::vector<InferenceROI> frames,
-                            GstStructure *layer_post_proc) {
-    const gchar *converter = gst_structure_get_string(layer_post_proc, "converter");
+const size_t NUMBER_OF_CLASSES = 20;
+
+enum RawNetOut : size_t {
+    INDEX_X = 0,
+    INDEX_Y = 1,
+    INDEX_W = 2,
+    INDEX_H = 3,
+    INDEX_SCALE = 4,
+    INDEX_CLASS_PROB_BEGIN = 5,
+    INDEX_CLASS_PROB_END = INDEX_CLASS_PROB_BEGIN + NUMBER_OF_CLASSES,
+    INDEX_COUNT = INDEX_CLASS_PROB_END
+};
+
+const size_t K_ANCHOR_SN = 13;
+
+void fillRawNetOutMoviTL(const float *blob_data, const size_t anchor_index, const size_t cell_index,
+                         const float threshold, float *converted_blob_data) {
+    if (blob_data == nullptr || converted_blob_data == nullptr) {
+        // TODO: log anything
+        return;
+    }
+
+    static const size_t strides4D[] = {13 * 128, 128, 25, 1};
+    const size_t offset = cell_index * strides4D[1] + anchor_index * strides4D[2];
+    for (size_t i = 0; i < INDEX_COUNT; i++) {
+        const size_t index = offset + i * strides4D[3];
+        converted_blob_data[i] = dequantize((reinterpret_cast<const uint8_t *>(blob_data))[index]);
+    }
+    converted_blob_data[INDEX_X] = sigmoid(converted_blob_data[INDEX_X]);         // x
+    converted_blob_data[INDEX_Y] = sigmoid(converted_blob_data[INDEX_Y]);         // y
+    converted_blob_data[INDEX_SCALE] = sigmoid(converted_blob_data[INDEX_SCALE]); // scale
+
+    softMax(converted_blob_data + INDEX_CLASS_PROB_BEGIN, INDEX_CLASS_PROB_END - INDEX_CLASS_PROB_BEGIN); // probs
+    for (size_t i = INDEX_CLASS_PROB_BEGIN; i < INDEX_CLASS_PROB_END; ++i) {
+        converted_blob_data[i] *= converted_blob_data[INDEX_SCALE]; // scaled probs
+        if (converted_blob_data[i] <= threshold)
+            converted_blob_data[i] = 0.f;
+    }
+}
+
+void fillRawNetOut(const float *blob_data, const size_t anchor_index, const size_t cell_index, const float threshold,
+                   float *converted_blob_data) {
+    constexpr size_t K_OUT_BLOB_ITEM_N = 25;
+    constexpr size_t K_2_DEPTHS = K_ANCHOR_SN * K_ANCHOR_SN;
+    constexpr size_t K_3_DEPTHS = K_2_DEPTHS * K_OUT_BLOB_ITEM_N;
+
+    const size_t common_offset = anchor_index * K_3_DEPTHS + cell_index;
+
+    converted_blob_data[INDEX_X] = blob_data[common_offset + 1 * K_2_DEPTHS]; // x
+    converted_blob_data[INDEX_Y] = blob_data[common_offset + 0 * K_2_DEPTHS]; // y
+    converted_blob_data[INDEX_W] = blob_data[common_offset + 3 * K_2_DEPTHS]; // w
+    converted_blob_data[INDEX_H] = blob_data[common_offset + 2 * K_2_DEPTHS]; // h
+
+    converted_blob_data[INDEX_SCALE] = blob_data[common_offset + 4 * K_2_DEPTHS]; // scale
+
+    for (size_t i = INDEX_CLASS_PROB_BEGIN; i < INDEX_CLASS_PROB_END; ++i) {
+        converted_blob_data[i] =
+            blob_data[common_offset + i * K_2_DEPTHS] * converted_blob_data[INDEX_SCALE]; // scaled probs
+        if (converted_blob_data[i] <= threshold)
+            converted_blob_data[i] = 0.f;
+    }
+}
+
+using RawNetOutExtractor = std::function<void(const float *, const size_t, const size_t, const float, float *)>;
+
+bool TensorToBBoxYoloV2TinyCommon(const InferenceBackend::OutputBlob::Ptr &blob, std::vector<InferenceROI> frames,
+                                  GstStructure *layer_post_proc, RawNetOutExtractor extractor) {
+    const char *converter = gst_structure_get_string(layer_post_proc, "converter");
 
     if (frames.size() != 1) {
         GST_ERROR(
@@ -211,65 +278,46 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
             converter);
         return false;
     }
-    gint image_width = frames[0].roi.w;
-    gint image_height = frames[0].roi.h;
+    int image_width = frames[0].roi.w;
+    int image_height = frames[0].roi.h;
     GstGvaDetect *gva_detect = (GstGvaDetect *)frames[0].gva_base_inference;
 
-    gint kAnchorSN = 13;
-    gint kOutBlobItemN = 25;
-    gint k2Depths = kAnchorSN * kAnchorSN;
-    gint k3Depths = k2Depths * kOutBlobItemN;
-    gfloat kAnchorScales[] = {1.08f, 1.19f, 3.42f, 4.41f, 6.63f, 11.38f, 9.42f, 5.11f, 16.62f, 10.52f};
+    static const float K_ANCHOR_SCALES[] = {1.08f, 1.19f, 3.42f, 4.41f, 6.63f, 11.38f, 9.42f, 5.11f, 16.62f, 10.52f};
 
-    const gfloat *data = (const gfloat *)blob->GetData();
+    const float *data = (const float *)blob->GetData();
     if (data == nullptr) {
         GST_ERROR("Blob data pointer is null");
         return false;
     }
 
+    float raw_netout[INDEX_COUNT];
     std::vector<DetectedObject> objects;
-    for (gint k = 0; k < 10; k += 2) {
-        gfloat anchor_w = kAnchorScales[k];
-        gfloat anchor_h = kAnchorScales[k + 1];
+    for (size_t k = 0; k < 5; k++) {
+        float anchor_w = K_ANCHOR_SCALES[k * 2];
+        float anchor_h = K_ANCHOR_SCALES[k * 2 + 1];
 
-        for (gint i = 0; i < kAnchorSN; i++) {
-            for (gint j = 0; j < kAnchorSN; j++) {
-                gint x_pred_idx = (k >> 1) * k3Depths + 1 * k2Depths + i * kAnchorSN + j;
-                gint y_pred_idx = (k >> 1) * k3Depths + 0 * k2Depths + i * kAnchorSN + j;
-                gint w_pred_idx = (k >> 1) * k3Depths + 3 * k2Depths + i * kAnchorSN + j;
-                gint h_pred_idx = (k >> 1) * k3Depths + 2 * k2Depths + i * kAnchorSN + j;
-                gint scale_idx = (k >> 1) * k3Depths + 4 * k2Depths + i * kAnchorSN + j;
+        for (size_t i = 0; i < K_ANCHOR_SN; i++) {
+            for (size_t j = 0; j < K_ANCHOR_SN; j++) {
+                extractor(data, k, i * K_ANCHOR_SN + j, gva_detect->threshold, raw_netout);
 
-                gfloat x_pred = data[x_pred_idx];
-                gfloat y_pred = data[y_pred_idx];
-                gfloat w_pred = data[w_pred_idx];
-                gfloat h_pred = data[h_pred_idx];
-                gfloat scale = data[scale_idx];
-
-                if (scale > 1.f) {
-                    GST_WARNING_OBJECT(gva_detect, "scale weired %f", scale);
-                }
-
-                gfloat cx = (j + x_pred) / kAnchorSN;
-                gfloat cy = (i + y_pred) / kAnchorSN;
-                gfloat w = std::exp(w_pred) * anchor_w / kAnchorSN;
-                gfloat h = std::exp(h_pred) * anchor_h / kAnchorSN;
-
-                std::pair<gint, gfloat> max_info = std::make_pair(0, 0.f);
-
-                for (gint l = 0; l < 20; l++) {
-                    gint class_idx = (k >> 1) * k3Depths + (l + 5) * k2Depths + i * kAnchorSN + j;
-                    gfloat class_prob = data[class_idx] * scale;
+                std::pair<gint, float> max_info = std::make_pair(0, 0.f);
+                for (size_t l = INDEX_CLASS_PROB_BEGIN; l < INDEX_CLASS_PROB_END; l++) {
+                    float class_prob = raw_netout[l];
                     if (class_prob > 1.f) {
                         GST_WARNING_OBJECT(gva_detect, "class_prob weired %f", class_prob);
                     }
                     if (class_prob > max_info.second) {
-                        max_info.first = l;
+                        max_info.first = l - INDEX_CLASS_PROB_BEGIN;
                         max_info.second = class_prob;
                     }
                 }
 
                 if (max_info.second > gva_detect->threshold) {
+                    // scale back to image width/height
+                    float cx = (j + raw_netout[INDEX_X]) / K_ANCHOR_SN;
+                    float cy = (i + raw_netout[INDEX_Y]) / K_ANCHOR_SN;
+                    float w = std::exp(raw_netout[INDEX_W]) * anchor_w / K_ANCHOR_SN;
+                    float h = std::exp(raw_netout[INDEX_H]) * anchor_h / K_ANCHOR_SN;
                     DetectedObject object(cx, cy, w, h, max_info.first, max_info.second);
                     objects.push_back(object);
                 }
@@ -285,7 +333,7 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
 
     gst_structure_get_array(layer_post_proc, "labels", &labels); // TODO: free in the end?
 
-    const gchar *label = NULL;
+    const char *label = NULL;
     for (DetectedObject &object : objects) {
         object.clip();
 
@@ -305,6 +353,18 @@ bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::
     return true;
 }
 
+} // namespace YoloV2Tiny
+
+bool TensorToBBoxYoloV2Tiny(const InferenceBackend::OutputBlob::Ptr &blob, std::vector<InferenceROI> frames,
+                            GstStructure *layer_post_proc) {
+    return YoloV2Tiny::TensorToBBoxYoloV2TinyCommon(blob, frames, layer_post_proc, YoloV2Tiny::fillRawNetOut);
+}
+
+bool TensorToBBoxYoloV2TinyMoviTL(const InferenceBackend::OutputBlob::Ptr &blob, std::vector<InferenceROI> frames,
+                                  GstStructure *layer_post_proc) {
+    return YoloV2Tiny::TensorToBBoxYoloV2TinyCommon(blob, frames, layer_post_proc, YoloV2Tiny::fillRawNetOutMoviTL);
+}
+
 bool ConvertBlobToDetectionResults(const InferenceBackend::OutputBlob::Ptr &blob, std::vector<InferenceROI> frames,
                                    GstStructure *layer_post_proc) {
     if (blob == nullptr)
@@ -320,11 +380,10 @@ bool ConvertBlobToDetectionResults(const InferenceBackend::OutputBlob::Ptr &blob
 
     static std::map<std::string, std::function<bool(const InferenceBackend::OutputBlob::Ptr &,
                                                     std::vector<InferenceROI>, GstStructure *)>>
-        do_conversion{
-            {"tensor_to_bbox_ssd", TensorToBBoxSSD}, // default post processing
-            {"DetectionOutput", TensorToBBoxSSD},    // GVA plugin R1.2 backward compatibility
-            {"tensor_to_bbox_yolo_v2_tiny", TensorToBBoxYoloV2Tiny},
-        };
+        do_conversion{{"tensor_to_bbox_ssd", TensorToBBoxSSD}, // default post processing
+                      {"DetectionOutput", TensorToBBoxSSD},    // GVA plugin R1.2 backward compatibility
+                      {"tensor_to_bbox_yolo_v2_tiny", TensorToBBoxYoloV2Tiny},
+                      {"tensor_to_bbox_yolo_v2_tiny_moviTL", TensorToBBoxYoloV2TinyMoviTL}};
 
     if (do_conversion.find(converter) == do_conversion.end()) {
         // Wrong converter set in model-proc file

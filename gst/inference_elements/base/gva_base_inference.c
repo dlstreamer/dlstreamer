@@ -97,6 +97,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     base_transform_class->stop = GST_DEBUG_FUNCPTR(gva_base_inference_stop);
     base_transform_class->sink_event = GST_DEBUG_FUNCPTR(gva_base_inference_sink_event);
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gva_base_inference_transform_ip);
+
     element_class->change_state = GST_DEBUG_FUNCPTR(gva_base_inference_change_state);
 
     g_object_class_install_property(gobject_class, PROP_MODEL,

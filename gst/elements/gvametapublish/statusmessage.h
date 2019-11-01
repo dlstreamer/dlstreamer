@@ -38,8 +38,9 @@ typedef enum _file_publish_error {
     FILE_ERROR_WRITING_FILE = -2,
     FILE_ERROR_NO_INFERENCE = -3,
     FILE_ERROR_FILE_EXISTS = -4,
-    FILE_ERROR_FILE_CREATE = -5,
-    FILE_ERROR_INVALID_FILEPATH = -6
+    FILE_ERROR_FILE_CREATE = -5, // could not create file (batch) or could not open file/pipe for write (stream)
+    FILE_ERROR_INVALID_FILEPATH = -6,
+    FILE_ERROR_INITIALIZING_BUFFER = -7
 } FilePublishStatus;
 
 struct _MetapublishStatusMessage {
