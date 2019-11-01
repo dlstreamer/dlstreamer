@@ -1,10 +1,10 @@
 # Shell samples
 The shell samples demonstrate pipeline contruction and execution from command line through gst-launch utility.
 See links
-[Data flow](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Data-flow),
-[Metadata](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Metadata),
-[Properties](https://github.intel.com/video-analytics/gstreamer-plugins/wiki/Elements)
-for more details about plugins functionality and parameters. 
+[Data flow](https://github.com/opencv/gst-video-analytics/wiki/Data-flow),
+[Metadata](https://github.com/opencv/gst-video-analytics/wiki/Metadata),
+[Properties](https://github.com/opencv/gst-video-analytics/wiki/Elements)
+for more details about plugins functionality and parameters.
 
 The optional environment variable
 ```
