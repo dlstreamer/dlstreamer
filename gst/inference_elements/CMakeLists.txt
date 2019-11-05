@@ -21,8 +21,6 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/gvaposeestimate/*.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/gvaposeestimate/*.c
 )
 
 file (GLOB MAIN_HEADERS
@@ -30,7 +28,6 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/gvaposeestimate/*.h
 )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -47,7 +44,6 @@ PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
-    ${CMAKE_CURRENT_SOURCE_DIR}/gvaposeestimate/
     PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTVIDEO_INCLUDE_DIRS}
