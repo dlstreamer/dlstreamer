@@ -309,6 +309,11 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
         for (auto output : outputs) {
             layers[output.first] = output.second->getTensorDesc();
         }
+        auto outputBlobsIt = outputs.begin();
+        auto pafsBlobName = outputBlobsIt->first;               //take name from outinfo
+        auto heatmapsBlobName = (++outputBlobsIt)->first;
+        
+
 
         if (nireq == 0) {
             try {
@@ -322,10 +327,17 @@ OpenVINOImageInference::OpenVINOImageInference(std::string devices, std::string 
                 std::throw_with_nested(std::runtime_error(msg));
             }
         }
+        request_for_hp = executable_network.CreateInferRequest();
+        IE::Blob::Ptr pafsBlob =  request_for_hp.GetBlob(pafsBlobName);
+        IE::Blob::Ptr heatMapsBlob =  request_for_hp.GetBlob(heatmapsBlobName);
 
+        IE::SizeVector heatMapDims =
+            heatMapsBlob->getTensorDesc().getDims();
+            
         for (int i = 0; i < nireq; i++) {
             std::shared_ptr<BatchRequest> req = std::make_shared<BatchRequest>();
             req->infer_request = executable_network.CreateInferRequestPtr();
+
             auto completion_callback = [this, req]() {
                 // TODO: check if mutex is not useless
                 std::lock_guard<std::mutex> lock(this->inference_completion_mutex_);
