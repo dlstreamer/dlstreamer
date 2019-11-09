@@ -1,0 +1,20 @@
+{
+    "json_schema_version" : 1.0,
+    "input_preproc": [
+      {
+        "color_format": "BGR"
+      }
+    ],
+    "output_postproc": [
+      {
+        "layer_name_conv_L1": "Mconv7_stage2_L1", 
+        "format": "landmark_points"
+      },
+      {
+      "layer_name_conv_L2": "Mconv7_stage2_L2",
+      "format": "landmark_points"
+      }
+
+    ]
+  }
+  

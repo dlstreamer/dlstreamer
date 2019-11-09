@@ -16,7 +16,8 @@
 #include "gva_roi_meta.h"
 #include "gva_utils.h"
 #include "post_processors_util.h"
-
+#include "human_pose.h"
+#include "peak.h"
 #include "post_processors.h"
 
 namespace {
@@ -208,12 +209,14 @@ void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &
                                   std::vector<InferenceROI> frames,
                                   const std::map<std::string, GstStructure *> &model_proc, const gchar *model_name) {
     int batch_size = frames.size();
-
+    
     for (const auto &blob_iter : output_blobs) {
         const std::string &layer_name = blob_iter.first;
         OutputBlob::Ptr blob = blob_iter.second;
         if (blob == nullptr)
             throw std::runtime_error("Blob is empty during post processing. Cannot access null object.");
+
+        
 
         const uint8_t *data = (const uint8_t *)blob->GetData();
         int size = GetUnbatchedSizeInBytes(blob, batch_size);
@@ -258,6 +261,100 @@ void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &
                 gva_classify->classification_history->UpdateROIParams(meta->id, classification_result);
         }
     }
+}
+
+class FindPeaksBody: public cv::ParallelLoopBody {
+public:
+    FindPeaksBody(const std::vector<cv::Mat>& heatMaps, float minPeaksDistance,
+                  std::vector<std::vector<Peak> >& peaksFromHeatMap)
+        : heatMaps(heatMaps),
+          minPeaksDistance(minPeaksDistance),
+          peaksFromHeatMap(peaksFromHeatMap) {}
+
+    virtual void operator()(const cv::Range& range) const {
+        for (int i = range.start; i < range.end; i++) {
+            findPeaks(heatMaps, minPeaksDistance, peaksFromHeatMap, i);
+        }
+    }
+
+private:
+    const std::vector<cv::Mat>& heatMaps;
+    float minPeaksDistance;
+    std::vector<std::vector<Peak> >& peaksFromHeatMap;
+};
+
+std::vector<HumanPose> HumanPoseEstimator::extractPoses(
+        const std::vector<cv::Mat>& heatMaps,
+        const std::vector<cv::Mat>& pafs) const {
+    std::vector<std::vector<Peak> > peaksFromHeatMap(heatMaps.size());
+    FindPeaksBody findPeaksBody(heatMaps, minPeaksDistance, peaksFromHeatMap);
+    cv::parallel_for_(cv::Range(0, static_cast<int>(heatMaps.size())),
+                      findPeaksBody);
+    int peaksBefore = 0;
+    for (size_t heatmapId = 1; heatmapId < heatMaps.size(); heatmapId++) {
+        peaksBefore += static_cast<int>(peaksFromHeatMap[heatmapId - 1].size());
+        for (auto& peak : peaksFromHeatMap[heatmapId]) {
+            peak.id += peaksBefore;
+        }
+    }
+    std::vector<HumanPose> poses = groupPeaksToPoses(
+                peaksFromHeatMap, pafs, keypointsNumber, midPointsScoreThreshold,
+                foundMidPointsRatioThreshold, minJointsNumber, minSubsetScore);
+    return poses;
+}
+
+void resizeFeatureMaps(std::vector<cv::Mat>& featureMaps) const {
+    for (auto& featureMap : featureMaps) {
+        cv::resize(featureMap, featureMap, cv::Size(),
+                   upsampleRatio, upsampleRatio, cv::INTER_CUBIC);
+    }
+}
+
+void correctCoordinates(std::vector<HumanPose>& poses,
+                                            const cv::Size& featureMapsSize,
+                                            const cv::Size& imageSize) const {
+    CV_Assert(stride % upsampleRatio == 0);
+
+    cv::Size fullFeatureMapSize = featureMapsSize * stride / upsampleRatio;
+
+    float scaleX = imageSize.width /
+            static_cast<float>(fullFeatureMapSize.width - pad(1) - pad(3));
+    float scaleY = imageSize.height /
+            static_cast<float>(fullFeatureMapSize.height - pad(0) - pad(2));
+    for (auto& pose : poses) {
+        for (auto& keypoint : pose.keypoints) {
+            if (keypoint != cv::Point2f(-1, -1)) {
+                keypoint.x *= stride / upsampleRatio;
+                keypoint.x -= pad(1);
+                keypoint.x *= scaleX;
+
+                keypoint.y *= stride / upsampleRatio;
+                keypoint.y -= pad(0);
+                keypoint.y *= scaleY;
+            }
+        }
+    }
+}
+
+bool inputWidthIsChanged(const cv::Size& imageSize) {
+    double scale = static_cast<double>(inputLayerSize.height) / static_cast<double>(imageSize.height);
+    cv::Size scaledSize(static_cast<int>(cvRound(imageSize.width * scale)),
+                        static_cast<int>(cvRound(imageSize.height * scale)));
+    cv::Size scaledImageSize(std::max(scaledSize.width, inputLayerSize.height),
+                             inputLayerSize.height);
+    int minHeight = std::min(scaledImageSize.height, scaledSize.height);
+    scaledImageSize.width = static_cast<int>(std::ceil(
+                scaledImageSize.width / static_cast<float>(stride))) * stride;
+    pad(0) = static_cast<int>(std::floor((scaledImageSize.height - minHeight) / 2.0));
+    pad(1) = static_cast<int>(std::floor((scaledImageSize.width - scaledSize.width) / 2.0));
+    pad(2) = scaledImageSize.height - minHeight - pad(0);
+    pad(3) = scaledImageSize.width - scaledSize.width - pad(1);
+    if (scaledSize.width == (inputLayerSize.width - pad(1) - pad(3))) {
+        return false;
+    }
+
+    inputLayerSize.width = scaledImageSize.width;
+    return true;
 }
 
 } // anonymous namespace
