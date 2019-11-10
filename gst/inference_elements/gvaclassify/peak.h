@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#pragma once
+// #pragma once
 
 #include <vector>
 
@@ -10,7 +10,6 @@
 
 #include "human_pose.h"
 
-namespace human_pose_estimation {
 struct Peak {
     Peak(const int id = -1,
          const cv::Point2f& pos = cv::Point2f(),
@@ -52,4 +51,3 @@ std::vector<HumanPose> groupPeaksToPoses(
         const float foundMidPointsRatioThreshold,
         const int minJointsNumber,
         const float minSubsetScore);
-}  // namespace human_pose_estimation

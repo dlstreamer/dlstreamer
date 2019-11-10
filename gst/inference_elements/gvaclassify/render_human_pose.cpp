@@ -10,7 +10,6 @@
 // #include "human_pose_estimator.hpp"
 #include "render_human_pose.h"
 
-namespace human_pose_estimation {
 void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image) {
     CV_Assert(image.type() == CV_8UC3);
 
@@ -34,7 +33,7 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image) {
     const int stickWidth = 4;
     const cv::Point2f absentKeypoint(-1.0f, -1.0f);
     for (const auto& pose : poses) {
-        CV_Assert(pose.keypoints.size() == HumanPoseEstimator::keypointsNumber);
+        CV_Assert(pose.keypoints.size() == 18);
 
         for (size_t keypointIdx = 0; keypointIdx < pose.keypoints.size(); keypointIdx++) {
             if (pose.keypoints[keypointIdx] != absentKeypoint) {
@@ -65,4 +64,3 @@ void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image) {
     }
     cv::addWeighted(image, 0.4, pane, 0.6, 0, image);
 }
-}  // namespace human_pose_estimation

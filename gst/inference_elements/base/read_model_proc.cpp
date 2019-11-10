@@ -60,7 +60,7 @@ std::map<std::string, GstStructure *> ReadModelProc(std::string filepath) {
     for (int io = 0; io < 2; io++) {
         std::string io_name = io ? "output_postproc" : "input_preproc";
         for (auto &proc_item : j[io_name]) {
-            std::string layer_name_ = "UNKNOWN";
+            std::string layer_name = "UNKNOWN";
             GstStructure *s = gst_structure_new_empty(layer_name.data());
             for (json::iterator it = proc_item.begin(); it != proc_item.end(); ++it) {
                 std::string key = it.key();

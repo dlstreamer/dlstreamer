@@ -7,11 +7,11 @@
     ],
     "output_postproc": [
       {
-        "layer_name_conv_L1": "Mconv7_stage2_L1", 
+        "layer_name": "Mconv7_stage2_L1", 
         "format": "landmark_points"
       },
       {
-      "layer_name_conv_L2": "Mconv7_stage2_L2",
+      "layer_name": "Mconv7_stage2_L2",
       "format": "landmark_points"
       }
 
