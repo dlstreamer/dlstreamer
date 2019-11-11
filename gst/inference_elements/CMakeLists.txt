@@ -21,6 +21,8 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.c
 )
 
 file (GLOB MAIN_HEADERS

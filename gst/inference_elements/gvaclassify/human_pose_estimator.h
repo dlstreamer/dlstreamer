@@ -11,7 +11,7 @@
 
 G_BEGIN_DECLS
 
-struct HumanPoseEstimator *create_human_pose_estimator(GstGvaClassify *gva_classify);
+struct HumanPoseEstimator *create_human_pose_estimator();
 void release_human_pose_estimator(struct HumanPoseEstimator *gva_humanpose);
 
 G_END_DECLS
@@ -29,7 +29,7 @@ G_END_DECLS
 class HumanPoseEstimator {
 public:
 
-    HumanPoseEstimator(GstGvaClassify *gva_classify);
+    HumanPoseEstimator();
 
     ~HumanPoseEstimator();
 

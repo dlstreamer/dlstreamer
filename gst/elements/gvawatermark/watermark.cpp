@@ -10,6 +10,7 @@
 #include "gva_roi_meta.h"
 
 #include "glib.h"
+// #include "render_human_pose.h"
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
 
@@ -96,6 +97,11 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
                                color_table[LANDMARKS_POINT_COLOR_INDEX], -1);
                 }
             }
+            // if(tensor.model_name().find("pose") != std::string::npos || 
+            //     tensor.get_string("format") == "skeleton_points") {
+            //         std::vector<float> data = tensor.data<float>();
+            //         renderHumanPose(data, mat);
+            //     }
         }
 
         GstVideoRegionOfInterestMeta *meta = roi.meta();

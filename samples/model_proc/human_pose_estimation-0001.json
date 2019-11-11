@@ -8,11 +8,11 @@
     "output_postproc": [
       {
         "layer_name": "Mconv7_stage2_L1", 
-        "format": "landmark_points"
+        "format": "skeleton_points"
       },
       {
       "layer_name": "Mconv7_stage2_L2",
-      "format": "landmark_points"
+      "format": "skeleton_points"
       }
 
     ]

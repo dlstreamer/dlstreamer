@@ -11,16 +11,15 @@
 #include "human_pose_estimator.h"
 #include "peak.h"
 
-HumanPoseEstimator *create_human_pose_estimator(GstGvaClassify *gva_classify) {
-    return new HumanPoseEstimator(gva_classify);
+HumanPoseEstimator *create_human_pose_estimator() {
+    return new HumanPoseEstimator();
 }
 
 void release_human_pose_estimator(HumanPoseEstimator *gva_humanpose) {
     delete gva_humanpose;
 }
-const size_t HumanPoseEstimator::keypointsNumber = 18;
 
-HumanPoseEstimator::HumanPoseEstimator(GstGvaClassify *gvaclassify)
+HumanPoseEstimator::HumanPoseEstimator()
     : minJointsNumber(3),
       stride(8),
       pad(cv::Vec4i::all(0)),
@@ -30,7 +29,7 @@ HumanPoseEstimator::HumanPoseEstimator(GstGvaClassify *gvaclassify)
       foundMidPointsRatioThreshold(0.8f),
       minSubsetScore(0.2f),
       inputLayerSize(-1, -1),
-      upsampleRatio(4),
+      upsampleRatio(4)
       {}
 
 std::vector<HumanPose> HumanPoseEstimator::postprocess(
@@ -96,7 +95,7 @@ std::vector<HumanPose> HumanPoseEstimator::extractPoses(
         }
     }
     std::vector<HumanPose> poses = groupPeaksToPoses(
-                peaksFromHeatMap, pafs, keypointsNumber, midPointsScoreThreshold,
+                peaksFromHeatMap, pafs, 18, midPointsScoreThreshold,
                 foundMidPointsRatioThreshold, minJointsNumber, minSubsetScore);
     return poses;
 }
@@ -155,14 +154,4 @@ bool HumanPoseEstimator::inputWidthIsChanged(const cv::Size& imageSize) {
     return true;
 }
 
-HumanPoseEstimator::~HumanPoseEstimator() {
-    try {
-        if (enablePerformanceReport) {
-            std::cout << "Performance counts for " << modelPath << std::endl << std::endl;
-            printPerformanceCounts(request, std::cout, getFullDeviceName(ie, targetDeviceName), false);
-        }
-    }
-    catch (...) {
-        std::cerr << "[ ERROR ] Unknown/internal exception happened." << std::endl;
-    }
-}
+HumanPoseEstimator::~HumanPoseEstimator() = default;

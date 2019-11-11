@@ -10,4 +10,4 @@
 
 #include "human_pose.h"
 
-    void renderHumanPose(const std::vector<HumanPose>& poses, cv::Mat& image);
+    void renderHumanPose(const std::vector<float>& poses, cv::Mat& image);
