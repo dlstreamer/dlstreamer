@@ -148,6 +148,9 @@ class IEOutputBlob : public OutputBlob {
     virtual const std::vector<size_t> &GetDims() const {
         return blob->getTensorDesc().getDims();
     }
+    virtual size_t GetSize() const {
+        return blob->size();
+    }
 
     virtual Layout GetLayout() const {
         return static_cast<Layout>((int)blob->getTensorDesc().getLayout());

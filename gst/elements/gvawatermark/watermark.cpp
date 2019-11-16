@@ -10,7 +10,7 @@
 #include "gva_roi_meta.h"
 
 #include "glib.h"
-// #include "render_human_pose.h"
+#include "render_human_pose.h"
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
 

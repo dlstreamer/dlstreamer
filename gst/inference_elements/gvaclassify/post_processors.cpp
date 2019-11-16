@@ -218,7 +218,7 @@ void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &
                                   std::vector<InferenceROI> frames,
                                   const std::map<std::string, GstStructure *> &model_proc, const gchar *model_name) {
     int batch_size = frames.size();
-    if(model_proc.find("format")->first == std::string("human_pose_points")) {
+    if(strstr(model_name, "human-pose") != NULL) {
             // find meta
 
         auto roi = &frames[0].roi;
@@ -227,16 +227,30 @@ void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &
 
         auto pafsblob = outputblob->second;
         auto heatmapblob = (++outputblob)->second;
+        size_t pafsblob_size = pafsblob->GetSize();
+        // g_print("\npafsblob_size: %lu", pafsblob_size);
+        size_t heatmapblob_size = heatmapblob->GetSize();
+        // g_print("\nheatmapblob_size: %lu", heatmapblob_size);
         const float* heatMapsData = reinterpret_cast<const float *>(heatmapblob->GetData());
+        for (size_t i = 0; i < heatmapblob_size; ++i) {
+            g_print("%f\n", heatMapsData[i]);
+        }
+        g_print("\n\n");
+        const float* pafsData = reinterpret_cast<const float *>(pafsblob->GetData());
+        // for (size_t i = 0; i < pafsblob_size; ++i) {
+        //     g_print("%f ", pafsData[i]);
+        // }
+        // g_print("\n");
+        
+
         const int heatMapOffset = heatmapblob->GetDims()[2] * heatmapblob->GetDims()[3];
         constexpr const int nHeatMaps = 18;
-        const float* pafsData = reinterpret_cast<const float *>(pafsblob->GetData());
         const int pafOffset = pafsblob->GetDims()[2] * pafsblob->GetDims()[3];
         const int nPafs = pafsblob->GetDims()[1];
         const int featureMapWidth = heatmapblob->GetDims()[3];
         const int featureMapHeight = heatmapblob->GetDims()[2]; 
         const cv::Size imageSize(roi->w, roi->h);
-        
+        // g_print("\n\t%u, %u, %u, %u",roi->w, roi->h, roi->x, roi->y);
         GstGvaClassify *gva_classify = (GstGvaClassify *)frames[0].gva_base_inference;
 
         std::vector<HumanPose> poses = gva_classify->human_pose_estimator->postprocess(heatMapsData, heatMapOffset, nHeatMaps, pafsData, 
@@ -267,57 +281,57 @@ void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &
         gst_video_region_of_interest_meta_add_param(meta, classification_result);
         delete[] data;
     }
-
-    for (const auto &blob_iter : output_blobs) {
-        const std::string &layer_name = blob_iter.first;
-        OutputBlob::Ptr blob = blob_iter.second;
-        if (blob == nullptr)
-            throw std::runtime_error("Blob is empty during post processing. Cannot access null object.");
-        
-        
-
-        const uint8_t *data = (const uint8_t *)blob->GetData();
-        int size = GetUnbatchedSizeInBytes(blob, batch_size);
-        int rank = (int)blob->GetDims().size();
-
-        for (int b = 0; b < batch_size; b++) {
-            // find meta
-            GstGvaClassify *gva_classify = (GstGvaClassify *)frames[b].gva_base_inference;
-            auto roi = &frames[b].roi;
-            GstVideoRegionOfInterestMeta *meta = NULL;
-            gpointer state = NULL;
-            while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(frames[b].buffer, &state))) {
-                if (meta->x == roi->x && meta->y == roi->y && meta->w == roi->w && meta->h == roi->h &&
-                    meta->id == roi->id) {
-                    break;
-                }
-            }
-            if (!meta) {
-                GST_DEBUG("Can't find ROI metadata");
-                continue;
-            }
-
-            // append new structure to ROI meta's params
-            GstStructure *classification_result;
-            const auto &post_proc = model_proc.find(layer_name);
-            if (post_proc != model_proc.end()) {
-                classification_result = gst_structure_copy(post_proc->second);
-            } else {
-                classification_result = gst_structure_new_empty(("layer:" + layer_name).data());
-            }
-            gst_structure_set(classification_result, "layer_name", G_TYPE_STRING, layer_name.data(), "model_name",
-                              G_TYPE_STRING, model_name, "precision", G_TYPE_INT, (int)blob->GetPrecision(), "layout",
-                              G_TYPE_INT, (int)blob->GetLayout(), "rank", G_TYPE_INT, rank, NULL);
-            copy_buffer_to_structure(classification_result, data + b * size, size);
-            if (post_proc != model_proc.end()) {
-                ConvertBlobToClassificationResults(classification_result);
-            }
-
-            gst_video_region_of_interest_meta_add_param(meta, classification_result);
-
-            if (gva_classify->skip_classified_objects and meta->id > 0)
-                gva_classify->classification_history->UpdateROIParams(meta->id, classification_result);
+    else {
+        for (const auto &blob_iter : output_blobs) {
+            const std::string &layer_name = blob_iter.first;
+            OutputBlob::Ptr blob = blob_iter.second;
+            if (blob == nullptr)
+                throw std::runtime_error("Blob is empty during post processing. Cannot access null object.");
             
+            
+
+            const uint8_t *data = (const uint8_t *)blob->GetData();
+            int size = GetUnbatchedSizeInBytes(blob, batch_size);
+            int rank = (int)blob->GetDims().size();
+
+            for (int b = 0; b < batch_size; b++) {
+                // find meta
+                GstGvaClassify *gva_classify = (GstGvaClassify *)frames[b].gva_base_inference;
+                auto roi = &frames[b].roi;
+                GstVideoRegionOfInterestMeta *meta = NULL;
+                gpointer state = NULL;
+                while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(frames[b].buffer, &state))) {
+                    if (meta->x == roi->x && meta->y == roi->y && meta->w == roi->w && meta->h == roi->h &&
+                        meta->id == roi->id) {
+                        break;
+                    }
+                }
+                if (!meta) {
+                    GST_DEBUG("Can't find ROI metadata");
+                    continue;
+                }
+
+                // append new structure to ROI meta's params
+                GstStructure *classification_result;
+                const auto &post_proc = model_proc.find(layer_name);
+                if (post_proc != model_proc.end()) {
+                    classification_result = gst_structure_copy(post_proc->second);
+                } else {
+                    classification_result = gst_structure_new_empty(("layer:" + layer_name).data());
+                }
+                gst_structure_set(classification_result, "layer_name", G_TYPE_STRING, layer_name.data(), "model_name",
+                                G_TYPE_STRING, model_name, "precision", G_TYPE_INT, (int)blob->GetPrecision(), "layout",
+                                G_TYPE_INT, (int)blob->GetLayout(), "rank", G_TYPE_INT, rank, NULL);
+                copy_buffer_to_structure(classification_result, data + b * size, size);
+                if (post_proc != model_proc.end()) {
+                    ConvertBlobToClassificationResults(classification_result);
+                }
+
+                gst_video_region_of_interest_meta_add_param(meta, classification_result);
+
+                if (gva_classify->skip_classified_objects and meta->id > 0)
+                    gva_classify->classification_history->UpdateROIParams(meta->id, classification_result);
+            }
         }
     }
 }

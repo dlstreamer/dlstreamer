@@ -16,6 +16,7 @@
 #include "gstgvametaconvert.h"
 #include "gstgvametapublish.h"
 #include "gstgvawatermark.h"
+#include "gstgvaskeleton.h"
 
 static gboolean plugin_init(GstPlugin *plugin) {
     if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, GST_TYPE_GVA_INFERENCE))
@@ -28,6 +29,9 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
 
     if (!gst_element_register(plugin, "gvaidentify", GST_RANK_NONE, GST_TYPE_GVA_IDENTIFY))
+        return FALSE;
+    
+    if (!gst_element_register(plugin, "gvaskeleton", GST_RANK_NONE, GST_TYPE_GVA_SKELETON))
         return FALSE;
 
     if (!gst_element_register(plugin, "gvametaconvert", GST_RANK_NONE, GST_TYPE_GVA_META_CONVERT))

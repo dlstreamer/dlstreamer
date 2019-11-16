@@ -52,6 +52,7 @@ void OpenCV_VPP::Convert(const Image &rawSrc, Image &dst, bool bAllocateDestinat
 
     cv::Mat mat_image;
     ImageToMat(src, mat_image);
+    cv::imwrite("/home/pbochenk/projects/diplom/crop/crop.png", mat_image);
     cv::Mat resized_image = ResizeMat(mat_image, dst.height, dst.width);
     MatToMultiPlaneImage(resized_image, dst);
 }
