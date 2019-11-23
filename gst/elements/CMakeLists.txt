@@ -25,6 +25,8 @@ file (GLOB MAIN_SRC
     gvawatermark/*.c
     gvafpscounter/*.cpp
     gvafpscounter/*.c
+    gvaspeedometer/*.c
+    gvaspeedometer/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -33,6 +35,7 @@ file (GLOB MAIN_HEADERS
     gvametapublish/*.h
     gvawatermark/*.h
     gvafpscounter/*.h
+    gvaspeedometer/*.h
 )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -46,6 +49,7 @@ PUBLIC
     gvametapublish
     gvawatermark
     gvafpscounter
+    gvaspeedometer
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTVIDEO_INCLUDE_DIRS}

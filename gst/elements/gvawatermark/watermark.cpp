@@ -10,7 +10,8 @@
 #include "gva_roi_meta.h"
 
 #include "glib.h"
-#include "render_human_pose.h"
+
+// #include "render_human_pose.h"
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
 
@@ -81,7 +82,25 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
         if (object_id > 0) {
             text = std::to_string(object_id) + ": ";
         }
+        auto velocity_meta = gst_video_region_of_interest_meta_get_param(roi.meta(), "Velocity");
 
+        if (velocity_meta != nullptr) {
+            double velocity = 0;
+            double avg_velocity = 0;
+            gst_structure_get_double(velocity_meta, "velocity", &velocity);
+            gst_structure_get_double(velocity_meta, "avg_velocity", &avg_velocity);
+            auto int_velocity = static_cast<int>(velocity);
+            auto int_avg_velocity = static_cast<int>(avg_velocity);
+            text = std::to_string(object_id) + ", vel: " + std::to_string(int_velocity) +
+                   ", avg vel: " + std::to_string(int_avg_velocity);
+            auto meta = roi.meta();
+            cv::Point2f pos(meta->x, meta->y - 5.f);
+            if (pos.y < 0)
+                pos.y = meta->y + 30.f;
+            auto color_red = cv::Scalar(255, 0, 0);
+            cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, 1, color_red, 2);
+            // // fprintf(stdout, "%f \n", velocity);
+        }
         for (GVA::Tensor &tensor : roi) {
             std::string label = tensor.label();
             if (!label.empty()) {
@@ -97,7 +116,7 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
                                color_table[LANDMARKS_POINT_COLOR_INDEX], -1);
                 }
             }
-            // if(tensor.model_name().find("pose") != std::string::npos || 
+            // if(tensor.model_name().find("pose") != std::string::npos ||
             //     tensor.get_string("format") == "skeleton_points") {
             //         std::vector<float> data = tensor.data<float>();
             //         renderHumanPose(data, mat);

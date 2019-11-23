@@ -15,8 +15,9 @@
 #include "gstgvainference.h"
 #include "gstgvametaconvert.h"
 #include "gstgvametapublish.h"
-#include "gstgvawatermark.h"
 #include "gstgvaskeleton.h"
+#include "gstgvaspeedometer.h"
+#include "gstgvawatermark.h"
 
 static gboolean plugin_init(GstPlugin *plugin) {
     if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, GST_TYPE_GVA_INFERENCE))
@@ -30,7 +31,7 @@ static gboolean plugin_init(GstPlugin *plugin) {
 
     if (!gst_element_register(plugin, "gvaidentify", GST_RANK_NONE, GST_TYPE_GVA_IDENTIFY))
         return FALSE;
-    
+
     if (!gst_element_register(plugin, "gvaskeleton", GST_RANK_NONE, GST_TYPE_GVA_SKELETON))
         return FALSE;
 
@@ -41,6 +42,9 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
 
     if (!gst_element_register(plugin, "gvafpscounter", GST_RANK_NONE, GST_TYPE_GVA_FPSCOUNTER))
+        return FALSE;
+
+    if (!gst_element_register(plugin, "gvaspeedometer", GST_RANK_NONE, GST_TYPE_GVA_SPEEDOMETER))
         return FALSE;
 
     if (!gst_element_register(plugin, "gvametapublish", GST_RANK_NONE, GST_TYPE_GVA_META_PUBLISH))
