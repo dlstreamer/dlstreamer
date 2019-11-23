@@ -14,6 +14,7 @@
 #include <gst/gst.h>
 
 #include "gstgvadetect.h"
+#include "inference_backend/logger.h"
 #include "post_processors.h"
 #include "post_processors_util.h"
 
@@ -74,6 +75,7 @@ gboolean TensorToBBoxSSD(const InferenceBackend::OutputBlob::Ptr &blob, std::vec
         gdouble y_min = data[i * object_size + 4];
         gdouble x_max = data[i * object_size + 5];
         gdouble y_max = data[i * object_size + 6];
+
         // check image_id
         if (image_id < 0 || (size_t)image_id >= frames.size()) {
             break;
@@ -87,7 +89,6 @@ gboolean TensorToBBoxSSD(const InferenceBackend::OutputBlob::Ptr &blob, std::vec
 
         gint width = frames[image_id].roi.w;
         gint height = frames[image_id].roi.h;
-        // g_print("\n\tWidth, heiht: %d, %d", width, height);
 
         // get label
         const gchar *label = NULL;
@@ -120,7 +121,7 @@ gboolean TensorToBBoxSSD(const InferenceBackend::OutputBlob::Ptr &blob, std::vec
         if (iy_max > height)
             iy_max = height;
         GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
-            frames[image_id].buffer, label, 0, 0, width, height);
+            frames[image_id].buffer, label, ix_min, iy_min, ix_max - ix_min, iy_max - iy_min);
 
         GstStructure *s = gst_structure_copy(layer_post_proc);
         gst_structure_set(s, "confidence", G_TYPE_DOUBLE, confidence, "label_id", G_TYPE_INT, label_id, "x_min",

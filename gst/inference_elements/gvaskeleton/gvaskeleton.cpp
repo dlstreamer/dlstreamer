@@ -96,7 +96,7 @@ int Fourcc2OpenCVType(int fourcc) {
 //     return GVA_SKELETON_ERROR;
 // }
 
-GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, GstVideoInfo *info) {
+GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean render, GstVideoInfo *info) {
     try {
         InferenceBackend::Image image;
 
@@ -116,13 +116,12 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, G
 
         std::vector<HumanPose> poses = hpe_obj->estimate(mat);
 
-        
-
         // if (attach_poses_to_buffer(poses, buf) == GVA_SKELETON_ERROR)
         //     throw std::runtime_error("Uppsss... Postproc has not happend.");
 
         // TODO: move it to gvawatermark and return const for mat
-        renderHumanPose(poses, mat);
+        if (render)
+            renderHumanPose(poses, mat);
 
         gva_buffer_unmap(buf, image, mapContext);
 
