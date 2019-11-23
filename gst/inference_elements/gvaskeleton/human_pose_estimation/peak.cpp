@@ -6,8 +6,9 @@
 #include <utility>
 #include <vector>
 
-#include "peak.h"
+#include "peak.hpp"
 
+namespace human_pose_estimation {
 Peak::Peak(const int id, const cv::Point2f& pos, const float score)
     : id(id),
       pos(pos),
@@ -322,3 +323,4 @@ std::vector<HumanPose> groupPeaksToPoses(const std::vector<std::vector<Peak> >& 
     }
     return poses;
 }
+}  // namespace human_pose_estimation

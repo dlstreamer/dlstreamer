@@ -25,6 +25,7 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/human_pose_estimation/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -33,6 +34,8 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/human_pose_estimation/*.hpp
 )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -49,6 +52,7 @@ PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvaskeleton/human_pose_estimation/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
     PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}

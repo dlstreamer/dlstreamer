@@ -24,7 +24,6 @@ typedef struct _GstGvaClassify {
     gchar *object_class;
     gboolean skip_classified_objects;
     guint skip_interval;
-    struct HumanPoseEstimator *human_pose_estimator;
     struct ClassificationHistory *classification_history;
 } GstGvaClassify;
 

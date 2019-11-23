@@ -11,7 +11,6 @@
 #include "config.h"
 
 #include "classification_history.h"
-#include "human_pose_estimator.h"
 #include "gstgvaclassify.h"
 #include "gva_caps.h"
 #include "post_processors.h"
@@ -140,7 +139,6 @@ void gst_gva_classify_init(GstGvaClassify *gvaclassify) {
     gvaclassify->skip_classified_objects = DEFAULT_SKIP_CLASSIFIED_OBJECT;
     gvaclassify->skip_interval = DEFAULT_SKIP_INTERVAL;
     gvaclassify->classification_history = create_classification_history(gvaclassify);
-    gvaclassify->human_pose_estimator = create_human_pose_estimator(gvaclassify);
 
     gvaclassify->base_inference.get_roi_pre_proc = INPUT_PRE_PROCESS;
     gvaclassify->base_inference.post_proc = EXTRACT_CLASSIFICATION_RESULTS;
@@ -154,7 +152,6 @@ void gst_gva_classify_cleanup(GstGvaClassify *gvaclassify) {
     GST_DEBUG_OBJECT(gvaclassify, "gva_classify_cleanup");
 
     release_classification_history(gvaclassify->classification_history);
-    release_human_pose_estimator(gvaclassify->human_pose_estimator);
 
     g_free(gvaclassify->object_class);
     gvaclassify->object_class = NULL;
