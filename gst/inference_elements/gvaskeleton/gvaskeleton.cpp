@@ -160,7 +160,8 @@ GvaSkeletonStatus attach_bbox_hands_to_buffer(const std::vector<HumanPose> &pose
     }
 }
 
-GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean render, GstVideoInfo *info) {
+GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean render, gboolean hands_detect,
+                                  GstVideoInfo *info) {
     try {
         InferenceBackend::Image image;
 
@@ -180,9 +181,9 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, g
 
         std::vector<HumanPose> poses = hpe_obj->estimate(mat);
 
-        // if (hands_detect)
-        if (attach_bbox_hands_to_buffer(poses, buf, image.height, image.width) == GVA_SKELETON_ERROR)
-            throw std::runtime_error("Uppsss... Postproc has not happend.");
+        if (hands_detect)
+            if (attach_bbox_hands_to_buffer(poses, buf, image.height, image.width) == GVA_SKELETON_ERROR)
+                throw std::runtime_error("Uppsss... Postproc has not happend.");
 
         // TODO: move it to gvawatermark and return const for mat
         if (render)

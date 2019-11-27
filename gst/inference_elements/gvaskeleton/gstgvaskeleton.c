@@ -68,8 +68,8 @@ void gst_gva_skeleton_class_init(GstGvaSkeletonClass *klass) {
                                     g_param_spec_boolean("render", "Render", "Draw skeleton's keypints.", FALSE,
                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(gobject_class, PROP_HANDS_DETECT,
-                                    g_param_spec_boolean("hands_detect", "hands_detect", "hands detection.", FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                    g_param_spec_boolean("hands-detect", "Hands-Detect", "Detection hands position.",
+                                                         FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     base_transform_class->set_caps = GST_DEBUG_FUNCPTR(gst_gva_skeleton_set_caps);
     base_transform_class->transform = NULL;
@@ -143,10 +143,9 @@ void gst_gva_skeleton_cleanup(GstGvaSkeleton *skeleton) {
         skeleton->model_path = NULL;
     }
     if (skeleton->device) {
-        g_free(skeleton->model_path);
-        skeleton->model_path = NULL;
+        g_free(skeleton->device);
+        skeleton->device = NULL;
     }
-
     if (skeleton->hpe_object) {
         hpe_release(skeleton->hpe_object);
         skeleton->hpe_object = NULL;

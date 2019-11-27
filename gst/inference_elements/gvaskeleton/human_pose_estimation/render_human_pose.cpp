@@ -40,6 +40,7 @@ void renderHumanPose(const std::vector<HumanPose> &poses, cv::Mat &image) {
                                             cv::Scalar(0, 255, 255), cv::Scalar(0, 170, 255), cv::Scalar(0, 85, 255),
                                             cv::Scalar(0, 0, 255),   cv::Scalar(85, 0, 255),  cv::Scalar(170, 0, 255),
                                             cv::Scalar(255, 0, 255), cv::Scalar(255, 0, 170), cv::Scalar(255, 0, 85)};
+                                            
     const std::vector<std::pair<int, int>> limbKeypointsIds = {{1, 2}, {1, 5},  {2, 3},   {3, 4},  {5, 6},   {6, 7},
                                                                {1, 8}, {8, 9},  {9, 10},  {1, 11}, {11, 12}, {12, 13},
                                                                {1, 0}, {0, 14}, {14, 16}, {0, 15}, {15, 17}};
