@@ -21,7 +21,7 @@ typedef enum { GVA_SKELETON_OK, GVA_SKELETON_ERROR } GvaSkeletonStatus;
 
 HumanPoseEstimator *hpe_initialization(char *, char *);
 GvaSkeletonStatus hpe_release(HumanPoseEstimator *);
-GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *, GstBuffer *, gboolean, GstVideoInfo *);
+GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *, GstBuffer *, gboolean, gboolean, GstVideoInfo *);
 
 #ifdef __cplusplus
 }

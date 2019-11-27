@@ -96,7 +96,73 @@ int Fourcc2OpenCVType(int fourcc) {
 //     return GVA_SKELETON_ERROR;
 // }
 
-GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean render, GstVideoInfo *info) {
+GvaSkeletonStatus attach_bbox_hands_to_buffer(const std::vector<HumanPose> &poses, GstBuffer *buf, size_t height,
+                                              size_t width) {
+
+    for (const auto &pose : poses) {
+        auto right_hand = pose.keypoints[4];
+        auto left_hand = pose.keypoints[7];
+        auto right_cubit = pose.keypoints[3];
+        auto left_cubit = pose.keypoints[6];
+
+        float right_hand_bbox_size = cv::norm(right_hand - right_cubit);
+        float left_hand_bbox_size = cv::norm(left_hand - left_cubit);
+
+        float right_hand_bbox_x_min = right_hand.x - right_hand_bbox_size;
+        float right_hand_bbox_y_min = right_hand.y - right_hand_bbox_size;
+
+        float left_hand_bbox_x_min = left_hand.x - left_hand_bbox_size;
+        float left_hand_bbox_y_min = left_hand.y - left_hand_bbox_size;
+
+        left_hand_bbox_x_min = (left_hand_bbox_x_min >= 0) ? left_hand_bbox_x_min : 0;
+        left_hand_bbox_x_min = (left_hand_bbox_x_min <= width) ? left_hand_bbox_x_min : width;
+        left_hand_bbox_y_min = (left_hand_bbox_y_min >= 0) ? left_hand_bbox_y_min : 0;
+        left_hand_bbox_y_min = (left_hand_bbox_y_min <= height) ? left_hand_bbox_y_min : height;
+
+        float left_hand_bbox_x_max =
+            (left_hand_bbox_x_min + left_hand_bbox_size * 2 >= 0) ? left_hand_bbox_x_min + left_hand_bbox_size * 2 : 0;
+        left_hand_bbox_x_max = (left_hand_bbox_x_min + left_hand_bbox_size * 2 <= width)
+                                   ? left_hand_bbox_x_min + left_hand_bbox_size * 2
+                                   : width;
+        float left_hand_bbox_y_max =
+            (left_hand_bbox_y_min + left_hand_bbox_size * 2 >= 0) ? left_hand_bbox_y_min + left_hand_bbox_size * 2 : 0;
+        left_hand_bbox_y_max = (left_hand_bbox_y_min + left_hand_bbox_size * 2 <= height)
+                                   ? left_hand_bbox_y_min + left_hand_bbox_size * 2
+                                   : height;
+
+        GstVideoRegionOfInterestMeta *meta_left = gst_buffer_add_video_region_of_interest_meta(
+            buf, "left_hand", static_cast<uint32_t>(left_hand_bbox_x_min), static_cast<uint32_t>(left_hand_bbox_y_min),
+            static_cast<uint32_t>(left_hand_bbox_x_max - left_hand_bbox_x_min),
+            static_cast<uint32_t>(left_hand_bbox_y_max - left_hand_bbox_y_min));
+
+        right_hand_bbox_x_min = (right_hand_bbox_x_min >= 0) ? right_hand_bbox_x_min : 0;
+        right_hand_bbox_x_min = (right_hand_bbox_x_min <= width) ? right_hand_bbox_x_min : width;
+        right_hand_bbox_y_min = (right_hand_bbox_y_min >= 0) ? right_hand_bbox_y_min : 0;
+        right_hand_bbox_y_min = (right_hand_bbox_y_min <= height) ? right_hand_bbox_y_min : height;
+
+        float right_hand_bbox_x_max = (right_hand_bbox_x_min + right_hand_bbox_size * 2 >= 0)
+                                          ? right_hand_bbox_x_min + right_hand_bbox_size * 2
+                                          : 0;
+        right_hand_bbox_x_max = (right_hand_bbox_x_min + right_hand_bbox_size * 2 <= width)
+                                    ? right_hand_bbox_x_min + right_hand_bbox_size * 2
+                                    : width;
+        float right_hand_bbox_y_max = (right_hand_bbox_y_min + right_hand_bbox_size * 2 >= 0)
+                                          ? right_hand_bbox_y_min + right_hand_bbox_size * 2
+                                          : 0;
+        right_hand_bbox_y_max = (right_hand_bbox_y_min + right_hand_bbox_size * 2 <= height)
+                                    ? right_hand_bbox_y_min + right_hand_bbox_size * 2
+                                    : height;
+
+        GstVideoRegionOfInterestMeta *meta_right = gst_buffer_add_video_region_of_interest_meta(
+            buf, "right_hand", static_cast<uint32_t>(right_hand_bbox_x_min),
+            static_cast<uint32_t>(right_hand_bbox_y_min),
+            static_cast<uint32_t>(right_hand_bbox_x_max - right_hand_bbox_x_min),
+            static_cast<uint32_t>(right_hand_bbox_y_max - right_hand_bbox_y_min));
+    }
+}
+
+GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean render, gboolean hands_detect,
+                                  GstVideoInfo *info) {
     try {
         InferenceBackend::Image image;
 
@@ -116,8 +182,9 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, g
 
         std::vector<HumanPose> poses = hpe_obj->estimate(mat);
 
-        // if (attach_poses_to_buffer(poses, buf) == GVA_SKELETON_ERROR)
-        //     throw std::runtime_error("Uppsss... Postproc has not happend.");
+        if (hands_detect)
+            if (attach_bbox_hands_to_buffer(poses, buf, image.height, image.width) == GVA_SKELETON_ERROR)
+                throw std::runtime_error("Uppsss... Postproc has not happend.");
 
         // TODO: move it to gvawatermark and return const for mat
         if (render)
