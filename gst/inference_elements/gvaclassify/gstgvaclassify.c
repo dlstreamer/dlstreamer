@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -59,10 +59,12 @@ void gst_gva_classify_set_property(GObject *object, guint property_id, const GVa
     case PROP_SKIP_CLASSIFIED_OBJECT:
         gvaclassify->skip_classified_objects = g_value_get_boolean(value);
         if (gvaclassify->skip_classified_objects)
-            probe_id = gst_pad_add_probe(gvaclassify->base_inference.base_gvaclassify.srcpad, GST_PAD_PROBE_TYPE_BUFFER,
+            probe_id = gst_pad_add_probe(gvaclassify->base_inference.base_transform.srcpad, GST_PAD_PROBE_TYPE_BUFFER,
                                          FillROIParamsCallback, gvaclassify->classification_history, NULL);
-        else // not tested
-            gst_pad_remove_probe(gvaclassify->base_inference.base_gvaclassify.srcpad, probe_id);
+        else { // not tested
+            gst_pad_remove_probe(gvaclassify->base_inference.base_transform.srcpad, probe_id);
+            probe_id = 0;
+        }
 
         break;
     case PROP_SKIP_INTERVAL:
@@ -115,15 +117,19 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
                                     g_param_spec_string("object-class", "ObjectClass", "Object class",
                                                         DEFAULT_OBJECT_CLASS,
                                                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_SKIP_CLASSIFIED_OBJECT,
-                                    g_param_spec_boolean("skip-classified-objects", "Skip classified objects",
-                                                         "------------------", DEFAULT_SKIP_CLASSIFIED_OBJECT,
-                                                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
-    g_object_class_install_property(gobject_class, PROP_SKIP_INTERVAL,
-                                    g_param_spec_uint("skip-interval", "Skip interval", "-------------",
-                                                      DEFAULT_MIN_SKIP_INTERVAL, DEFAULT_MAX_SKIP_INTERVAL,
-                                                      DEFAULT_SKIP_INTERVAL,
-                                                      (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        gobject_class, PROP_SKIP_CLASSIFIED_OBJECT,
+        g_param_spec_boolean(
+            "skip-classified-objects", "Skip classified objects",
+            "Allows to skip cassification on frames series. Classification results on skipped frames are propagated "
+            "from last classified frame to subsequent ones, the number of which is set by skip-interval property.",
+            DEFAULT_SKIP_CLASSIFIED_OBJECT, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        gobject_class, PROP_SKIP_INTERVAL,
+        g_param_spec_uint("skip-interval", "Skip interval",
+                          "Sets the number of frames on which classification will be skipped",
+                          DEFAULT_MIN_SKIP_INTERVAL, DEFAULT_MAX_SKIP_INTERVAL, DEFAULT_SKIP_INTERVAL,
+                          (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 void gst_gva_classify_init(GstGvaClassify *gvaclassify) {

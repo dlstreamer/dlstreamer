@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,6 +8,12 @@ cmake_minimum_required(VERSION 3.1)
 
 add_subdirectory(itt)
 add_subdirectory(json)
+
+if(${ENABLE_VAS_TRACKER})
+    add_subdirectory(vas)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/vas/DownloadVas.cmake)
+    add_dependencies(vas getexternalvas)
+endif()
 
 # Populate thirdparty/json dependency
 set(JSONCONVERT_SOURCE "https://github.com/nlohmann/json/releases/download/v3.5.0/json.hpp")

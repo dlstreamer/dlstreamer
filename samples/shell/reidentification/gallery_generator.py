@@ -1,6 +1,6 @@
 #!/bin/python3
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -41,11 +41,13 @@ def get_models_path():
     if models_path is None:
         models_path = os.getenv("INTEL_CVSDK_DIR", None)
         if models_path is not None:
-            models_path = os.path.join(models_path, "deployment_tools", "intel_models")
+            models_path = os.path.join(
+                models_path, "deployment_tools", "intel_models")
             pass
         pass
     if models_path is None:
-        print("Warning: default models path not found by envs MODELS_PATH and INTEL_CVSDK_DIR")
+        print(
+            "Warning: default models path not found by envs MODELS_PATH and INTEL_CVSDK_DIR")
         pass
     return models_path
 
@@ -73,38 +75,58 @@ def find_models_paths(model_names, models_dir_list):
         if not model_path_list:
             continue
         if len(model_path_list) > 1:
-            print("Warning: Find few models with name: {}. Take the first.".format(model_name))
+            print(
+                "Warning: Find few models with name: {}. Take the first.".format(model_name))
         d[model_name] = model_path_list.pop(0)
     return d
 
 
-pipeline_template = "gst-launch-1.0 filesrc location={input_file} ! decodebin ! video/x-raw ! videoconvert ! \
-        gvadetect model={detection_model} ! \
-        gvaclassify model={identification_model} ! \
+pipeline_template = "gst-launch-1.0 \
+        filesrc location={input_file} ! decodebin ! videoconvert ! video/x-raw,format=BGRx ! \
+        gvadetect model={detection_model} pre-proc=opencv ! \
+        gvaclassify model={landmarks_model} model-proc={landmarks_modelproc} pre-proc=opencv ! \
+        gvaclassify model={identification_model} model-proc={identification_modelproc} pre-proc=opencv ! \
         gvametaconvert model={identification_model} converter=tensors-to-file tags={label} location={output_dir} ! \
         fakesink sync=false"
 feature_file_regexp_template = r"^{label}_\d+_frame_\d+_idx_\d+.tensor$"
 
 default_detection_model = "face-detection-adas-0001"
+default_landmarks_model = "landmarks-regression-retail-0009"
 default_identification_model = "face-reidentification-retail-0095"
 default_models_paths = None if not get_models_path() else get_models_path().split(":")
-models_paths = find_models_paths([default_detection_model, default_identification_model], default_models_paths)
+models_paths = find_models_paths(
+    [default_detection_model, default_landmarks_model, default_identification_model], default_models_paths)
 
 default_detection_path = models_paths.get(default_detection_model)
 default_identification_path = models_paths.get(default_identification_model)
+default_landmarks_path = models_paths.get(default_landmarks_model)
+default_identification_modelproc_path = "../../model_proc/{}.json".format(
+    default_identification_model)
+default_landmarks_modelproc_path = "../../model_proc/{}.json".format(
+    default_landmarks_model)
 default_output = os.path.curdir
 
 KNOWN_ANSWERS = ['yes', 'y', '']
 
 
 def parse_arg():
-    parser = argparse.ArgumentParser(description=description, formatter_class=argparse.RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=description, formatter_class=argparse.RawTextHelpFormatter)
 
-    parser.add_argument("--source_dir", "-s", required=True, help="Path to the folder with images")
-    parser.add_argument("--output", "-o", default=default_output, help="Path to output folder")
-    parser.add_argument("--detection", "-d", default=default_detection_path, help="Path to detection model xml file")
+    parser.add_argument("--source_dir", "-s", required=True,
+                        help="Path to the folder with images")
+    parser.add_argument(
+        "--output", "-o", default=default_output, help="Path to output folder")
+    parser.add_argument("--detection", "-d", default=default_detection_path,
+                        help="Path to detection model xml file")
     parser.add_argument("--identification", "-i", default=default_identification_path,
                         help="Path to identification model xml file")
+    parser.add_argument("--landmarks_regression", "-l", default=default_landmarks_path,
+                        help="Path to landmarks-regression model xml file")
+    parser.add_argument("--identification_modelproc", default=default_identification_modelproc_path,
+                        help="Path to identification modelproc json file")
+    parser.add_argument("--landmarks_regression_modelproc", default=default_landmarks_modelproc_path,
+                        help="Path to landmarks-regression modelproc json file")
 
     return parser.parse_args()
 
@@ -128,12 +150,17 @@ if __name__ == "__main__":
     os.environ['LC_NUMERIC'] = 'C'
     for folder, subdir_list, file_list in os.walk(args.source_dir):
         for idx, filename in enumerate(file_list):
-            label = os.path.splitext(filename)[0] if folder == args.source_dir else os.path.basename(folder)
+            label = os.path.splitext(
+                filename)[0] if folder == args.source_dir else os.path.basename(folder)
             abs_path = os.path.join(os.path.abspath(folder), filename)
             pipeline = pipeline_template.format(input_file=abs_path, detection_model=args.detection,
+                                                landmarks_model=args.landmarks_regression,
+                                                landmarks_modelproc=args.landmarks_regression_modelproc,
                                                 identification_model=args.identification,
+                                                identification_modelproc=args.identification_modelproc,
                                                 label=(label + "_" + str(idx)), output_dir=features_out)
-            proc = subprocess.Popen(pipeline, shell=True, env=os.environ.copy())
+            proc = subprocess.Popen(
+                pipeline, shell=True, env=os.environ.copy())
             if proc.wait() != 0:
                 print("Error while running pipeline")
                 exit(-1)
@@ -148,7 +175,8 @@ if __name__ == "__main__":
 
     for label in gallery.keys():
         regexp = re.compile(feature_file_regexp_template.format(label=label))
-        gallery[label]['features'] = [os.path.join(relative_features_out, x) for x in output_files if regexp.match(x)]
+        gallery[label]['features'] = [os.path.join(
+            relative_features_out, x) for x in output_files if regexp.match(x)]
         pass
     with open(os.path.join(gallery_folder, "gallery.json"), 'w') as f:
         json.dump(gallery, f)

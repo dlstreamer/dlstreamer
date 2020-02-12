@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,14 +21,17 @@ G_BEGIN_DECLS
 #define GVA_BASE_INFERENCE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVA_BASE_INFERENCE, GvaBaseInference))
 
 typedef struct _GvaBaseInference {
-    GstBaseTransform base_gvaclassify;
+    GstBaseTransform base_transform;
 
     // properties
     gchar *model;
     gchar *model_proc;
     gchar *device;
-    guint batch_size;
     guint every_nth_frame;
+    gboolean reshape;
+    guint batch_size;
+    guint reshape_width;
+    guint reshape_height;
     gboolean adaptive_skip;
     guint nireq;
     gchar *inference_id;
@@ -37,6 +40,7 @@ typedef struct _GvaBaseInference {
     gchar *infer_config;
     gchar *allocator_name;
     gchar *pre_proc_name;
+    gchar *extension;
 
     // other fields
     GstVideoInfo *info;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,9 +25,9 @@ typedef struct _GvaBaseInference GvaBaseInference;
 void registerElement(GvaBaseInference *ovino, GError **error);
 InferenceImpl *acquire_inference_instance(GvaBaseInference *ovino, GError **error);
 void release_inference_instance(GvaBaseInference *ovino);
-GstFlowReturn frame_to_classify_inference(GvaBaseInference *ovino, GstBuffer *buf, GstVideoInfo *info);
-void classify_inference_sink_event(GvaBaseInference *ovino, GstEvent *event);
-void flush_inference_classify(GvaBaseInference *ovino);
+GstFlowReturn frame_to_base_inference(GvaBaseInference *ovino, GstBuffer *buf, GstVideoInfo *info);
+void base_inference_sink_event(GvaBaseInference *ovino, GstEvent *event);
+void flush_inference(GvaBaseInference *ovino);
 
 #ifdef __cplusplus
 } /* extern C */

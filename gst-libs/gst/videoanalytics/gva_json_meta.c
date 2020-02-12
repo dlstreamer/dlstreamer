@@ -69,3 +69,8 @@ const GstMetaInfo *gst_gva_json_meta_get_info(void) {
 gchar *get_json_message(GstGVAJSONMeta *meta) {
     return meta->message;
 }
+
+void set_json_message(GstGVAJSONMeta *meta, gchar *message) {
+    gst_gva_json_meta_free((GstMeta *)meta, NULL);
+    meta->message = g_strdup(message);
+}

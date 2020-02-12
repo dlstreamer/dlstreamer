@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -19,6 +19,7 @@
 #include "gva_tensor_meta.h"
 #include "gva_utils.h"
 #include "inference_impl.h"
+#include "video_frame.h"
 
 #include "post_processors.h"
 
@@ -27,11 +28,14 @@ namespace {
 using namespace InferenceBackend;
 
 void ExtractInferenceResults(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
-                             std::vector<InferenceROI> frames,
+                             std::vector<InferenceFrame> frames,
                              const std::map<std::string, GstStructure *> & /*model_proc*/, const gchar *model_name) {
-    int batch_size = frames.size();
+    if (frames.empty())
+        std::logic_error("Vector of frames is empty.");
+    int batch_size = frames.begin()->gva_base_inference->batch_size;
+    size_t blob_id = 0;
 
-    for (auto blob_iter : output_blobs) {
+    for (const auto &blob_iter : output_blobs) {
         const char *layer_name = blob_iter.first.c_str();
         OutputBlob::Ptr blob = blob_iter.second;
         if (blob == nullptr)
@@ -39,32 +43,47 @@ void ExtractInferenceResults(const std::map<std::string, OutputBlob::Ptr> &outpu
 
         const uint8_t *data = (const uint8_t *)blob->GetData();
         auto dims = blob->GetDims();
-        int size = GetUnbatchedSizeInBytes(blob, batch_size);
+        int unbatched_blob_size = GetUnbatchedSizeInBytes(blob, batch_size);
 
-        for (int b = 0; b < batch_size; b++) {
-            InferenceROI &frame = frames[b];
+        for (size_t b = 0; b < frames.size(); b++) {
+            InferenceFrame &frame = frames[b];
+            GVA::VideoFrame video_frame(frame.buffer, frame.info);
+            GVA::Tensor tensor = video_frame.add_tensor();
 
-            // find or create new meta
-            GstGVATensorMeta *meta =
-                find_tensor_meta_ext(frame.buffer, model_name, layer_name, frame.gva_base_inference->inference_id);
-            if (!meta) {
-                meta = GST_GVA_TENSOR_META_ADD(frame.buffer);
-                meta->precision = static_cast<GVAPrecision>((int)blob->GetPrecision());
-                meta->layout = static_cast<GVALayout>((int)blob->GetLayout());
-                meta->rank = dims.size();
-                if (meta->rank > GVA_TENSOR_MAX_RANK)
-                    meta->rank = GVA_TENSOR_MAX_RANK;
-                for (guint i = 0; i < meta->rank; i++) {
-                    meta->dims[i] = dims[i];
-                }
-                meta->layer_name = g_strdup(layer_name);
-                meta->model_name = g_strdup(model_name);
-                meta->element_id = frame.gva_base_inference->inference_id;
-                meta->total_bytes = size * meta->dims[0];
-                meta->data = g_slice_alloc0(meta->total_bytes);
+            // TODO: maybe we need to define possible gst structure fields instead hardcoded strings?
+            size_t dims_size = std::min(dims.size(), (size_t)GVA_TENSOR_MAX_RANK);
+            GValueArray *arr = g_value_array_new(dims_size);
+            // TODO: check NCHW case
+            GValue gvalue = G_VALUE_INIT;
+            g_value_init(&gvalue, G_TYPE_UINT);
+
+            // first dimension is batch-size set to 1 (cause we unbatched it)
+            g_value_set_uint(&gvalue, 1U);
+            g_value_array_append(arr, &gvalue);
+            for (guint i = 1; i < dims_size; ++i) {
+                g_value_set_uint(&gvalue, dims[i]);
+                g_value_array_append(arr, &gvalue);
             }
-            memcpy(meta->data, data + b * size, size);
+
+            tensor.set_array("dims", arr);
+            tensor.set_int("rank", dims_size);
+            tensor.set_int("precision", (int)blob->GetPrecision());
+            tensor.set_int("layout", (int)blob->GetLayout());
+            tensor.set_string("layer_name", layer_name);
+            tensor.set_string("model_name", model_name);
+            tensor.set_string("element_id", frame.gva_base_inference->inference_id);
+            tensor.set_int("total_bytes", unbatched_blob_size);
+            // In different versions of GStreamer, metas are attached to the buffer in a different order. Thus, we
+            // identify our meta using tensor_id.
+            tensor.set_int("tensor_id", blob_id);
+
+            GVariant *v =
+                g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, data + b * unbatched_blob_size, unbatched_blob_size, 1);
+            gsize n_elem;
+            gst_structure_set(tensor.gst_structure(), "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
+                              g_variant_get_fixed_array(v, &n_elem, 1), NULL);
         }
+        ++blob_id;
     }
 }
 

@@ -16,22 +16,18 @@ typedef struct _GstGvaIdentify GstGvaIdentify;
 
 #include "inference_backend/image_inference.h"
 #include "reid_gallery.h"
-#include "tracker.h"
 
 class Identify {
   public:
     Identify(GstGvaIdentify *ovino);
     ~Identify();
-    void ProcessOutput(GstBuffer *buffer, GstVideoInfo *info);
+    void ProcessOutput(GstBuffer *buffer);
 
   private:
-    int frame_num;
-    std::unique_ptr<Tracker> tracker;
     std::unique_ptr<EmbeddingsGallery> gallery;
     GstGvaIdentify *masterGstElement_;
 
     void IdentifyObjects(GstBuffer *buffer);
-    void TrackObjects(GstBuffer *buffer, GstVideoInfo *info);
 };
 #else /* __cplusplus */
 
@@ -43,7 +39,7 @@ typedef struct Identify Identify;
 extern "C" {
 #endif /* __cplusplus */
 
-GstFlowReturn frame_to_identify(GstGvaIdentify *ovino, GstBuffer *buf, GstVideoInfo *info);
+GstFlowReturn frame_to_identify(GstGvaIdentify *ovino, GstBuffer *buf);
 Identify *identifier_new(GstGvaIdentify *ovino);
 void identifier_delete(Identify *identifier);
 

@@ -9,4 +9,4 @@ BASEDIR=$(dirname "$0")/..
 [ ! -d "${BASEDIR}/build" ] && mkdir ${BASEDIR}/build
 cd ${BASEDIR}/build
 cmake ..
-make -j8
+make -j $(nproc)

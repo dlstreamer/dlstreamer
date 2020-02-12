@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -22,15 +22,15 @@ G_BEGIN_DECLS
 typedef struct _GstGvaMetaConvert GstGvaMetaConvert;
 typedef struct _GstGvaMetaConvertClass GstGvaMetaConvertClass;
 
-typedef void (*convert_function_type)(GstGvaMetaConvert *converter, GstBuffer *buffer);
+typedef gboolean (*convert_function_type)(GstGvaMetaConvert *converter, GstBuffer *buffer);
 
 typedef enum {
     GST_GVA_METACONVERT_TENSOR2TEXT,
     GST_GVA_METACONVERT_JSON,
+    GST_GVA_METACONVERT_TENSORS_TO_FILE,
     GST_GVA_METACONVERT_DUMP_DETECTION,
     GST_GVA_METACONVERT_DUMP_CLASSIFICATION,
     GST_GVA_METACONVERT_DUMP_TENSORS,
-    GST_GVA_METACONVERT_TENSORS_TO_FILE,
     GST_GVA_METACONVERT_ADD_FULL_FRAME_ROI
 } GstGVAMetaconvertConverterType;
 

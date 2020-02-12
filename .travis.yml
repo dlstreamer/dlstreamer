@@ -6,22 +6,19 @@ branches:
   only:
     - master
 
-# Install doxygen
-addons:
-  apt:
-    packages:
-      - doxygen
+services:
+  - docker
 
 # Build API reference
 script:
-  - cd gst-libs/gst/videoanalytics
-  - doxygen Doxyfile
+  - docker pull alpine:3.10
+  - docker run -v $PWD:/home alpine:3.10 /bin/sh -c "cd /home/docs && apk update && apk add doxygen && doxygen Doxyfile;"
 
 # Deploy API reference
 deploy:
   provider: pages
   skip_cleanup: true
-  local_dir: gst-libs/gst/videoanalytics/html
+  local_dir: docs/html
   github_token: $GH_REPO_TOKEN
   on:
     branch: master

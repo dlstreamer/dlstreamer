@@ -1,8 +1,10 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
+
+#pragma once
 
 #include "inference_backend/image.h"
 #include <opencv2/imgproc.hpp>

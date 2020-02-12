@@ -16,7 +16,7 @@ endif()
 
 find_package(PkgConfig REQUIRED)
 
-find_package(InferenceEngine 1.6.0 REQUIRED)
+find_package(InferenceEngine 2.1.0 REQUIRED)
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp

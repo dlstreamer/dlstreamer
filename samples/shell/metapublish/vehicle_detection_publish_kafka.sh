@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -28,7 +28,7 @@ FILE=${1}
 MODEL=vehicle-license-plate-detection-barrier-0106
 
 DEVICE=CPU
-PRE_PROC=opencv
+PRE_PROC=ie
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 

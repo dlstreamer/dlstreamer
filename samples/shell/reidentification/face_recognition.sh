@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -23,7 +23,7 @@ if [ -z ${1} ]; then
 fi
 
 INPUT=${1}
-GALLERY=$GST_SAMPLES_DIR/shell/reidentification/gallery/gallery.json
+GALLERY=${2:-"$GST_SAMPLES_DIR/shell/reidentification/gallery/gallery.json"}
 
 DETECTION_MODEL=face-detection-adas-0001
 LANDMARKS_MODEL=landmarks-regression-retail-0009
@@ -44,7 +44,7 @@ echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
 echo LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
-  filesrc location=${INPUT} ! decodebin ! video/x-raw ! videoconvert ! \
+  filesrc location=${INPUT} ! decodebin ! videoconvert ! video/x-raw,format=BGRx ! \
   gvadetect model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
   gvaclassify model=$LANDMARKS_MODEL_PATH model-proc=$(PROC_PATH $LANDMARKS_MODEL_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
   gvaclassify model=$IDENTIFICATION_MODEL_PATH model-proc=$(PROC_PATH $IDENTIFICATION_MODEL_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \

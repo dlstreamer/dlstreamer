@@ -20,7 +20,7 @@ FilePublishStatus do_initialize_file(FILE **pFile, const char *pathfile, const P
     } else if (eOutFormat == FILE_PUBLISH_STREAM) {
         *pFile = fopen(pathfile, "a+");
         if (*pFile == NULL) {
-            return FILE_ERROR;
+            return FILE_ERROR_FILE_CREATE;
         }
         if (setvbuf(*pFile, NULL, _IOLBF, 0)) {
             return FILE_ERROR_INITIALIZING_BUFFER;

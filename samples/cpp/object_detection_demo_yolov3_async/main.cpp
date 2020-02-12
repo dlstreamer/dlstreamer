@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  *
@@ -19,6 +19,7 @@
 
 #include "coco_labels.h"
 #include "gva_tensor_meta.h"
+#include "video_frame.h"
 
 #define UNUSED(x) (void)(x)
 
@@ -113,18 +114,6 @@ static GOptionEntry opt_entries[] = {
     {"no-display", 'n', 0, G_OPTION_ARG_NONE, &no_display, "Run without display", NULL},
     GOptionEntry()};
 
-GstGVATensorMeta *gst_buffer_iterate_tensor_meta(GstBuffer *buffer, gpointer *state) {
-    static GQuark gva_tensor_meta_tag = g_quark_from_static_string(GVA_TENSOR_META_TAG);
-
-    while (GstMeta *meta = gst_buffer_iterate_meta(buffer, state)) {
-        if (gst_meta_api_type_has_tag(meta->info->api, gva_tensor_meta_tag)) {
-            return (GstGVATensorMeta *)meta;
-        }
-    }
-
-    return NULL;
-}
-
 struct DetectionObject {
     int xmin, ymin, xmax, ymax, class_id;
     float confidence;
@@ -164,14 +153,14 @@ static int EntryIndex(int side, int lcoords, int lclasses, int location, int ent
     return n * side * side * (lcoords + lclasses + 1) + entry * side * side + loc;
 }
 
-void ParseYOLOV3Output(GstGVATensorMeta *RegionYolo, int image_width, int image_height,
+void ParseYOLOV3Output(GVA::Tensor &tensor_yolo, int image_width, int image_height,
                        std::vector<DetectionObject> &objects) {
-    const int out_blob_h = RegionYolo->dims[2];
-    int coords = 4;
-    int num = 3;
-    int classes = 80;
-    std::vector<float> anchors = {10.0, 13.0, 16.0,  30.0,  33.0, 23.0,  30.0,  61.0,  62.0,
-                                  45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
+    const int out_blob_h = tensor_yolo.dims()[2];
+    constexpr int coords = 4;
+    constexpr int num = 3;
+    constexpr int classes = 80;
+    const std::vector<float> anchors = {10.0, 13.0, 16.0,  30.0,  33.0, 23.0,  30.0,  61.0,  62.0,
+                                        45.0, 59.0, 119.0, 116.0, 90.0, 156.0, 198.0, 373.0, 326.0};
     int side = out_blob_h;
     int anchor_offset = 0;
     switch (side) {
@@ -188,7 +177,8 @@ void ParseYOLOV3Output(GstGVATensorMeta *RegionYolo, int image_width, int image_
         throw std::runtime_error("Invalid output size");
     }
     int side_square = side * side;
-    const float *output_blob = (const float *)RegionYolo->data;
+
+    std::vector<float> output_blob = tensor_yolo.data<float>();
     for (int i = 0; i < side_square; ++i) {
         int row = i / side;
         int col = i % side;
@@ -260,13 +250,13 @@ static GstPadProbeReturn pad_probe_callback(GstPad *pad, GstPadProbeInfo *info, 
     if (buffer == NULL)
         return GST_PAD_PROBE_OK;
 
-    // Get width and height
-    gint width = 0, height = 0;
-    auto caps = gst_pad_get_current_caps(pad);
-    auto caps_str = gst_caps_get_structure(caps, 0);
-    gst_structure_get_int(caps_str, "width", &width);
-    gst_structure_get_int(caps_str, "height", &height);
-    gst_caps_unref(caps);
+    GstCaps *caps = gst_pad_get_current_caps(pad);
+    if (!caps)
+        throw std::runtime_error("Can't get current caps");
+
+    GVA::VideoFrame video_frame(buffer, caps);
+    gint width = video_frame.video_info()->width;
+    gint height = video_frame.video_info()->height;
 
     // Map buffer and create OpenCV image
     GstMapInfo map;
@@ -276,22 +266,20 @@ static GstPadProbeReturn pad_probe_callback(GstPad *pad, GstPadProbeInfo *info, 
 
     // Parse and draw outputs
     std::vector<DetectionObject> objects;
-    gpointer state = NULL;
-    while (GstGVATensorMeta *meta = gst_buffer_iterate_tensor_meta(buffer, &state)) {
-        if (strstr(meta->model_name, "yolov3")) {
-            ParseYOLOV3Output(meta, width, height, objects);
+    for (GVA::Tensor &tensor : video_frame.tensors()) {
+        if (tensor.model_name().find("yolov3") != std::string::npos) {
+            ParseYOLOV3Output(tensor, width, height, objects);
         }
     }
     DrawObjects(objects, mat);
     GST_PAD_PROBE_INFO_DATA(info) = buffer;
 
     gst_buffer_unmap(buffer, &map);
-
+    gst_caps_unref(caps);
     return GST_PAD_PROBE_OK;
 }
 
 int main(int argc, char *argv[]) {
-
     // Parse arguments
     GOptionContext *context = g_option_context_new("sample");
     g_option_context_add_main_entries(context, opt_entries, "sample");
@@ -324,7 +312,7 @@ int main(int argc, char *argv[]) {
     }
 
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
-    gchar const *capfilter = "video/x-raw";
+    gchar const *capfilter = "video/x-raw,format=BGRA";
     gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
                                    : "fpsdisplaysink video-sink=xvimagesink sync=false";
 

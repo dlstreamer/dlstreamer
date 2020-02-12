@@ -33,7 +33,7 @@ class ImageInferenceAsync : public ImageInference {
 
     const std::string &GetModelName() const override;
 
-    void GetModelInputInfo(int *width, int *height, int *format) const override;
+    void GetModelInputInfo(int *width, int *height, int *batch_size, int *format) const override;
 
     bool IsQueueFull() override;
 

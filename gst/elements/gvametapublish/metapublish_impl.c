@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -132,6 +132,7 @@ MetapublishStatusMessage OpenConnection(GstGvaMetaPublish *gvametapublish) {
             return returnMessage;
         } else {
             GST_INFO_OBJECT(gvametapublish, "%s", status.responseMessage);
+            g_free(status.responseMessage);
         }
     }
 
@@ -160,6 +161,9 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
     }
 
     MetapublishStatusMessage status;
+    status.responseMessage = NULL;
+    status.codeType = GENERAL;
+    status.responseCode.ps = SUCCESS;
 
 #ifdef PAHO_INC
     if (mp->type == GST_GVA_METAPUBLISH_MQTT) {
@@ -178,7 +182,7 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
         g_free(mp->file_config);
     }
 
-    switch (returnMessage.codeType) {
+    switch (status.codeType) {
     case MQTT:
         if (status.responseCode.mps != MQTT_SUCCESS) {
             returnMessage.responseCode.ps = ERROR;
@@ -195,10 +199,7 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
         }
         break;
     default:
-        status.codeType = GENERAL;
-        status.responseCode.ps = ERROR;
-        status.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Unexpected codeType\n");
+        returnMessage.responseCode.ps = ERROR;
         break;
     }
 
@@ -218,6 +219,9 @@ MetapublishStatusMessage CloseConnection(GstGvaMetaPublish *gvametapublish) {
 MetapublishStatusMessage WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuffer *buf) {
     MetapublishImpl *mp = &gvametapublish->instance_impl;
     MetapublishStatusMessage status;
+    status.responseMessage = NULL;
+    status.codeType = GENERAL;
+    status.responseCode.ps = SUCCESS;
 
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = GENERAL;
@@ -250,7 +254,7 @@ MetapublishStatusMessage WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuff
         status = file_write(&mp->pFile, mp->file_config, buf);
     }
 
-    switch (returnMessage.codeType) {
+    switch (status.codeType) {
     case MQTT:
         if (status.responseCode.mps != MQTT_SUCCESS) {
             returnMessage.responseCode.ps = ERROR;
@@ -267,10 +271,7 @@ MetapublishStatusMessage WriteMessage(GstGvaMetaPublish *gvametapublish, GstBuff
         }
         break;
     default:
-        status.codeType = GENERAL;
-        status.responseCode.ps = ERROR;
-        status.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Unexpected codeType\n");
+        returnMessage.responseCode.ps = ERROR;
         break;
     }
 

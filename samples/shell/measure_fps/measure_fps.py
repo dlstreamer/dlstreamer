@@ -19,7 +19,9 @@ arg_parser.add_argument('-g', '--set_gui', dest='set_gui', action='store_true',
 arg_parser.add_argument('--num_channels', default=1, type=int,
                         help='set the desired number of channels')
 arg_parser.add_argument('--device', default='CPU', type=str,
-                        help='set the device(s) on which your pipeline would be executed')
+                        help='set the device(s) on which inference would be executed')
+arg_parser.add_argument('--pre_proc', default='ie', type=str,
+                        help='set pre-processing method, one of "ie", "opencv", "g-api", "vaapi"')
 arg_parser.add_argument('--waiting_time', default=None, type=float,
                         help='set the timer (sec) by which the pipeline must complete its work')
 arg_parser.add_argument('--detection_model', default='mobilenet-ssd', type=str,
@@ -112,17 +114,21 @@ def create_pipeline():
     else:
         pipeline += "filesrc location={} ! ".format(argv.video_path)
 
-    pipeline += "decodebin ! videoconvert ! video/x-raw,format=BGRx ! "
+    pipeline += "decodebin ! "
+    if argv.pre_proc == "vaapi":
+        pipeline += "vaapipostproc ! video/x-raw(memory:VASurface) ! "
+    else:
+        pipeline += "videoconvert ! video/x-raw,format=BGRx ! "
 
     detect_model_path = get_model_path(argv.detection_model)
     detect_model_proc_path = get_model_proc_path(argv.detection_model)
 
     if detect_model_proc_path:
-        pipeline += "gvadetect model={} model-proc={} device={} pre-proc=ie ! ".format(
-            detect_model_path, detect_model_proc_path, argv.device)
+        pipeline += "gvadetect model={} model-proc={} device={} pre-proc={} ! ".format(
+            detect_model_path, detect_model_proc_path, argv.device, argv.pre_proc)
     else:
-        pipeline += "gvadetect model={} device={} pre-proc=ie ! ".format(
-            detect_model_path, argv.device)
+        pipeline += "gvadetect model={} device={} pre-proc={} ! ".format(
+            detect_model_path, argv.device, argv.pre_proc)
 
     pipeline += "queue ! "
 
@@ -138,20 +144,23 @@ def create_pipeline():
             classif_model_proc_path = get_model_proc_path(classification_model)
 
             if classif_model_proc_path:
-                pipeline += "gvaclassify model={} model-proc={} device={} pre-proc=ie ".format(
-                    classif_model_path, classif_model_proc_path, argv.device)
+                pipeline += "gvaclassify model={} model-proc={} device={} pre-proc={} ".format(
+                    classif_model_path, classif_model_proc_path, argv.device, argv.pre_proc)
             else:
-                pipeline += "gvaclassify model={} device={} pre-proc=ie ".format(
-                    classif_model_path, argv.device)
+                pipeline += "gvaclassify model={} device={} pre-proc={} ".format(
+                    classif_model_path, argv.device, argv.pre_proc)
             if object_class:
                 pipeline += "object-class={} ! queue ! ".format(object_class)
             else:
                 pipeline += "! queue ! "
 
+    pipeline += "gvafpscounter ! "
     if argv.set_gui:
-        pipeline += "gvafpscounter ! gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false "
+        if argv.pre_proc == "vaapi":
+            pipeline += "vaapipostproc ! video/x-raw ! "
+        pipeline += "gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false "
     else:
-        pipeline += "gvafpscounter ! fakesink sync=false "
+        pipeline += "fakesink sync=false "
 
     pipeline *= argv.num_channels
 
