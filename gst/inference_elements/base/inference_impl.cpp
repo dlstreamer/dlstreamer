@@ -446,6 +446,7 @@ void InferenceImpl::SinkEvent(GstEvent *event) {
 void InferenceImpl::InferenceCompletionCallback(
     std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,
     std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames) {
+    std::lock_guard<std::mutex> guard(output_frames_mutex);
     ITT_TASK(__FUNCTION__);
     if (frames.empty())
         return;
@@ -453,57 +454,50 @@ void InferenceImpl::InferenceCompletionCallback(
     std::vector<InferenceFrame> inference_frames;
     Model *model = nullptr;
     PostProcFunction post_proc = nullptr;
-    {
-        std::lock_guard<std::mutex> guard(output_frames_mutex);
 
-        for (auto &frame : frames) {
-            auto inference_result = std::dynamic_pointer_cast<InferenceResult>(frame);
-            model = inference_result->model;
-            InferenceFrame inference_roi = inference_result->inference_frame;
-            inference_result->image = nullptr; // if image_deleter set, call image_deleter including gst_buffer_unref
-                                               // before gst_buffer_make_writable
+    for (auto &frame : frames) {
+        auto inference_result = std::dynamic_pointer_cast<InferenceResult>(frame);
+        model = inference_result->model;
+        InferenceFrame inference_roi = inference_result->inference_frame;
+        inference_result->image = nullptr; // if image_deleter set, call image_deleter including gst_buffer_unref
+                                           // before gst_buffer_make_writable
 
-            if (post_proc == nullptr)
-                post_proc = inference_roi.gva_base_inference->post_proc;
-            else
-                assert(post_proc == inference_roi.gva_base_inference->post_proc);
+        if (post_proc == nullptr)
+            post_proc = inference_roi.gva_base_inference->post_proc;
+        else
+            assert(post_proc == inference_roi.gva_base_inference->post_proc);
 
-            for (OutputFrame &output_frame : output_frames) {
-                if (output_frame.buffer == inference_roi.buffer) {
-                    if (output_frame.filter
-                            ->is_full_frame) { // except gvaclassify because it doesn't attach new metadata
-                        if (output_frame.inference_count == 0)
-                            // This condition is necessary if two items in output_frames refer to the same buffer.
-                            // If current output_frame.inference_count equals 0, then inference for this output_frame
-                            // already happened, but buffer wasn't pushed further by pipeline yet. We skip this buffer
-                            // to find another, to which current inference callback really belongs
-                            continue;
-                        if (output_frame.writable_buffer) {
-                            // check if we have writable version of this buffer (this function called multiple times
-                            // on same buffer)
-                            inference_roi.buffer = output_frame.writable_buffer;
-                        } else {
-                            if (!gst_buffer_is_writable(inference_roi.buffer)) {
-                                GST_WARNING_OBJECT(output_frame.filter,
-                                                   "Making a writable buffer requires buffer copy");
-                            }
-                            inference_roi.buffer = gst_buffer_make_writable(inference_roi.buffer);
-                            output_frame.writable_buffer = inference_roi.buffer;
+        for (OutputFrame &output_frame : output_frames) {
+            if (output_frame.buffer == inference_roi.buffer) {
+                if (output_frame.filter->is_full_frame) { // except gvaclassify because it doesn't attach new metadata
+                    if (output_frame.inference_count == 0)
+                        // This condition is necessary if two items in output_frames refer to the same buffer.
+                        // If current output_frame.inference_count equals 0, then inference for this output_frame
+                        // already happened, but buffer wasn't pushed further by pipeline yet. We skip this buffer
+                        // to find another, to which current inference callback really belongs
+                        continue;
+                    if (output_frame.writable_buffer) {
+                        // check if we have writable version of this buffer (this function called multiple times
+                        // on same buffer)
+                        inference_roi.buffer = output_frame.writable_buffer;
+                    } else {
+                        if (!gst_buffer_is_writable(inference_roi.buffer)) {
+                            GST_WARNING_OBJECT(output_frame.filter, "Making a writable buffer requires buffer copy");
                         }
+                        inference_roi.buffer = gst_buffer_make_writable(inference_roi.buffer);
+                        output_frame.writable_buffer = inference_roi.buffer;
                     }
-                    --output_frame.inference_count;
-                    break;
                 }
+                --output_frame.inference_count;
+                break;
             }
-            inference_frames.push_back(inference_roi);
         }
-    } // lock guard free
+        inference_frames.push_back(inference_roi);
+    }
 
     if (post_proc != nullptr) {
         post_proc(blobs, inference_frames, model->proc, model ? model->name.c_str() : nullptr);
     }
-
-    std::lock_guard<std::mutex> guard(output_frames_mutex);
 
     PushOutput();
 }
