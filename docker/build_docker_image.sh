@@ -20,7 +20,6 @@ fi
 
 BASEDIR=$(dirname "$0")
 docker build -f ${BASEDIR}/${dockerfile} -t gst-video-analytics:$tag \
-    --build-arg http_proxy=${HTTP_PROXY} \
-    --build-arg https_proxy=${HTTPS_PROXY} \
-    --build-arg dldt=${dldt} \
+    --build-arg http_proxy=${HTTP_PROXY:-$http_proxy} \
+    --build-arg https_proxy=${HTTPS_PROXY:-$https_proxy} \
     ${BASEDIR}/..
