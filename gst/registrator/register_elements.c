@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,6 +17,7 @@
 #include "gstgvametapublish.h"
 #include "gstgvaskeleton.h"
 #include "gstgvaspeedometer.h"
+#include "gstgvatrack.h"
 #include "gstgvawatermark.h"
 
 static gboolean plugin_init(GstPlugin *plugin) {
@@ -48,6 +49,9 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
 
     if (!gst_element_register(plugin, "gvametapublish", GST_RANK_NONE, GST_TYPE_GVA_META_PUBLISH))
+        return FALSE;
+
+    if (!gst_element_register(plugin, "gvatrack", GST_RANK_NONE, GST_TYPE_GVA_TRACK))
         return FALSE;
 
     return TRUE;

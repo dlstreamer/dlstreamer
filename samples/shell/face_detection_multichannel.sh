@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -28,7 +28,7 @@ fi
 FILE=${1}
 CHANNELS_COUNT=${2:-2}
 DEVICE=CPU
-PRE_PROC=opencv
+PRE_PROC=ie
 
 MODEL=face-detection-retail-0004
 

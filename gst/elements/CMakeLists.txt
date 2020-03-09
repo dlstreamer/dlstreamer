@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -9,6 +9,7 @@ cmake_minimum_required (VERSION 3.1)
 set (TARGET_NAME "elements")
 
 find_package(OpenCV REQUIRED core imgproc)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
@@ -27,6 +28,9 @@ file (GLOB MAIN_SRC
     gvafpscounter/*.c
     gvaspeedometer/*.c
     gvaspeedometer/*.cpp
+    gvatrack/*.cpp
+    gvatrack/*.c
+    gvatrack/iou/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -36,7 +40,20 @@ file (GLOB MAIN_HEADERS
     gvawatermark/*.h
     gvafpscounter/*.h
     gvaspeedometer/*.h
+    gvatrack/*.h
+    gvatrack/iou/*.h
 )
+
+if(${ENABLE_VAS_TRACKER})
+    file (GLOB VAS_SRC
+        gvatrack/vas/*.cpp
+    )
+    file (GLOB VAS_HEADERS
+        gvatrack/vas/*.h
+    )
+    list (APPEND MAIN_SRC ${VAS_SRC})
+    list (APPEND MAIN_HEADERS ${VAS_HEADERS})
+endif()
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
@@ -50,11 +67,25 @@ PUBLIC
     gvawatermark
     gvafpscounter
     gvaspeedometer
+    gvatrack
+    gvatrack/iou
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTVIDEO_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
 )
+
+if(${ENABLE_VAS_TRACKER})
+    target_include_directories(${TARGET_NAME}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/gvatrack/vas
+    )
+
+    target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        vas
+    )
+endif()
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
@@ -96,3 +127,5 @@ else()
         target_compile_definitions(${TARGET_NAME} PRIVATE META_PUBLISH_KAFKA=0)
         message("Kafka support will not be available. Ensure required libraries (librdkafka) are installed, and rebuild plugin with -DKAFKA=1 before attempting to use Kafka")
 endif()
+
+add_subdirectory(gvapython)

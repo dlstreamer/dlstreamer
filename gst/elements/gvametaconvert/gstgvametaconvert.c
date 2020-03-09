@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -83,10 +83,10 @@ GType gst_gva_metaconvert_get_converter(void) {
     static const GEnumValue converter_types[] = {
         {GST_GVA_METACONVERT_TENSOR2TEXT, "Tensor to text conversion", "tensor2text"},
         {GST_GVA_METACONVERT_JSON, "Conversion to GstGVAJSONMeta", "json"},
+        {GST_GVA_METACONVERT_TENSORS_TO_FILE, "Tensors to file", "tensors-to-file"},
         {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection to GST debug log", "dump-detection"},
         {GST_GVA_METACONVERT_DUMP_CLASSIFICATION, "Dump classification to GST debug log", "dump-classification"},
         {GST_GVA_METACONVERT_DUMP_TENSORS, "Dump tensors to GST debug log", "dump-tensors"},
-        {GST_GVA_METACONVERT_TENSORS_TO_FILE, "Tensors to file", "tensors-to-file"},
         {GST_GVA_METACONVERT_ADD_FULL_FRAME_ROI, "Add fullframe ROI", "add-fullframe-roi"},
         {0, NULL, NULL}};
 
@@ -223,6 +223,8 @@ static void gst_gva_meta_convert_cleanup(GstGvaMetaConvert *gvametaconvert) {
     g_free(gvametaconvert->source);
     g_free(gvametaconvert->tags);
     g_free(gvametaconvert->location);
+    if (gvametaconvert->info)
+        gst_video_info_free(gvametaconvert->info);
 }
 
 static void gst_gva_meta_convert_reset(GstGvaMetaConvert *gvametaconvert) {
@@ -244,6 +246,7 @@ static void gst_gva_meta_convert_reset(GstGvaMetaConvert *gvametaconvert) {
     gvametaconvert->threshold = DEFAULT_THRESHOLD;
     gst_gva_metaconvert_set_converter(gvametaconvert, DEFAULT_CONVERTER);
     gvametaconvert->location = g_strdup(DEFAULT_LOCATION);
+    gvametaconvert->info = NULL;
 }
 
 static GstStateChangeReturn gst_gva_meta_convert_change_state(GstElement *element, GstStateChange transition) {
@@ -382,7 +385,9 @@ static gboolean gst_gva_meta_convert_set_caps(GstBaseTransform *trans, GstCaps *
 
     GstGvaMetaConvert *gvametaconvert = GST_GVA_META_CONVERT(trans);
     GST_DEBUG_OBJECT(gvametaconvert, "set_caps");
-    gvametaconvert->info = gst_video_info_new();
+    if (!gvametaconvert->info) {
+        gvametaconvert->info = gst_video_info_new();
+    }
     gst_video_info_from_caps(gvametaconvert->info, incaps);
     return TRUE;
 }
@@ -415,10 +420,13 @@ static gboolean gst_gva_meta_convert_sink_event(GstBaseTransform *trans, GstEven
 
 static GstFlowReturn gst_gva_meta_convert_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
     GstGvaMetaConvert *gvametaconvert = GST_GVA_META_CONVERT(trans);
+    GstFlowReturn status = GST_FLOW_OK;
+
     if (gvametaconvert->signal_handoffs) {
         g_signal_emit(gvametaconvert, gst_interpret_signals[SIGNAL_HANDOFF], 0, buf);
     } else if (gvametaconvert->convert_function) {
-        gvametaconvert->convert_function(gvametaconvert, buf);
+        status = gvametaconvert->convert_function(gvametaconvert, buf) ? GST_FLOW_OK : GST_FLOW_ERROR;
     }
-    return GST_FLOW_OK;
+
+    return status;
 }

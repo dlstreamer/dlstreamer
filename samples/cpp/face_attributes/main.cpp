@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,7 +13,7 @@
 #include <stdlib.h>
 
 #include "draw_axes.h"
-#include "gva_roi_meta.h"
+#include "video_frame.h"
 
 using namespace std;
 
@@ -127,13 +127,13 @@ static GstPadProbeReturn pad_probe_callback(GstPad *pad, GstPadProbeInfo *info, 
     if (buffer == NULL)
         return GST_PAD_PROBE_OK;
 
-    // Get width and height
-    gint width = 0, height = 0;
-    auto caps = gst_pad_get_current_caps(pad);
-    auto caps_str = gst_caps_get_structure(caps, 0);
-    gst_structure_get_int(caps_str, "width", &width);
-    gst_structure_get_int(caps_str, "height", &height);
-    gst_caps_unref(caps);
+    GstCaps *caps = gst_pad_get_current_caps(pad);
+    if (!caps)
+        throw std::runtime_error("Can't get current caps");
+
+    GVA::VideoFrame video_frame(buffer, caps);
+    gint width = video_frame.video_info()->width;
+    gint height = video_frame.video_info()->height;
 
     // Map buffer and create OpenCV image
     GstMapInfo map;
@@ -142,8 +142,8 @@ static GstPadProbeReturn pad_probe_callback(GstPad *pad, GstPadProbeInfo *info, 
     cv::Mat mat(height, width, CV_8UC4, map.data);
 
     // Iterate detected objects and all attributes
-    GVA::RegionOfInterestList roi_list(buffer);
-    for (auto roi : roi_list) {
+    std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
+    for (GVA::RegionOfInterest &roi : regions) {
         auto meta = roi.meta();
         string label;
         float head_angle_r = 0, head_angle_p = 0, head_angle_y = 0;
@@ -191,7 +191,7 @@ static GstPadProbeReturn pad_probe_callback(GstPad *pad, GstPadProbeInfo *info, 
     }
 
     gst_buffer_unmap(buffer, &map);
-
+    gst_caps_unref(caps);
     GST_PAD_PROBE_INFO_DATA(info) = buffer;
 
     return GST_PAD_PROBE_OK;
@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
     }
 
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
-    gchar const *capfilter = "video/x-raw";
+    gchar const *capfilter = "video/x-raw,format=BGRA";
     gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
                                    : "fpsdisplaysink video-sink=xvimagesink sync=false";
 

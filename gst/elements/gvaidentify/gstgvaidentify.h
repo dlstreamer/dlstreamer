@@ -28,7 +28,6 @@ struct _GstGvaIdentify {
     gchar *model;
     gchar *gallery;
     gboolean initialized;
-    gboolean tracker;
     gdouble threshold;
     GstVideoInfo *info;
 

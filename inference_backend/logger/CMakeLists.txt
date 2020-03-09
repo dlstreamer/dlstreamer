@@ -16,6 +16,10 @@ add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 
 target_link_libraries(${TARGET_NAME} inference_backend)
 
+if(${ENABLE_ITT})
+    target_link_libraries(${TARGET_NAME} ittnotify)
+endif()
+
 target_include_directories(${TARGET_NAME}
 PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}

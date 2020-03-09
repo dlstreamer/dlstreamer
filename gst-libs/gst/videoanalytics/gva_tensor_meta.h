@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,6 +12,7 @@
 #ifndef __GVA_TENSOR_META_H__
 #define __GVA_TENSOR_META_H__
 
+#include "tensor.h"
 #include <gst/gst.h>
 
 #define GVA_TENSOR_META_TAG "gva_tensor_meta"
@@ -20,41 +21,17 @@
 
 G_BEGIN_DECLS
 
-/**
- * @brief This enum describes model layer precision
- */
-typedef enum {
-    UNSPECIFIED = 255, /**< default value */
-    FP32 = 10,         /**< 32bit floating point value */
-    U8 = 40,           /**< unsigned 8bit integer value */
-} GVAPrecision;
-
-/**
- * @brief Enum value to be used with inference engine APIs to specify layer layouts
- */
-typedef enum {
-    ANY = 0,  /**< unspecified layout */
-    NCHW = 1, /**< NCWH layout */
-    NHWC = 2, /**< NHWC layout */
-} GVALayout;
-
 typedef struct _GstGVATensorMeta GstGVATensorMeta;
 
 /**
  * @brief This struct represents raw tensor metadata and contains instance of parent GstMeta and fields describing
- * inference result tensor
+ * inference result tensor. This metadata instances is attached to buffer by gvainference elements
  */
 struct _GstGVATensorMeta {
-    GstMeta meta;                     /**< parent meta object */
-    GVAPrecision precision;           /**< tensor precision (see GVAPrecision) */
-    guint rank;                       /**< tensor rank */
-    size_t dims[GVA_TENSOR_MAX_RANK]; /**< array describing tensor's dimensions */
-    GVALayout layout;                 /**< tensor layout (see GVALayout) */
-    gchar *layer_name;                /**< tensor output layer name */
-    gchar *model_name;                /**< model name */
-    void *data;                       /**< tensor data */
-    size_t total_bytes;               /**< tensor size in bytes */
-    const gchar *element_id;          /**< id of GStreamer pipeline element that produced current tensor */
+    GstMeta meta; /**< parent meta object */
+    GstStructure
+        *data; /**< pointer to gststucture data contains:precision, rank, array tensor's dimensions, layout,
+                    output layer name, model name, tensor data, tensor size, id of GStreamer pipeline element */
 };
 
 /**
@@ -132,13 +109,6 @@ GstGVATensorMeta *find_tensor_meta(GstBuffer *buffer, const char *model_name, co
  */
 GstGVATensorMeta *find_tensor_meta_ext(GstBuffer *buffer, const char *model_name, const char *output_layer,
                                        const char *element_id);
-
-/**
- * @brief This function returns number of elements in tensor as product of its dimensions
- * @param meta _GstGVATensorMeta to get value from
- * @return number of elements
- */
-guint gva_tensor_size(GstGVATensorMeta *meta);
 
 G_END_DECLS
 

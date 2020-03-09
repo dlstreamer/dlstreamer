@@ -19,7 +19,7 @@ source $BASEDIR/scripts/path_extractor.sh
 
 if [ -z ${1} ]; then
   echo "ERROR set path to video"
-  echo "Usage: ./vaapi_prepoc.sh <path/to/your/video/sample>"
+  echo "Usage: ./vaapi_preproc.sh <path/to/your/video/sample>"
   exit
 fi
 

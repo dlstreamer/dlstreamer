@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -30,7 +30,7 @@ fi
 FILE=${1}
 
 MODEL=vehicle-license-plate-detection-barrier-0106
-PRE_PROC=opencv
+PRE_PROC=ie
 #Force to use original 'master' plugins
 #GST_PLUGIN_PATH=/usr/local/lib/gst-video-analytics
 # We will generate OUTFILE per instance

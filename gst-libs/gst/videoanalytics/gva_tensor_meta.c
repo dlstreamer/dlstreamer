@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,15 +26,7 @@ gboolean gst_gva_tensor_meta_init(GstMeta *meta, gpointer params, GstBuffer *buf
     UNUSED(buffer);
 
     GstGVATensorMeta *tensor_meta = (GstGVATensorMeta *)meta;
-    tensor_meta->precision = 0;
-    tensor_meta->rank = 0;
-    memset(&tensor_meta->dims, 0, sizeof(tensor_meta->dims));
-    tensor_meta->layout = 0;
-    tensor_meta->model_name = 0;
-    tensor_meta->layer_name = 0;
-    tensor_meta->data = NULL;
-    tensor_meta->total_bytes = 0;
-    tensor_meta->element_id = NULL;
+    tensor_meta->data = gst_structure_new_empty("meta");
     return TRUE;
 }
 
@@ -47,15 +39,19 @@ gboolean gst_gva_tensor_meta_transform(GstBuffer *dest_buf, GstMeta *src_meta, G
     GstGVATensorMeta *dst = GST_GVA_TENSOR_META_ADD(dest_buf);
     GstGVATensorMeta *src = (GstGVATensorMeta *)src_meta;
 
-    dst->precision = src->precision;
-    dst->rank = src->rank;
-    memcpy(dst->dims, src->dims, sizeof(src->dims));
-    dst->layout = src->layout;
-    dst->model_name = g_strdup(src->model_name);
-    dst->layer_name = g_strdup(src->layer_name);
-    dst->data = g_slice_copy(src->total_bytes, src->data);
-    dst->total_bytes = src->total_bytes;
-    dst->element_id = src->element_id;
+    gst_structure_set_value(dst->data, "precision", gst_structure_get_value(src->data, "precision"));
+    gst_structure_set_value(dst->data, "rank", gst_structure_get_value(src->data, "rank"));
+    gst_structure_set_value(dst->data, "layout", gst_structure_get_value(src->data, "layout"));
+    gst_structure_set_value(dst->data, "model_name", gst_structure_get_value(src->data, "model_name"));
+    gst_structure_set_value(dst->data, "layer_name", gst_structure_get_value(src->data, "layer_name"));
+    gst_structure_set_value(dst->data, "total_bytes", gst_structure_get_value(src->data, "total_bytes"));
+    gst_structure_set_value(dst->data, "element_id", gst_structure_get_value(src->data, "element_id"));
+    gst_structure_set_value(dst->data, "data_buffer", gst_structure_get_value(src->data, "data_buffer"));
+
+    GValueArray *dst_arr_dims = NULL;
+    if (gst_structure_get_array(src->data, "dims", &dst_arr_dims))
+        gst_structure_set_array(dst->data, "dims", dst_arr_dims);
+
     return TRUE;
 }
 
@@ -63,19 +59,7 @@ void gst_gva_tensor_meta_free(GstMeta *meta, GstBuffer *buffer) {
     UNUSED(buffer);
 
     GstGVATensorMeta *tensor_meta = (GstGVATensorMeta *)meta;
-    if (tensor_meta->model_name) {
-        g_free(tensor_meta->model_name);
-        tensor_meta->model_name = NULL;
-    }
-    if (tensor_meta->layer_name) {
-        g_free(tensor_meta->layer_name);
-        tensor_meta->layer_name = NULL;
-    }
-    if (tensor_meta->data) {
-        g_slice_free1(tensor_meta->total_bytes, tensor_meta->data);
-        tensor_meta->data = NULL;
-        tensor_meta->total_bytes = 0;
-    }
+    gst_structure_free(tensor_meta->data);
 }
 
 const GstMetaInfo *gst_gva_tensor_meta_get_info(void) {
@@ -100,20 +84,22 @@ GstGVATensorMeta *find_tensor_meta_ext(GstBuffer *buffer, const char *model_name
         GST_WARNING("No valid arguments: model_name output_layer element_id");
         return NULL;
     }
-
     while ((meta = (GstGVATensorMeta *)gst_buffer_iterate_meta(buffer, &state))) {
         if (meta->meta.info->api != gst_gva_tensor_meta_api_get_type())
             continue;
         if (model_name) {
-            if (!meta->model_name || strstr(meta->model_name, model_name) == 0)
+            if (!gst_structure_has_field(meta->data, "model_name") ||
+                strstr(gst_structure_get_string(meta->data, "model_name"), model_name) == NULL)
                 continue;
         }
         if (output_layer) {
-            if (!meta->layer_name || strstr(meta->layer_name, output_layer) == 0)
+            if (!gst_structure_has_field(meta->data, "layer_name") ||
+                strstr(gst_structure_get_string(meta->data, "layer_name"), output_layer) == NULL)
                 continue;
         }
         if (element_id) {
-            if (!meta->element_id || strstr(meta->element_id, element_id) == 0)
+            if (!gst_structure_has_field(meta->data, "element_id") ||
+                strstr(gst_structure_get_string(meta->data, "element_id"), element_id) == NULL)
                 continue;
         }
         return meta;
@@ -124,15 +110,4 @@ GstGVATensorMeta *find_tensor_meta_ext(GstBuffer *buffer, const char *model_name
 
 GstGVATensorMeta *find_tensor_meta(GstBuffer *buffer, const char *model_name, const char *output_layer) {
     return find_tensor_meta_ext(buffer, model_name, output_layer, NULL);
-}
-
-/////////////////////////////////////////////////////////////////////////////////////////
-
-guint gva_tensor_size(GstGVATensorMeta *meta) {
-    guint size = 1;
-    for (guint i = 0; i < meta->rank && i < GVA_TENSOR_MAX_RANK; i++) {
-        if (meta->dims[i])
-            size *= meta->dims[i];
-    }
-    return size;
 }

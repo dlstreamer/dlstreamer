@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,6 +8,7 @@ cmake_minimum_required(VERSION 3.1)
 
 set (TARGET_NAME "gstvideoanalyticsmeta")
 
+find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
@@ -35,6 +36,7 @@ PUBLIC
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
+        ${OpenCV_LIBS}
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}

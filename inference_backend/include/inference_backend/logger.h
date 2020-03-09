@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 #pragma once
-
+#include "config.h"
 enum {
     GVA_ERROR_LOG_LEVEL = 1,
     GVA_WARNING_LOG_LEVEL,
@@ -36,13 +36,11 @@ void debug_log(int level, const char *file, const char *function, int line, cons
 
 void default_log_function(int level, const char *file, const char *function, int line, const char *message);
 
-#if defined(HAVE_ITT) && defined(__cplusplus)
+#if defined(ENABLE_ITT) && defined(__cplusplus)
 #include "ittnotify.h"
 #include <string>
 
 #define ITT_TASK(NAME) ITTTask task(NAME)
-
-static __itt_domain *itt_domain = nullptr;
 
 class ITTTask {
   public:

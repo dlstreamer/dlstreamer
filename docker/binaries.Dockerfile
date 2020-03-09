@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
-ARG dldt=dldt-binaries 
+ARG dldt=dldt-binaries
 ARG gst=gst-internal
 ARG OpenVINO_VERSION
 
@@ -23,7 +23,7 @@ RUN  git clone ${X264_REPO} && \
      cd x264 && \
      git checkout ${X264_VER} && \
      ./configure --prefix="/usr" --libdir=/usr/lib/x86_64-linux-gnu --enable-shared && \
-     make -j8 && \
+     make -j $(nproc) && \
      make install DESTDIR="/home/build" && \
      make install
 
@@ -62,38 +62,6 @@ RUN mkdir neo && cd neo && \
     dpkg-deb -x intel-opencl_19.31.13700_amd64.deb /home/build/ && \
     dpkg-deb -x intel-ocloc_19.31.13700_amd64.deb /home/build/ && \
     cp -a /home/build/. /
-
-FROM base AS dldt-binaries
-WORKDIR /home
-
-ARG OpenVINO_VERSION=2019.3.334
-
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    cpio
-
-COPY l_openvino_toolkit_p_${OpenVINO_VERSION}.tgz .
-
-RUN tar -xvzf l_openvino_toolkit_p_${OpenVINO_VERSION}.tgz && \
-    cd l_openvino_toolkit_p_${OpenVINO_VERSION} && \
-    sed -i 's#decline#accept#g' silent.cfg && \
-    sed -i 's#COMPONENTS=DEFAULTS#COMPONENTS=intel-openvino-ie-sdk-ubuntu-bionic__x86_64;intel-openvino-ie-rt-cpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-vpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gna-ubuntu-bionic__x86_64;intel-openvino-ie-rt-hddl-ubuntu-bionic__x86_64;intel-openvino-opencv-lib-ubuntu-bionic__x86_64#g' silent.cfg && \
-    ./install.sh -s silent.cfg && \
-    cd .. && rm -rf l_openvino_toolkit_p_${OpenVINO_VERSION}
-
-ARG IE_DIR=/home/build/opt/intel/dldt/inference-engine
-
-RUN mkdir -p ${IE_DIR}/include && \
-    cp -r /opt/intel/openvino/inference_engine/include/* ${IE_DIR}/include && \
-    mkdir -p ${IE_DIR}/lib/intel64 && \
-    cp -r /opt/intel/openvino/inference_engine/lib/intel64/* ${IE_DIR}/lib/intel64 && \
-    mkdir -p ${IE_DIR}/src && \
-    cp -r /opt/intel/openvino/inference_engine/src/* ${IE_DIR}/src/ && \
-    mkdir -p ${IE_DIR}/share && \
-    cp -r  /opt/intel/openvino/inference_engine/share/* ${IE_DIR}/share/ && \
-    mkdir -p ${IE_DIR}/external/ && \
-    cp -r /opt/intel/openvino/inference_engine/external/* ${IE_DIR}/external && \
-    mkdir -p ${IE_DIR}/external/opencv && \
-    cp -r /opt/intel/openvino/opencv/* ${IE_DIR}/external/opencv/
 
 FROM base AS gst-internal
 WORKDIR /home
@@ -307,6 +275,43 @@ RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
     fi
 
 
+FROM base AS dldt-binaries
+WORKDIR /home
+
+ARG OpenVINO_VERSION=2020.1.023
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    cpio
+
+COPY l_openvino_toolkit_p_${OpenVINO_VERSION}.tgz .
+
+RUN tar -xvzf l_openvino_toolkit_p_${OpenVINO_VERSION}.tgz && \
+    cd l_openvino_toolkit_p_${OpenVINO_VERSION} && \
+    sed -i 's#decline#accept#g' silent.cfg && \
+    sed -i 's#COMPONENTS=DEFAULTS#COMPONENTS=intel-openvino-ie-sdk-ubuntu-bionic__x86_64;intel-openvino-ie-rt-cpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-vpu-ubuntu-bionic__x86_64;intel-openvino-ie-rt-gna-ubuntu-bionic__x86_64;intel-openvino-ie-rt-hddl-ubuntu-bionic__x86_64;intel-openvino-opencv-lib-ubuntu-bionic__x86_64#g' silent.cfg && \
+    ./install.sh -s silent.cfg && \
+    cd .. && rm -rf l_openvino_toolkit_p_${OpenVINO_VERSION}
+
+ARG IE_DIR=/home/build/opt/intel/dldt/inference-engine
+
+RUN mkdir -p ${IE_DIR}/include && \
+    cp -r /opt/intel/openvino/inference_engine/include/* ${IE_DIR}/include && \
+
+    mkdir -p ${IE_DIR}/lib/intel64 && \
+    cp -r /opt/intel/openvino/inference_engine/lib/intel64/* ${IE_DIR}/lib/intel64 && \
+
+    mkdir -p ${IE_DIR}/share && \
+    cp -r  /opt/intel/openvino/inference_engine/share/* ${IE_DIR}/share/ && \
+
+    mkdir -p ${IE_DIR}/external/ && \
+    cp -r /opt/intel/openvino/inference_engine/external/* ${IE_DIR}/external && \
+
+    mkdir -p ${IE_DIR}/external/opencv && \
+    cp -r /opt/intel/openvino/opencv/* ${IE_DIR}/external/opencv/ && \
+
+    mkdir -p ${IE_DIR}/external/ngraph && \
+    cp -r /opt/intel/openvino/deployment_tools/ngraph/* ${IE_DIR}/external/ngraph/
+
 
 FROM ${dldt} AS dldt-build
 
@@ -339,7 +344,8 @@ RUN echo "\
 /opt/intel/dldt/inference-engine/external/tbb/lib\n\
 /opt/intel/dldt/inference-engine/external/mkltiny_lnx/lib\n\
 /opt/intel/dldt/inference-engine/external/vpu/hddl/lib\n\
-/opt/intel/dldt/inference-engine/external/opencv/lib/" > /etc/ld.so.conf.d/opencv-dldt-gst.conf && ldconfig
+/opt/intel/dldt/inference-engine/external/opencv/lib/\n\
+/opt/intel/dldt/inference-engine/external/ngraph/lib" > /etc/ld.so.conf.d/opencv-dldt-gst.conf && ldconfig
 
 ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/mediasdk/lib64/pkgconfig:${PKG_CONFIG_PATH}
 ENV InferenceEngine_DIR=/opt/intel/dldt/inference-engine/share
@@ -360,6 +366,7 @@ ARG SOURCE_REV
 COPY . gst-video-analytics
 ARG ENABLE_PAHO_INSTALLATION=false
 ARG ENABLE_RDKAFKA_INSTALLATION=false
+ARG EXTERNAL_GVA_BUILD_FLAGS
 
 RUN mkdir -p gst-video-analytics/build \
         && cd gst-video-analytics/build \
@@ -371,6 +378,8 @@ RUN mkdir -p gst-video-analytics/build \
         -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
         -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
         -DHAVE_VAAPI=ON \
+        -DENABLE_VAS_TRACKER=ON \
+        ${EXTERNAL_GVA_BUILD_FLAGS} \
         .. \
         && make -j $(nproc) \
         && make install \

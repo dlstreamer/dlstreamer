@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -25,7 +25,7 @@ fi
 FILE=${1}
 
 MODEL=vehicle-license-plate-detection-barrier-0106
-PRE_PROC=opencv
+PRE_PROC=ie
 
 # This sample may be invoked with a variety of output targets to demonstrate/confirm expected behavior:
 # 1. For named pipe, the file must be created before we launch a pipeline that uses the gvametapublish element.

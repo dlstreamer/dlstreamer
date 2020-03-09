@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,8 +11,8 @@
 #include "classification_history.h"
 #include "gstgvaclassify.h"
 #include "gva_base_inference.h"
-#include "gva_roi_meta.h"
 #include "gva_utils.h"
+#include "region_of_interest.h"
 
 #include <inference_backend/image_inference.h>
 #include <opencv2/imgproc.hpp>
@@ -126,7 +126,7 @@ RoiPreProcessorFunction InputPreProcess(GstStructure *preproc, GstVideoRegionOfI
         // look for tensor data with corresponding format
         GVA::RegionOfInterest roi(roi_meta);
         for (auto tensor : roi) {
-            if (tensor.get_string("format") == "landmark_points") {
+            if (tensor.format() == "landmark_points") {
                 landmarks_points = tensor.data<float>();
                 break;
             }

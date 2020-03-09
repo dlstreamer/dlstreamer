@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -31,7 +31,7 @@ MODEL3_PROC=emotions-recognition-retail-0003
 MODEL4_PROC=$(PROC_PATH $MODEL4)
 
 DEVICE=CPU
-PRE_PROC=opencv
+PRE_PROC=ie
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL1)
 CLASS_MODEL_PATH=$(GET_MODEL_PATH $MODEL2)
@@ -51,7 +51,7 @@ echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
 echo LD_LIBRARY_PATH=${LD_LIBRARY_PATH}
 
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} \
-$SOURCE_ELEMENT ! decodebin ! video/x-raw ! videoconvert ! \
+$SOURCE_ELEMENT ! decodebin ! videoconvert ! video/x-raw,format=BGRx ! \
 gvadetect model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
 gvaclassify model=$CLASS_MODEL_PATH model-proc=$(PROC_PATH $MODEL2_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
 gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$(PROC_PATH $MODEL3_PROC) device=$DEVICE pre-proc=$PRE_PROC ! queue ! \

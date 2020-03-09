@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,7 +10,7 @@
 #include <gst/gst.h>
 
 #include "gva_caps.h"
-#include "gva_roi_meta.h"
+#include "region_of_interest.h"
 #include "watermark.h"
 
 #include "config.h"

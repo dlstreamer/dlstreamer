@@ -1,39 +1,40 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "watermark.h"
 #include "config.h"
-#include "gva_buffer_map.h"
-#include "gva_roi_meta.h"
-
 #include "glib.h"
 
 // #include "render_human_pose.h"
+#include "gva_buffer_map.h"
+#include "gva_utils.h"
+#include "video_frame.h"
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
 
-#define LANDMARKS_POINT_COLOR_INDEX 1
-extern "C" {
-static cv::Scalar color_table[8] = {cv::Scalar(0, 0, 255),     cv::Scalar(0, 255, 0),   cv::Scalar(255, 0, 0),
-                                    cv::Scalar(0, 255, 255),   cv::Scalar(255, 255, 0), cv::Scalar(255, 0, 255),
-                                    cv::Scalar(127, 127, 127), cv::Scalar(0, 0, 0)};
+static const std::vector<cv::Scalar> color_table_C3 = {
+    cv::Scalar(255, 0, 0),   cv::Scalar(0, 255, 0),   cv::Scalar(0, 0, 255),   cv::Scalar(255, 255, 0),
+    cv::Scalar(0, 255, 255), cv::Scalar(255, 0, 255), cv::Scalar(255, 170, 0), cv::Scalar(255, 0, 170),
+    cv::Scalar(0, 255, 170), cv::Scalar(170, 255, 0), cv::Scalar(170, 0, 255), cv::Scalar(0, 170, 255),
+    cv::Scalar(255, 85, 0),  cv::Scalar(85, 255, 0),  cv::Scalar(0, 255, 85),  cv::Scalar(0, 85, 255),
+    cv::Scalar(85, 0, 255),  cv::Scalar(255, 0, 85)};
 
-static cv::Scalar index2color(int index, int fourcc) {
-    int tmp;
-    cv::Scalar color(0, 0, 0);
+static const std::vector<cv::Scalar> color_table_C1 = {cv::Scalar(0), cv::Scalar(255)};
 
-    color = color_table[index & 7];
+static cv::Scalar index2color(size_t index, int fourcc) {
+    if (fourcc == InferenceBackend::FOURCC_I420 or fourcc == InferenceBackend::FOURCC_NV12) {
+        return color_table_C1[index % color_table_C1.size()];
+    } else {
+        cv::Scalar color = color_table_C3[index % color_table_C3.size()];
+        if (fourcc == InferenceBackend::FOURCC_RGBA || fourcc == InferenceBackend::FOURCC_RGBX) {
+            std::swap(color[0], color[2]);
+        }
 
-    if (fourcc == InferenceBackend::FOURCC_RGBA || fourcc == InferenceBackend::FOURCC_RGBX) {
-        tmp = color[0];
-        color[0] = color[2];
-        color[2] = tmp;
+        return color;
     }
-
-    return color;
 }
 
 int Fourcc2OpenCVType(int fourcc) {
@@ -73,14 +74,27 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
     cv::Mat mat(image.height, image.width, format, image.planes[0], info->stride[0]);
 
     // construct text labels
-    GVA::RegionOfInterestList roi_list(buffer);
-    for (GVA::RegionOfInterest &roi : roi_list) {
-        std::string text;
-        int object_id = roi.meta()->id;
-        int color_index = object_id;
+    GVA::VideoFrame video_frame(buffer, info);
+    for (GVA::RegionOfInterest &roi : video_frame.regions()) {
+        std::string text = "";
+        size_t color_index = roi.label_id();
+        int object_id = 0;
 
+        GstVideoRegionOfInterestMeta *roi_meta = roi.meta();
+
+        get_object_id(roi_meta, &object_id);
         if (object_id > 0) {
             text = std::to_string(object_id) + ": ";
+            color_index = object_id;
+        }
+
+        if (roi_meta->roi_type) {
+            const gchar *type = g_quark_to_string(roi_meta->roi_type);
+            if (type) {
+                if (!text.empty())
+                    text += " ";
+                text += std::string(type);
+            }
         }
         auto velocity_meta = gst_video_region_of_interest_meta_get_param(roi.meta(), "Velocity");
 
@@ -102,18 +116,22 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
             // // fprintf(stdout, "%f \n", velocity);
         }
         for (GVA::Tensor &tensor : roi) {
-            std::string label = tensor.label();
-            if (!label.empty()) {
-                text += label + " ";
+            if (!tensor.is_detection()) {
+                std::string label = tensor.label();
+                if (!label.empty()) {
+                    if (!text.empty())
+                        text += " ";
+                    text += label;
+                }
             }
-            if (tensor.model_name().find("landmarks") != std::string::npos ||
-                tensor.get_string("format") == "landmark_points") {
+            // landmarks rendering
+            if (tensor.model_name().find("landmarks") != std::string::npos || tensor.format() == "landmark_points") {
                 std::vector<float> data = tensor.data<float>();
                 for (guint i = 0; i < data.size() / 2; i++) {
+                    cv::Scalar color = index2color(i, image.format);
                     int x_lm = roi.meta()->x + roi.meta()->w * data[2 * i];
                     int y_lm = roi.meta()->y + roi.meta()->h * data[2 * i + 1];
-                    cv::circle(mat, cv::Point(x_lm, y_lm), 1 + static_cast<int>(0.012 * roi.meta()->w),
-                               color_table[LANDMARKS_POINT_COLOR_INDEX], -1);
+                    cv::circle(mat, cv::Point(x_lm, y_lm), 1 + static_cast<int>(0.012 * roi.meta()->w), color, -1);
                 }
             }
             // if(tensor.model_name().find("pose") != std::string::npos ||
@@ -123,29 +141,20 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
             //     }
         }
 
-        GstVideoRegionOfInterestMeta *meta = roi.meta();
-        if (meta->roi_type) {
-            std::hash<std::string> myhash;
-            const gchar *type = g_quark_to_string(meta->roi_type);
-
-            text += type;
-            color_index += (int)myhash(type);
-        }
-
         // draw rectangle
         cv::Scalar color = index2color(color_index, image.format); // TODO: Is it good mapping to colors?
-        cv::Point2f bbox_min(meta->x, meta->y);
-        cv::Point2f bbox_max(meta->x + meta->w, meta->y + meta->h);
-        cv::rectangle(mat, bbox_min, bbox_max, color, 2);
+
+        cv::Point2f bbox_min(roi_meta->x, roi_meta->y);
+        cv::Point2f bbox_max(roi_meta->x + roi_meta->w, roi_meta->y + roi_meta->h);
+        cv::rectangle(mat, bbox_min, bbox_max, color, 1);
 
         // put text
-        cv::Point2f pos(meta->x, meta->y - 5.f);
+        cv::Point2f pos(roi_meta->x, roi_meta->y - 5.f);
         if (pos.y < 0)
-            pos.y = meta->y + 30.f;
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_SIMPLEX, 1, color, 2);
+            pos.y = roi_meta->y + 30.f;
+        cv::putText(mat, text, pos, cv::FONT_HERSHEY_TRIPLEX, 1, color, 1);
     }
 
     // unmap GstBuffer
     gva_buffer_unmap(buffer, image, mapContext);
 }
-} /* extern "C" */

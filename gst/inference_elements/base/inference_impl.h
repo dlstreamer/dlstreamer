@@ -1,11 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#ifndef __CLASSIFY_INFERENCE_H__
-#define __CLASSIFY_INFERENCE_H__
+#ifndef __BASE_INFERENCE_H__
+#define __BASE_INFERENCE_H__
 
 #include "gva_base_inference.h"
 #include "inference_backend/image_inference.h"
@@ -18,15 +18,6 @@
 
 class InferenceImpl {
   public:
-    InferenceImpl(GvaBaseInference *gva_base_inference);
-
-    GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer, GstVideoInfo *info);
-    void SinkEvent(GstEvent *event);
-    void FlushInference();
-
-    ~InferenceImpl();
-
-  private:
     struct Model {
         std::string name;
         std::shared_ptr<InferenceBackend::ImageInference> inference;
@@ -34,8 +25,18 @@ class InferenceImpl {
         GstStructure *input_preproc;
     };
 
+    InferenceImpl(GvaBaseInference *gva_base_inference);
+
+    GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer, GstVideoInfo *info);
+    void SinkEvent(GstEvent *event);
+    void FlushInference();
+    const std::vector<Model> &GetModels() const;
+
+    ~InferenceImpl();
+
+  private:
     struct InferenceResult : public InferenceBackend::ImageInference::IFrameBase {
-        InferenceROI inference_frame;
+        InferenceFrame inference_frame;
         Model *model;
         std::shared_ptr<InferenceBackend::Image> image;
     };
@@ -79,4 +80,4 @@ class InferenceImpl {
     std::mutex output_frames_mutex;
 };
 
-#endif /* __CLASSIFY_INFERENCE_H__ */
+#endif /* __BASE_INFERENCE_H__ */

@@ -1,13 +1,13 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "classification_history.h"
 
-#include <gva_roi_meta.h>
-#include <gva_utils.h>
+#include "gva_utils.h"
+#include <video_frame.h>
 
 #include <algorithm>
 
@@ -22,14 +22,16 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
     // by default we assume that
     // we have recent classification result or classification is not required for this object
     bool result = false;
-    if (roi->id <= 0) { // object has not been tracked
+    gint id;
+    if (!get_object_id(roi, &id))
+        // object has not been tracked
+        return true;
+    if (history.count(id) == 0) { // new object
+        history[id].frame_of_last_update = current_num_frame;
         result = true;
-    } else if (history.count(roi->id) == 0) { // new object
-        history[roi->id].frame_of_last_update = current_num_frame;
-        result = true;
-    } else if (current_num_frame - history[roi->id].frame_of_last_update > gva_classify->skip_interval) {
+    } else if (current_num_frame - history[id].frame_of_last_update > gva_classify->skip_interval) {
         // new object or reclassify old object
-        history[roi->id].frame_of_last_update = current_num_frame;
+        history[id].frame_of_last_update = current_num_frame;
         result = true;
     }
     return result;
@@ -45,20 +47,22 @@ void ClassificationHistory::UpdateROIParams(int roi_id, GstStructure *roi_param)
 }
 
 void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
-    GstVideoRegionOfInterestMeta *roi = NULL;
-    void *state = NULL;
+    GVA::VideoFrame video_frame(buffer, gva_classify->base_inference.info);
     std::lock_guard<std::mutex> guard(history_mutex);
-    while ((roi = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
-        if (roi->id <= 0)
+    for (GVA::RegionOfInterest &region : video_frame.regions()) {
+        gint id;
+        if (!get_object_id(region.meta(), &id))
             continue;
-        GstStructure *roi_param = NULL;
-        if (history.count(roi->id)) {
-            const auto &roi_history = history[roi->id];
-            if (this->current_num_frame > roi_history.frame_of_last_update) // protect from filling just classified ROIs
+        if (history.count(id)) {
+            const auto &roi_history = history[id];
+            if (this->current_num_frame >
+                roi_history.frame_of_last_update) { // protect from filling just classified ROIs
+                int frames_ago = this->current_num_frame - roi_history.frame_of_last_update;
                 for (const auto &layer_to_roi_param : roi_history.layers_to_roi_params) {
-                    roi_param = gst_structure_copy(layer_to_roi_param.second);
-                    gst_video_region_of_interest_meta_add_param(roi, roi_param);
+                    GVA::Tensor tensor = region.add_tensor(gst_structure_copy(layer_to_roi_param.second));
+                    tensor.set_int("frames_ago", frames_ago);
                 }
+            }
         }
     }
 }

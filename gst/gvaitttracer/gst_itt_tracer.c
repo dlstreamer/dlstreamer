@@ -59,15 +59,26 @@ static void gst_gvaitttracer_class_init(GstGvaITTTracerClass *klass) {
 static void GstTracerHookPadPushPre(GObject *self, GstClockTime ts, GstPad *pad, GstBuffer *buffer) {
     UNUSED(ts);
     UNUSED(buffer);
-
-    GstElement *elem = gst_pad_get_parent_element(pad);
-    GstPad *pad2 = gst_pad_get_peer(pad);
-    GstElement *elem2 = gst_pad_get_parent_element(pad2);
-    char *name2 = gst_element_get_name(elem2);
-    __itt_task_begin(GST_GVAITTTRACER(self)->domain, __itt_null, __itt_null, __itt_string_handle_create(name2));
-    gst_object_unref(elem);
-    gst_object_unref(elem2);
-    gst_object_unref(pad2);
+    if (pad) {
+        GstElement *elem = gst_pad_get_parent_element(pad);
+        if (elem) {
+            GstPad *pad2 = gst_pad_get_peer(pad);
+            if (pad2) {
+                GstElement *elem2 = gst_pad_get_parent_element(pad2);
+                if (elem2) {
+                    char *name2 = gst_element_get_name(elem2);
+                    if (name2) {
+                        __itt_task_begin(GST_GVAITTTRACER(self)->domain, __itt_null, __itt_null,
+                                         __itt_string_handle_create(name2));
+                        g_free(name2);
+                    }
+                    gst_object_unref(elem2);
+                }
+                gst_object_unref(pad2);
+            }
+            gst_object_unref(elem);
+        }
+    }
 }
 
 static void GstTracerHookPadPushPost(GObject *self, GstClockTime ts, GstPad *pad, GstFlowReturn res) {

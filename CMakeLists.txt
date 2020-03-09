@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -18,7 +18,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(VERSION_MAJOR 0)
-set(VERSION_MINOR 6)
+set(VERSION_MINOR 7)
 
 if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
     set(VERSION_PATCH 0)
@@ -84,12 +84,21 @@ set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 ####################################
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O2")
+if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+    # TODO: test if it increases x86 performance as well and rm check for aarch64
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize") # should be used with "-O2"
+endif()
 
 ###############################################################################
+option(ENABLE_ITT "Enable ITT for tracing" ON)
+if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+    set(ENABLE_ITT OFF)
+endif()
 option(HAVE_VAAPI "Parameter to enable VAAPI for image preprocessing" OFF)
 option(SUPPORT_DMA_BUFFER "Parameter to enable DMABuf in sink/source caps" OFF)
 option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
 option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
+option(ENABLE_VAS_TRACKER "Enables vas tracker as part of gvatrack" OFF)
 option(USE_VPUSMM "Parameter to use VPUSMM" OFF)
 
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)

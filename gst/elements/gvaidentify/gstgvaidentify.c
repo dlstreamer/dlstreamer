@@ -26,11 +26,9 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_identify_debug_category);
 #define DEFAULT_MODEL NULL
 #define DEFAULT_GALLERY ""
 
-#define DEFAULT_MIN_THRESHOLD 0.
+#define DEFAULT_MIN_THRESHOLD -1.
 #define DEFAULT_MAX_THRESHOLD 1.
-#define DEFAULT_THRESHOLD 0.7
-
-#define DEFAULT_TRACKER FALSE
+#define DEFAULT_THRESHOLD 0.3
 
 static void gst_gva_identify_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
 static void gst_gva_identify_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec);
@@ -48,7 +46,7 @@ static void gst_gva_identify_cleanup(GstGvaIdentify *gvaidentify);
 static void gst_gva_identify_reset(GstGvaIdentify *gvaidentify);
 static GstStateChangeReturn gst_gva_identify_change_state(GstElement *element, GstStateChange transition);
 
-enum { PROP_0, PROP_MODEL, PROP_GALLERY, PROP_THRESHOLD, PROP_TRACKER };
+enum { PROP_0, PROP_MODEL, PROP_GALLERY, PROP_THRESHOLD };
 
 /* class initialization */
 
@@ -91,12 +89,6 @@ static void gst_gva_identify_class_init(GstGvaIdentifyClass *klass) {
                                                         "JSON file with list of image examples for each known "
                                                         "object/face/person. See samples for JSON format examples",
                                                         DEFAULT_GALLERY, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-    g_object_class_install_property(gobject_class, PROP_TRACKER,
-                                    g_param_spec_boolean("tracker", "Tracker",
-                                                         "Enable position-based object tracker. "
-                                                         "The tracker assigns object_id to all tracked objects and "
-                                                         "smooths identification results over period of time",
-                                                         DEFAULT_TRACKER, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(gobject_class, PROP_THRESHOLD,
                                     g_param_spec_float("threshold", "Threshold",
                                                        "Identification threshold"
@@ -135,7 +127,6 @@ static void gst_gva_identify_reset(GstGvaIdentify *gvaidentify) {
 
     gvaidentify->model = g_strdup(DEFAULT_MODEL);
     gvaidentify->gallery = g_strdup(DEFAULT_GALLERY);
-    gvaidentify->tracker = DEFAULT_TRACKER;
     gvaidentify->threshold = DEFAULT_THRESHOLD;
     gvaidentify->identifier = NULL;
     gvaidentify->initialized = FALSE;
@@ -220,9 +211,6 @@ void gst_gva_identify_set_property(GObject *object, guint property_id, const GVa
     case PROP_GALLERY:
         gst_gva_inference_set_gallery(gvaidentify, g_value_get_string(value));
         break;
-    case PROP_TRACKER:
-        gvaidentify->tracker = g_value_get_boolean(value);
-        break;
     case PROP_THRESHOLD:
         gvaidentify->threshold = g_value_get_float(value);
         break;
@@ -246,9 +234,6 @@ void gst_gva_identify_get_property(GObject *object, guint property_id, GValue *v
         break;
     case PROP_GALLERY:
         g_value_set_string(value, gvaidentify->gallery);
-        break;
-    case PROP_TRACKER:
-        g_value_set_boolean(value, gvaidentify->tracker);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -327,5 +312,5 @@ static GstFlowReturn gst_gva_identify_transform_ip(GstBaseTransform *trans, GstB
     GstGvaIdentify *gvaidentify = GST_GVA_IDENTIFY(trans);
 
     GST_DEBUG_OBJECT(gvaidentify, "transform_ip");
-    return frame_to_identify(gvaidentify, buf, gvaidentify->info);
+    return frame_to_identify(gvaidentify, buf);
 }

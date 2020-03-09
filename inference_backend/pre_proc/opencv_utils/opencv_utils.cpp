@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -39,7 +39,7 @@ void ImageToMat(const Image &src, cv::Mat &dst) {
         break;
     }
     default:
-        throw std::runtime_error("ImageToMat: Unsupported format");
+        throw std::runtime_error("ImageToMat: Unsupported format in opencv pre-proc");
     }
 }
 

@@ -12,7 +12,6 @@
  ******************************************************************************/
 
 #include "reid_gallery.h"
-#include "tracker.h"
 
 #include <fstream>
 #include <iostream>
@@ -28,8 +27,9 @@ float ComputeReidDistance(const cv::Mat &descr1, const cv::Mat &descr2) {
     float xx = descr1.dot(descr1);
     float yy = descr2.dot(descr2);
     float xy = descr1.dot(descr2);
-    float norm = sqrt(xx * yy) + 1e-6;
-    return 1.0f - xy / norm;
+    float norm = sqrt(xx * yy) + 1e-6f;
+    float cosine_similarity = xy / norm;
+    return cosine_similarity;
 }
 
 bool file_exists(const std::string &name) {
@@ -65,7 +65,7 @@ std::string folder_name(const std::string &path) {
 } // namespace
 
 const std::string EmbeddingsGallery::unknown_label = "Unknown";
-const int EmbeddingsGallery::unknown_id = TrackedObject::UNKNOWN_LABEL_IDX;
+const int EmbeddingsGallery::unknown_id = -1;
 
 EmbeddingsGallery::EmbeddingsGallery(const std::string &ids_list, double threshold) : reid_threshold(threshold) {
     if (ids_list.empty()) {
@@ -119,7 +119,8 @@ EmbeddingsGallery::EmbeddingsGallery(const std::string &ids_list, double thresho
                 cv::Mat emb(file_size / sizeof(float), 1, CV_32F);
                 input.read((char *)emb.data, file_size);
                 features.push_back(emb);
-                idx_to_id.push_back(id); // this line fixed. Was: (total_images)
+                idx_to_id.push_back(id);
+                // this line fixed. Was: (total_images)
             } else {
                 g_warning("Failed to open feature file: %s", path.c_str());
             }
@@ -144,14 +145,22 @@ std::vector<int> EmbeddingsGallery::GetIDsByEmbeddings(const std::vector<cv::Mat
             }
         }
     }
-    KuhnMunkres matcher;
-    auto matched_idx = matcher.Solve(distances);
+
     std::vector<int> output_ids;
-    for (auto col_idx : matched_idx) {
-        if (distances.at<float>(output_ids.size(), col_idx) > reid_threshold)
+    for (int row = 0; row < distances.rows; ++row) {
+        float similarity = distances.at<float>(row, 0);
+        size_t similarity_id = 0;
+        for (int col = 1; col < distances.cols; ++col) {
+            if (similarity < distances.at<float>(row, col)) {
+                similarity = distances.at<float>(row, col);
+                similarity_id = col;
+            }
+        }
+        if (similarity < reid_threshold) {
             output_ids.push_back(unknown_id);
-        else
-            output_ids.push_back(idx_to_id[col_idx]);
+        } else {
+            output_ids.push_back(idx_to_id[similarity_id]);
+        }
     }
     return output_ids;
 }

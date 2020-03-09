@@ -82,6 +82,14 @@ GType gst_gva_json_meta_api_get_type(void);
  */
 gchar *get_json_message(GstGVAJSONMeta *meta);
 
+/**
+ * @brief This function sets message field of _GstGVAJSONMeta
+ * @param meta _GstGVAJSONMeta* to set message
+ * @param message message
+ * @return void
+ */
+void set_json_message(GstGVAJSONMeta *meta, gchar *message);
+
 G_END_DECLS
 
 #endif /* __GVA_JSON_META_H__ */

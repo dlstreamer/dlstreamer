@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -20,7 +20,7 @@ source $BASEDIR/scripts/path_extractor.sh
 MODEL=vehicle-license-plate-detection-barrier-0106
 
 DEVICE=GPU
-PRE_PROC=opencv
+PRE_PROC=ie
 
 DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 
@@ -33,6 +33,6 @@ fi
 FILE=${1}
 
 gst-launch-1.0 --gst-plugin-path ${GST_PLUGIN_PATH} filesrc location=${FILE} ! \
-               decodebin ! video/x-raw ! videoconvert ! \
+               decodebin ! videoconvert ! video/x-raw,format=BGRx ! \
                gvadetect gpu-streams=1 model=$DETECT_MODEL_PATH device=$DEVICE pre-proc=$PRE_PROC ! queue ! \
                gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false

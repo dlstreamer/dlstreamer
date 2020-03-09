@@ -1,13 +1,13 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gstgvametaconvert.h"
 #include "gva_json_meta.h"
-#include "gva_roi_meta.h"
 #include "gva_tensor_meta.h"
+#include "region_of_interest.h"
 
 #ifdef __cplusplus
 extern "C" {

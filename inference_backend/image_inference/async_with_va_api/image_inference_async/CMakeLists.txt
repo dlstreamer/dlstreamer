@@ -32,3 +32,7 @@ PRIVATE
         logger
         va_api_wrapper
 )
+
+if(${ENABLE_ITT})
+        target_link_libraries(${TARGET_NAME} PRIVATE ittnotify)
+endif()

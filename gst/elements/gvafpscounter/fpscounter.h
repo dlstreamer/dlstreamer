@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#ifndef __WATERMARK_H__
-#define __WATERMARK_H__
+#ifndef __FPSCOUNTER_H__
+#define __FPSCOUNTER_H__
 
 #include <gst/video/video.h>
 
@@ -22,4 +22,4 @@ void fps_counter_eos();
 }
 #endif
 
-#endif /* __WATERMARK_H__ */
+#endif /* __FPSCOUNTER_H__ */

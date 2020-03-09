@@ -25,7 +25,8 @@ create_va_api_components(MemoryType memory_type, VADisplay display, const ImageI
     int width = 0;
     int height = 0;
     int format = 0;
-    inference->GetModelInputInfo(&width, &height, &format);
+    int batch_size = 0;
+    inference->GetModelInputInfo(&width, &height, &batch_size, &format);
     std::unique_ptr<VaApiImagePool> pool =
         std::unique_ptr<VaApiImagePool>(new VaApiImagePool(context.get(), pool_size, width, height, format));
     return std::make_tuple(std::move(context), std::move(pool), std::move(converter));
@@ -64,8 +65,8 @@ const std::string &ImageInferenceAsync::GetModelName() const {
     return inference->GetModelName();
 }
 
-void ImageInferenceAsync::GetModelInputInfo(int *width, int *height, int *format) const {
-    inference->GetModelInputInfo(width, height, format);
+void ImageInferenceAsync::GetModelInputInfo(int *width, int *height, int *batch_size, int *format) const {
+    inference->GetModelInputInfo(width, height, batch_size, format);
 }
 
 bool ImageInferenceAsync::IsQueueFull() {

@@ -1,11 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "jsonconverter.h"
 #include "gva_utils.h"
+#include "video_frame.h"
 #include <iomanip>
 #include <iostream>
 #include <json.hpp>
@@ -27,24 +28,30 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     return res;
 }
 
-json convert_roi_detection(GstBuffer *buffer) {
-    GstVideoRegionOfInterestMeta *meta = NULL;
-    gpointer state = NULL;
+json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json res;
-    while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
+    GVA::VideoFrame video_frame(buffer, converter->info);
+    std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
+    for (std::vector<GVA::RegionOfInterest>::iterator it = regions.begin(); it != regions.end(); ++it) {
+        gint id = 0;
+        get_object_id(it->meta(), &id);
+
         json jobject = json::object();
-        jobject.push_back({"x", meta->x});
-        jobject.push_back({"y", meta->y});
-        jobject.push_back({"w", meta->w});
-        jobject.push_back({"h", meta->h});
-        if (meta->id != 0) {
-            jobject.push_back({"id", meta->id});
-        }
-        const gchar *roi_type = g_quark_to_string(meta->roi_type);
+        jobject.push_back({"x", it->meta()->x});
+        jobject.push_back({"y", it->meta()->y});
+        jobject.push_back({"w", it->meta()->w});
+        jobject.push_back({"h", it->meta()->h});
+
+        if (id != 0)
+            jobject.push_back({"id", id});
+
+        const gchar *roi_type = g_quark_to_string(it->meta()->roi_type);
+
         if (roi_type) {
             jobject.push_back({"roi_type", roi_type});
         }
-        for (GList *l = meta->params; l; l = g_list_next(l)) {
+        for (GList *l = it->meta()->params; l; l = g_list_next(l)) {
+
             GstStructure *s = (GstStructure *)l->data;
             const gchar *s_name = gst_structure_get_name(s);
             if (strcmp(s_name, "detection") == 0) {
@@ -63,7 +70,8 @@ json convert_roi_detection(GstBuffer *buffer) {
                         {"confidence", confidence},
                         {"label_id", label_id}};
 
-                    const gchar *label = g_quark_to_string(meta->roi_type);
+                    const gchar *label = g_quark_to_string(it->meta()->roi_type);
+
                     if (label) {
                         detection.push_back({"label", label});
                     }
@@ -92,12 +100,13 @@ json convert_roi_detection(GstBuffer *buffer) {
     return res;
 }
 
-json convert_roi_tensor(GstBuffer *buffer) {
-    GstVideoRegionOfInterestMeta *meta = NULL;
-    gpointer state = NULL;
+json convert_roi_tensor(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json res;
-    while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
-        for (GList *l = meta->params; l; l = g_list_next(l)) {
+    GVA::VideoFrame video_frame(buffer, converter->info);
+    std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
+    for (std::vector<GVA::RegionOfInterest>::iterator it = regions.begin(); it != regions.end(); ++it) {
+        for (GList *l = it->meta()->params; l; l = g_list_next(l)) {
+
             json jobject = json::object();
             GstStructure *s = (GstStructure *)l->data;
             GVA::Tensor s_tensor = GVA::Tensor(s);
@@ -125,9 +134,11 @@ json convert_roi_tensor(GstBuffer *buffer) {
             if (!format_value.empty()) {
                 jobject.push_back(json::object_t::value_type("format", format_value));
             }
-            std::string label_value = s_tensor.label();
-            if (!label_value.empty()) {
-                jobject.push_back(json::object_t::value_type("label", label_value));
+            if (!s_tensor.is_detection()) {
+                std::string label_value = s_tensor.label();
+                if (!label_value.empty()) {
+                    jobject.push_back(json::object_t::value_type("label", label_value));
+                }
             }
             double confidence_value;
             if (gst_structure_get_double(s, "confidence", &confidence_value)) {
@@ -138,7 +149,7 @@ json convert_roi_tensor(GstBuffer *buffer) {
                 jobject.push_back(json::object_t::value_type("label_id", label_id_value));
             }
             json data_array;
-            if (s_tensor.precision() == GVA::Tensor::Precision::U8) {
+            if (s_tensor.precision() == GVAPrecision::U8) {
                 const std::vector<uint8_t> data = s_tensor.data<uint8_t>();
                 for (guint i = 0; i < data.size(); i++) {
                     data_array += data[i];
@@ -165,8 +176,8 @@ json convert_roi_tensor(GstBuffer *buffer) {
 
 void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json jframe = get_frame_data(converter, buffer);
-    json jroi_detection = convert_roi_detection(buffer);
-    json jroi_tensor = convert_roi_tensor(buffer);
+    json jroi_detection = convert_roi_detection(converter, buffer);
+    json jroi_tensor = convert_roi_tensor(converter, buffer);
     if (jroi_detection.is_null()) {
         if (!converter->include_no_detections) {
             GST_DEBUG("No detections found. Not posting JSON message");
@@ -179,15 +190,16 @@ void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         jframe.update(jroi_tensor);
     }
     if (!jframe.is_null()) {
-        GstGVAJSONMeta *meta = GST_GVA_JSON_META_ADD(buffer);
-        meta->message = strdup(jframe.dump().c_str());
-        GST_INFO("JSON message: %s", meta->message);
+        std::string json_message = jframe.dump();
+        GVA::VideoFrame video_frame(buffer, converter->info);
+        video_frame.add_message(json_message);
+        GST_INFO("JSON message: %s", json_message.c_str());
     }
 }
 
 void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json jframe = get_frame_data(converter, buffer);
-    json jroi_detection = convert_roi_detection(buffer);
+    json jroi_detection = convert_roi_detection(converter, buffer);
     if (jroi_detection.is_null()) {
         if (!converter->include_no_detections) {
             GST_DEBUG("No detections found. Not posting JSON message");
@@ -197,21 +209,23 @@ void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         jframe.update(jroi_detection);
     }
     if (!jframe.is_null()) {
-        GstGVAJSONMeta *meta = GST_GVA_JSON_META_ADD(buffer);
-        meta->message = strdup(jframe.dump().c_str());
-        GST_INFO("JSON message: %s", meta->message);
+        std::string json_message = jframe.dump();
+        GVA::VideoFrame video_frame(buffer, converter->info);
+        video_frame.add_message(json_message);
+        GST_INFO("JSON message: %s", json_message.c_str());
     }
 }
 
 void tensor_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json jframe = get_frame_data(converter, buffer);
-    json jroi_tensor = convert_roi_tensor(buffer);
+    json jroi_tensor = convert_roi_tensor(converter, buffer);
     if (!jroi_tensor.is_null()) {
         jframe.update(jroi_tensor);
     }
     if (!jframe.is_null()) {
-        GstGVAJSONMeta *meta = GST_GVA_JSON_META_ADD(buffer);
-        meta->message = strdup(jframe.dump().c_str());
-        GST_INFO("JSON message: %s", meta->message);
+        std::string json_message = jframe.dump();
+        GVA::VideoFrame video_frame(buffer, converter->info);
+        video_frame.add_message(json_message);
+        GST_INFO("JSON message: %s", json_message.c_str());
     }
 }
