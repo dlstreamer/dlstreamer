@@ -10,8 +10,12 @@ extern "C" {
 
 #ifdef __cplusplus
 namespace human_pose_estimation {
+
 class HumanPoseEstimator;
-}
+
+int Fourcc2OpenCVType(int fourcc);
+} // namespace human_pose_estimation
+
 using HumanPoseEstimator = human_pose_estimation::HumanPoseEstimator;
 #else  /* __cplusplus */
 typedef struct HumanPoseEstimator HumanPoseEstimator;

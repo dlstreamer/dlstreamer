@@ -16,22 +16,22 @@ void renderHumanPose(const std::vector<HumanPose> &poses, cv::Mat &image) {
     /*
         00 - nose
         01 - neck
-        02 - right plecho
-        03 - right lockot'
+        02 - right shoulder
+        03 - right cubit
         04 - right hand
-        05 - l plecho
-        06 - l lockot'
+        05 - l shoulder
+        06 - l cubit
         07 - left hand
-        08 - r bedro
-        09 - r koleno
+        08 - r hip
+        09 - r knee
         10 - r foot
-        11 - l bedro
-        12 - l koleno
+        11 - l hip
+        12 - l knee
         13 - l foot
-        14 - r glaz
-        15 - l glaz
-        16 - right hear
-        17 - left hear
+        14 - r eye
+        15 - l eye
+        16 - right ear
+        17 - left ear
     */
 
     const std::vector<cv::Scalar> colors = {cv::Scalar(255, 0, 0),   cv::Scalar(255, 85, 0),  cv::Scalar(255, 170, 0),
@@ -40,7 +40,7 @@ void renderHumanPose(const std::vector<HumanPose> &poses, cv::Mat &image) {
                                             cv::Scalar(0, 255, 255), cv::Scalar(0, 170, 255), cv::Scalar(0, 85, 255),
                                             cv::Scalar(0, 0, 255),   cv::Scalar(85, 0, 255),  cv::Scalar(170, 0, 255),
                                             cv::Scalar(255, 0, 255), cv::Scalar(255, 0, 170), cv::Scalar(255, 0, 85)};
-                                            
+
     const std::vector<std::pair<int, int>> limbKeypointsIds = {{1, 2}, {1, 5},  {2, 3},   {3, 4},  {5, 6},   {6, 7},
                                                                {1, 8}, {8, 9},  {9, 10},  {1, 11}, {11, 12}, {12, 13},
                                                                {1, 0}, {0, 14}, {14, 16}, {0, 15}, {15, 17}};

@@ -268,8 +268,8 @@ class VideoFrame {
      * free region_tensor manually after function invoked
      * @return new RegionOfInterest instance
      */
-    RegionOfInterest add_region(int x, int y, int w, int h, int label_id, double confidence = 0.0,
-                                GstStructure *region_tensor = nullptr) {
+    RegionOfInterest add_region(int x, int y, int w, int h, int label_id = -1, double confidence = 0.0,
+                                GstStructure *region_tensor = nullptr, std::string label = "") {
         if (!this->is_bounded(x, y, w, h)) {
             int x_init = x, y_init = y, w_init = w, h_init = h;
             clip(x, y, w, h);
@@ -278,10 +278,14 @@ class VideoFrame {
                       x_init, y_init, w_init, h_init, x, y, w, h);
         }
 
-        const gchar *label = "";
-        get_label_by_label_id(region_tensor, label_id, &label);
+        const gchar *label_ = "";
+        if (label.empty())
+            get_label_by_label_id(region_tensor, label_id, &label_);
+        else {
+            label_ = label.c_str();
+        }
 
-        GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(buffer, label, x, y, w, h);
+        GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(buffer, label_, x, y, w, h);
 
         if (not region_tensor)
             region_tensor = gst_structure_new_empty("detection");
@@ -316,10 +320,10 @@ class VideoFrame {
      * free region_tensor manually after function invoked
      * @return new RegionOfInterest instance
      */
-    RegionOfInterest add_region(double x, double y, double w, double h, int label_id, double confidence = 0.0,
-                                GstStructure *region_tensor = nullptr) {
+    RegionOfInterest add_region(double x, double y, double w, double h, int label_id = -1, double confidence = 0.0,
+                                GstStructure *region_tensor = nullptr, std::string label = "") {
         return this->add_region((int)(x * info->width), (int)(y * info->height), (int)(w * info->width),
-                                (int)(h * info->height), label_id, confidence, region_tensor);
+                                (int)(h * info->height), label_id, confidence, region_tensor, label);
     }
 
     /**

@@ -407,6 +407,10 @@ class Tensor {
         return name() == "detection";
     }
 
+    bool is_human_pose() const {
+        return name() == "human_pose";
+    }
+
   protected:
     /**
      * @brief ptr to GstStructure that contains all tensor (inference results) data & info.

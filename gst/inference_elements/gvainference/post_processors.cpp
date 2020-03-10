@@ -82,6 +82,8 @@ void ExtractInferenceResults(const std::map<std::string, OutputBlob::Ptr> &outpu
             gsize n_elem;
             gst_structure_set(tensor.gst_structure(), "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
                               g_variant_get_fixed_array(v, &n_elem, 1), NULL);
+
+            g_value_array_free(arr);
         }
         ++blob_id;
     }
