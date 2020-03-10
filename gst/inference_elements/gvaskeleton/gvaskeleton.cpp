@@ -203,7 +203,7 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, g
         GstMemory *mem = gst_buffer_get_memory(buf, 0);
         GstMapFlags mapFlags = GST_MAP_READWRITE; // TODO
         gst_memory_unref(mem);
-        //  should be unmapped with gst_buffer_unmap() after usage
+        //  should be unmapped with gva_buffer_unmap() after usage
         gva_buffer_map(buf, image, mapContext, info, InferenceBackend::MemoryType::SYSTEM, mapFlags);
         int format = Fourcc2OpenCVType(image.format);
 
@@ -211,24 +211,32 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, g
         // const cv::Mat mat(image.height, image.width, format, image.planes[0], info->stride[0]);
 
         if (mat.empty())
-            throw std::runtime_error("Uppsss... Preproc has not happend.");
+            throw std::logic_error("cv::Mat (mapped buffer) is empty.");
 
         std::vector<HumanPose> poses = hpe_obj->estimate(mat);
-        // TODO: move it to gvawatermark and return const for mat
-        if (render)
-            renderHumanPose(poses, mat);
         gva_buffer_unmap(buf, image, mapContext);
 
+        // TODO: move it to gvawatermark and return const for mat
+        // if (render)
+        //     renderHumanPose(poses, mat);
+
+        // TODO: need to understand how to get rid of gst_buffer_ref
+        // because of that buffer is becoming not writable
+        buf = gst_buffer_ref(buf);
+
         if (!gst_buffer_is_writable(buf)) {
-            GVA_WARNING("Buffer is not writable. Trying to make writable...")
+            GVA_DEBUG("Buffer is not writable. Trying to make it writable (may require copying)...")
             buf = gst_buffer_make_writable(buf);
         }
+
         GVA::VideoFrame frame(buf);
         if (attach_poses_to_buffer(poses, frame))
-            throw std::runtime_error("Uppsss... Attaching human poses meta to buffer has not happend.");
+            throw std::runtime_error("Attaching human poses meta to buffer error.");
         if (hands_detect)
             if (attach_bbox_hands_to_buffer(poses, frame, image.height, image.width) == GVA_SKELETON_ERROR)
-                throw std::runtime_error("Uppsss... Attaching hands bboxes meta to buffer has not happend.");
+                throw std::runtime_error("Attaching hands bboxes meta to buffer error.");
+
+        gst_buffer_unref(buf);
 
         return GVA_SKELETON_OK;
     } catch (const std::exception &e) {
