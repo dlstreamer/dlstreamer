@@ -8,7 +8,6 @@
 #include "config.h"
 #include "glib.h"
 
-// #include "render_human_pose.h"
 #include "gva_buffer_map.h"
 #include "gva_utils.h"
 #include "video_frame.h"
@@ -61,6 +60,62 @@ int Fourcc2OpenCVType(int fourcc) {
     return 0;
 }
 
+void render_human_pose(const GVA::VideoFrame &video_frame, cv::Mat &mat, int format) {
+    for (const GVA::Tensor &human_pose_tensor : video_frame.tensors()) {
+        if (human_pose_tensor.is_human_pose()) {
+            size_t i = 0;
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("nose_x"), human_pose_tensor.get_double("nose_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("neck_x"), human_pose_tensor.get_double("neck_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(
+                mat,
+                cv::Point(human_pose_tensor.get_double("r_shoulder_x"), human_pose_tensor.get_double("r_shoulder_y")),
+                4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_cubit_x"), human_pose_tensor.get_double("r_cubit_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_hand_x"), human_pose_tensor.get_double("r_hand_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(
+                mat,
+                cv::Point(human_pose_tensor.get_double("l_shoulder_x"), human_pose_tensor.get_double("l_shoulder_y")),
+                4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_cubit_x"), human_pose_tensor.get_double("l_cubit_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_hand_x"), human_pose_tensor.get_double("l_hand_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("r_hip_x"), human_pose_tensor.get_double("r_hip_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_knee_x"), human_pose_tensor.get_double("r_knee_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_foot_x"), human_pose_tensor.get_double("r_foot_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_hip_x"), human_pose_tensor.get_double("l_hip_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_knee_x"), human_pose_tensor.get_double("l_knee_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_foot_x"), human_pose_tensor.get_double("l_foot_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("r_eye_x"), human_pose_tensor.get_double("r_eye_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_eye_x"), human_pose_tensor.get_double("l_eye_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("r_ear_x"), human_pose_tensor.get_double("r_ear_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_ear_x"), human_pose_tensor.get_double("l_ear_y")),
+                       4, index2color(i++, format), -1);
+        }
+    }
+}
+
 void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
     // map GstBuffer to cv::Mat
     InferenceBackend::Image image;
@@ -75,13 +130,12 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
 
     // construct text labels
     GVA::VideoFrame video_frame(buffer, info);
+    render_human_pose(video_frame, mat, image.format);
     for (GVA::RegionOfInterest &roi : video_frame.regions()) {
         std::string text = "";
         size_t color_index = roi.label_id();
         int object_id = 0;
-
         GstVideoRegionOfInterestMeta *roi_meta = roi.meta();
-
         get_object_id(roi_meta, &object_id);
         if (object_id > 0) {
             text = std::to_string(object_id) + ": ";
@@ -134,11 +188,6 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
                     cv::circle(mat, cv::Point(x_lm, y_lm), 1 + static_cast<int>(0.012 * roi.meta()->w), color, -1);
                 }
             }
-            // if(tensor.model_name().find("pose") != std::string::npos ||
-            //     tensor.get_string("format") == "skeleton_points") {
-            //         std::vector<float> data = tensor.data<float>();
-            //         renderHumanPose(data, mat);
-            //     }
         }
 
         // draw rectangle
