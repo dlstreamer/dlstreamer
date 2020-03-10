@@ -34,30 +34,6 @@ GvaSkeletonStatus hpe_release(HumanPoseEstimator *hpe_obj) {
     }
 }
 
-int human_pose_estimation::Fourcc2OpenCVType(int fourcc) {
-    switch (fourcc) {
-    case InferenceBackend::FOURCC_NV12:
-        return CV_8UC1; // only Y plane
-    case InferenceBackend::FOURCC_BGRA:
-        return CV_8UC4;
-    case InferenceBackend::FOURCC_BGRX:
-        return CV_8UC4;
-    case InferenceBackend::FOURCC_BGRP:
-        return 0;
-    case InferenceBackend::FOURCC_BGR:
-        return CV_8UC3;
-    case InferenceBackend::FOURCC_RGBA:
-        return CV_8UC4;
-    case InferenceBackend::FOURCC_RGBX:
-        return CV_8UC4;
-    case InferenceBackend::FOURCC_RGBP:
-        return 0;
-    case InferenceBackend::FOURCC_I420:
-        return CV_8UC1; // only Y plane
-    }
-    return 0;
-}
-
 void convertPoses2Array(const std::vector<HumanPose> &poses, float *data, size_t kp_num) {
     size_t i = 0;
     for (const auto &pose : poses) {
@@ -195,34 +171,20 @@ GvaSkeletonStatus attach_bbox_hands_to_buffer(const std::vector<HumanPose> &pose
     return GVA_SKELETON_ERROR;
 }
 
-GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean render, gboolean hands_detect,
+GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean hands_detect,
                                   GstVideoInfo *info) {
     try {
-        InferenceBackend::Image image;
-        BufferMapContext mapContext;
-        GstMemory *mem = gst_buffer_get_memory(buf, 0);
-        GstMapFlags mapFlags = GST_MAP_READWRITE; // TODO
-        gst_memory_unref(mem);
+        InferenceBackend::Image image{};
+        BufferMapContext mapContext{};
         //  should be unmapped with gva_buffer_unmap() after usage
-        gva_buffer_map(buf, image, mapContext, info, InferenceBackend::MemoryType::SYSTEM, mapFlags);
-        int format = Fourcc2OpenCVType(image.format);
+        gva_buffer_map(buf, image, mapContext, info, InferenceBackend::MemoryType::SYSTEM, GST_MAP_READ);
 
-        cv::Mat mat(image.height, image.width, format, image.planes[0], info->stride[0]);
-        // const cv::Mat mat(image.height, image.width, format, image.planes[0], info->stride[0]);
-
+        const cv::Mat mat(image.height, image.width, CV_8UC3, image.planes[0], info->stride[0]);
         if (mat.empty())
             throw std::logic_error("cv::Mat (mapped buffer) is empty.");
 
         std::vector<HumanPose> poses = hpe_obj->estimate(mat);
         gva_buffer_unmap(buf, image, mapContext);
-
-        // TODO: move it to gvawatermark and return const for mat
-        // if (render)
-        //     renderHumanPose(poses, mat);
-
-        // TODO: need to understand how to get rid of gst_buffer_ref
-        // because of that buffer is becoming not writable
-        buf = gst_buffer_ref(buf);
 
         if (!gst_buffer_is_writable(buf)) {
             GVA_DEBUG("Buffer is not writable. Trying to make it writable (may require copying)...")
@@ -236,11 +198,8 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, g
             if (attach_bbox_hands_to_buffer(poses, frame, image.height, image.width) == GVA_SKELETON_ERROR)
                 throw std::runtime_error("Attaching hands bboxes meta to buffer error.");
 
-        gst_buffer_unref(buf);
-
         return GVA_SKELETON_OK;
     } catch (const std::exception &e) {
-        gst_buffer_unref(buf);
         GVA_ERROR(e.what());
     }
     return GVA_SKELETON_ERROR;

@@ -176,10 +176,8 @@ std::shared_ptr<InferenceBackend::Image> CreateImage(GstBuffer *buffer, GstVideo
         GST_ERROR("Buffer mapping failed");
         return nullptr;
     }
-    gst_buffer_ref(buffer);
     auto image_deleter = [buffer, map_context](InferenceBackend::Image *image) {
         gva_buffer_unmap(buffer, *image, *map_context);
-        gst_buffer_unref(buffer);
         delete image;
     };
     return std::shared_ptr<InferenceBackend::Image>(unique_image.release(), image_deleter);

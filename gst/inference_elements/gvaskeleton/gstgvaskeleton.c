@@ -1,6 +1,6 @@
 #include "gstgvaskeleton.h"
-#include "gva_caps.h"
 #include "gvaskeleton.h"
+#include "gvaskeleton_caps.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 
@@ -14,7 +14,7 @@
 GST_DEBUG_CATEGORY_STATIC(gst_gva_skeleton_debug_category);
 #define GST_CAT_DEFAULT gst_gva_skeleton_debug_category
 
-enum { PROP_0, PROP_MODEL_PATH, PROP_DEVICE, PROP_RENDER, PROP_HANDS_DETECT };
+enum { PROP_0, PROP_MODEL_PATH, PROP_DEVICE, PROP_HANDS_DETECT };
 
 static void gst_gva_skeleton_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
 static void gst_gva_skeleton_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
@@ -64,9 +64,6 @@ void gst_gva_skeleton_class_init(GstGvaSkeletonClass *klass) {
                                                         G_PARAM_WRITABLE // flags
                                                         ));
 
-    g_object_class_install_property(gobject_class, PROP_RENDER,
-                                    g_param_spec_boolean("render", "Render", "Draw skeleton's keypints.", FALSE,
-                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(gobject_class, PROP_HANDS_DETECT,
                                     g_param_spec_boolean("hands-detect", "Hands-Detect", "Detection hands position.",
                                                          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
@@ -96,9 +93,6 @@ void gst_gva_skeleton_set_property(GObject *object, guint prop_id, const GValue 
     case PROP_DEVICE:
         skeleton->device = g_value_dup_string(value);
         break;
-    case PROP_RENDER:
-        skeleton->render = g_value_get_boolean(value);
-        break;
     case PROP_HANDS_DETECT:
         skeleton->hands_detect = g_value_get_boolean(value);
         break;
@@ -119,9 +113,6 @@ void gst_gva_skeleton_get_property(GObject *object, guint prop_id, GValue *value
         break;
     case PROP_DEVICE:
         g_value_set_string(value, skeleton->device);
-        break;
-    case PROP_RENDER:
-        g_value_set_boolean(value, skeleton->render);
         break;
     case PROP_HANDS_DETECT:
         g_value_set_boolean(value, skeleton->hands_detect);
@@ -188,17 +179,16 @@ GstFlowReturn gst_gva_skeleton_transform_ip(GstBaseTransform *trans, GstBuffer *
     GstGvaSkeleton *skeleton = GST_GVA_SKELETON(trans);
 
     GST_DEBUG_OBJECT(skeleton, "transform_ip");
-    // TODO: get rid of this flag (may be move it to start)
 
     if (!gst_pad_is_linked(GST_BASE_TRANSFORM_SRC_PAD(trans))) {
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }
 
-    hpe_to_estimate(skeleton->hpe_object, buf, skeleton->render, skeleton->hands_detect, &skeleton->info);
+    GvaSkeletonStatus status = hpe_to_estimate(skeleton->hpe_object, buf, skeleton->hands_detect, &skeleton->info);
+    if (status == GVA_SKELETON_OK)
+        return GST_FLOW_OK;
 
-    return 0;
-
-    /* return GST_FLOW_OK; FIXME shouldn't signal about dropping frames in inplace transform function*/
+    return GST_FLOW_ERROR;
 }
 
 gboolean gst_gva_skeleton_start(GstBaseTransform *base) {
@@ -214,7 +204,7 @@ gboolean gst_gva_skeleton_start(GstBaseTransform *base) {
     if (!skeleton->is_initialized) {
         skeleton->hpe_object = hpe_initialization(skeleton->model_path, "CPU");
         if (!skeleton->hpe_object)
-            g_error("Upppsss... Human pose estimator has not happend.");
+            g_error("Human pose estimator initialization is failed.");
         skeleton->is_initialized = TRUE;
     }
 
