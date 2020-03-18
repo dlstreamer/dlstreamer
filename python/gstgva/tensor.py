@@ -298,3 +298,6 @@ class Tensor:
     #  @return True if tensor contains detection results, False otherwise
     def is_detection(self) -> bool:
         return self.name() == "detection"
+    
+    def is_human_pose(self) -> bool:
+        return self.name() == "human_pose"

@@ -115,8 +115,8 @@ class VideoFrame:
         if not self.__is_bounded(x, y, w, h):
             x_init, y_init, w_init, h_init = x, y, w, h
             x, y, w, h = self.__clip(x, y, w, h)
-            Gst.debug("ROI coordinates [x, y, w, h] are out of image borders and will be clipped: [{}, {}, {}, {}] -> "
-                "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h))
+            # Gst.debug("ROI coordinates [x, y, w, h] are out of image borders and will be clipped: [{}, {}, {}, {}] -> "
+            #     "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h))
 
         label = self.__get_label_by_label_id(region_tensor, label_id)
 
