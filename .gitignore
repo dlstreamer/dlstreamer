@@ -27,3 +27,7 @@ cmake-build-*/
 __pycache__/
 *.py[cod]
 *$py.class
+
+*.mp4
+*.avi
+*.h264
