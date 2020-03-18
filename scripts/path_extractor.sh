@@ -11,13 +11,10 @@ GET_MODEL_PATH() {
         paths=$(find $models_dir -type f -name "*$model_name.xml" -print)
         if [ ! -z "$paths" ];
         then
-            considered_precision_paths=$(echo "$paths" | grep "$precision")
+            considered_precision_paths=$(echo "$paths" | grep "/$precision/")
             if [ ! -z "$considered_precision_paths" ];
             then
                 echo $(echo "$considered_precision_paths" | head -n 1)
-                exit 0
-            else
-                echo $(echo "$paths" | head -n 1)
                 exit 0
             fi
         fi
