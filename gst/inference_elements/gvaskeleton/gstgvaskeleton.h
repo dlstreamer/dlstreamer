@@ -33,6 +33,7 @@ typedef struct _GstGvaSkeleton {
 
     gboolean hands_detect;
     gboolean is_initialized;
+    gboolean body_detect;
 
     HumanPoseEstimator *hpe_object;
 

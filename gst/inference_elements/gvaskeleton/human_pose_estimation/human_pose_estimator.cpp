@@ -23,7 +23,7 @@ inline std::string fileNameNoExt(const std::string &filepath) {
 }
 
 HumanPoseEstimator::HumanPoseEstimator(const std::string &modelPath, const std::string &targetDeviceName_)
-    : minJointsNumber(3), stride(8), pad(cv::Vec4i::all(0)), meanPixel(cv::Vec3f::all(128)), minPeaksDistance(3.0f),
+    : minJointsNumber(5), stride(8), pad(cv::Vec4i::all(0)), meanPixel(cv::Vec3f::all(128)), minPeaksDistance(3.0f),
       midPointsScoreThreshold(0.05f), foundMidPointsRatioThreshold(0.8f), minSubsetScore(0.2f), inputLayerSize(-1, -1),
       upsampleRatio(4), targetDeviceName(targetDeviceName_), modelPath(modelPath) {
 
