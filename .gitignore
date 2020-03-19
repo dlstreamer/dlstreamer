@@ -31,3 +31,7 @@ __pycache__/
 *.mp4
 *.avi
 *.h264
+*.out
+
+thirdparty/vas/include/vas/common.h
+thirdparty/vas/include/vas/ot.h
