@@ -171,8 +171,43 @@ GvaSkeletonStatus attach_bbox_hands_to_buffer(const std::vector<HumanPose> &pose
     return GVA_SKELETON_ERROR;
 }
 
+GvaSkeletonStatus attach_bbox_body_to_buffer(const std::vector<HumanPose> &poses, GVA::VideoFrame &frame, size_t height,
+                                             size_t width) {
+    try {
+        for (const auto &pose : poses) {
+            float max_keypoint_x = -1.0f;
+            float max_keypoint_y = -1.0f;
+            float min_keypoint_x = width;
+            float min_keypoint_y = height;
+            const cv::Point2f absentKeypoint(-1.0f, -1.0f);
+            for (const auto &keypoint : pose.keypoints) {
+                if (keypoint == absentKeypoint) {
+                    continue;
+                }
+                if (keypoint.x > max_keypoint_x)
+                    max_keypoint_x = keypoint.x;
+                if (keypoint.y > max_keypoint_y)
+                    max_keypoint_y = keypoint.y;
+
+                if (keypoint.x < min_keypoint_x)
+                    min_keypoint_x = keypoint.x;
+                if (keypoint.y < min_keypoint_y)
+                    min_keypoint_y = keypoint.y;
+            }
+            auto right_hand_roi =
+                frame.add_region(static_cast<int>(min_keypoint_x), static_cast<int>(min_keypoint_y),
+                                 static_cast<int>(max_keypoint_x - min_keypoint_x),
+                                 static_cast<int>(max_keypoint_y - min_keypoint_y), 1, 0.99, nullptr, "body");
+        }
+        return GVA_SKELETON_OK;
+    } catch (const std::exception &e) {
+        GVA_ERROR(e.what());
+    }
+    return GVA_SKELETON_ERROR;
+}
+
 GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, gboolean hands_detect,
-                                  GstVideoInfo *info) {
+                                  gboolean body_detect, GstVideoInfo *info) {
     try {
         InferenceBackend::Image image{};
         BufferMapContext mapContext{};
@@ -197,6 +232,9 @@ GvaSkeletonStatus hpe_to_estimate(HumanPoseEstimator *hpe_obj, GstBuffer *buf, g
         if (hands_detect)
             if (attach_bbox_hands_to_buffer(poses, frame, image.height, image.width) == GVA_SKELETON_ERROR)
                 throw std::runtime_error("Attaching hands bboxes meta to buffer error.");
+        if (body_detect)
+            if (attach_bbox_body_to_buffer(poses, frame, image.height, image.width) == GVA_SKELETON_ERROR)
+                throw std::runtime_error("Attaching body bboxes meta to buffer error.");
 
         return GVA_SKELETON_OK;
     } catch (const std::exception &e) {

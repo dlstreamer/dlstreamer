@@ -14,7 +14,7 @@
 GST_DEBUG_CATEGORY_STATIC(gst_gva_skeleton_debug_category);
 #define GST_CAT_DEFAULT gst_gva_skeleton_debug_category
 
-enum { PROP_0, PROP_MODEL_PATH, PROP_DEVICE, PROP_HANDS_DETECT };
+enum { PROP_0, PROP_MODEL_PATH, PROP_DEVICE, PROP_HANDS_DETECT, PROP_BODY_DETECT };
 
 static void gst_gva_skeleton_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec);
 static void gst_gva_skeleton_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec);
@@ -67,6 +67,9 @@ void gst_gva_skeleton_class_init(GstGvaSkeletonClass *klass) {
     g_object_class_install_property(gobject_class, PROP_HANDS_DETECT,
                                     g_param_spec_boolean("hands-detect", "Hands-Detect", "Detection hands position.",
                                                          FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(gobject_class, PROP_BODY_DETECT,
+                                    g_param_spec_boolean("body-detect", "Body-Detect", "Detection body position.",
+                                                         FALSE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     base_transform_class->set_caps = GST_DEBUG_FUNCPTR(gst_gva_skeleton_set_caps);
     base_transform_class->transform = NULL;
@@ -96,6 +99,9 @@ void gst_gva_skeleton_set_property(GObject *object, guint prop_id, const GValue 
     case PROP_HANDS_DETECT:
         skeleton->hands_detect = g_value_get_boolean(value);
         break;
+    case PROP_BODY_DETECT:
+        skeleton->body_detect = g_value_get_boolean(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -116,6 +122,9 @@ void gst_gva_skeleton_get_property(GObject *object, guint prop_id, GValue *value
         break;
     case PROP_HANDS_DETECT:
         g_value_set_boolean(value, skeleton->hands_detect);
+        break;
+    case PROP_BODY_DETECT:
+        g_value_set_boolean(value, skeleton->body_detect);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -184,7 +193,8 @@ GstFlowReturn gst_gva_skeleton_transform_ip(GstBaseTransform *trans, GstBuffer *
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }
 
-    GvaSkeletonStatus status = hpe_to_estimate(skeleton->hpe_object, buf, skeleton->hands_detect, &skeleton->info);
+    GvaSkeletonStatus status =
+        hpe_to_estimate(skeleton->hpe_object, buf, skeleton->hands_detect, skeleton->body_detect, &skeleton->info);
     if (status == GVA_SKELETON_OK)
         return GST_FLOW_OK;
 
