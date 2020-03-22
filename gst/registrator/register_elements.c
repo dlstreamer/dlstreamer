@@ -17,6 +17,7 @@
 #include "gstgvametapublish.h"
 #include "gstgvatrack.h"
 #include "gstgvawatermark.h"
+#include "gstgvaspeedometer.h"
 
 static gboolean plugin_init(GstPlugin *plugin) {
     if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, GST_TYPE_GVA_INFERENCE))
@@ -44,6 +45,8 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
 
     if (!gst_element_register(plugin, "gvatrack", GST_RANK_NONE, GST_TYPE_GVA_TRACK))
+        return FALSE;
+    if (!gst_element_register(plugin, "gvaspeedometer", GST_RANK_NONE, GST_TYPE_GVA_SPEEDOMETER))
         return FALSE;
 
     return TRUE;
