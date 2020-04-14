@@ -7,19 +7,19 @@
 #include "gva_base_inference.h"
 
 #define DEFAULT_MODEL NULL
-#define DEFAULT_INFERENCE_ID NULL
+#define DEFAULT_MODEL_INSTANCE_ID NULL
 #define DEFAULT_MODEL_PROC NULL
 #define DEFAULT_DEVICE "CPU"
-#define DEFAULT_EXTENSION ""
+#define DEFAULT_DEVICE_EXTENSIONS ""
 #define DEFAULT_PRE_PROC "ie"
 
-#define DEFALUT_MIN_THRESHOLD 0.
-#define DEFALUT_MAX_THRESHOLD 1.
-#define DEFALUT_THRESHOLD 0.5
+#define DEFAULT_MIN_THRESHOLD 0.
+#define DEFAULT_MAX_THRESHOLD 1.
+#define DEFAULT_THRESHOLD 0.5
 
-#define DEFAULT_MIN_EVERY_NTH_FRAME 1
-#define DEFAULT_MAX_EVERY_NTH_FRAME UINT_MAX
-#define DEFAULT_EVERY_NTH_FRAME 1
+#define DEFAULT_MIN_INFERENCE_INTERVAL 1
+#define DEFAULT_MAX_INFERENCE_INTERVAL UINT_MAX
+#define DEFAULT_INFERENCE_INTERVAL 1
 
 #define DEFAULT_RESHAPE FALSE
 
@@ -27,27 +27,27 @@
 #define DEFAULT_MAX_BATCH_SIZE 1024
 #define DEFAULT_BATCH_SIZE 1
 
-#define DEFAULT_MIN_WIDTH 0
-#define DEFAULT_MAX_WIDTH UINT_MAX
-#define DEFAULT_WIDTH 0
+#define DEFAULT_MIN_RESHAPE_WIDTH 0
+#define DEFAULT_MAX_RESHAPE_WIDTH UINT_MAX
+#define DEFAULT_RESHAPE_WIDTH 0
 
-#define DEFAULT_MIN_HEIGHT 0
-#define DEFAULT_MAX_HEIGHT UINT_MAX
-#define DEFAULT_HEIGHT 0
+#define DEFAULT_MIN_RESHAPE_HEIGHT 0
+#define DEFAULT_MAX_RESHAPE_HEIGHT UINT_MAX
+#define DEFAULT_RESHAPE_HEIGHT 0
 
-#define DEFAULT_ADAPTIVE_SKIP FALSE
+#define DEFAULT_NO_BLOCK FALSE
 
 #define DEFAULT_MIN_NIREQ 0
 #define DEFAULT_MAX_NIREQ 1024
 #define DEFAULT_NIREQ 0
 
-#define DEFAULT_CPU_STREAMS 0
-#define DEFAULT_MIN_CPU_STREAMS 0
-#define DEFAULT_MAX_CPU_STREAMS UINT_MAX
+#define DEFAULT_CPU_THROUGHPUT_STREAMS 0
+#define DEFAULT_MIN_CPU_THROUGHPUT_STREAMS 0
+#define DEFAULT_MAX_CPU_THROUGHPUT_STREAMS UINT_MAX
 
-#define DEFAULT_GPU_STREAMS 0
-#define DEFAULT_MIN_GPU_STREAMS 0
-#define DEFAULT_MAX_GPU_STREAMS UINT_MAX
+#define DEFAULT_GPU_THROUGHPUT_STREAMS 0
+#define DEFAULT_MIN_GPU_THROUGHPUT_STREAMS 0
+#define DEFAULT_MAX_GPU_THROUGHPUT_STREAMS UINT_MAX
 
 #define DEFAULT_ALLOCATOR_NAME NULL
 
@@ -59,21 +59,20 @@ enum {
     PROP_0,
     PROP_MODEL,
     PROP_DEVICE,
-    PROP_EVERY_NTH_FRAME,
+    PROP_INFERENCE_INTERVAL,
     PROP_RESHAPE,
     PROP_BATCH_SIZE,
-    PROP_WIDTH,
-    PROP_HEIGHT,
-    PROP_ADAPTIVE_SKIP,
+    PROP_RESHAPE_WIDTH,
+    PROP_RESHAPE_HEIGHT,
+    PROP_NO_BLOCK,
     PROP_NIREQ,
-    PROP_INFERENCE_ID,
-    PROP_PRE_PROC,
+    PROP_MODEL_INSTANCE_ID,
+    PROP_PRE_PROC_BACKEND,
     PROP_MODEL_PROC,
-    PROP_CPU_STREAMS,
-    PROP_GPU_STREAMS,
-    PROP_INFER_CONFIG,
-    PROP_ALLOCATOR_NAME,
-    PROP_EXTENSION
+    PROP_CPU_THROUGHPUT_STREAMS,
+    PROP_GPU_THROUGHPUT_STREAMS,
+    PROP_IE_CONFIG,
+    PROP_DEVICE_EXTENSIONS
 };
 
 static void gva_base_inference_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
@@ -111,112 +110,121 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     element_class->change_state = GST_DEBUG_FUNCPTR(gva_base_inference_change_state);
 
     g_object_class_install_property(gobject_class, PROP_MODEL,
-                                    g_param_spec_string("model", "Model", "Inference model file path", DEFAULT_MODEL,
-                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+                                    g_param_spec_string("model", "Model", "Path to inference model network file",
+                                                        DEFAULT_MODEL, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_INFERENCE_ID,
-        g_param_spec_string("inference-id", "Inference Id",
-                            "Id for the inference engine to be shared between plugin instances", DEFAULT_INFERENCE_ID,
-                            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-    g_object_class_install_property(
-        gobject_class, PROP_PRE_PROC,
+        gobject_class, PROP_MODEL_INSTANCE_ID,
         g_param_spec_string(
-            "pre-proc", "Pre-processing method",
-            "Select a pre-processing method (color conversion and resize), one of 'ie', 'opencv', 'g-api', 'vaapi'",
+            "model-instance-id", "Model Instance Id",
+            "Identifier for sharing a loaded model instance between elements of the same type. Elements with the "
+            "same model-instance-id will share all model and inference engine related properties",
+            DEFAULT_MODEL_INSTANCE_ID, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(
+        gobject_class, PROP_PRE_PROC_BACKEND,
+        g_param_spec_string(
+            "pre-process-backend", "Pre-processing method",
+            "Select a pre-processing method (color conversion and resize), one of 'ie', 'opencv', 'vaapi'",
             DEFAULT_PRE_PROC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_MODEL_PROC,
         g_param_spec_string("model-proc", "Model preproc and postproc",
-                            "JSON file with description of input/output layers pre-processing/post-processing",
+                            "Path to JSON file with description of input/output layers pre-processing/post-processing",
                             DEFAULT_MODEL_PROC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property(gobject_class, PROP_DEVICE,
-                                    g_param_spec_string("device", "Device", "Type of device for inference (CPU or GPU)",
-                                                        DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(
+        gobject_class, PROP_DEVICE,
+        g_param_spec_string(
+            "device", "Device",
+            "Target device for inference. Please see OpenVINO documentation for list of supported devices.",
+            DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(gobject_class, PROP_BATCH_SIZE,
+                                    g_param_spec_uint("batch-size", "Batch size",
+                                                      "Number of frames batched together for a single inference. "
+                                                      "Not all models support batching. Use model optimizer to ensure "
+                                                      "that the model has batching support.",
+                                                      DEFAULT_MIN_BATCH_SIZE, DEFAULT_MAX_BATCH_SIZE,
+                                                      DEFAULT_BATCH_SIZE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_BATCH_SIZE,
-        g_param_spec_uint("batch-size", "Batch size",
-                          "Number frames for batching. "
-                          "Note: There are several limitations and it`s not recommended to use it. "
-                          "Before use it make sure that all network layers have batch in the first "
-                          "dimension, otherwise it works incorrectly.",
-                          DEFAULT_MIN_BATCH_SIZE, DEFAULT_MAX_BATCH_SIZE, DEFAULT_BATCH_SIZE,
-                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-    g_object_class_install_property(
-        gobject_class, PROP_EVERY_NTH_FRAME,
-        g_param_spec_uint("every-nth-frame", "skip-interval",
-                          "Run inference for every Nth frame. Other frames will just bypass this element.",
-                          DEFAULT_MIN_EVERY_NTH_FRAME, DEFAULT_MAX_EVERY_NTH_FRAME, DEFAULT_EVERY_NTH_FRAME,
+        gobject_class, PROP_INFERENCE_INTERVAL,
+        g_param_spec_uint("inference-interval", "Inference Interval",
+                          "Interval between inference requests. An interval of 1 (Default) performs inference on "
+                          "every frame. An interval of 2 performs inference on every other frame. An interval of N "
+                          "performs inference on every Nth frame.",
+                          DEFAULT_MIN_INFERENCE_INTERVAL, DEFAULT_MAX_INFERENCE_INTERVAL, DEFAULT_INFERENCE_INTERVAL,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_RESHAPE,
         g_param_spec_boolean("reshape", "Reshape input layer",
-                             "Enabling network reshaping. "
-                             "Use only 'reshape=true' without width and height properties "
+                             "Enable network reshaping.  "
+                             "Use only 'reshape=true' without reshape-width and reshape-height properties "
                              "if you want to reshape network to the original size of input frames. "
-                             "Note: this feature have a set of limitations. "
-                             "Before use, make sure that your network supports reshape",
+                             "Note: this feature has a set of limitations. "
+                             "Before use, make sure that your network supports reshaping",
                              DEFAULT_RESHAPE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property(gobject_class, PROP_WIDTH,
-                                    g_param_spec_uint("width", "Width for reshape",
-                                                      "Width to which the network will be reshape.", DEFAULT_MIN_WIDTH,
-                                                      DEFAULT_MAX_WIDTH, DEFAULT_WIDTH,
-                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-    g_object_class_install_property(gobject_class, PROP_HEIGHT,
-                                    g_param_spec_uint("height", "Height for reshape",
-                                                      "Height to which the network will be reshape.",
-                                                      DEFAULT_MIN_HEIGHT, DEFAULT_MAX_HEIGHT, DEFAULT_HEIGHT,
-                                                      G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(
+        gobject_class, PROP_RESHAPE_WIDTH,
+        g_param_spec_uint("reshape-width", "Width for reshape", "Width to which the network will be reshaped.",
+                          DEFAULT_MIN_RESHAPE_WIDTH, DEFAULT_MAX_RESHAPE_WIDTH, DEFAULT_RESHAPE_WIDTH,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_ADAPTIVE_SKIP,
-        g_param_spec_boolean("adaptive-skip", "Adaptive inference skipping",
-                             "(experimental) skip inference execution if all inference resources are busy",
-                             DEFAULT_ADAPTIVE_SKIP, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        gobject_class, PROP_RESHAPE_HEIGHT,
+        g_param_spec_uint("reshape-height", "Height for reshape", "Height to which the network will be reshaped.",
+                          DEFAULT_MIN_RESHAPE_HEIGHT, DEFAULT_MAX_RESHAPE_HEIGHT, DEFAULT_RESHAPE_HEIGHT,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(
+        gobject_class, PROP_NO_BLOCK,
+        g_param_spec_boolean(
+            "no-block", "Adaptive inference skipping",
+            "(Experimental) Option to help maintain frames per second of incoming stream. Skips inference "
+            "on an incoming frame if all inference requests are currently processing outstanding frames",
+            DEFAULT_NO_BLOCK, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(gobject_class, PROP_NIREQ,
-                                    g_param_spec_uint("nireq", "NIReq", "number of inference requests",
+                                    g_param_spec_uint("nireq", "NIReq", "Number of inference requests",
                                                       DEFAULT_MIN_NIREQ, DEFAULT_MAX_NIREQ, DEFAULT_NIREQ,
                                                       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property(gobject_class, PROP_CPU_STREAMS,
-                                    g_param_spec_uint("cpu-streams", "CPU-Streams",
-                                                      "Use multiple inference streams/instances for better "
-                                                      "parallelization and affinity on CPU. Default mode is auto",
-                                                      DEFAULT_MIN_CPU_STREAMS, DEFAULT_MAX_CPU_STREAMS,
-                                                      DEFAULT_CPU_STREAMS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
-    g_object_class_install_property(gobject_class, PROP_GPU_STREAMS,
-                                    g_param_spec_uint("gpu-streams", "GPU-Streams",
-                                                      "Use multiple inference streams/instances for better "
-                                                      "parallelization and affinity on GPU. Default mode is auto",
-                                                      DEFAULT_MIN_GPU_STREAMS, DEFAULT_MAX_GPU_STREAMS,
-                                                      DEFAULT_GPU_STREAMS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(
+        gobject_class, PROP_CPU_THROUGHPUT_STREAMS,
+        g_param_spec_uint(
+            "cpu-throughput-streams", "CPU-Throughput-Streams",
+            "Sets the cpu-throughput-streams configuration key for OpenVINO's "
+            "cpu device plugin. Configuration allows for multiple inference streams "
+            "for better performance. Default mode is auto. See OpenVINO CPU plugin documentation for more details",
+            DEFAULT_MIN_CPU_THROUGHPUT_STREAMS, DEFAULT_MAX_CPU_THROUGHPUT_STREAMS, DEFAULT_CPU_THROUGHPUT_STREAMS,
+            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
-        gobject_class, PROP_INFER_CONFIG,
-        g_param_spec_string("infer-config", "Infer-Config",
+        gobject_class, PROP_GPU_THROUGHPUT_STREAMS,
+        g_param_spec_uint(
+            "gpu-throughput-streams", "GPU-Throughput-Streams",
+            "Sets the gpu-throughput-streams configuration key for OpenVINO's "
+            "gpu device plugin. Configuration allows for multiple inference streams "
+            "for better performance. Default mode is auto. See OpenVINO GPU plugin documentation for more details",
+            DEFAULT_MIN_GPU_THROUGHPUT_STREAMS, DEFAULT_MAX_GPU_THROUGHPUT_STREAMS, DEFAULT_GPU_THROUGHPUT_STREAMS,
+            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(
+        gobject_class, PROP_IE_CONFIG,
+        g_param_spec_string("ie-config", "Inference-Engine-Config",
                             "Comma separated list of KEY=VALUE parameters for Inference Engine configuration", "",
                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property(gobject_class, PROP_ALLOCATOR_NAME,
-                                    g_param_spec_string("allocator-name", "AllocatorName",
-                                                        "Registered allocator name to be used", DEFAULT_ALLOCATOR_NAME,
-                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
-
     g_object_class_install_property(
-        gobject_class, PROP_EXTENSION,
-        g_param_spec_string("extension", "ExtensionString",
-                            "Comma separated list of KEY=VALUE where KEY is device name and VALUE is extension path.",
-                            DEFAULT_EXTENSION, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        gobject_class, PROP_DEVICE_EXTENSIONS,
+        g_param_spec_string(
+            "device-extensions", "ExtensionString",
+            "Comma separated list of KEY=VALUE pairs specifying the OpenVINO Inference Engine extension for a device",
+            DEFAULT_DEVICE_EXTENSIONS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
@@ -239,20 +247,23 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     g_free(base_inference->model_proc);
     base_inference->model_proc = NULL;
 
-    g_free(base_inference->inference_id);
-    base_inference->inference_id = NULL;
+    g_free(base_inference->model_instance_id);
+    base_inference->model_instance_id = NULL;
 
     g_free(base_inference->pre_proc_name);
     base_inference->pre_proc_name = NULL;
 
-    g_free(base_inference->infer_config);
-    base_inference->infer_config = NULL;
+    g_free(base_inference->ie_config);
+    base_inference->ie_config = NULL;
 
     g_free(base_inference->allocator_name);
     base_inference->allocator_name = NULL;
 
-    g_free(base_inference->extension);
-    base_inference->extension = NULL;
+    g_free(base_inference->pre_proc_name);
+    base_inference->pre_proc_name = NULL;
+
+    g_free(base_inference->device_extensions);
+    base_inference->device_extensions = NULL;
 
     if (base_inference->info) {
         gst_video_info_free(base_inference->info);
@@ -270,28 +281,26 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     if (base_inference == NULL)
         return;
 
-    // TODO: is correct to do cleanup before initial cleanup?!
     gva_base_inference_cleanup(base_inference);
 
-    // Property
     base_inference->model = g_strdup(DEFAULT_MODEL);
     base_inference->device = g_strdup(DEFAULT_DEVICE);
     base_inference->model_proc = g_strdup(DEFAULT_MODEL_PROC);
-    base_inference->every_nth_frame = DEFAULT_EVERY_NTH_FRAME;
+    base_inference->inference_interval = DEFAULT_INFERENCE_INTERVAL;
     base_inference->reshape = DEFAULT_RESHAPE;
     base_inference->batch_size = DEFAULT_BATCH_SIZE;
-    base_inference->reshape_width = DEFAULT_WIDTH;
-    base_inference->reshape_height = DEFAULT_HEIGHT;
-    base_inference->adaptive_skip = DEFAULT_ADAPTIVE_SKIP;
+    base_inference->reshape_width = DEFAULT_RESHAPE_WIDTH;
+    base_inference->reshape_height = DEFAULT_RESHAPE_HEIGHT;
+    base_inference->no_block = DEFAULT_NO_BLOCK;
     base_inference->nireq = DEFAULT_NIREQ;
-    base_inference->inference_id = g_strdup(DEFAULT_INFERENCE_ID);
+    base_inference->model_instance_id = g_strdup(DEFAULT_MODEL_INSTANCE_ID);
     base_inference->pre_proc_name = g_strdup(DEFAULT_PRE_PROC);
     // TODO: make one property for streams
-    base_inference->cpu_streams = DEFAULT_CPU_STREAMS;
-    base_inference->gpu_streams = DEFAULT_GPU_STREAMS;
-    base_inference->infer_config = g_strdup("");
+    base_inference->cpu_streams = DEFAULT_CPU_THROUGHPUT_STREAMS;
+    base_inference->gpu_streams = DEFAULT_GPU_THROUGHPUT_STREAMS;
+    base_inference->ie_config = g_strdup("");
     base_inference->allocator_name = g_strdup(DEFAULT_ALLOCATOR_NAME);
-    base_inference->extension = g_strdup(DEFAULT_EXTENSION);
+    base_inference->device_extensions = g_strdup(DEFAULT_DEVICE_EXTENSIONS);
 
     base_inference->initialized = FALSE;
     base_inference->info = NULL;
@@ -325,10 +334,9 @@ gboolean check_gva_base_inference_stopped(GvaBaseInference *base_inference) {
 
 void gva_base_inference_set_model(GvaBaseInference *base_inference, const gchar *model_path) {
     if (check_gva_base_inference_stopped(base_inference)) {
-        if (base_inference->model)
-            g_free(base_inference->model);
+        g_free(base_inference->model);
         base_inference->model = g_strdup(model_path);
-        GST_INFO("model: %s", base_inference->model);
+        GST_INFO_OBJECT(base_inference, "model: %s", base_inference->model);
     } else {
         GST_ELEMENT_ERROR(base_inference, RESOURCE, SETTINGS, ("'model' can't be changed"),
                           ("You cannot change 'model' property on base_inference when a file is open"));
@@ -337,10 +345,9 @@ void gva_base_inference_set_model(GvaBaseInference *base_inference, const gchar 
 
 void gva_base_inference_set_model_proc(GvaBaseInference *base_inference, const gchar *model_proc_path) {
     if (check_gva_base_inference_stopped(base_inference)) {
-        if (base_inference->model_proc)
-            g_free(base_inference->model_proc);
+        g_free(base_inference->model_proc);
         base_inference->model_proc = g_strdup(model_proc_path);
-        GST_INFO("model-proc: %s", base_inference->model_proc);
+        GST_INFO_OBJECT(base_inference, "model-proc: %s", base_inference->model_proc);
     } else {
         GST_ELEMENT_WARNING(base_inference, RESOURCE, SETTINGS, ("'model-proc' can't be changed"),
                             ("You cannot change 'model-proc' property on base_inference when a file is open"));
@@ -356,14 +363,15 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_MODEL:
         gva_base_inference_set_model(base_inference, g_value_get_string(value));
         break;
-    case PROP_DEVICE:
-        base_inference->device = g_value_dup_string(value);
-        break;
     case PROP_MODEL_PROC:
         gva_base_inference_set_model_proc(base_inference, g_value_get_string(value));
         break;
-    case PROP_EVERY_NTH_FRAME:
-        base_inference->every_nth_frame = g_value_get_uint(value);
+    case PROP_DEVICE:
+        g_free(base_inference->device);
+        base_inference->device = g_value_dup_string(value);
+        break;
+    case PROP_INFERENCE_INTERVAL:
+        base_inference->inference_interval = g_value_get_uint(value);
         break;
     case PROP_RESHAPE:
         base_inference->reshape = g_value_get_boolean(value);
@@ -373,42 +381,43 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         if (base_inference->batch_size != DEFAULT_BATCH_SIZE)
             base_inference->reshape = TRUE;
         break;
-    case PROP_WIDTH:
+    case PROP_RESHAPE_WIDTH:
         base_inference->reshape_width = g_value_get_uint(value);
-        if (base_inference->reshape_width != DEFAULT_WIDTH)
+        if (base_inference->reshape_width != DEFAULT_RESHAPE_WIDTH)
             base_inference->reshape = TRUE;
         break;
-    case PROP_HEIGHT:
+    case PROP_RESHAPE_HEIGHT:
         base_inference->reshape_height = g_value_get_uint(value);
-        if (base_inference->reshape_height != DEFAULT_HEIGHT)
+        if (base_inference->reshape_height != DEFAULT_RESHAPE_HEIGHT)
             base_inference->reshape = TRUE;
         break;
-    case PROP_ADAPTIVE_SKIP:
-        base_inference->adaptive_skip = g_value_get_boolean(value);
+    case PROP_NO_BLOCK:
+        base_inference->no_block = g_value_get_boolean(value);
         break;
     case PROP_NIREQ:
         base_inference->nireq = g_value_get_uint(value);
         break;
-    case PROP_INFERENCE_ID:
-        base_inference->inference_id = g_value_dup_string(value);
+    case PROP_MODEL_INSTANCE_ID:
+        g_free(base_inference->model_instance_id);
+        base_inference->model_instance_id = g_value_dup_string(value);
         break;
-    case PROP_PRE_PROC:
+    case PROP_PRE_PROC_BACKEND:
+        g_free(base_inference->pre_proc_name);
         base_inference->pre_proc_name = g_value_dup_string(value);
         break;
-    case PROP_CPU_STREAMS:
+    case PROP_CPU_THROUGHPUT_STREAMS:
         base_inference->cpu_streams = g_value_get_uint(value);
         break;
-    case PROP_GPU_STREAMS:
+    case PROP_GPU_THROUGHPUT_STREAMS:
         base_inference->gpu_streams = g_value_get_uint(value);
         break;
-    case PROP_INFER_CONFIG:
-        base_inference->infer_config = g_value_dup_string(value);
+    case PROP_IE_CONFIG:
+        g_free(base_inference->ie_config);
+        base_inference->ie_config = g_value_dup_string(value);
         break;
-    case PROP_ALLOCATOR_NAME:
-        base_inference->allocator_name = g_value_dup_string(value);
-        break;
-    case PROP_EXTENSION:
-        base_inference->extension = g_value_dup_string(value);
+    case PROP_DEVICE_EXTENSIONS:
+        g_free(base_inference->device_extensions);
+        base_inference->device_extensions = g_value_dup_string(value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -425,14 +434,14 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_MODEL:
         g_value_set_string(value, base_inference->model);
         break;
-    case PROP_DEVICE:
-        g_value_set_string(value, base_inference->device);
-        break;
     case PROP_MODEL_PROC:
         g_value_set_string(value, base_inference->model_proc);
         break;
-    case PROP_EVERY_NTH_FRAME:
-        g_value_set_uint(value, base_inference->every_nth_frame);
+    case PROP_DEVICE:
+        g_value_set_string(value, base_inference->device);
+        break;
+    case PROP_INFERENCE_INTERVAL:
+        g_value_set_uint(value, base_inference->inference_interval);
         break;
     case PROP_RESHAPE:
         g_value_set_boolean(value, base_inference->reshape);
@@ -440,38 +449,35 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_BATCH_SIZE:
         g_value_set_uint(value, base_inference->batch_size);
         break;
-    case PROP_WIDTH:
+    case PROP_RESHAPE_WIDTH:
         g_value_set_uint(value, base_inference->reshape_width);
         break;
-    case PROP_HEIGHT:
+    case PROP_RESHAPE_HEIGHT:
         g_value_set_uint(value, base_inference->reshape_height);
         break;
-    case PROP_ADAPTIVE_SKIP:
-        g_value_set_boolean(value, base_inference->adaptive_skip);
+    case PROP_NO_BLOCK:
+        g_value_set_boolean(value, base_inference->no_block);
         break;
     case PROP_NIREQ:
         g_value_set_uint(value, base_inference->nireq);
         break;
-    case PROP_INFERENCE_ID:
-        g_value_set_string(value, base_inference->inference_id);
+    case PROP_MODEL_INSTANCE_ID:
+        g_value_set_string(value, base_inference->model_instance_id);
         break;
-    case PROP_PRE_PROC:
+    case PROP_PRE_PROC_BACKEND:
         g_value_set_string(value, base_inference->pre_proc_name);
         break;
-    case PROP_CPU_STREAMS:
+    case PROP_CPU_THROUGHPUT_STREAMS:
         g_value_set_uint(value, base_inference->cpu_streams);
         break;
-    case PROP_GPU_STREAMS:
+    case PROP_GPU_THROUGHPUT_STREAMS:
         g_value_set_uint(value, base_inference->gpu_streams);
         break;
-    case PROP_INFER_CONFIG:
-        g_value_set_string(value, base_inference->infer_config);
+    case PROP_IE_CONFIG:
+        g_value_set_string(value, base_inference->ie_config);
         break;
-    case PROP_ALLOCATOR_NAME:
-        g_value_set_string(value, base_inference->allocator_name);
-        break;
-    case PROP_EXTENSION:
-        g_value_set_string(value, base_inference->extension);
+    case PROP_DEVICE_EXTENSIONS:
+        g_value_set_string(value, base_inference->device_extensions);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -512,13 +518,7 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     }
     gst_video_info_from_caps(base_inference->info, incaps);
 
-    GError *error = NULL;
-    base_inference->inference = acquire_inference_instance(base_inference, &error);
-    if (error) {
-        GST_ELEMENT_ERROR(base_inference, RESOURCE, TOO_LAZY, ("base_inference plugin intitialization failed"),
-                          ("%s", error->message));
-        g_error_free(error);
-    }
+    base_inference->inference = acquire_inference_instance(base_inference);
 
     return base_inference->inference != NULL;
 }
@@ -528,8 +528,8 @@ gboolean gva_base_inference_start(GstBaseTransform *trans) {
 
     GST_DEBUG_OBJECT(base_inference, "start");
 
-    if (!base_inference->inference_id) {
-        base_inference->inference_id = g_strdup(GST_ELEMENT_NAME(GST_ELEMENT(base_inference)));
+    if (!base_inference->model_instance_id) {
+        base_inference->model_instance_id = g_strdup(GST_ELEMENT_NAME(GST_ELEMENT(base_inference)));
 
         if (base_inference->model == NULL) {
             GST_ELEMENT_ERROR(base_inference, RESOURCE, NOT_FOUND, ("'model' is not set"),
@@ -547,14 +547,10 @@ gboolean gva_base_inference_start(GstBaseTransform *trans) {
                             ("path %s set in 'model-proc' does not exist", base_inference->model_proc));
     }
 
-    GError *error = NULL;
-    registerElement(base_inference, &error);
-    if (error) {
-        GST_ELEMENT_ERROR(base_inference, RESOURCE, FAILED, ("base_inference plugin intitialization failed"),
-                          ("%s", error->message));
-        g_error_free(error);
+    gboolean success = registerElement(base_inference);
+    if (!success)
         goto exit;
-    }
+
     base_inference->initialized = TRUE;
 
 exit:
@@ -590,7 +586,7 @@ GstFlowReturn gva_base_inference_transform_ip(GstBaseTransform *trans, GstBuffer
         GST_ELEMENT_ERROR(base_inference, RESOURCE, SETTINGS,
                           ("There is no master element provided for base_inference elements with inference-id '%s'. At "
                            "least one element for each inference-id should have model path specified",
-                           base_inference->inference_id),
+                           base_inference->model_instance_id),
                           (NULL));
         return GST_FLOW_ERROR;
     }

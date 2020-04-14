@@ -92,25 +92,32 @@ class PythonContextInitializer {
     }
 };
 
-PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *arg_string) {
+PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *args_string,
+                       const char *kwargs_string) {
     DECL_WRAPPER(class_type, PyObject_GetAttrString(pluginModule, class_name));
-    if (arg_string) {
-        DECL_WRAPPER(class_arg, PyUnicode_FromString(arg_string));
-        return PyObject_CallFunctionObjArgs(class_type, (PyObject *)class_arg, NULL);
+
+    if ((args_string) || (kwargs_string)) {
+        DECL_WRAPPER(jsonModule, PyImport_ImportModule("json"));
+        DECL_WRAPPER(json_load_s, PyObject_GetAttrString(jsonModule, "loads"));
+        DECL_WRAPPER(tuple, PyTuple_New(0));
+        DECL_WRAPPER(dict, PyDict_New());
+        if (args_string) {
+            DECL_WRAPPER(class_args, PyUnicode_FromString(args_string));
+            DECL_WRAPPER(list, PyObject_CallFunctionObjArgs(json_load_s, (PyObject *)class_args, NULL));
+            tuple.reset(PyList_AsTuple((PyObject *)list), "PyList_AsTuple((PyObject*)list)");
+        }
+        if (kwargs_string) {
+            DECL_WRAPPER(class_args, PyUnicode_FromString(kwargs_string));
+            dict.reset(PyObject_CallFunctionObjArgs(json_load_s, (PyObject *)class_args, NULL),
+                       "PyObject_CallFunctionObjArgs(json_load_s,(PyObject*)class_args,NULL)");
+        }
+        return PyObject_Call(class_type, (PyObject *)tuple, (PyObject *)dict);
     }
     return PyObject_CallFunctionObjArgs(class_type, NULL);
 }
 
-const char *fileExtension(const char *filepath) {
-    const char *extension = strrchr(filepath, '.');
-    if (!extension) {
-        extension = filepath + strlen(filepath);
-    }
-    return extension;
-}
-
-void callPython(GstBuffer *buffer, PyObjectWrapper &py_videoframe_class, PyObjectWrapper &py_caps,
-                PyObjectWrapper &py_function) {
+gboolean callPython(GstBuffer *buffer, PyObjectWrapper &py_videoframe_class, PyObjectWrapper &py_caps,
+                    PyObjectWrapper &py_function) {
     DECL_WRAPPER(py_buffer, pyg_boxed_new(buffer->mini_object.type, buffer, TRUE, TRUE));
     DECL_WRAPPER(py_none, Py_None);
     DECL_WRAPPER(frame, PyObject_CallFunctionObjArgs(py_videoframe_class, (PyObject *)py_buffer, (PyObject *)py_none,
@@ -127,12 +134,13 @@ void callPython(GstBuffer *buffer, PyObjectWrapper &py_videoframe_class, PyObjec
     if (((PyObject *)result) == nullptr) {
         throw std::runtime_error("Could not call py function");
     }
+    return PyObject_IsTrue(result);
 }
 
 } // namespace
 
 PythonCallback::PythonCallback(const char *module_path, const char *class_name, const char *function_name,
-                               const char *arg_string, GstCaps *caps) {
+                               const char *args_string, const char *kwargs_string) {
     ITT_TASK(__FUNCTION__);
     if (module_path == nullptr) {
         throw std::invalid_argument("module_path cannot be empty");
@@ -148,14 +156,26 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
     } else {
         filename = module_path;
     }
-    module_name = std::string(filename, fileExtension(module_path));
+
+    const char *extension = strrchr(module_path, '.');
+    if (!extension) {
+        module_name = std::string(filename);
+    } else {
+        module_name = std::string(filename, extension);
+    }
     PyObjectWrapper pluginModule(PyImport_Import(WRAPPER(PyUnicode_FromString(module_name.c_str()))));
     if (!(PyObject *)pluginModule) {
         log_python_error();
         throw std::runtime_error("Error loading Python module " + std::string(module_path));
     }
     if (class_name) {
-        py_class.reset(extractClass(pluginModule, class_name, arg_string), "py_class");
+        py_class.reset(extractClass(pluginModule, class_name, args_string, kwargs_string), "py_class");
+
+        if (!(PyObject *)py_class) {
+            log_python_error();
+            throw std::runtime_error("Error creating Python class " + std::string(class_name));
+        }
+
         py_function.reset(PyObject_GetAttrString(py_class, function_name), "py_function");
     } else {
         py_function.reset(PyObject_GetAttrString(pluginModule, function_name), "py_function");
@@ -170,10 +190,14 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
     if (!py_videoframe_class.reset(PyObject_GetAttrString(gva_module, "VideoFrame"), "videoframe_class")) {
         throw std::runtime_error("Error getting gstgva.VideoFrame");
     }
+}
 
+void PythonCallback::SetCaps(GstCaps *caps) {
     // Create Python caps
-    if (!py_caps.reset(pyg_boxed_new(caps->mini_object.type, caps, TRUE, TRUE), "py_caps")) {
-        throw std::runtime_error("Error creating Gst.Caps");
+    if (!(PyObject *)py_caps) {
+        if (!py_caps.reset(pyg_boxed_new(caps->mini_object.type, caps, TRUE, TRUE), "py_caps")) {
+            throw std::runtime_error("Error creating Gst.Caps");
+        }
     }
 }
 
@@ -183,12 +207,14 @@ PythonCallback::~PythonCallback() {
     py_caps.release();
 }
 
-void PythonCallback::CallPython(GstBuffer *buffer) {
+gboolean PythonCallback::CallPython(GstBuffer *buffer) {
     ITT_TASK(module_name.c_str());
 
     PyGILState_STATE state = PyGILState_Ensure();
 
-    callPython(buffer, py_videoframe_class, py_caps, py_function);
+    gboolean result = callPython(buffer, py_videoframe_class, py_caps, py_function);
 
     PyGILState_Release(state);
+
+    return result;
 }

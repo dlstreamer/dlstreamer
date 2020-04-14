@@ -15,7 +15,7 @@ ImageMap *ImageMap::Create() {
     return new VaApiImageMap();
 }
 
-VaApiImageMap::VaApiImageMap() : va_display(nullptr), va_image({}) {
+VaApiImageMap::VaApiImageMap() : va_display(nullptr), va_image(VAImage()) {
 }
 
 VaApiImageMap::~VaApiImageMap() {
@@ -28,7 +28,7 @@ Image VaApiImageMap::Map(const Image &image) {
 
     va_display = image.va_display;
 
-    VAImageFormat va_format = {};
+    VAImageFormat va_format = VAImageFormat();
     if (image.format == VA_FOURCC_RGBP) {
         va_format = {.fourcc = (uint32_t)image.format,
                      .byte_order = VA_LSB_FIRST,
@@ -53,7 +53,7 @@ Image VaApiImageMap::Map(const Image &image) {
     void *surface_p = nullptr;
     VA_CALL(vaMapBuffer(va_display, va_image.buf, &surface_p))
 
-    Image image_sys = {};
+    Image image_sys = Image();
     image_sys.type = MemoryType::SYSTEM;
     image_sys.width = image.width;
     image_sys.height = image.height;

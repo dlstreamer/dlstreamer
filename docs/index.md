@@ -15,8 +15,6 @@ GVA::RegionOfInterest can also contain multiple GVA::Tensor objects, which are p
 
 Any modification you perform using GVA API will affect underlying metadata as though you modified it directly. For example, you can add GVA::RegionOfInterest or GVA::Tensor objects to GVA::VideoFrame, and real GStreamer metadata instances will be added to GstBuffer of current GVA::VideoFrame. It means, the objects you added will behave as if they were produced by GVA elements mentioned above. You will be able to reach these objects futher by pipeline using both internal metadata representation and GVA API. Also, any GVA elements that rely on inference results will employ objects you added. For example, **gvawatermark** will render on screen these objects (for example, it will draw bounding box for added GVA::RegionOfInterest).
 
-It is important to say, that GVA API, if used, expects that it is used consistently. It means, that you should not operate on metadata with GStreamer C calls and GVA API at the same time. As an example, if you're adding some regions of interest to GstBuffer with GVA::VideoFrame::add_region, you should not add other regions with underlying `gst_buffer_add_video_region_of_interest_meta` call. Results of future calls to methods of GVA::VideoFrame can be not expected due to broken GVA::VideoFrame invariant.
-
 ## Inference results flow
 Video analytics pipeline is a GStreamer pipeline with one or several GVA elements for inference and additional actions (publishing, rendering, etc.) if needed. Take a look at this pipeline:
 ```sh
@@ -90,10 +88,10 @@ void PrintMeta(GstBuffer *buffer, GstCaps *caps) { // simple function to display
     GVA::VideoFrame video_frame(buffer, caps);
     std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
     for (GVA::RegionOfInterest &roi : regions) { // iterate by regions of interest attached to this video frame
-        GstVideoRegionOfInterestMeta *meta = roi.meta(); // get region of interest underlying meta to access bounding box information
-        std::cout << "Object bounding box " << meta->x << "," << meta->y << "," << meta->w << "," << meta->h << "," << std::endl;
-        for (GVA::Tensor &tensor : roi) { // iterate by tensors attached to this region of interest
-            if tensor.is_detection()
+        auto bbox = roi.rect(); // get bounding box information
+        std::cout << "Object bounding box " << bbox.x << "," << bbox.y << "," << bbox.w << "," << bbox.h << "," << std::endl;
+        for (const GVA::Tensor &tensor : roi.tensors()) { // iterate by tensors attached to this region of interest
+            if (tensor.is_detection())
                 continue; // detection tensor doesn't contain classification result and hence doesn't contain label
             // print some tensor information
             std::cout << "  Attribute "     << tensor.name()       << std::endl;
@@ -115,9 +113,9 @@ from gstgva import VideoFrame
 def PrintMeta(buffer: Gst.Buffer, caps: Gst.Caps):  # simple function to display some tensor information
     frame = VideoFrame(buffer, caps=caps)
     for roi in frame.regions():  # iterate by regions of interest attached to this video frame
-        meta = roi.meta()  # get region of interest underlying meta to access bounding box information
-        print("Object bounding box {}, {}, {}, {}".format(meta.x, meta.y, meta.w, meta.h))
-        for tensor in roi:  # iterate by tensors attached to this region of interest
+        bbox = roi.rect()  # get bounding box information
+        print("Object bounding box {}, {}, {}, {}".format(bbox.x, bbox.y, bbox.w, bbox.h))
+        for tensor in roi.tensors():  # iterate by tensors attached to this region of interest
             if tensor.is_detection():
                 continue  # detection tensor doesn't contain classification result and hence doesn't contain label
             # print some tensor information
@@ -132,7 +130,7 @@ There are several ways how you can access inference results provided by GVA elem
 2. Create **C++/Python** application, which runs video analytics pipeline with standard appsink element added as sink. You will then be able to register callback on GstBuffer incoming to appsink
 3. Write your own GStreamer plugin which has access to GstBuffers coming through and insert it to pipeline after GVA inference elements
 
-We've got plenty examples of following ways 1 & 2 in our samples and most existing GVA elements relying on existing inference result are basically based on 3rd way (e.g. **gvaclassify**, **gvatrack**, and more). Let's focus on one specific task: let's say, you have very specific deep learning model (not SSD and not YoloV3), which requires custom post-processing (**gvadetect** is not able to correctly interpret inference results of some models you can train or find on Web). You know how post processing should be implemented, but you don't know how to get and make any use of inference results produced by video analytics pipeline. To solve this task, you will need **gvainference** element, which runs deep learning model inference on passing video frame and stores raw inference result in a form of GVA::Tensor, attached to GVA::VideoFrame. So we use **gvainference** to get tensors, but how do we access these produced tensors?
+We've got plenty examples of following ways 1 & 2 in our samples and most existing GVA elements relying on existing inference result are basically based on 3rd way (e.g. **gvaclassify**, **gvatrack**, and more). Let's focus on one specific task: let's say, you have very specific deep learning model, which requires custom post-processing (**gvadetect** is not able to correctly interpret inference results of some models you can train or find on Web). You know how post processing should be implemented, but you don't know how to get and make any use of inference results produced by video analytics pipeline. To solve this task, you will need **gvainference** element, which runs deep learning model inference on passing video frame and stores raw inference result in a form of GVA::Tensor, attached to GVA::VideoFrame. So we use **gvainference** to get tensors, but how do we access these produced tensors?
 
 Any of 3 approaches above will suffice. For the clarity of explanation, let's choose 1st one and focus on it. Also, for our tutorial we will add "custom" post-processing for SSD-like models. **gvadetect** already implements this type of post-processing, but here we will use **gvainference** and set up post-processing as callback. In your case, you will need to only put your post-processing code instead of ours.
 
@@ -159,9 +157,6 @@ _args.add_argument("-d", "--detection_model", help="Required. Path to an .xml fi
 # init GStreamer
 Gst.init(sys.argv)
 
-# needed if you want to assign label string to your detections
-REGION_TENSOR = VideoFrame.create_labels_structure(["background", "face", "my_label_2", "etc."])
-
 # post-processing code
 def process_frame(frame: VideoFrame, threshold: float = 0.5) -> bool:
     width = frame.video_info().width
@@ -184,7 +179,7 @@ def process_frame(frame: VideoFrame, threshold: float = 0.5) -> bool:
             if confidence < threshold:
                 continue
 
-            frame.add_region(x_min, y_min, x_max - x_min, y_max - y_min, 1, region_tensor=REGION_TENSOR)
+            frame.add_region(x_min, y_min, x_max - x_min, y_max - y_min, "car", confidence)
 
     return True
 
@@ -247,11 +242,6 @@ _args.add_argument("-i", "--input", help="Required. Path to input video file",
 _args.add_argument("-d", "--detection_model", help="Required. Path to an .xml file with object detection model",
                    required=True, type=str)
 ```
-In the next piece we create REGION_TENSOR from list of labels. You probably know this list, because model was trained using this list. In our example, labels don't make much sense though. We will assume that our detection model classifies detection with label id set to 1, which matches "face" class (0 is for "background", 2 is for "my_label_2", 3 is for "etc.")
-```python
-# needed if you want to assign label string to your detections
-REGION_TENSOR = VideoFrame.create_labels_structure(["background", "face", "my_label_2", "etc."])
-```
 Next, function `process_frame` defines post-processing. As we said above, this code is for SSD-like models, so please feel freee to replace it with your own post-processing implementation that suffices your custom model. Meanwhile, let's take a look at usage of GVA API in this piece.
 
 Tons of image information regarding current video frame can be obtain with gstgva.video_frame.VideoFrame.video_info. You can get image width, height, channels format and much more:
@@ -265,9 +255,9 @@ for tensor in frame.tensors():
     dims = tensor.dims()
     data = tensor.data()
 ```
-After we eject bounding box parameters from raw inference blob, we are ready to gstgva.video_frame.VideoFrame.add_region with box coordinates specified. Also, we specify `region_tensor` to `REGION_TENSOR` (which was created at the very start of this aplpication), and set `label_id` parameter to 1. This results to new gstgva.region_of_interest.RegionOfInterest being added with label set to "face"
+After we eject bounding box parameters from raw inference blob, we are ready to call gstgva.video_frame.VideoFrame.add_region with box coordinates, label and confidence as parameters.
 ```python
-frame.add_region(x_min, y_min, x_max - x_min, y_max - y_min, 1, region_tensor=REGION_TENSOR)
+frame.add_region(x_min, y_min, x_max - x_min, y_max - y_min, "car", confidence)
 ```
 Next, we define callback which will run `process_frame` (our post-processing code) on each video frame passing by pipeline:
 ```python

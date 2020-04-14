@@ -59,7 +59,14 @@ int Fourcc2OpenCVType(int fourcc) {
     return 0;
 }
 
-void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
+static void clip_rect(double &x, double &y, double &w, double &h, GstVideoInfo *info) {
+    x = (x < 0) ? 0 : (x > info->width) ? info->width : x;
+    y = (y < 0) ? 0 : (y > info->height) ? info->height : y;
+    w = (w < 0) ? 0 : (x + w > info->width) ? info->width - x : w;
+    h = (h < 0) ? 0 : (y + h > info->height) ? info->height - y : h;
+}
+
+gboolean draw_label(GstGvaWatermark *gvawatermark, GstBuffer *buffer) {
     // map GstBuffer to cv::Mat
     InferenceBackend::Image image;
     BufferMapContext mapContext;
@@ -67,69 +74,82 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
     GstMapFlags mapFlags = (mem && gst_is_fd_memory(mem)) ? GST_MAP_READWRITE : GST_MAP_READ; // TODO
     gst_memory_unref(mem);
 
-    gva_buffer_map(buffer, image, mapContext, info, InferenceBackend::MemoryType::SYSTEM, mapFlags);
-    int format = Fourcc2OpenCVType(image.format);
-    cv::Mat mat(image.height, image.width, format, image.planes[0], info->stride[0]);
+    try {
+        gva_buffer_map(buffer, image, mapContext, &gvawatermark->info, InferenceBackend::MemoryType::SYSTEM, mapFlags);
+        auto mapContextPtr = std::unique_ptr<BufferMapContext, std::function<void(BufferMapContext *)>>(
+            &mapContext, [&](BufferMapContext *mapContext) { gva_buffer_unmap(buffer, image, *mapContext); });
+        int format = Fourcc2OpenCVType(image.format);
+        cv::Mat mat(image.height, image.width, format, image.planes[0], gvawatermark->info.stride[0]);
 
-    // construct text labels
-    GVA::VideoFrame video_frame(buffer, info);
-    for (GVA::RegionOfInterest &roi : video_frame.regions()) {
-        std::string text = "";
-        size_t color_index = roi.label_id();
-        int object_id = 0;
+        // construct text labels
+        GVA::VideoFrame video_frame(buffer, &gvawatermark->info);
+        for (GVA::RegionOfInterest &roi : video_frame.regions()) {
+            std::string text = "";
+            size_t color_index = roi.label_id();
 
-        GstVideoRegionOfInterestMeta *roi_meta = roi.meta();
+            auto rect = roi.normalized_rect();
+            if (rect.w && rect.h) {
+                rect.x *= gvawatermark->info.width;
+                rect.y *= gvawatermark->info.height;
+                rect.w *= gvawatermark->info.width;
+                rect.h *= gvawatermark->info.height;
+            } else {
+                auto rect_u32 = roi.rect();
+                rect = {(double)rect_u32.x, (double)rect_u32.y, (double)rect_u32.w, (double)rect_u32.h};
+            }
+            clip_rect(rect.x, rect.y, rect.w, rect.h, &gvawatermark->info);
 
-        get_object_id(roi_meta, &object_id);
-        if (object_id > 0) {
-            text = std::to_string(object_id) + ": ";
-            color_index = object_id;
-        }
+            int object_id = roi.object_id();
+            if (object_id > 0) {
+                text = std::to_string(object_id) + ": ";
+                color_index = object_id;
+            }
 
-        if (roi_meta->roi_type) {
-            const gchar *type = g_quark_to_string(roi_meta->roi_type);
-            if (type) {
+            if (!roi.label().empty()) {
                 if (!text.empty())
                     text += " ";
-                text += std::string(type);
+                text += roi.label();
             }
-        }
 
-        for (GVA::Tensor &tensor : roi) {
-            if (!tensor.is_detection()) {
-                std::string label = tensor.label();
-                if (!label.empty()) {
-                    if (!text.empty())
-                        text += " ";
-                    text += label;
+            for (GVA::Tensor &tensor : roi.tensors()) {
+                if (!tensor.is_detection()) {
+                    std::string label = tensor.label();
+                    if (!label.empty()) {
+                        if (!text.empty())
+                            text += " ";
+                        text += label;
+                    }
+                }
+                // landmarks rendering
+                if (tensor.model_name().find("landmarks") != std::string::npos ||
+                    tensor.format() == "landmark_points") {
+                    std::vector<float> data = tensor.data<float>();
+                    for (guint i = 0; i < data.size() / 2; i++) {
+                        cv::Scalar color = index2color(i, image.format);
+                        int x_lm = rect.x + rect.w * data[2 * i];
+                        int y_lm = rect.y + rect.h * data[2 * i + 1];
+                        cv::circle(mat, cv::Point(x_lm, y_lm), 1 + static_cast<int>(0.012 * rect.w), color, -1);
+                    }
                 }
             }
-            // landmarks rendering
-            if (tensor.model_name().find("landmarks") != std::string::npos || tensor.format() == "landmark_points") {
-                std::vector<float> data = tensor.data<float>();
-                for (guint i = 0; i < data.size() / 2; i++) {
-                    cv::Scalar color = index2color(i, image.format);
-                    int x_lm = roi.meta()->x + roi.meta()->w * data[2 * i];
-                    int y_lm = roi.meta()->y + roi.meta()->h * data[2 * i + 1];
-                    cv::circle(mat, cv::Point(x_lm, y_lm), 1 + static_cast<int>(0.012 * roi.meta()->w), color, -1);
-                }
-            }
+
+            // draw rectangle
+            cv::Scalar color = index2color(color_index, image.format); // TODO: Is it good mapping to colors?
+
+            cv::Point2f bbox_min(rect.x, rect.y);
+            cv::Point2f bbox_max(rect.x + rect.w, rect.y + rect.h);
+            cv::rectangle(mat, bbox_min, bbox_max, color, 1);
+
+            // put text
+            cv::Point2f pos(rect.x, rect.y - 5.f);
+            if (pos.y < 0)
+                pos.y = rect.y + 30.f;
+            cv::putText(mat, text, pos, cv::FONT_HERSHEY_TRIPLEX, 1, color, 1);
         }
-
-        // draw rectangle
-        cv::Scalar color = index2color(color_index, image.format); // TODO: Is it good mapping to colors?
-
-        cv::Point2f bbox_min(roi_meta->x, roi_meta->y);
-        cv::Point2f bbox_max(roi_meta->x + roi_meta->w, roi_meta->y + roi_meta->h);
-        cv::rectangle(mat, bbox_min, bbox_max, color, 1);
-
-        // put text
-        cv::Point2f pos(roi_meta->x, roi_meta->y - 5.f);
-        if (pos.y < 0)
-            pos.y = roi_meta->y + 30.f;
-        cv::putText(mat, text, pos, cv::FONT_HERSHEY_TRIPLEX, 1, color, 1);
+    } catch (const std::exception &e) {
+        GST_ELEMENT_ERROR(gvawatermark, STREAM, FAILED, ("watermark has failed to draw label"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
+        return FALSE;
     }
-
-    // unmap GstBuffer
-    gva_buffer_unmap(buffer, image, mapContext);
+    return TRUE;
 }

@@ -13,7 +13,7 @@ struct BufferMapContext {
     GstVideoFrame frame;
 };
 
-bool gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext, GstVideoInfo *info,
+void gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext, GstVideoInfo *info,
                     InferenceBackend::MemoryType memoryType, GstMapFlags mapFlags);
 
 void gva_buffer_unmap(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext);

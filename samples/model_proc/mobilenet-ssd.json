@@ -4,7 +4,7 @@
             "color_format": "BGR"
         }
     ],
-    "json_schema_version": 1,
+    "json_schema_version": "1.0.0",
     "output_postproc": [
         {
             "converter": "tensor_to_bbox_ssd",

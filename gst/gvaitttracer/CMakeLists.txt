@@ -40,4 +40,4 @@ PRIVATE
         ittnotify
 )
 
-install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)
+install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

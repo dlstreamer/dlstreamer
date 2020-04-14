@@ -7,6 +7,7 @@
 #ifndef __STATUSMESSAGE_H__
 #define __STATUSMESSAGE_H__
 
+#include <gst/gst.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -38,7 +39,7 @@ typedef enum _file_publish_error {
     FILE_ERROR_WRITING_FILE = -2,
     FILE_ERROR_NO_INFERENCE = -3,
     FILE_ERROR_FILE_EXISTS = -4,
-    FILE_ERROR_FILE_CREATE = -5, // could not create file (batch) or could not open file/pipe for write (stream)
+    FILE_ERROR_FILE_CREATE = -5, // could not create file (json) or could not open file/pipe for write (json_lines)
     FILE_ERROR_INVALID_FILEPATH = -6,
     FILE_ERROR_INITIALIZING_BUFFER = -7
 } FilePublishStatus;
@@ -51,7 +52,9 @@ struct _MetapublishStatusMessage {
         MQTTPublishStatus mps;
         KafkaPublishStatus kps;
     } responseCode;
-    gchar *responseMessage;
+    gchar responseMessage[MAX_RESPONSE_MESSAGE];
 };
+
+void prepare_response_message(MetapublishStatusMessage *message, const gchar *responseMessage);
 
 #endif

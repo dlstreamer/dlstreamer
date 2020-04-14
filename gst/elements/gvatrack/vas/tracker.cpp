@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "tracker.h"
+#include "mapped_mat.h"
 
 #include "gva_utils.h"
 #include "video_frame.h"
@@ -59,25 +60,24 @@ vas::ColorFormat ConvertFormat(GstVideoFormat format) {
 
 std::vector<vas::ot::DetectedObject> extractDetectedObjects(GVA::VideoFrame &video_frame,
                                                             std::unordered_map<int, std::string> &labels) {
-    std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
     std::vector<vas::ot::DetectedObject> detected_objects;
-    for (auto it = regions.rbegin(); it != regions.rend(); ++it) {
-        int label_id = it->detection().has_field("label_id") ? it->label_id() : std::numeric_limits<int>::max();
+    for (GVA::RegionOfInterest &roi : video_frame.regions()) {
+        int label_id = roi.detection().get_int("label_id", std::numeric_limits<int>::max());
         if (labels.find(label_id) == labels.end())
-            labels[label_id] = g_quark_to_string(it->meta()->roi_type);
-        cv::Rect obj_rect(it->meta()->x, it->meta()->y, it->meta()->w, it->meta()->h);
+            labels[label_id] = roi.label();
+        auto rect = roi.rect();
+        cv::Rect obj_rect(rect.x, rect.y, rect.w, rect.h);
         detected_objects.emplace_back(obj_rect, label_id);
-        video_frame.pop_region();
+        video_frame.remove_region(roi);
     }
     return detected_objects;
 }
 
 void append(GVA::VideoFrame &video_frame, const vas::ot::Object &tracked_object, const std::string &label) {
     auto roi = video_frame.add_region(tracked_object.rect.x, tracked_object.rect.y, tracked_object.rect.width,
-                                      tracked_object.rect.height, tracked_object.class_label);
-    const int tracking_id = tracked_object.tracking_id + 1; // gvaclassify identify tracking id starts 1.
-    roi.meta()->roi_type = g_quark_from_string(label.c_str());
-    set_object_id(roi.meta(), tracking_id);
+                                      tracked_object.rect.height, label);
+    roi.detection().set_int("label_id", tracked_object.class_label);
+    roi.set_object_id(tracked_object.tracking_id + 1); // gvaclassify identify tracking id starts 1.
 }
 
 } // namespace
@@ -105,7 +105,9 @@ void Tracker::track(GstBuffer *buffer) {
         GVA::VideoFrame video_frame(buffer, video_info.get());
         std::vector<vas::ot::DetectedObject> detected_objects = extractDetectedObjects(video_frame, labels);
 
-        const auto tracked_objects = object_tracker->Track(video_frame.data()->mat(), detected_objects);
+        MappedMat cv_mat(buffer, video_info.get(), GST_MAP_READ);
+
+        const auto tracked_objects = object_tracker->Track(cv_mat.mat(), detected_objects);
 
         for (const auto &tracked_object : tracked_objects) {
             if (tracked_object.status == vas::ot::TrackingStatus::LOST)

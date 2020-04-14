@@ -9,43 +9,139 @@
 #include "python_callback.h"
 
 #include "gva_utils.h"
+#include <nlohmann/json.hpp>
+using nlohmann::json;
+
+class PythonError {
+    PyObjectWrapper py_stringio_constructor;
+    PyObjectWrapper py_traceback_print_exception;
+
+  public:
+    PythonError() {
+        DECL_WRAPPER(io_module, PyImport_ImportModule("io"));
+        py_stringio_constructor.reset(PyObject_GetAttrString(io_module, "StringIO"));
+        DECL_WRAPPER(traceback_module, PyImport_ImportModule("traceback"));
+        py_traceback_print_exception.reset(PyObject_GetAttrString(traceback_module, "print_exception"));
+    }
+    void log_python_error(PyObject *ptype, PyObject *pvalue, PyObject *ptraceback) {
+        DECL_WRAPPER(py_stringio_instance, PyObject_CallObject(py_stringio_constructor, NULL));
+        PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
+        DECL_WRAPPER(py_args,
+                     Py_BuildValue("OOOOO", ptype ? ptype : Py_None, pvalue ? pvalue : Py_None,
+                                   ptraceback ? ptraceback : Py_None, Py_None, (PyObject *)py_stringio_instance));
+        DECL_WRAPPER(py_traceback_result, PyObject_CallObject(py_traceback_print_exception, py_args));
+        DECL_WRAPPER(py_getvalue, PyObject_GetAttrString(py_stringio_instance, "getvalue"));
+        DECL_WRAPPER(py_result, PyObject_CallObject(py_getvalue, nullptr));
+        GST_ERROR("%s", PyUnicode_AsUTF8(py_result));
+    }
+};
 
 void log_python_error() {
     PyObject *ptype, *pvalue, *ptraceback;
     PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-    if (pvalue) {
-        PyObject *str = PyObject_Str(pvalue);
-        if (str) {
-            const char *error_message = PyUnicode_AsUTF8(str);
-            if (error_message) {
-                GST_ERROR("%s", error_message);
-            }
-        }
-        PyErr_Restore(ptype, pvalue, ptraceback);
+    static PythonError pythonError;
+    pythonError.log_python_error(ptype, pvalue, ptraceback);
+    PyErr_Restore(ptype, pvalue, ptraceback);
+}
+
+void create_arguments(void **args, void **kwargs) {
+    try {
+        *args = new json(json::value_t::array);
+        *kwargs = new json(json::value_t::object);
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", e.what());
     }
 }
 
+void delete_arguments(void *args) {
+    json *json_args = (json *)args;
+    try {
+        delete json_args;
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", e.what());
+    }
+}
+
+gchar *get_arguments_string(void *args) {
+    try {
+        if (args) {
+            json *json_args = (json *)args;
+            auto string = json_args->dump();
+            return g_strdup(string.c_str());
+        }
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", e.what());
+    }
+    return NULL;
+}
+
+gboolean update_keyword_arguments(const char *argument, void **args) {
+    gboolean result = TRUE;
+    try {
+        json *json_args = (json *)*args;
+        json new_argument = json::parse(argument);
+        json_args->update(new_argument);
+    } catch (json::parse_error &e) {
+        GST_ERROR("argument %s is not a valid JSON value, error: %s", argument, e.what());
+        result = FALSE;
+    } catch (const std::exception &e) {
+        GST_ERROR("error processing argument: %s, error: %s", argument, CreateNestedErrorMsg(e).c_str());
+        result = FALSE;
+    }
+    if (!result) {
+        delete_arguments(*args);
+        *args = NULL;
+    }
+    return result;
+}
+
+gboolean update_arguments(const char *argument, void **args) {
+    gboolean result = TRUE;
+    try {
+        json *json_args = (json *)*args;
+        json new_argument = json::parse(argument);
+        switch (new_argument.type()) {
+        case json::value_t::array: {
+            json_args->insert(json_args->end(), new_argument.begin(), new_argument.end());
+            break;
+        }
+        default: { (*json_args) += new_argument; }
+        }
+    } catch (json::parse_error &e) {
+        GST_ERROR("argument %s is not a valid JSON value, error: %s", argument, e.what());
+        result = FALSE;
+    } catch (const std::exception &e) {
+        GST_ERROR("error processing argument: %s, error: %s", argument, CreateNestedErrorMsg(e).c_str());
+        result = FALSE;
+    }
+    if (!result) {
+        delete_arguments(*args);
+        *args = NULL;
+    }
+    return result;
+}
+
 PythonCallback *create_python_callback(const char *module_path, const char *class_name, const char *function_name,
-                                       const char *arg_string, GstCaps *caps) {
-    if (module_path == nullptr || function_name == nullptr || caps == nullptr) {
-        GST_ERROR("module_path, function_name and caps must not be NULL");
+                                       const char *args_string, const char *keyword_args_string) {
+    if (module_path == nullptr || function_name == nullptr) {
+        GST_ERROR("module_path, function_name must not be NULL");
         return nullptr;
     }
     try {
-        return new PythonCallback(module_path, class_name, function_name, arg_string, caps);
+        return new PythonCallback(module_path, class_name, function_name, args_string, keyword_args_string);
     } catch (const std::exception &e) {
         GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
         return nullptr;
     }
 }
 
-gboolean invoke_python_callback(struct PythonCallback *python_callback, GstBuffer *buffer) {
+gboolean set_python_callback_caps(struct PythonCallback *python_callback, GstCaps *caps) {
     if (python_callback == nullptr) {
         GST_ERROR("python_callback is not initialized");
         return FALSE;
     }
     try {
-        python_callback->CallPython(buffer);
+        python_callback->SetCaps(caps);
         return TRUE;
     } catch (const std::exception &e) {
         GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
@@ -54,7 +150,28 @@ gboolean invoke_python_callback(struct PythonCallback *python_callback, GstBuffe
     }
 }
 
+GstFlowReturn invoke_python_callback(struct PythonCallback *python_callback, GstBuffer *buffer) {
+    if (python_callback == nullptr) {
+        GST_ERROR("python_callback is not initialized");
+        return GST_FLOW_ERROR;
+    }
+    try {
+        if (python_callback->CallPython(buffer)) {
+            return GST_FLOW_OK;
+        } else {
+            return GST_BASE_TRANSFORM_FLOW_DROPPED;
+        }
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
+        log_python_error();
+        return GST_FLOW_ERROR;
+    }
+}
+
 void delete_python_callback(struct PythonCallback *python_callback) {
-    if (python_callback != nullptr)
+    try {
         delete python_callback;
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", e.what());
+    }
 }

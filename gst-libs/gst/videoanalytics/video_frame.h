@@ -7,8 +7,7 @@
 /**
  * @file video_frame.h
  * @brief This file contains GVA::VideoFrame class to control particular inferenced frame and attached
- * GVA::RegionOfInterest and GVA::Tensor instances. It also provides GVA::MappedMat class to access image information of
- * GVA::VideoFrame
+ * GVA::RegionOfInterest and GVA::Tensor instances.
  */
 
 #pragma once
@@ -25,72 +24,11 @@
 #include <string>
 #include <vector>
 
-#include "gva_json_meta.h"
-#include "gva_tensor_meta.h"
+#include "metadata/gva_json_meta.h"
+#include "metadata/gva_tensor_meta.h"
 #include "region_of_interest.h"
 
 namespace GVA {
-
-/**
- * @brief This class represents mapped data from GstBuffer in matrix form using cv::Mat
- */
-class MappedMat {
-  private:
-    GstBuffer *buffer;
-    GstMapInfo map_info;
-    cv::Mat cv_mat;
-
-    MappedMat();
-    MappedMat(const MappedMat &);
-    MappedMat &operator=(const MappedMat &);
-
-  public:
-    /**
-     * @brief Construct MappedMat instance from GstBuffer and GstVideoInfo
-     * @param buffer GstBuffer* containing image of interest
-     * @param video_info GstVideoInfo* containing video information
-     * @param flag GstMapFlags flags used when mapping memory
-     */
-    MappedMat(GstBuffer *buffer, const GstVideoInfo *video_info, GstMapFlags flag = GST_MAP_READ) : buffer(buffer) {
-        if (!gst_buffer_map(buffer, &map_info, flag))
-            throw std::runtime_error("GVA::MappedMat: Could not map buffer to system memory");
-
-        GstVideoFormat format = video_info->finfo->format;
-        int stride = video_info->stride[0];
-
-        switch (format) {
-        case GST_VIDEO_FORMAT_BGR:
-            this->mat() = cv::Mat(cv::Size(video_info->width, video_info->height), CV_8UC3,
-                                  reinterpret_cast<char *>(map_info.data), stride);
-            break;
-        case GST_VIDEO_FORMAT_NV12:
-            this->mat() = cv::Mat(cv::Size(video_info->width, static_cast<int32_t>(video_info->height * 1.5f)), CV_8UC1,
-                                  reinterpret_cast<char *>(map_info.data), stride);
-            break;
-        case GST_VIDEO_FORMAT_BGRA:
-        case GST_VIDEO_FORMAT_BGRx:
-            this->mat() = cv::Mat(cv::Size(video_info->width, video_info->height), CV_8UC4,
-                                  reinterpret_cast<char *>(map_info.data), stride);
-            break;
-
-        default:
-            throw std::runtime_error("GVA::MappedMat: Unsupported format");
-        }
-    }
-
-    ~MappedMat() {
-        if (buffer != nullptr)
-            gst_buffer_unmap(buffer, &map_info);
-    }
-
-    /**
-     * @brief Get mapped data from GstBuffer as a cv::Mat
-     * @return data wrapped by cv::Mat
-     */
-    cv::Mat &mat() {
-        return cv_mat;
-    }
-};
 
 /**
  * @brief This class represents video frame - object for working with RegionOfInterest and Tensor objects which
@@ -112,18 +50,6 @@ class VideoFrame {
      */
     std::unique_ptr<GstVideoInfo, std::function<void(GstVideoInfo *)>> info;
 
-    /**
-     * @brief vector of RegionOfInterest objects for this VideoFrame. These regions have GstVideoRegionOfInterestMeta
-     * metadata type and they are produced by gvadetect and updated with classification tensors by gvaclassify
-     */
-    std::vector<RegionOfInterest> _regions;
-
-    /**
-     * @brief vector of tensors (inference results) for this VideoFrame. These tensors have GstGVATensorMeta metadata
-     * type and they are produced by gvainference element
-     */
-    std::vector<Tensor> _tensors;
-
   public:
     /**
      * @brief Construct VideoFrame instance from GstBuffer and GstVideoInfo. This is preferred way of creating
@@ -136,7 +62,6 @@ class VideoFrame {
         if (not buffer or not info) {
             throw std::invalid_argument("GVA::VideoFrame: buffer or info nullptr");
         }
-        init();
     }
 
     /**
@@ -153,8 +78,6 @@ class VideoFrame {
         if (!gst_video_info_from_caps(info.get(), caps)) {
             throw std::runtime_error("GVA::VideoFrame: gst_video_info_from_caps failed");
         }
-
-        init();
     }
 
     /**
@@ -178,9 +101,14 @@ class VideoFrame {
 
         info->width = meta->width;
         info->height = meta->height;
-        memcpy(info->stride, meta->stride, sizeof(meta->stride));
 
-        init();
+        // Perform secure assignment of buffer similar to memcpy_s
+        if (meta->stride == NULL || sizeof(info->stride) < sizeof(meta->stride)) {
+            memset(info->stride, 0, sizeof(info->stride));
+            throw std::logic_error("GVA::VideoFrame: stride copy failed");
+        }
+
+        memcpy(info->stride, meta->stride, sizeof(meta->stride));
     }
 
     /**
@@ -204,7 +132,7 @@ class VideoFrame {
      * @return vector of RegionOfInterest objects attached to VideoFrame
      */
     std::vector<RegionOfInterest> regions() {
-        return _regions;
+        return get_regions();
     }
 
     /**
@@ -212,7 +140,7 @@ class VideoFrame {
      * @return vector of RegionOfInterest objects attached to VideoFrame
      */
     const std::vector<RegionOfInterest> regions() const {
-        return _regions;
+        return get_regions();
     }
 
     /**
@@ -220,26 +148,7 @@ class VideoFrame {
      * @return vector of Tensor objects attached to VideoFrame
      */
     std::vector<Tensor> tensors() {
-        return _tensors;
-    }
-
-    /**
-     * @brief  Create GstStructure containing specified vector of labels to be passed to add_region() if needed
-     * This function transfers ownership to heap-allocated GstStructure to caller
-     * @param labels vector of label strings used for detection model training
-     * @return GstStructure containing specified list of labels
-     */
-    static GstStructure *create_labels_structure(const std::vector<std::string> &labels) {
-        GValueArray *arr = g_value_array_new(labels.size());
-        GValue gvalue = G_VALUE_INIT;
-        g_value_init(&gvalue, G_TYPE_STRING);
-        for (std::string label : labels) {
-            g_value_set_string(&gvalue, label.c_str());
-            g_value_array_append(arr, &gvalue);
-        }
-        GstStructure *labels_struct = gst_structure_new_empty("labels_struct");
-        gst_structure_set_array(labels_struct, "labels", arr);
-        return labels_struct;
+        return get_tensors();
     }
 
     /**
@@ -247,89 +156,7 @@ class VideoFrame {
      * @return vector of Tensor objects attached to VideoFrame
      */
     const std::vector<Tensor> tensors() const {
-        return _tensors;
-    }
-
-    /**
-     * @brief Attach RegionOfInterest to this VideoFrame. This function takes ownership of region_tensor, if passed
-     * This int version of `add_region` is implemented to preserve exact values for int coordinates
-     * @param x x coordinate of the upper left corner of bounding box (in pixels)
-     * @param y y coordinate of the upper left corner of bounding box (in pixels)
-     * @param w bounding box width (in pixels)
-     * @param h bounding box height (in pixels)
-     * @param label_id bounding box label id
-     * @param confidence detection confidence
-     * @param region_tensor base tensor for detection Tensor which will be added to this new
-     * RegionOfInterest. If you want this detection Tensor to have textual representation of label
-     * (see Tensor::label()), you pass here GstStructure with "labels" GValueArray containing
-     * label strings used for detection model training. Please see VideoFrame Python API documentation & implementation
-     * for example
-     * This function takes ownership of region_tensor passed. Pass unique heap-allocated GstStructure here and do not
-     * free region_tensor manually after function invoked
-     * @return new RegionOfInterest instance
-     */
-    RegionOfInterest add_region(int x, int y, int w, int h, int label_id, double confidence = 0.0,
-                                GstStructure *region_tensor = nullptr) {
-        if (!this->is_bounded(x, y, w, h)) {
-            int x_init = x, y_init = y, w_init = w, h_init = h;
-            clip(x, y, w, h);
-            GST_DEBUG("ROI coordinates {x, y, w, h} are out of image borders and will be clipped: [%d, %d, %d, %d] "
-                      "-> [%d, %d, %d, %d]",
-                      x_init, y_init, w_init, h_init, x, y, w, h);
-        }
-
-        const gchar *label = "";
-        get_label_by_label_id(region_tensor, label_id, &label);
-
-        GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(buffer, label, x, y, w, h);
-
-        if (not region_tensor)
-            region_tensor = gst_structure_new_empty("detection");
-        else
-            gst_structure_set_name(region_tensor, "detection"); // make sure we're about to add detection Tensor
-
-        gst_structure_set(region_tensor, "label_id", G_TYPE_INT, label_id, "confidence", G_TYPE_DOUBLE, confidence,
-                          "x_min", G_TYPE_DOUBLE, (double)x / info->width, "x_max", G_TYPE_DOUBLE,
-                          (double)(x + w) / info->width, "y_min", G_TYPE_DOUBLE, (double)y / info->height, "y_max",
-                          G_TYPE_DOUBLE, (double)(y + h) / info->height, NULL);
-
-        _regions.emplace_back(meta);
-        _regions.back().add_tensor(region_tensor);
-        // region_tensor will be freed along with GstVideoRegionOfInterestMeta
-        return _regions.back();
-    }
-
-    /**
-     * @brief Attach RegionOfInterest to this VideoFrame. This function takes ownership of region_tensor, if passed
-     * @param x x coordinate of the upper left corner of bounding box (in [0,1] interval)
-     * @param y y coordinate of the upper left corner of bounding box (in [0,1] interval)
-     * @param w bounding box width (in [0,1-x] interval)
-     * @param h bounding box height (in [0,1-y] interval)
-     * @param label_id bounding box label id
-     * @param confidence detection confidence
-     * @param region_tensor base tensor for detection Tensor which will be added to this new
-     * RegionOfInterest. If you want this detection Tensor to have textual representation of label
-     * (see Tensor::label()), you pass here GstStructure with "labels" GValueArray containing
-     * label strings used for detection model training. Please see VideoFrame Python API documentation & implementation
-     * for example
-     * This function takes ownership of region_tensor passed. Pass unique heap-allocated GstStructure here and do not
-     * free region_tensor manually after function invoked
-     * @return new RegionOfInterest instance
-     */
-    RegionOfInterest add_region(double x, double y, double w, double h, int label_id, double confidence = 0.0,
-                                GstStructure *region_tensor = nullptr) {
-        return this->add_region((int)(x * info->width), (int)(y * info->height), (int)(w * info->width),
-                                (int)(h * info->height), label_id, confidence, region_tensor);
-    }
-
-    /**
-     * @brief Attach empty Tensor to this VideoFrame
-     * @return new Tensor instance
-     */
-    Tensor add_tensor() {
-        GstGVATensorMeta *tensor_meta = GST_GVA_TENSOR_META_ADD(buffer);
-        _tensors.emplace_back(tensor_meta->data);
-        return _tensors.back();
+        return get_tensors();
     }
 
     /**
@@ -340,10 +167,68 @@ class VideoFrame {
         std::vector<std::string> json_messages;
         GstGVAJSONMeta *meta = NULL;
         gpointer state = NULL;
-        while ((meta = GST_GVA_JSON_META_ITERATE(buffer, &state))) {
-            json_messages.emplace_back(get_json_message(meta));
+        GType meta_api_type = g_type_from_name(GVA_JSON_META_API_NAME);
+        while ((meta = (GstGVAJSONMeta *)gst_buffer_iterate_meta_filtered(buffer, &state, meta_api_type))) {
+            json_messages.emplace_back(meta->message);
         }
         return json_messages;
+    }
+
+    /**
+     * @brief Attach RegionOfInterest to this VideoFrame. This function takes ownership of region_tensor, if passed
+     * @param x x coordinate of the upper left corner of bounding box
+     * @param y y coordinate of the upper left corner of bounding box
+     * @param w width of the bounding box
+     * @param h height of the bounding box
+     * @param label object label
+     * @param confidence detection confidence
+     * @param normalized if False, bounding box coordinates are pixel coordinates in range from 0 to image width/height.
+    if True, bounding box coordinates normalized to [0,1] range.
+     * @return new RegionOfInterest instance
+     */
+    RegionOfInterest add_region(double x, double y, double w, double h, std::string label = std::string(),
+                                double confidence = 0.0, bool normalized = false) {
+        if (!normalized) {
+            if (info->width == 0 or info->height == 0) {
+                throw std::logic_error("Failed to normalize coordinates width/height equal to 0");
+            }
+            x /= info->width;
+            y /= info->height;
+            w /= info->width;
+            h /= info->height;
+        }
+
+        clip_normalized_rect(x, y, w, h);
+
+        // absolute coordinates
+        double _x = x * info->width + 0.5;
+        double _y = y * info->height + 0.5;
+        double _w = w * info->width + 0.5;
+        double _h = h * info->height + 0.5;
+        GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
+            buffer, label.c_str(), double_to_uint(_x), double_to_uint(_y), double_to_uint(_w), double_to_uint(_h));
+
+        // Add detection tensor
+        GstStructure *detection =
+            gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x, "x_max", G_TYPE_DOUBLE, x + w, "y_min",
+                              G_TYPE_DOUBLE, y, "y_max", G_TYPE_DOUBLE, y + h, NULL);
+        if (confidence) {
+            gst_structure_set(detection, "confidence", G_TYPE_DOUBLE, confidence, NULL);
+        }
+        gst_video_region_of_interest_meta_add_param(meta, detection);
+
+        return RegionOfInterest(meta);
+    }
+
+    /**
+     * @brief Attach empty Tensor to this VideoFrame
+     * @return new Tensor instance
+     */
+    Tensor add_tensor() {
+        const GstMetaInfo *meta_info = gst_meta_get_info(GVA_TENSOR_META_IMPL_NAME);
+        GstGVATensorMeta *tensor_meta = (GstGVATensorMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
+
+        return Tensor(tensor_meta->data);
     }
 
     /**
@@ -351,90 +236,74 @@ class VideoFrame {
      * @param message message to attach to this VideoFrame
      */
     void add_message(const std::string &message) {
-        GstGVAJSONMeta *json_meta = GST_GVA_JSON_META_ADD(buffer);
-        json_meta->message = strdup(message.c_str());
+        const GstMetaInfo *meta_info = gst_meta_get_info(GVA_JSON_META_IMPL_NAME);
+        GstGVAJSONMeta *json_meta = (GstGVAJSONMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
+        json_meta->message = g_strdup(message.c_str());
     }
 
     /**
-     * @brief Remove RegionOfInterest with the specified index
-     * @param index index of the RegionOfInterest
+     * @brief Remove RegionOfInterest
+     * @param roi the RegionOfInterest to remove
      */
-    void pop_region(size_t index) {
-        // TODO: unittest it
-        if (index >= _regions.size())
-            throw std::out_of_range("GVA::VideoFrame: RegionOfInterest index is out of range");
-
-        if (not _regions[index].meta())
-            throw std::runtime_error("GVA::VideoFrame: Underlying GstVideoRegionOfInterestMeta pointer is NULL for "
-                                     "RegionOfInterest at index " +
-                                     std::to_string(index) + " of this VideoFrame");
-
-        if (not gst_buffer_remove_meta(buffer, (GstMeta *)_regions[index].meta()))
-            throw std::runtime_error(
-                "GVA::VideoFrame: Underlying GstVideoRegionOfInterestMeta for RegionOfInterest at index " +
-                std::to_string(index) + " doesn't belong to this VideoFrame");
-        _regions.erase(_regions.begin() + index);
+    void remove_region(const RegionOfInterest &roi) {
+        if (!gst_buffer_remove_meta(buffer, (GstMeta *)roi._meta())) {
+            throw std::out_of_range("GVA::VideoFrame: RegionOfInterest doesn't belong to this frame");
+        }
     }
 
     /**
-     * @brief Remove the last RegionOfInterest
+     * @brief Remove Tensor
+     * @param tensor the Tensor to remove
      */
-    void pop_region() {
-        size_t last_idx = _regions.size() - 1;
-        pop_region(last_idx);
-    }
-
-    /**
-     * @brief Get buffer data wrapped by MappedMat
-     * @return unique pointer to an instance of MappedMat
-     */
-    std::unique_ptr<MappedMat> data(GstMapFlags flag = GST_MAP_READWRITE) {
-        return std::unique_ptr<MappedMat>(new MappedMat(buffer, info.get(), flag));
+    void remove_tensor(const Tensor &tensor) {
+        GstGVATensorMeta *meta = NULL;
+        gpointer state = NULL;
+        while ((meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state))) {
+            if (meta->data == tensor._structure) {
+                if (gst_buffer_remove_meta(buffer, (GstMeta *)meta))
+                    return;
+            }
+        }
+        throw std::out_of_range("GVA::VideoFrame: Tensor doesn't belong to this frame");
     }
 
   private:
-    // TODO: move to C and use in Python via ctypes
-    static bool get_label_by_label_id(GstStructure *region_tensor, int label_id, const gchar **out_label) {
-        *out_label = "";
-        if (region_tensor and gst_structure_has_field(region_tensor, "labels")) {
-            GValueArray *labels = nullptr;
-            gst_structure_get_array(region_tensor, "labels", &labels);
-            if (labels && label_id >= 0 && label_id < (gint)labels->n_values) {
-                *out_label = g_value_get_string(labels->values + label_id);
-                return true;
-            }
+    void clip_normalized_rect(double &x, double &y, double &w, double &h) {
+        if (!((x >= 0) && (y >= 0) && (w >= 0) && (h >= 0) && (x + w <= 1) && (y + h <= 1))) {
+            GST_DEBUG("ROI coordinates x=[%.5f, %.5f], y=[%.5f, %.5f] are out of range [0,1] and will be clipped", x,
+                      x + w, y, y + h);
+
+            x = (x < 0) ? 0 : (x > 1) ? 1 : x;
+            y = (y < 0) ? 0 : (y > 1) ? 1 : y;
+            w = (w < 0) ? 0 : (w > 1 - x) ? 1 - x : w;
+            h = (h < 0) ? 0 : (h > 1 - y) ? 1 - y : h;
         }
-        return false;
     }
 
-    void clip(int &x, int &y, int &w, int &h) {
-        x = (x < 0) ? 0 : (x > info->width) ? info->width : x;
-        y = (y < 0) ? 0 : (y > info->height) ? info->height : y;
-        w = (w < 0) ? 0 : (x + w > info->width) ? info->width - x : w;
-        h = (h < 0) ? 0 : (y + h > info->height) ? info->height - y : h;
+    unsigned int double_to_uint(double val) {
+        unsigned int max = std::numeric_limits<unsigned int>::max();
+        unsigned int min = std::numeric_limits<unsigned int>::min();
+        return (val < min) ? min : ((val > max) ? max : static_cast<unsigned int>(val));
     }
 
-    bool is_bounded(int x, int y, int w, int h) {
-        return (x >= 0) and (y >= 0) and (w >= 0) and (h >= 0) and (x + w <= info->width) and (y + h <= info->height);
-    }
-
-    void init_regions() {
-        GstVideoRegionOfInterestMeta *meta = NULL;
+    std::vector<RegionOfInterest> get_regions() const {
+        std::vector<RegionOfInterest> regions;
+        GstMeta *meta = NULL;
         gpointer state = NULL;
-        while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state)))
-            _regions.emplace_back(meta);
+
+        while ((meta = gst_buffer_iterate_meta_filtered(buffer, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE)))
+            regions.emplace_back((GstVideoRegionOfInterestMeta *)meta);
+        return regions;
     }
 
-    void init_tensors() {
+    std::vector<Tensor> get_tensors() const {
+        std::vector<Tensor> tensors;
         GstGVATensorMeta *meta = NULL;
         gpointer state = NULL;
-        while ((meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state)))
-            _tensors.emplace_back(meta->data);
-    }
-
-    void init() {
-        init_regions();
-        init_tensors();
+        GType meta_api_type = g_type_from_name("GstGVATensorMetaAPI");
+        while ((meta = (GstGVATensorMeta *)gst_buffer_iterate_meta_filtered(buffer, &state, meta_api_type)))
+            tensors.emplace_back(meta->data);
+        return tensors;
     }
 };
 

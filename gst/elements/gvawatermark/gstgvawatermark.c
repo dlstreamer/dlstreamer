@@ -10,7 +10,6 @@
 #include <gst/gst.h>
 
 #include "gva_caps.h"
-#include "region_of_interest.h"
 #include "watermark.h"
 
 #include "config.h"
@@ -154,7 +153,8 @@ static GstFlowReturn gst_gva_watermark_transform_ip(GstBaseTransform *trans, Gst
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }
 
-    draw_label(buf, &gvawatermark->info);
+    if (!draw_label(gvawatermark, buf))
+        return GST_FLOW_ERROR;
 
     return GST_FLOW_OK;
 }

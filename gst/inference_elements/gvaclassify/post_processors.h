@@ -14,8 +14,6 @@ extern "C" {
 
 extern PostProcFunction EXTRACT_CLASSIFICATION_RESULTS;
 
-void copy_buffer_to_structure(GstStructure *structure, const void *buffer, int size);
-
 #ifdef __cplusplus
 }
 #endif

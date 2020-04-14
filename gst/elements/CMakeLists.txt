@@ -9,15 +9,12 @@ cmake_minimum_required (VERSION 3.1)
 set (TARGET_NAME "elements")
 
 find_package(OpenCV REQUIRED core imgproc)
-
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 
 file (GLOB MAIN_SRC
-    gvaidentify/*.cpp
-    gvaidentify/*.c
     gvametaconvert/*.cpp
     gvametaconvert/*.c
     gvametapublish/*.cpp
@@ -93,7 +90,8 @@ PRIVATE
     image_inference
     image_inference_openvino
     logger
-    jsonconvert
+    json-hpp
+    json-schema-validator
 )
 
 if(${HAVE_VAAPI})

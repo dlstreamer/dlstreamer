@@ -77,10 +77,13 @@ void gst_gva_detect_class_init(GstGvaDetectClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
     gobject_class->set_property = gst_gva_detect_set_property;
     gobject_class->get_property = gst_gva_detect_get_property;
-    g_object_class_install_property(gobject_class, PROP_THRESHOLD,
-                                    g_param_spec_float("threshold", "Threshold", "Threshold for inference",
-                                                       DEFALUT_MIN_THRESHOLD, DEFALUT_MAX_THRESHOLD, DEFALUT_THRESHOLD,
-                                                       (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        gobject_class, PROP_THRESHOLD,
+        g_param_spec_float("threshold", "Threshold",
+                           "Threshold for detection results. Only regions of interest "
+                           "with confidence values above the threshold will be added to the frame",
+                           DEFALUT_MIN_THRESHOLD, DEFALUT_MAX_THRESHOLD, DEFALUT_THRESHOLD,
+                           (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 void gst_gva_detect_init(GstGvaDetect *gvadetect) {

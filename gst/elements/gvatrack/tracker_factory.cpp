@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,7 +18,10 @@ bool TrackerFactory::registered_all = TrackerFactory::RegisterAll();
 
 bool TrackerFactory::RegisterAll() {
     bool result = true;
+#ifdef ENABLE_TRACKER_TYPE_IOU
     result &= TrackerFactory::Register(GstGvaTrackingType::IOU, iou::Tracker::Create);
+#endif
+
 #ifdef ENABLE_VAS_TRACKER
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM, VasWrapper::Tracker::CreateShortTerm);
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM, VasWrapper::Tracker::CreateZeroTerm);

@@ -48,10 +48,9 @@ struct _GstGvaMetaPublish {
     GstBaseTransform base_gvametapublish;
     GstGVAMetaPublishMethodType method;
     gchar *file_path;
-    gchar *output_format;
-    gchar *host;
+    gchar *file_format;
     gchar *address;
-    gchar *clientid;
+    gchar *mqtt_client_id;
     gchar *topic;
     gchar *timeout;
     gboolean signal_handoffs;

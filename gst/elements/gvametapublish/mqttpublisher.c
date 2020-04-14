@@ -26,7 +26,7 @@ MQTTClient mqtt_open_connection(MQTTPublishConfig *gvametapublish) {
         clientid = gvametapublish->clientid;
     }
 
-    MQTTClient_create(&client, gvametapublish->bindaddress, clientid, MQTTCLIENT_PERSISTENCE_NONE, NULL);
+    MQTTClient_create(&client, gvametapublish->address, clientid, MQTTCLIENT_PERSISTENCE_NONE, NULL);
     conn_opts.keepAliveInterval = 20;
     conn_opts.cleansession = 1;
 
@@ -40,16 +40,10 @@ MetapublishStatusMessage mqtt_close_connection(MQTTClient client) {
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = MQTT;
     returnMessage.responseCode.mps = MQTT_SUCCESS;
-    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-
-    if (returnMessage.responseMessage == NULL) {
-        returnMessage.responseCode.mps = MQTT_ERROR;
-        return returnMessage;
-    }
 
     if (client == NULL) {
         returnMessage.responseCode.mps = MQTT_ERROR;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "No client to close\n");
+        prepare_response_message(&returnMessage, "No client to close\n");
         return returnMessage;
     }
     MQTTClient_disconnect(client, 60);
@@ -71,18 +65,17 @@ MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig
 
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = MQTT;
-    returnMessage.responseMessage = (gchar *)g_malloc(MAX_RESPONSE_MESSAGE);
 
     if (client == NULL) {
         returnMessage.responseCode.mps = MQTT_ERROR_NO_CONNECTION;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "No mqtt client connection\n");
+        prepare_response_message(&returnMessage, "No mqtt client connection\n");
         return returnMessage;
     }
 
     GstGVAJSONMeta *jsonmeta = GST_GVA_JSON_META_GET(buffer);
     if (!jsonmeta) {
         returnMessage.responseCode.mps = MQTT_ERROR_NO_INFERENCE;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "No json metadata found\n");
+        prepare_response_message(&returnMessage, "No json metadata found\n");
     } else {
         message.payload = jsonmeta->message;
         message.payloadlen = (gint)strlen(message.payload);
@@ -90,8 +83,7 @@ MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig
         MQTTClient_publishMessage(client, gvametapublish->topic, &message, &token);
         MQTTClient_waitForCompletion(client, token, Timeout);
         returnMessage.responseCode.mps = MQTT_SUCCESS;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Message with delivery token %d delivered\n",
-                 token);
+        prepare_response_message(&returnMessage, "Message with delivery token delivered\n");
     }
 
     return returnMessage;

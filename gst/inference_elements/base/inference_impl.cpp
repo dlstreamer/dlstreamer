@@ -13,6 +13,7 @@
 #include "gva_utils.h"
 #include "inference_backend/image_inference.h"
 #include "inference_backend/logger.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "logger_functions.h"
 #include "read_model_proc.h"
 #include "video_frame.h"
@@ -49,13 +50,8 @@ inline std::map<std::string, std::string> StringToMap(std::string const &s, char
 inline std::shared_ptr<Allocator> CreateAllocator(const char *const allocator_name) {
     std::shared_ptr<Allocator> allocator;
     if (allocator_name != nullptr) {
-        try {
-            allocator = std::make_shared<GstAllocatorWrapper>(allocator_name);
-            GVA_TRACE("GstAllocatorWrapper is created");
-        } catch (const std::exception &e) {
-            GVA_ERROR(e.what());
-            throw;
-        }
+        allocator = std::make_shared<GstAllocatorWrapper>(allocator_name);
+        GVA_TRACE("GstAllocatorWrapper is created");
     }
     return allocator;
 }
@@ -84,7 +80,7 @@ inline std::string GstVideoFormatToString(GstVideoFormat formatType) {
 }
 
 void ParseExtension(const char *extension_string, std::map<std::string, std::string> &base_config) {
-    // gva_base_inference->extension is device1=extension1,device2=extension2 like string
+    // gva_base_inference->device_extensions is device1=extension1,device2=extension2 like string
     std::map<std::string, std::string> extensions = StringToMap(extension_string);
     static std::map<std::string, std::string> supported_extensions = {
         {"CPU", KEY_CPU_EXTENSION}, {"GPU", KEY_GPU_EXTENSION}, {"VPU", KEY_VPU_EXTENSION}};
@@ -95,7 +91,7 @@ void ParseExtension(const char *extension_string, std::map<std::string, std::str
             base_config[it_->second] = it->second;
             extensions.erase(it->first);
         } else {
-            std::runtime_error("Does not support extension for device " + it->first);
+            throw std::runtime_error("Does not support extension for device " + it->first);
         }
     }
 }
@@ -104,10 +100,10 @@ inline std::map<std::string, std::map<std::string, std::string>>
 CreateNestedConfig(const GvaBaseInference *gva_base_inference) {
     std::map<std::string, std::map<std::string, std::string>> config;
     std::map<std::string, std::string> base;
-    std::map<std::string, std::string> inference = StringToMap(gva_base_inference->infer_config);
+    std::map<std::string, std::string> inference = StringToMap(gva_base_inference->ie_config);
 
     base[KEY_NIREQ] = std::to_string(gva_base_inference->nireq);
-    if (gva_base_inference->device != nullptr && strlen(gva_base_inference->device) > 0) {
+    if (gva_base_inference->device != nullptr) {
         std::string device = gva_base_inference->device;
         base[KEY_DEVICE] = device;
         if (device == "CPU") {
@@ -144,7 +140,7 @@ CreateNestedConfig(const GvaBaseInference *gva_base_inference) {
         }
     }
 
-    ParseExtension(gva_base_inference->extension, base);
+    ParseExtension(gva_base_inference->device_extensions, base);
 
     config[KEY_BASE] = base;
     config[KEY_INFERENCE] = inference;
@@ -153,36 +149,38 @@ CreateNestedConfig(const GvaBaseInference *gva_base_inference) {
 }
 
 void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, const GstVideoRegionOfInterestMeta *meta) {
+    // TODO: this is also implemented in VideoFrame::clip_normalized_rect, get rid of duplicate
     // workaround for cases when tinyyolov2 output blob parsing result coordinates are out of image
     // boundaries
-    image->rect = {.x = (int)meta->x,
-                   .y = (int)meta->y,
-                   .width = ((int)meta->x + (int)meta->w > image->width) ? (int)(image->width - meta->x) : (int)meta->w,
-                   .height =
-                       ((int)meta->y + (int)meta->h > image->height) ? (int)(image->height - meta->y) : (int)meta->h};
+    if (image->width < meta->x or image->height < meta->y) {
+        image->rect = Rectangle();
+    }
+    image->rect = {.x = meta->x,
+                   .y = meta->y,
+                   .width = (safe_add(meta->x, meta->w) > image->width) ? (image->width - meta->x) : meta->w,
+                   .height = (safe_add(meta->y, meta->h) > image->height) ? (image->height - meta->y) : meta->h};
 }
 
 std::shared_ptr<InferenceBackend::Image> CreateImage(GstBuffer *buffer, GstVideoInfo *info,
                                                      InferenceBackend::MemoryType mem_type, GstMapFlags map_flags) {
     ITT_TASK(__FUNCTION__);
-    std::unique_ptr<InferenceBackend::Image> unique_image = std::unique_ptr<InferenceBackend::Image>(new Image);
-    std::shared_ptr<BufferMapContext> map_context = std::make_shared<BufferMapContext>();
-    if (!map_context) {
-        GST_ERROR("Could not create buffer map_context");
-        return nullptr;
-    }
+    try {
+        std::unique_ptr<InferenceBackend::Image> unique_image = std::unique_ptr<InferenceBackend::Image>(new Image);
+        assert(unique_image.get() != nullptr);
 
-    if (!gva_buffer_map(buffer, *unique_image, *map_context, info, mem_type, map_flags)) {
-        GST_ERROR("Buffer mapping failed");
-        return nullptr;
+        std::shared_ptr<BufferMapContext> map_context = std::make_shared<BufferMapContext>();
+        assert(map_context.get() != nullptr);
+
+        gva_buffer_map(buffer, *unique_image, *map_context, info, mem_type, map_flags);
+
+        auto image_deleter = [buffer, map_context](InferenceBackend::Image *image) {
+            gva_buffer_unmap(buffer, *image, *map_context);
+            delete image;
+        };
+        return std::shared_ptr<InferenceBackend::Image>(unique_image.release(), image_deleter);
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to create image from GstBuffer"));
     }
-    gst_buffer_ref(buffer);
-    auto image_deleter = [buffer, map_context](InferenceBackend::Image *image) {
-        gva_buffer_unmap(buffer, *image, *map_context);
-        gst_buffer_unref(buffer);
-        delete image;
-    };
-    return std::shared_ptr<InferenceBackend::Image>(unique_image.release(), image_deleter);
 }
 
 } // namespace
@@ -191,20 +189,20 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
                                                 std::shared_ptr<Allocator> &allocator, const std::string &model_file,
                                                 const std::string &model_proc_path) {
 
-    if (!file_exists(model_file)) {
-        const std::string error_message = std::string("Model file does not exist (") + model_file + std::string(")");
-        GST_ERROR_OBJECT(gva_base_inference, "%s", error_message.c_str());
-        throw std::invalid_argument(error_message);
-    }
+    if (not file_exists(model_file))
+        throw std::invalid_argument("Model file '" + model_file + "' does not exist");
+
     GST_WARNING_OBJECT(gva_base_inference, "Loading model: device=%s, path=%s", gva_base_inference->device,
                        model_file.c_str());
     GST_WARNING_OBJECT(gva_base_inference, "Initial settings batch_size=%d, nireq=%d", gva_base_inference->batch_size,
                        gva_base_inference->nireq);
     set_log_function(GST_logger);
-    std::map<std::string, std::map<std::string, std::string>> infer_config = CreateNestedConfig(gva_base_inference);
+    std::map<std::string, std::map<std::string, std::string>> ie_config = CreateNestedConfig(gva_base_inference);
 
-    auto infer = ImageInference::make_shared(MemoryType::ANY, model_file, infer_config, allocator.get(),
+    auto infer = ImageInference::make_shared(MemoryType::ANY, model_file, ie_config, allocator.get(),
                                              std::bind(&InferenceImpl::InferenceCompletionCallback, this, _1, _2));
+    if (not infer.get())
+        throw std::runtime_error("Failed to create inference instance");
 
     Model model;
     model.inference = infer;
@@ -261,7 +259,7 @@ InferenceImpl::~InferenceImpl() {
 void InferenceImpl::PushOutput() {
     ITT_TASK(__FUNCTION__);
     while (!output_frames.empty()) {
-        OutputFrame &front = output_frames.front();
+        auto &front = output_frames.front();
         assert(front.inference_count >= 0);
         if (front.inference_count != 0) {
             break; // inference not completed yet
@@ -271,7 +269,8 @@ void InferenceImpl::PushOutput() {
         if (!check_gva_base_inference_stopped(front.filter)) {
             GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(front.filter), buffer);
             if (ret != GST_FLOW_OK) {
-                GST_WARNING("Inference gst_pad_push returned status %d", ret);
+                std::string err = "Inference gst_pad_push returned status " + std::to_string(ret);
+                GVA_WARNING(err.c_str());
             }
         }
         output_frames.pop_front();
@@ -280,9 +279,10 @@ void InferenceImpl::PushOutput() {
 
 std::shared_ptr<InferenceImpl::InferenceResult>
 InferenceImpl::MakeInferenceResult(GvaBaseInference *gva_base_inference, Model &model,
-                                   GstVideoRegionOfInterestMeta *meta, std::shared_ptr<InferenceBackend::Image> image,
+                                   GstVideoRegionOfInterestMeta *meta, std::shared_ptr<InferenceBackend::Image> &image,
                                    GstBuffer *buffer) {
     auto result = std::make_shared<InferenceResult>();
+    assert(result.get() != nullptr); // expect that std::make_shared must throw instead of returning nullptr
 
     result->inference_frame.buffer = buffer;
     result->inference_frame.roi = *meta;
@@ -315,25 +315,20 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
                                           const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstVideoInfo *info,
                                           GstBuffer *buffer) {
     ITT_TASK(__FUNCTION__);
-    // return FLOW_DROPPED as we push buffers from separate thread
-    GstFlowReturn return_status = GST_BASE_TRANSFORM_FLOW_DROPPED;
-
     InferenceBackend::MemoryType mem_type = InferenceBackend::MemoryType::SYSTEM;
-    if (std::string(gva_base_inference->pre_proc_name) == "vaapi") {
-#ifdef HAVE_VAAPI
-        mem_type = MemoryType::VAAPI;
-#elif defined(SUPPORT_DMA_BUFFER)
-        GstMemory *mem = gst_buffer_get_memory(buffer, 0);
-        mem_type = gst_is_fd_memory(mem) ? MemoryType::DMA_BUFFER : MemoryType::SYSTEM;
-        gst_memory_unref(mem);
-#endif
-    }
     try {
-        std::shared_ptr<InferenceBackend::Image> image = CreateImage(buffer, info, mem_type, GST_MAP_READ);
-        if (!image) {
-            return_status = GST_FLOW_ERROR;
-            goto EXIT_LABEL;
+        if (std::string(gva_base_inference->pre_proc_name) == "vaapi") {
+#ifdef HAVE_VAAPI
+            mem_type = MemoryType::VAAPI;
+#elif defined(SUPPORT_DMA_BUFFER)
+            GstMemory *mem = gst_buffer_get_memory(buffer, 0);
+            if (not mem)
+                throw std::runtime_error("Failed to get GstBuffer memory");
+            mem_type = gst_is_fd_memory(mem) ? MemoryType::DMA_BUFFER : MemoryType::SYSTEM;
+            gst_memory_unref(mem);
+#endif
         }
+        std::shared_ptr<InferenceBackend::Image> image = CreateImage(buffer, info, mem_type, GST_MAP_READ);
 
         for (Model &model : models) {
             for (const auto meta : metas) {
@@ -344,12 +339,11 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
             }
         }
     } catch (const std::exception &e) {
-        GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
-        return_status = GST_FLOW_ERROR;
+        std::throw_with_nested(std::runtime_error("Failed to submit images to inference"));
     }
 
-EXIT_LABEL:
-    return return_status;
+    // return FLOW_DROPPED as we push buffers from separate thread
+    return GST_BASE_TRANSFORM_FLOW_DROPPED;
 }
 
 const std::vector<InferenceImpl::Model> &InferenceImpl::GetModels() const {
@@ -366,13 +360,13 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     InferenceStatus status = INFERENCE_EXECUTED;
     {
         ITT_TASK("InferenceImpl::TransformFrameIp check_skip");
-        if (++gva_base_inference->num_skipped_frames < gva_base_inference->every_nth_frame) {
+        if (++gva_base_inference->num_skipped_frames < gva_base_inference->inference_interval) {
             status = INFERENCE_SKIPPED_PER_PROPERTY;
         }
-        if (gva_base_inference->adaptive_skip) {
+        if (gva_base_inference->no_block) {
             for (auto model : models) {
                 if (model.inference->IsQueueFull()) {
-                    status = INFERENCE_SKIPPED_ADAPTIVE;
+                    status = INFERENCE_SKIPPED_NO_BLOCK;
                     break;
                 }
             }
@@ -395,12 +389,12 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             full_frame_meta.h = info->height;
             metas.push_back(&full_frame_meta);
         } else {
-            GVA::VideoFrame video_frame(buffer, info);
-            for (GVA::RegionOfInterest &region : video_frame.regions()) {
+            GstVideoRegionOfInterestMeta *meta = NULL;
+            gpointer state = NULL;
+            while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
                 if (!gva_base_inference->is_roi_classification_needed ||
-                    gva_base_inference->is_roi_classification_needed(gva_base_inference, frame_num, buffer,
-                                                                     region.meta())) {
-                    metas.push_back(region.meta());
+                    gva_base_inference->is_roi_classification_needed(gva_base_inference, frame_num, buffer, meta)) {
+                    metas.push_back(meta);
                 }
             }
         }
@@ -457,6 +451,8 @@ void InferenceImpl::InferenceCompletionCallback(
 
     for (auto &frame : frames) {
         auto inference_result = std::dynamic_pointer_cast<InferenceResult>(frame);
+        assert(inference_result.get() != nullptr); // InferenceResult is inherited from IFrameBase
+
         model = inference_result->model;
         InferenceFrame inference_roi = inference_result->inference_frame;
         inference_result->image = nullptr; // if image_deleter set, call image_deleter including gst_buffer_unref
@@ -467,7 +463,7 @@ void InferenceImpl::InferenceCompletionCallback(
         else
             assert(post_proc == inference_roi.gva_base_inference->post_proc);
 
-        for (OutputFrame &output_frame : output_frames) {
+        for (auto &output_frame : output_frames) {
             if (output_frame.buffer == inference_roi.buffer) {
                 if (output_frame.filter->is_full_frame) { // except gvaclassify because it doesn't attach new metadata
                     if (output_frame.inference_count == 0)
@@ -483,8 +479,8 @@ void InferenceImpl::InferenceCompletionCallback(
                     } else {
                         if (!gst_buffer_is_writable(inference_roi.buffer)) {
                             GST_WARNING_OBJECT(output_frame.filter, "Making a writable buffer requires buffer copy");
+                            inference_roi.buffer = gst_buffer_make_writable(inference_roi.buffer);
                         }
-                        inference_roi.buffer = gst_buffer_make_writable(inference_roi.buffer);
                         output_frame.writable_buffer = inference_roi.buffer;
                     }
                 }

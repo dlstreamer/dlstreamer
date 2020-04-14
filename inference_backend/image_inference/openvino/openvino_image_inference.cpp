@@ -8,6 +8,7 @@
 
 #include "inference_backend/logger.h"
 #include "inference_backend/pre_proc.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "model_loader.h"
 #include "wrap_image.h"
 
@@ -23,6 +24,8 @@ namespace IE = InferenceEngine;
 using namespace InferenceBackend;
 
 namespace {
+
+std::string CreateNestedErrorMsg(const std::exception &e, int level = 0);
 
 InferenceEngine::InputsDataMap modelInputsInfo(InferenceEngine::ExecutableNetwork &executable_network);
 
@@ -50,40 +53,56 @@ InferenceEngine::InputsDataMap modelInputsInfo(InferenceEngine::ExecutableNetwor
     return model_inputs_info;
 }
 
+// TODO: code below is duplicated here to avoid changes in GVA BOM. When integraion to OpenvINO is stabilized, remove
+// this definition and declaration above, and apply commit d4e410ead18fb99a3ca222363a1678c757629443, which makes it
+// properly. Andrey & Igor for details
+std::string CreateNestedErrorMsg(const std::exception &e, int level) {
+    static std::string msg = "\n";
+    msg += std::string(level, ' ') + e.what() + "\n";
+    try {
+        std::rethrow_if_nested(e);
+    } catch (const std::exception &e) {
+        CreateNestedErrorMsg(e, level + 1);
+    }
+    return msg;
+}
+
 std::unique_ptr<InferenceBackend::PreProc> createPreProcessor(InferenceEngine::InputsDataMap &model_inputs_info,
                                                               size_t batch_size,
                                                               const std::map<std::string, std::string> &base_config) {
     const std::string &image_format = base_config.count(KEY_IMAGE_FORMAT) ? base_config.at(KEY_IMAGE_FORMAT) : "";
     const std::string &pre_processor_type =
         base_config.count(KEY_PRE_PROCESSOR_TYPE) ? base_config.at(KEY_PRE_PROCESSOR_TYPE) : "";
-    if (model_inputs_info.size() == 0) {
-        throw std::logic_error("Input layer not found");
-    }
-    auto &input = model_inputs_info.begin()->second;
-    input->setPrecision(InferenceEngine::Precision::U8);
-    input->getInputData()->setLayout(InferenceEngine::Layout::NCHW);
 
-    std::unique_ptr<InferenceBackend::PreProc> pre_processor;
-    if (pre_processor_type == "ie") {
-        if (batch_size > 1)
-            throw std::runtime_error("Inference engine preprocessing with batching is not supported");
-        input->getPreProcess().setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
-        input->getPreProcess().setColorFormat(FormatNameToIEColorFormat(image_format));
-    } else {
-        PreProcessType preProcessorType = PreProcessType::Invalid;
-        if (pre_processor_type.empty() || pre_processor_type == "opencv")
-            preProcessorType = PreProcessType::OpenCV;
-        else if (pre_processor_type == "g-api")
-            preProcessorType = PreProcessType::GAPI;
-        else if (pre_processor_type == "vaapi")
-            preProcessorType = PreProcessType::VAAPI;
-        try {
-            pre_processor.reset(PreProc::Create(preProcessorType));
-        } catch (const std::exception &e) {
-            std::rethrow_if_nested(e);
+    try {
+        if (model_inputs_info.size() == 0) {
+            throw std::invalid_argument("Failed to get model input layers info");
         }
+        auto &input = model_inputs_info.begin()->second;
+        input->setPrecision(InferenceEngine::Precision::U8);
+
+        std::unique_ptr<InferenceBackend::PreProc> pre_processor;
+        if (pre_processor_type == "ie") {
+            if (batch_size > 1)
+                throw std::runtime_error("Inference Engine preprocessing with batching is not supported");
+            input->getPreProcess().setResizeAlgorithm(InferenceEngine::ResizeAlgorithm::RESIZE_BILINEAR);
+            input->getPreProcess().setColorFormat(FormatNameToIEColorFormat(image_format));
+        } else {
+            PreProcessType preProcessorType = PreProcessType::Invalid;
+            if (pre_processor_type == "opencv")
+                preProcessorType = PreProcessType::OpenCV;
+            else if (pre_processor_type == "vaapi")
+                preProcessorType = PreProcessType::VAAPI;
+            else
+                throw std::invalid_argument("'" + pre_processor_type + "' pre-processor is not implemented");
+
+            pre_processor.reset(PreProc::Create(preProcessorType));
+        }
+        return pre_processor;
+    } catch (const std::exception &e) {
+        std::throw_with_nested(
+            std::runtime_error("Failed to create preprocessor of '" + pre_processor_type + "' type"));
     }
-    return pre_processor;
 }
 
 IE::ColorFormat FormatNameToIEColorFormat(const std::string &format) {
@@ -95,12 +114,15 @@ IE::ColorFormat FormatNameToIEColorFormat(const std::string &format) {
     if (iter != formatMap.end()) {
         return iter->second;
     } else {
-        GVA_ERROR("Unsupported color format by Inference Engine preprocessing");
+        std::string err = "Color format '" + format +
+                          "' is not supported by Inference Engine preprocessing. IE::ColorFormat::RAW will be set";
+        GVA_ERROR(err.c_str());
         return IE::ColorFormat::RAW;
     }
 }
 
 inline size_t GetTensorSize(InferenceEngine::TensorDesc desc) {
+    // TODO: merge with GetUnbatchedSizeInBytes to avoid double implementation
     auto dims = desc.getDims();
     size_t size = 1;
     for (auto dim : dims)
@@ -111,7 +133,8 @@ inline size_t GetTensorSize(InferenceEngine::TensorDesc desc) {
     case InferenceEngine::Precision::FP32:
         return size * sizeof(float);
     default:
-        throw std::logic_error("Unsupported precision of the layer");
+        throw std::invalid_argument("Failed to get tensor size for tensor with " + std::to_string(desc.getPrecision()) +
+                                    " InferenceEngine::Precision");
     }
 }
 
@@ -127,27 +150,31 @@ inline std::vector<std::string> split(const std::string &s, char delimiter) {
 
 std::tuple<InferenceEngine::Blob::Ptr, InferenceBackend::Allocator::AllocContext *>
 allocateBlob(const InferenceEngine::TensorDesc &tensor_desc, Allocator *allocator) {
-    const size_t size = GetTensorSize(tensor_desc);
-
-    void *buffer_ptr = nullptr;
-    InferenceBackend::Allocator::AllocContext *alloc_context = nullptr;
-    allocator->Alloc(size, buffer_ptr, alloc_context);
-    InferenceEngine::Blob::Ptr blob;
-    if (buffer_ptr && alloc_context) {
-        switch (tensor_desc.getPrecision()) {
-        case InferenceEngine::Precision::U8:
-            blob = InferenceEngine::make_shared_blob<uint8_t>(tensor_desc, reinterpret_cast<uint8_t *>(buffer_ptr));
-            break;
-        case InferenceEngine::Precision::FP32:
-            blob = InferenceEngine::make_shared_blob<float>(tensor_desc, reinterpret_cast<float *>(buffer_ptr));
-            break;
-        default:
-            throw std::logic_error("Unsupported precision of the layer");
+    try {
+        void *buffer_ptr = nullptr;
+        InferenceBackend::Allocator::AllocContext *alloc_context = nullptr;
+        const size_t size = GetTensorSize(tensor_desc);
+        allocator->Alloc(size, buffer_ptr, alloc_context);
+        InferenceEngine::Blob::Ptr blob;
+        if (buffer_ptr && alloc_context) {
+            switch (tensor_desc.getPrecision()) {
+            case InferenceEngine::Precision::U8:
+                blob = InferenceEngine::make_shared_blob<uint8_t>(tensor_desc, reinterpret_cast<uint8_t *>(buffer_ptr));
+                break;
+            case InferenceEngine::Precision::FP32:
+                blob = InferenceEngine::make_shared_blob<float>(tensor_desc, reinterpret_cast<float *>(buffer_ptr));
+                break;
+            default:
+                throw std::invalid_argument("Failed to create Blob: InferenceEngine::Precision " +
+                                            std::to_string(tensor_desc.getPrecision()) + " is not supported");
+            }
+        } else {
+            throw std::runtime_error("Failed to allocate memory for blob");
         }
-    } else {
-        throw std::runtime_error("Cound not allocate memory for blob");
+        return std::make_tuple(blob, alloc_context);
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to allocate InferenceEngine Blob"));
     }
-    return std::make_tuple(blob, alloc_context);
 }
 
 size_t optimalNireq(const InferenceEngine::ExecutableNetwork &executable_network) {
@@ -155,29 +182,43 @@ size_t optimalNireq(const InferenceEngine::ExecutableNetwork &executable_network
     try {
         nireq = executable_network.GetMetric(IE::Metrics::METRIC_OPTIMAL_NUMBER_OF_INFER_REQUESTS).as<unsigned int>() +
                 1; // One additional for pre-processing parallelization with inference
-        std::string msg = "Setting the optimal number of inference request: nireq=" + std::to_string(nireq);
+        std::string msg = "Setting the optimal number of inference requests: nireq=" + std::to_string(nireq);
         GVA_INFO(msg.c_str());
     } catch (const std::exception &e) {
-        std::string msg = std::string("Failed to get the optimal number of inference request.\n") + e.what();
-        std::throw_with_nested(std::runtime_error(msg));
+        std::string err = std::string("Failed to get optimal number of inference requests: ") + e.what() +
+                          std::string("\nNumber of inference requests will fallback to 1");
+        GVA_ERROR(err.c_str());
+        return 1;
     }
     return nireq;
 }
 
 void addExtension(IE::Core &core, const std::map<std::string, std::string> &base_config) {
     if (base_config.count(KEY_CPU_EXTENSION)) {
-        const std::string &cpu_extension = base_config.at(KEY_CPU_EXTENSION);
-        const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(cpu_extension);
-        core.AddExtension(extension_ptr, "CPU");
+        try {
+            const std::string &cpu_extension = base_config.at(KEY_CPU_EXTENSION);
+            const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(cpu_extension);
+            core.AddExtension(extension_ptr, "CPU");
+        } catch (const std::exception &e) {
+            std::throw_with_nested(std::runtime_error("Failed to add CPU extension"));
+        }
     }
     if (base_config.count(KEY_GPU_EXTENSION)) {
-        // TODO is core.setConfig() same with inference_config
-        const std::string &config_file = base_config.at(KEY_GPU_EXTENSION);
-        core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, "GPU");
+        try {
+            // TODO is core.setConfig() same with inference_config
+            const std::string &config_file = base_config.at(KEY_GPU_EXTENSION);
+            core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, "GPU");
+        } catch (const std::exception &e) {
+            std::throw_with_nested(std::runtime_error("Failed to add GPU extension"));
+        }
     }
     if (base_config.count(KEY_VPU_EXTENSION)) {
-        const std::string &config_file = base_config.at(KEY_VPU_EXTENSION);
-        core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, "VPU");
+        try {
+            const std::string &config_file = base_config.at(KEY_VPU_EXTENSION);
+            core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, "VPU");
+        } catch (const std::exception &e) {
+            std::throw_with_nested(std::runtime_error("Failed to add VPU extension"));
+        }
     }
 }
 struct EntityBuilder {
@@ -306,7 +347,8 @@ void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest>
     auto completion_callback = [this, batch_request](InferenceEngine::InferRequest, InferenceEngine::StatusCode code) {
         try {
             if (code != InferenceEngine::StatusCode::OK) {
-                std::string msg = "inference callback with error code: " + std::to_string(code);
+                std::string msg = "Inference request completion callback failed with InferenceEngine::StatusCode: " +
+                                  std::to_string(code);
                 GVA_ERROR(msg.c_str());
             }
             ITT_TASK("completion_callback_lambda");
@@ -315,7 +357,7 @@ void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest>
             this->requests_processing_ -= buffer_size;
             this->request_processed_.notify_all();
         } catch (const std::exception &e) {
-            std::string msg = "OpenVINOImageInference::setCompletionCallback: " + std::string(e.what());
+            std::string msg = "Failed in inference request completion callback:\n" + CreateNestedErrorMsg(e);
             GVA_ERROR(msg.c_str());
         }
     };
@@ -341,94 +383,135 @@ OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
                                                Allocator *allocator, CallbackFunc callback)
     : allocator(allocator), batch_size(std::stoi(config.at(KEY_BASE).at(KEY_BATCH_SIZE))), requests_processing_(0U) {
 
-    GVA_DEBUG("Image Inference construct");
+    GVA_DEBUG("OpenVINOImageInference constructor");
 
-    const std::map<std::string, std::string> &base_config = config.at(KEY_BASE);
-    std::string device = base_config.at(KEY_DEVICE);
-    int nireq = std::stoi(base_config.at(KEY_NIREQ));
-    // const std::string &cpu_extension = base_config.count(KEY_CPU_EXTENSION) ? base_config.at(KEY_CPU_EXTENSION) : "";
+    try {
+        const std::map<std::string, std::string> &base_config = config.at(KEY_BASE);
+        std::string device = base_config.at(KEY_DEVICE);
+        int nireq = std::stoi(base_config.at(KEY_NIREQ));
+        // const std::string &cpu_extension = base_config.count(KEY_CPU_EXTENSION) ? base_config.at(KEY_CPU_EXTENSION) :
+        // "";
 
-    std::unique_ptr<EntityBuilder> builder = ModelLoader::is_ir_model(model)
-                                                 ? std::unique_ptr<EntityBuilder>(new IrBuilder(config))
-                                                 : std::unique_ptr<EntityBuilder>(new CompiledBuilder(config));
-    InferenceEngine::CNNNetwork network = builder->createNetwork(core, model);
-    model_name = builder->getNetworkName(network);
+        std::unique_ptr<EntityBuilder> builder = ModelLoader::is_ir_model(model)
+                                                     ? std::unique_ptr<EntityBuilder>(new IrBuilder(config))
+                                                     : std::unique_ptr<EntityBuilder>(new CompiledBuilder(config));
+        if (not builder)
+            throw std::runtime_error("Failed to create DL model loader");
+        InferenceEngine::CNNNetwork network = builder->createNetwork(core, model);
+        model_name = builder->getNetworkName(network);
 
-    static GvaErrorListener listner;
-    core.SetLogCallback(listner);
+        static GvaErrorListener listner;
+        core.SetLogCallback(listner);
 
-    InferenceEngine::ExecutableNetwork executable_network;
-    std::tie(pre_processor, executable_network) = builder->createPreProcAndExecutableNetwork(network, core, model);
+        InferenceEngine::ExecutableNetwork executable_network;
+        std::tie(pre_processor, executable_network) = builder->createPreProcAndExecutableNetwork(network, core, model);
 
-    inputs = executable_network.GetInputsInfo();
-    outputs = executable_network.GetOutputsInfo();
-    std::map<std::string, InferenceEngine::TensorDesc> layers;
-    for (auto input : inputs) {
-        layers[input.first] = input.second->getTensorDesc();
-    }
-    for (auto output : outputs) {
-        layers[output.first] = output.second->getTensorDesc();
-    }
-
-    if (nireq == 0) {
-        nireq = optimalNireq(executable_network);
-    }
-
-    for (int i = 0; i < nireq; i++) {
-        std::shared_ptr<BatchRequest> batch_request = std::make_shared<BatchRequest>();
-        batch_request->infer_request = executable_network.CreateInferRequestPtr();
-        setCompletionCallback(batch_request);
-        if (allocator) {
-            setBlobsToInferenceRequest(layers, batch_request, allocator);
+        inputs = executable_network.GetInputsInfo();
+        outputs = executable_network.GetOutputsInfo();
+        std::map<std::string, InferenceEngine::TensorDesc> layers;
+        for (auto input : inputs) {
+            layers[input.first] = input.second->getTensorDesc();
         }
-        freeRequests.push(batch_request);
-    }
+        for (auto output : outputs) {
+            layers[output.first] = output.second->getTensorDesc();
+        }
 
-    initialized = true;
-    this->callback = callback;
+        if (nireq == 0) {
+            nireq = optimalNireq(executable_network);
+        }
+
+        for (int i = 0; i < nireq; i++) {
+            std::shared_ptr<BatchRequest> batch_request = std::make_shared<BatchRequest>();
+            batch_request->infer_request = executable_network.CreateInferRequestPtr();
+            setCompletionCallback(batch_request);
+            if (allocator) {
+                setBlobsToInferenceRequest(layers, batch_request, allocator);
+            }
+            freeRequests.push(batch_request);
+        }
+
+        initialized = true;
+        this->callback = callback;
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to construct OpenVINOImageInference"));
+    }
 }
 
 bool OpenVINOImageInference::IsQueueFull() {
     return freeRequests.empty();
 }
 
+namespace {
+template <class T>
+Image FillImage(const IE::Blob::Ptr &blob, const IE::SizeVector &dims, const size_t index) {
+    Image image = Image();
+    image.width = dims[3];
+    image.height = dims[2];
+    if (index >= dims[0]) {
+        // throw std::out_of_range("Image index is out of range in batch blob");
+    }
+    size_t plane_size = image.width * image.height * sizeof(T);
+    size_t buffer_offset = safe_mul(safe_mul(index, plane_size), dims[1]);
+
+    image.planes[0] = blob->buffer().as<uint8_t *>() + buffer_offset;
+    image.planes[1] = image.planes[0] + plane_size;
+    image.planes[2] = image.planes[1] + plane_size;
+    image.planes[3] = nullptr;
+
+    image.stride[0] = image.width;
+    image.stride[1] = image.width;
+    image.stride[2] = image.width;
+    image.stride[3] = 0;
+    return image;
+}
+
+} // namespace
+
 Image OpenVINOImageInference::GetNextImageBuffer(std::shared_ptr<BatchRequest> request) {
     GVA_DEBUG(__FUNCTION__);
     ITT_TASK(__FUNCTION__);
 
-    if (inputs.begin() == inputs.end())
-        throw std::runtime_error("Inputs data map is empty.");
-    std::string inputName = inputs.begin()->first; // assuming one input layer
-    auto blob = request->infer_request->GetBlob(inputName);
-    auto dims = blob->getTensorDesc().getDims();
-    std::reverse(dims.begin(), dims.end());
+    if (inputs.empty())
+        throw std::logic_error("Inputs map is empty");
+    if (not request or not request->infer_request)
+        throw std::invalid_argument("InferRequest is absent");
 
+    std::string input_name = inputs.begin()->first; // assuming one input layer
+    auto blob = request->infer_request->GetBlob(input_name);
+    auto desc = blob->getTensorDesc();
+    auto dims = desc.getDims();
+    if (desc.getLayout() != IE::Layout::NCHW) {
+        throw std::runtime_error("Unsupported layout");
+    }
     Image image = Image();
-    image.width = dims[0];
-    image.height = dims[1];
-    image.format = FOURCC_RGBP;
-    int batchIndex = request->buffers.size();
-    int plane_size = image.width * image.height;
-    image.planes[0] = blob->buffer().as<uint8_t *>() + batchIndex * plane_size * dims[2];
-    image.planes[1] = image.planes[0] + plane_size;
-    image.planes[2] = image.planes[1] + plane_size;
-    image.stride[0] = image.width;
-    image.stride[1] = image.width;
-    image.stride[2] = image.width;
+    switch (desc.getPrecision()) {
+    case IE::Precision::FP32:
+        image = FillImage<float>(blob, desc.getDims(), request->buffers.size());
+        image.format = FOURCC_RGBP_F32;
+        break;
+    case IE::Precision::U8:
+        image = FillImage<uint8_t>(blob, desc.getDims(), request->buffers.size());
+        image.format = FOURCC_RGBP;
+        break;
+    default:
+        throw std::runtime_error("Unsupported precision");
+        break;
+    }
     return image;
 }
 
 void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<BatchRequest> request, const Image &srcImg,
                                                            std::function<void(Image &)> preProcessor) {
-    if (!pre_processor.get()) {
+    if (not pre_processor.get()) {
         ITT_TASK("SubmitImageSoftwarePreProcess::ie_preproc");
         IE::Blob::Ptr frameBlob = WrapImageToBlob(srcImg);
-        if (!frameBlob) {
-            std::runtime_error("Can not wrapp image to blob");
-        }
+
         if (inputs.empty())
-            std::logic_error("Inputs map is empty.");
+            throw std::logic_error("Inputs map is empty");
+
         std::string inputName = inputs.begin()->first;
+        if (not request or not request->infer_request)
+            throw std::invalid_argument("InferRequest is absent");
         request->infer_request->SetBlob(inputName, frameBlob);
     } else {
         ITT_TASK("SubmitImageSoftwarePreProcess::not_ie_preproc");
@@ -445,7 +528,7 @@ void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<Batch
                 // cv::imwrite(std::string("") + std::to_string(counter++) + "_post" + ".png", mat);
                 preProcessor(dstImg);
             } catch (const std::exception &e) {
-                std::throw_with_nested(std::runtime_error("Error while preprocessing"));
+                std::throw_with_nested(std::runtime_error("Failed while software frame preprocessing"));
             }
         }
     }
@@ -453,6 +536,8 @@ void OpenVINOImageInference::SubmitImageSoftwarePreProcess(std::shared_ptr<Batch
 
 void OpenVINOImageInference::StartAsync(std::shared_ptr<BatchRequest> &request) {
     ITT_TASK(__FUNCTION__);
+    if (not request or not request->infer_request)
+        throw std::invalid_argument("InferRequest is absent");
 #if 1 // TODO: remove when license-plate-recognition-barrier model will take one input
     if (inputs.count("seq_ind")) {
         // 'seq_ind' input layer is some relic from the training
@@ -491,6 +576,8 @@ const std::string &OpenVINOImageInference::GetModelName() const {
 }
 
 void OpenVINOImageInference::GetModelInputInfo(int *width, int *height, int *batch_size, int *format) const {
+    if (inputs.empty())
+        throw std::invalid_argument("DL model input layers info is empty");
     auto dims = inputs.begin()->second->getTensorDesc().getDims();
     std::reverse(dims.begin(), dims.end());
     if (dims.size() < 2)

@@ -17,26 +17,19 @@ MetapublishStatusMessage kafka_open_connection(KafkaPublishConfig *publishConfig
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = KAFKA;
     returnMessage.responseCode.kps = KAFKA_SUCCESS;
-    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-
-    if (returnMessage.responseMessage == NULL) {
-        returnMessage.responseCode.kps = KAFKA_ERROR;
-        return returnMessage;
-    }
 
     if (rd_kafka_conf_set(producerConfig, "bootstrap.servers", publishConfig->address, errstr, sizeof(errstr)) !=
         RD_KAFKA_CONF_OK) {
         rd_kafka_conf_destroy(producerConfig);
         returnMessage.responseCode.kps = KAFKA_ERROR;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE,
-                 "Failed to establish connection to kafka server\n");
+        prepare_response_message(&returnMessage, "Failed to establish connection to kafka server\n");
         return returnMessage;
     }
 
     *producerHandler = rd_kafka_new(RD_KAFKA_PRODUCER, producerConfig, errstr, sizeof(errstr));
     if (!*producerHandler) {
         returnMessage.responseCode.kps = KAFKA_ERROR;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Failed to create Producer Handler\n");
+        prepare_response_message(&returnMessage, "Failed to create Producer Handler\n");
         return returnMessage;
     }
 
@@ -44,11 +37,11 @@ MetapublishStatusMessage kafka_open_connection(KafkaPublishConfig *publishConfig
     if (!*kafka_topic) {
         rd_kafka_destroy(*producerHandler);
         returnMessage.responseCode.kps = KAFKA_ERROR;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Failed to create new topic\n");
+        prepare_response_message(&returnMessage, "Failed to create new topic\n");
         return returnMessage;
     }
 
-    snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Kafka connection opened successfully\n");
+    prepare_response_message(&returnMessage, "Kafka connection opened successfully\n");
     return returnMessage;
 }
 
@@ -61,8 +54,7 @@ MetapublishStatusMessage kafka_close_connection(rd_kafka_t **producerHandler, rd
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = KAFKA;
     returnMessage.responseCode.kps = KAFKA_SUCCESS;
-    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-    snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Kafka connection closed successfully\n");
+    prepare_response_message(&returnMessage, "Kafka connection closed successfully\n");
 
     return returnMessage;
 }
@@ -79,12 +71,6 @@ MetapublishStatusMessage kafka_write_message(rd_kafka_t **producerHandler, rd_ka
     MetapublishStatusMessage returnMessage;
     returnMessage.codeType = KAFKA;
     returnMessage.responseCode.kps = KAFKA_SUCCESS;
-    returnMessage.responseMessage = (gchar *)g_try_malloc(MAX_RESPONSE_MESSAGE);
-
-    if (returnMessage.responseMessage == NULL) {
-        returnMessage.responseCode.kps = KAFKA_ERROR;
-        return returnMessage;
-    }
 
     if (*producerHandler == NULL) {
         returnMessage.responseCode.kps = KAFKA_ERROR;
@@ -94,14 +80,14 @@ MetapublishStatusMessage kafka_write_message(rd_kafka_t **producerHandler, rd_ka
     GstGVAJSONMeta *jsonmeta = GST_GVA_JSON_META_GET(buffer);
     if (!jsonmeta) {
         returnMessage.responseCode.kps = KAFKA_ERROR_NO_INFERENCE;
-        snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "no json metadata found\n");
+        prepare_response_message(&returnMessage, "no json metadata found\n");
         return returnMessage;
     } else {
         msg = rd_kafka_produce(*kafka_topic, RD_KAFKA_PARTITION_UA, RD_KAFKA_MSG_F_COPY, jsonmeta->message,
                                strlen(jsonmeta->message), NULL, 0, NULL);
         if (msg == -1) {
             returnMessage.responseCode.kps = KAFKA_ERROR_NO_TOPIC_PRODUCED;
-            snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Failed to produce to topic\n");
+            prepare_response_message(&returnMessage, "Failed to produce to topic\n");
             return returnMessage;
         }
     }
@@ -109,7 +95,7 @@ MetapublishStatusMessage kafka_write_message(rd_kafka_t **producerHandler, rd_ka
     while (rd_kafka_outq_len(*producerHandler) > 0)
         rd_kafka_poll(*producerHandler, 0);
 
-    snprintf(returnMessage.responseMessage, MAX_RESPONSE_MESSAGE, "Kafka message sent successfully\n");
+    prepare_response_message(&returnMessage, "Kafka message sent successfully\n");
     return returnMessage;
 }
 

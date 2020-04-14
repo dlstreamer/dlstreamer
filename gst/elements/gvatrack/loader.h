@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -23,7 +23,9 @@ class Loader {
         }
         handle = dlopen(path.c_str(), RTLD_NOW);
         if (!handle) {
-            std::string message = std::string("dlopen() failed: ") + std::string(dlerror());
+            auto dlerror_mess = dlerror();
+            std::string message = (dlerror_mess) ? std::string("dlopen() failed: ") + std::string(dlerror_mess)
+                                                 : std::string("dlopen() failed");
             throw std::runtime_error(message);
         }
     }
@@ -32,7 +34,9 @@ class Loader {
         // FIXME: workaround related to crash during dlclose(). Remove when crash is fixed.
         g_usleep(1000000);
         if (dlclose(handle) != 0) {
-            std::string message = std::string("dlclose() failed: ") + std::string(dlerror());
+            auto dlerror_mess = dlerror();
+            std::string message = (dlerror_mess) ? std::string("dlclose() failed: ") + std::string(dlerror_mess)
+                                                 : std::string("dlclose() failed");
             GVA_WARNING(message.c_str());
         }
     }

@@ -22,15 +22,13 @@
 enum {
     PROP_0,
     PROP_OBJECT_CLASS,
-    PROP_SKIP_INTERVAL,
-    PROP_SKIP_CLASSIFIED_OBJECT,
+    PROP_RECLASSIFY_INTERVAL,
 };
 
 #define DEFAULT_OBJECT_CLASS ""
-#define DEFAULT_SKIP_CLASSIFIED_OBJECT FALSE
-#define DEFAULT_SKIP_INTERVAL 0
-#define DEFAULT_MIN_SKIP_INTERVAL 0
-#define DEFAULT_MAX_SKIP_INTERVAL UINT_MAX
+#define DEFAULT_RECLASSIFY_INTERVAL 1
+#define DEFAULT_MIN_RECLASSIFY_INTERVAL 0
+#define DEFAULT_MAX_RECLASSIFY_INTERVAL UINT_MAX
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_classify_debug_category);
 #define GST_CAT_DEFAULT gst_gva_classify_debug_category
@@ -53,26 +51,31 @@ void gst_gva_classify_set_property(GObject *object, guint property_id, const GVa
     static gulong probe_id = 0;
 
     switch (property_id) {
-    case PROP_OBJECT_CLASS:
+    case PROP_OBJECT_CLASS: {
+        g_free(gvaclassify->object_class);
         gvaclassify->object_class = g_value_dup_string(value);
         break;
-    case PROP_SKIP_CLASSIFIED_OBJECT:
-        gvaclassify->skip_classified_objects = g_value_get_boolean(value);
-        if (gvaclassify->skip_classified_objects)
-            probe_id = gst_pad_add_probe(gvaclassify->base_inference.base_transform.srcpad, GST_PAD_PROBE_TYPE_BUFFER,
-                                         FillROIParamsCallback, gvaclassify->classification_history, NULL);
-        else { // not tested
-            gst_pad_remove_probe(gvaclassify->base_inference.base_transform.srcpad, probe_id);
-            probe_id = 0;
+    }
+    case PROP_RECLASSIFY_INTERVAL: {
+        guint newValue = g_value_get_uint(value);
+        guint oldValue = gvaclassify->reclassify_interval;
+        if (newValue != oldValue) {
+            if (oldValue == DEFAULT_RECLASSIFY_INTERVAL) {
+                probe_id =
+                    gst_pad_add_probe(gvaclassify->base_inference.base_transform.srcpad, GST_PAD_PROBE_TYPE_BUFFER,
+                                      FillROIParamsCallback, gvaclassify->classification_history, NULL);
+            } else if (newValue == DEFAULT_RECLASSIFY_INTERVAL) { // not tested
+                gst_pad_remove_probe(gvaclassify->base_inference.base_transform.srcpad, probe_id);
+                probe_id = 0;
+            }
+            gvaclassify->reclassify_interval = newValue;
         }
-
         break;
-    case PROP_SKIP_INTERVAL:
-        gvaclassify->skip_interval = g_value_get_uint(value);
-        break;
-    default:
+    }
+    default: {
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
+    }
     }
 }
 
@@ -85,11 +88,8 @@ void gst_gva_classify_get_property(GObject *object, guint property_id, GValue *v
     case PROP_OBJECT_CLASS:
         g_value_set_string(value, gvaclassify->object_class);
         break;
-    case PROP_SKIP_CLASSIFIED_OBJECT:
-        g_value_set_boolean(value, gvaclassify->skip_classified_objects);
-        break;
-    case PROP_SKIP_INTERVAL:
-        g_value_set_uint(value, gvaclassify->skip_interval);
+    case PROP_RECLASSIFY_INTERVAL:
+        g_value_set_uint(value, gvaclassify->reclassify_interval);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -113,23 +113,25 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
     gobject_class->get_property = gst_gva_classify_get_property;
     gobject_class->finalize = gst_gva_classify_finalize;
 
-    g_object_class_install_property(gobject_class, PROP_OBJECT_CLASS,
-                                    g_param_spec_string("object-class", "ObjectClass", "Object class",
-                                                        DEFAULT_OBJECT_CLASS,
-                                                        (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
     g_object_class_install_property(
-        gobject_class, PROP_SKIP_CLASSIFIED_OBJECT,
-        g_param_spec_boolean(
-            "skip-classified-objects", "Skip classified objects",
-            "Allows to skip cassification on frames series. Classification results on skipped frames are propagated "
-            "from last classified frame to subsequent ones, the number of which is set by skip-interval property.",
-            DEFAULT_SKIP_CLASSIFIED_OBJECT, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        gobject_class, PROP_OBJECT_CLASS,
+        g_param_spec_string("object-class", "ObjectClass",
+                            "Specifies the Region of Interest type for which this classifier will run",
+                            DEFAULT_OBJECT_CLASS, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
     g_object_class_install_property(
-        gobject_class, PROP_SKIP_INTERVAL,
-        g_param_spec_uint("skip-interval", "Skip interval",
-                          "Sets the number of frames on which classification will be skipped",
-                          DEFAULT_MIN_SKIP_INTERVAL, DEFAULT_MAX_SKIP_INTERVAL, DEFAULT_SKIP_INTERVAL,
-                          (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        gobject_class, PROP_RECLASSIFY_INTERVAL,
+        g_param_spec_uint(
+            "reclassify-interval", "Reclassify Interval",
+            "Determines how often to reclassify tracked objects. Only valid when used in conjunction with gvatrack.\n"
+            "The following values are acceptable:\n"
+            "- 0 - Do not reclassify tracked objects\n"
+            "- 1 - Always reclassify tracked objects\n"
+            "- 2:N - Tracked objects will be reclassified every N frames. Note the inference-interval is applied "
+            "before "
+            "determining if an object is to be reclassified (i.e. classification only occurs at a multiple of the "
+            "inference interval)",
+            DEFAULT_MIN_RECLASSIFY_INTERVAL, DEFAULT_MAX_RECLASSIFY_INTERVAL, DEFAULT_RECLASSIFY_INTERVAL,
+            (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 void gst_gva_classify_init(GstGvaClassify *gvaclassify) {
@@ -142,9 +144,10 @@ void gst_gva_classify_init(GstGvaClassify *gvaclassify) {
 
     gvaclassify->base_inference.is_full_frame = FALSE;
     gvaclassify->object_class = g_strdup(DEFAULT_OBJECT_CLASS);
-    gvaclassify->skip_classified_objects = DEFAULT_SKIP_CLASSIFIED_OBJECT;
-    gvaclassify->skip_interval = DEFAULT_SKIP_INTERVAL;
+    gvaclassify->reclassify_interval = DEFAULT_RECLASSIFY_INTERVAL;
     gvaclassify->classification_history = create_classification_history(gvaclassify);
+    if (gvaclassify->classification_history == NULL)
+        return;
 
     gvaclassify->base_inference.get_roi_pre_proc = INPUT_PRE_PROCESS;
     gvaclassify->base_inference.post_proc = EXTRACT_CLASSIFICATION_RESULTS;
@@ -157,7 +160,10 @@ void gst_gva_classify_cleanup(GstGvaClassify *gvaclassify) {
 
     GST_DEBUG_OBJECT(gvaclassify, "gva_classify_cleanup");
 
-    release_classification_history(gvaclassify->classification_history);
+    if (gvaclassify->classification_history) {
+        release_classification_history(gvaclassify->classification_history);
+        gvaclassify->classification_history = NULL;
+    }
 
     g_free(gvaclassify->object_class);
     gvaclassify->object_class = NULL;
@@ -178,5 +184,6 @@ GstPadProbeReturn FillROIParamsCallback(GstPad *pad, GstPadProbeInfo *info, gpoi
     GstBuffer *buffer = GST_PAD_PROBE_INFO_BUFFER(info);
     if (buffer != NULL && user_data != NULL)
         fill_roi_params_from_history((struct ClassificationHistory *)user_data, buffer);
+
     return GST_PAD_PROBE_OK;
 }

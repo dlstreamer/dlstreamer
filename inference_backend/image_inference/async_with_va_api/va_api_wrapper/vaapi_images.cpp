@@ -37,8 +37,8 @@ Image VaApiImage::Map() {
     return image_map->Map(image);
 }
 
-VaApiImagePool::VaApiImagePool(VaApiContext *context_, int image_pool_size, int width, int height, int format) {
-    for (int i = 0; i < image_pool_size; ++i) {
+VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, int width, int height, int format) {
+    for (size_t i = 0; i < image_pool_size; ++i) {
         _images.push_back(std::unique_ptr<VaApiImage>(new VaApiImage(context_, width, height, format)));
     }
 }

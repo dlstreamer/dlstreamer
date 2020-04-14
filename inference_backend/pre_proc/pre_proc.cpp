@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "inference_backend/pre_proc.h"
-#include "config.h"
+#include "inference_backend/safe_arithmetic.h"
 #include <functional>
+
+#include "config.h"
+#include "inference_backend/pre_proc.h"
 
 namespace InferenceBackend {
 
@@ -16,9 +18,6 @@ PreProc *PreProc::Create(PreProcessType type) {
     case PreProcessType::OpenCV:
         pProc = CreatePreProcOpenCV();
         break;
-    case PreProcessType::GAPI:
-        pProc = CreatePreProcGAPI();
-        break;
 #ifdef HAVE_VAAPI
     case PreProcessType::VAAPI:
         pProc = CreatePreProcOpenCV();
@@ -26,7 +25,7 @@ PreProc *PreProc::Create(PreProcessType type) {
 #endif
     }
     if (pProc == nullptr)
-        std::throw_with_nested(std::runtime_error("ERROR: Failed to create a preprocessor\n"));
+        throw std::runtime_error("Failed to allocate OpenCV preprocessor");
     return pProc;
 }
 
@@ -61,50 +60,43 @@ Image ApplyCrop(const Image &src) {
 
     dst.rect = {};
 
-    if (src.rect.x >= src.width || src.rect.y >= src.height || src.rect.x + src.rect.width <= 0 ||
-        src.rect.y + src.rect.height <= 0) {
-        throw std::runtime_error("ERROR: ApplyCrop: Requested rectangle is out of image boundaries\n");
-    }
+    if (src.width <= src.rect.x or src.height <= src.rect.y)
+        throw std::logic_error("ApplyCrop: Requested rectangle is out of image boundaries.");
 
-    int rect_x = std::max(src.rect.x, 0);
-    int rect_y = std::max(src.rect.y, 0);
-    int rect_width = std::min(src.rect.width - (rect_x - src.rect.x), src.width - rect_x);
-    int rect_height = std::min(src.rect.height - (rect_y - src.rect.y), src.height - rect_y);
+    dst.width = std::min(src.rect.width, src.width - src.rect.x);
+    dst.height = std::min(src.rect.height, src.height - src.rect.y);
 
     switch (src.format) {
     case InferenceBackend::FOURCC_NV12: {
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x;
-        dst.planes[1] = src.planes[1] + (rect_y / 2) * src.stride[1] + rect_x;
+        dst.planes[0] = src.planes[0] + src.rect.y * src.stride[0] + src.rect.x;
+        dst.planes[1] = src.planes[1] + (src.rect.y / 2) * src.stride[1] + src.rect.x;
         break;
     }
     case InferenceBackend::FOURCC_I420: {
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x;
-        dst.planes[1] = src.planes[1] + (rect_y / 2) * src.stride[1] + (rect_x / 2);
-        dst.planes[2] = src.planes[2] + (rect_y / 2) * src.stride[2] + (rect_x / 2);
+        dst.planes[0] = src.planes[0] + src.rect.y * src.stride[0] + src.rect.x;
+        dst.planes[1] = src.planes[1] + (src.rect.y / 2) * src.stride[1] + (src.rect.x / 2);
+        dst.planes[2] = src.planes[2] + (src.rect.y / 2) * src.stride[2] + (src.rect.x / 2);
         break;
     }
     case InferenceBackend::FOURCC_RGBP: {
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x;
-        dst.planes[1] = src.planes[1] + rect_y * src.stride[1] + rect_x;
-        dst.planes[2] = src.planes[2] + rect_y * src.stride[2] + rect_x;
+        dst.planes[0] = src.planes[0] + src.rect.y * src.stride[0] + src.rect.x;
+        dst.planes[1] = src.planes[1] + src.rect.y * src.stride[1] + src.rect.x;
+        dst.planes[2] = src.planes[2] + src.rect.y * src.stride[2] + src.rect.x;
         break;
     }
     case InferenceBackend::FOURCC_BGR: {
-        int channels = 3;
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x * channels;
+        const uint32_t channels = 3;
+        dst.planes[0] = src.planes[0] + src.rect.y * src.stride[0] + src.rect.x * channels;
         break;
     }
-    default: {
-        int channels = 4;
-        dst.planes[0] = src.planes[0] + rect_y * src.stride[0] + rect_x * channels;
+    case InferenceBackend::FOURCC_BGRX:
+    case InferenceBackend::FOURCC_BGRA: {
+        const uint32_t channels = 4;
+        dst.planes[0] = src.planes[0] + src.rect.y * src.stride[0] + src.rect.x * channels;
         break;
     }
+    default: { throw std::runtime_error("Unsupported image format for crop"); }
     }
-
-    if (rect_width)
-        dst.width = rect_width;
-    if (rect_height)
-        dst.height = rect_height;
 
     return dst;
 }

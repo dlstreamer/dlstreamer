@@ -43,12 +43,10 @@ PUBLIC
         ${GLIB2_LIBRARIES}
         logger
         gstvideoanalyticsmeta
-        jsonconvert
+        json-hpp
 PRIVATE
         ${GSTALLOC_LIBRARIES}
 )
 if (${USE_VPUSMM})
         target_link_libraries(${TARGET_NAME} PUBLIC vpusmm)
 endif()
-
-install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)

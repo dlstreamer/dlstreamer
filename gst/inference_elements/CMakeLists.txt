@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -38,7 +38,6 @@ set_compile_flags(${TARGET_NAME})
 # FIXME: there are some debug information that are removed for released build type
 # FIXME: hence it marked as error
 target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
-
 target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -63,9 +62,9 @@ PRIVATE
     image_inference_openvino
     pre_proc
     opencv_pre_proc
-    gapi_pre_proc
     logger
-    jsonconvert
+    json-hpp
+    json-schema-validator
 )
 
 if(${HAVE_VAAPI})

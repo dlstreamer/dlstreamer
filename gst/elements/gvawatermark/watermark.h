@@ -7,13 +7,14 @@
 #ifndef __WATERMARK_H__
 #define __WATERMARK_H__
 
+#include "gstgvawatermark.h"
 #include <gst/video/video.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-void draw_label(GstBuffer *buffer, GstVideoInfo *info);
+gboolean draw_label(GstGvaWatermark *gvawatermark, GstBuffer *buffer);
 
 #ifdef __cplusplus
 }

@@ -6,6 +6,11 @@
 
 import ctypes
 from contextlib import contextmanager
+import gi
+gi.require_version('GstVideo', '1.0')
+gi.require_version('GLib', '2.0')
+gi.require_version('Gst', '1.0')
+from gi.repository import GstVideo, GLib, GObject, Gst
 
 # libgstreamer
 libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
@@ -118,15 +123,20 @@ libgst.gst_structure_new_empty.restype = ctypes.c_void_p
 libgst.gst_structure_copy.argtypes = [ctypes.c_void_p]
 libgst.gst_structure_copy.restype = ctypes.c_void_p
 
-# gst caps
+# gst_caps
 libgst.gst_caps_get_structure.argtypes = [ctypes.c_void_p, ctypes.c_uint]
 libgst.gst_caps_get_structure.restype = ctypes.c_void_p
 
+# gst_value_array
 libgst.gst_value_array_get_type.argtypes = None
 libgst.gst_value_array_get_type.restype = ctypes.c_void_p
 
 libgst.gst_value_array_append_value.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
 libgst.gst_value_array_append_value.restype = None
+
+# gst_meta
+libgst.gst_meta_get_info.argtypes = [ctypes.c_char_p]
+libgst.gst_meta_get_info.restype = ctypes.c_void_p
 
 @contextmanager
 def GST_PAD_PROBE_INFO_BUFFER(info):
@@ -182,6 +192,9 @@ GList._fields_ = [
     ('prev', GLIST_POINTER)
 ]
 
+
+libgobject.g_type_name.argtypes = [ctypes.c_void_p]
+libgobject.g_type_name.restype = ctypes.c_char_p
 libgobject.g_type_from_name.argtypes = [ctypes.c_char_p]
 libgobject.g_type_from_name.restype = ctypes.c_ulong
 libgobject.g_value_get_variant.argtypes = [ctypes.c_void_p]
@@ -213,8 +226,110 @@ libgobject.g_value_array_get_nth.restype = G_VALUE_POINTER
 libgobject.g_value_get_uint.argtypes = [G_VALUE_POINTER]
 libgobject.g_value_get_uint.restype = ctypes.c_uint
 
+# libglib
+libglib = ctypes.CDLL('libglib-2.0.so')
+libglib.g_strdup.argtypes = [ctypes.c_char_p]
+libglib.g_strdup.restype = ctypes.c_void_p
+
 # libgstvideo
 libgstvideo = ctypes.CDLL("libgstvideo-1.0.so")
 
-###
-libgstva = ctypes.CDLL("libgstvideoanalyticsmeta.so")
+
+# VideoRegionOfInterestMeta
+class VideoRegionOfInterestMeta(ctypes.Structure):
+    _fields_ = [
+        ('_meta_flags', ctypes.c_int),
+        ('_info', ctypes.c_void_p),
+        ('roi_type', ctypes.c_int),
+        ('id', ctypes.c_int),
+        ('parent_id', ctypes.c_int),
+        ('x', ctypes.c_int),
+        ('y', ctypes.c_int),
+        ('w', ctypes.c_int),
+        ('h', ctypes.c_int),
+        ('_params', GLIST_POINTER)
+    ]
+
+
+VIDEO_REGION_OF_INTEREST_POINTER = ctypes.POINTER(VideoRegionOfInterestMeta)
+libgstvideo.gst_video_region_of_interest_meta_get_param.argtypes = [VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_char_p]
+libgstvideo.gst_video_region_of_interest_meta_get_param.restype = ctypes.c_void_p
+libgstvideo.gst_video_region_of_interest_meta_add_param.argtypes = [VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_void_p]
+libgstvideo.gst_video_region_of_interest_meta_add_param.restype = None
+
+# GVATensorMeta
+class GVATensorMeta(ctypes.Structure):
+    _fields_ = [
+        ('_meta_flags', ctypes.c_int),
+        ('_info', ctypes.c_void_p),
+        ('data', ctypes.c_void_p)
+    ]
+
+    @classmethod
+    def add_tensor_meta(cls, buffer):
+        try:
+            tensor_meta_info = libgst.gst_meta_get_info("GstGVATensorMeta".encode('utf-8'))
+            value = libgst.gst_buffer_add_meta(hash(buffer), tensor_meta_info, None)
+        except Exception as error:
+            value = None
+
+        if not value:
+            return
+
+        return ctypes.cast(value, ctypes.POINTER(GVATensorMeta)).contents
+
+class GVAJSONMetaStr(str):
+    def __new__(cls, meta, content):
+        return super().__new__(cls, content)
+
+    def __init__(self, meta, content):
+        self.meta = meta
+        super().__init__()
+
+# GVAJSONMeta
+class GVAJSONMeta(ctypes.Structure):
+    _fields_ = [('_meta_flags', ctypes.c_int),
+                ('_info', ctypes.c_void_p),
+                ('_message', ctypes.c_char_p)
+                ]
+
+
+    def get_message(self):
+        return GVAJSONMetaStr(self, self._message.decode('utf-8'))
+
+    @classmethod
+    def remove_json_meta(cls, buffer, meta):
+        return libgst.gst_buffer_remove_meta(hash(buffer), ctypes.byref(meta))
+
+    @classmethod
+    def add_json_meta(cls, buffer, message):
+        try:
+            json_meta_info = libgst.gst_meta_get_info("GstGVAJSONMeta".encode('utf-8'))
+            value = libgst.gst_buffer_add_meta(hash(buffer), json_meta_info, None)
+        except Exception as error:
+            value = None
+
+        if value is None:
+            return
+
+        meta = ctypes.cast(value, ctypes.POINTER(GVAJSONMeta)).contents
+        meta._message = libglib.g_strdup(message.encode('utf-8'))
+        return meta
+
+    @classmethod
+    def iterate(cls, buffer):
+        try:
+            meta_api = hash(GObject.GType.from_name("GstGVAJSONMetaAPI"))
+        except:
+            return
+        gpointer = ctypes.c_void_p()
+        while(True):
+            try:
+                value = libgst.gst_buffer_iterate_meta_filtered(hash(buffer), ctypes.byref(gpointer), meta_api)
+            except Exception as error:
+                value = None
+
+            if not value:
+                return
+
+            yield ctypes.cast(value, ctypes.POINTER(GVAJSONMeta)).contents
