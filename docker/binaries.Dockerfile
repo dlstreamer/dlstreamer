@@ -550,7 +550,7 @@ RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
 FROM base AS dldt-binaries
 WORKDIR /home
 
-ARG OpenVINO_VERSION=2020.1.023
+ARG OpenVINO_VERSION=2020.2.120
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends cpio
 
