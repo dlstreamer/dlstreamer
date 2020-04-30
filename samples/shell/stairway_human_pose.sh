@@ -15,7 +15,6 @@ source $BASEDIR/scripts/setlocale.sh
 FILE=${1}
 EVERY_NTH_FRAME=${2:-10}
 
-# define the models used for detection and classification
 DETECTION_MODEL=person-detection-retail-0013
 HUMAN_POSE_MODEL=human-pose-estimation-0001
 TRACKING_TYPE="short-term"
