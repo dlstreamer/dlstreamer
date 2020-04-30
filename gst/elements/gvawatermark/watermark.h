@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 void draw_label(GstBuffer *buffer, GstVideoInfo *info);
-
+void print_points_with_id(GstBuffer *buffer, GstVideoInfo *info);
 #ifdef __cplusplus
 }
 #endif

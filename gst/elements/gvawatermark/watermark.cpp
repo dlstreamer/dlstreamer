@@ -7,10 +7,10 @@
 #include "watermark.h"
 #include "config.h"
 #include "glib.h"
-
 #include "gva_buffer_map.h"
 #include "gva_utils.h"
 #include "video_frame.h"
+#include <fstream>
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
 
@@ -35,6 +35,8 @@ static cv::Scalar index2color(size_t index, int fourcc) {
         return color;
     }
 }
+
+static uint index_for_images = 0;
 
 int Fourcc2OpenCVType(int fourcc) {
     switch (fourcc) {
@@ -113,6 +115,55 @@ void render_human_pose(const GVA::VideoFrame &video_frame, cv::Mat &mat, int for
             cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_ear_x"), human_pose_tensor.get_double("l_ear_y")),
                        4, index2color(i++, format), -1);
         }
+    }
+}
+
+void print_points_with_id(GstBuffer *buffer, GstVideoInfo *info) {
+    GVA::VideoFrame video_frame(buffer, info);
+    std::ofstream person_keypoints_file("person_keypoints_tracking.txt");
+    if (person_keypoints_file.is_open()) {
+        for (GVA::Tensor &human_pose_tensor : video_frame.tensors()) {
+            g_print("pose id %d\n", human_pose_tensor.get_int("pose_id"));
+            person_keypoints_file << "pose id " << std::to_string(human_pose_tensor.get_int("pose_id")) << " : ";
+
+            person_keypoints_file << " { nose " << std::to_string(human_pose_tensor.get_double("nose_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("nose_y")) << "; ";
+            person_keypoints_file << "  neck " << std::to_string(human_pose_tensor.get_double("neck_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("neck_y")) << "; ";
+            person_keypoints_file << "  r_shoulder " << std::to_string(human_pose_tensor.get_double("r_shoulder_x"))
+                                  << " " << std::to_string(human_pose_tensor.get_double("r_shoulder_y")) << "; ";
+            person_keypoints_file << "  r_cubit " << std::to_string(human_pose_tensor.get_double("r_cubit_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_cubit_y")) << "; ";
+            person_keypoints_file << "  r_hand " << std::to_string(human_pose_tensor.get_double("r_hand_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_hand_y")) << "; ";
+            person_keypoints_file << "  l_shoulder " << std::to_string(human_pose_tensor.get_double("l_shoulder_x"))
+                                  << " " << std::to_string(human_pose_tensor.get_double("l_shoulder_y")) << "; ";
+            person_keypoints_file << "  l_cubit " << std::to_string(human_pose_tensor.get_double("l_cubit_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_cubit_y")) << "; ";
+            person_keypoints_file << "  l_hand " << std::to_string(human_pose_tensor.get_double("l_hand_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_hand_y")) << "; ";
+            person_keypoints_file << "  r_hip " << std::to_string(human_pose_tensor.get_double("r_hip_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_hip_y")) << "; ";
+            person_keypoints_file << "  r_knee " << std::to_string(human_pose_tensor.get_double("r_knee_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_knee_y")) << "; ";
+            person_keypoints_file << "  r_foot " << std::to_string(human_pose_tensor.get_double("r_foot_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_foot_y")) << "; ";
+            person_keypoints_file << "  l_hip " << std::to_string(human_pose_tensor.get_double("l_hip_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_hip_y")) << "; ";
+            person_keypoints_file << "  l_knee " << std::to_string(human_pose_tensor.get_double("l_knee_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_knee_y")) << "; ";
+            person_keypoints_file << "  l_foot " << std::to_string(human_pose_tensor.get_double("l_foot_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_foot_y")) << "; ";
+            person_keypoints_file << "  r_eye " << std::to_string(human_pose_tensor.get_double("r_eye_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_eye_y")) << "; ";
+            person_keypoints_file << "  l_eye " << std::to_string(human_pose_tensor.get_double("l_eye_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_eye_y")) << "; ";
+            person_keypoints_file << "  r_ear " << std::to_string(human_pose_tensor.get_double("r_ear_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("r_ear_y")) << "; ";
+            person_keypoints_file << "  l_ear " << std::to_string(human_pose_tensor.get_double("l_ear_x")) << " "
+                                  << std::to_string(human_pose_tensor.get_double("l_ear_y")) << std::endl;
+        }
+        person_keypoints_file.close();
     }
 }
 
@@ -203,7 +254,9 @@ void draw_label(GstBuffer *buffer, GstVideoInfo *info) {
             pos.y = roi_meta->y + 30.f;
         cv::putText(mat, text, pos, cv::FONT_HERSHEY_TRIPLEX, 1, color, 1);
     }
-
+    std::string path = "/home/pbochenk/projects/diplom/video-samples/gvaskeleton_images_with_cv_clear/frame" +
+                       std::to_string(index_for_images++) + ".jpg";
+    cv::imwrite(path, mat);
     // unmap GstBuffer
     gva_buffer_unmap(buffer, image, mapContext);
 }

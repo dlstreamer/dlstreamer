@@ -155,6 +155,6 @@ static GstFlowReturn gst_gva_watermark_transform_ip(GstBaseTransform *trans, Gst
     }
 
     draw_label(buf, &gvawatermark->info);
-
+    // print_points_with_id(buf, &gvawatermark->info);
     return GST_FLOW_OK;
 }
