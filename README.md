@@ -1,8 +1,6 @@
 # [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) - DL Streamer repository
 
 ## Overview
-<div align="center"><img src="intro.gif" width=900/></div>
-
 This repository contains GStreamer* elements that enable CNN model-based video analytics capabilities using OpenVINO Inference Engine across all Intel Hardware. These elements can be used to perform use cases such as object detection, classification, recognition and tracking. The above sample video demonstrates the following GStreamer pipeline that executes face detection and emotion classification, using specific CNN models, on a video file:
 ```sh
 gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! xvimagesink sync=false
