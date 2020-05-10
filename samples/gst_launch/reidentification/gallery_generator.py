@@ -176,6 +176,7 @@ if __name__ == "__main__":
                                                 identification_model=args.identification,
                                                 identification_modelproc=args.identification_modelproc,
                                                 output_file=os.path.join(features_out,label+"_"+str(idx)+".tensor"))
+            print(pipeline)
             proc = subprocess.Popen(
                 shlex.split(pipeline), shell=False, env=os.environ.copy())
             if proc.wait() != 0:

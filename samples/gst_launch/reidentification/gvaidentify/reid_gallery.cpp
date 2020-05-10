@@ -143,9 +143,9 @@ EmbeddingsGallery::EmbeddingsGallery(GstBaseTransform *base_transform, std::stri
     }
 }
 
-std::vector<int> EmbeddingsGallery::GetIDsByEmbeddings(const std::vector<cv::Mat> &embeddings) const {
+std::vector<std::pair<int, float>> EmbeddingsGallery::GetIDsByEmbeddings(const std::vector<cv::Mat> &embeddings) const {
     if (embeddings.empty() || idx_to_id.empty())
-        return std::vector<int>();
+        return std::vector<std::pair<int, float>>();
 
     cv::Mat distances(safe_convert<int>(embeddings.size()), safe_convert<size_t, int>(idx_to_id.size()), CV_32F);
 
@@ -159,7 +159,7 @@ std::vector<int> EmbeddingsGallery::GetIDsByEmbeddings(const std::vector<cv::Mat
         }
     }
 
-    std::vector<int> output_ids;
+    std::vector<std::pair<int, float>> output_ids;
     for (int row = 0; row < distances.rows; ++row) {
         float similarity = distances.at<float>(row, 0);
         size_t similarity_id = 0;
@@ -170,9 +170,10 @@ std::vector<int> EmbeddingsGallery::GetIDsByEmbeddings(const std::vector<cv::Mat
             }
         }
         if (similarity < reid_threshold) {
-            output_ids.push_back(unknown_id);
+            output_ids.push_back(std::make_pair(unknown_id, similarity));
         } else {
-            output_ids.push_back(idx_to_id[similarity_id]);
+
+            output_ids.push_back(std::make_pair(idx_to_id[similarity_id], similarity));
         }
     }
     return output_ids;

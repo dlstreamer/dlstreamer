@@ -67,11 +67,13 @@ void Identify::IdentifyObjects(GstBuffer *buffer) {
 
     // Store label for identified objects
     for (size_t i = 0; i < ids.size(); i++) {
-        tensors[i].set_string("label", gallery->GetLabelByID(ids[i]));
-        if (ids[i] != EmbeddingsGallery::unknown_id) {
-            tensors[i].set_int("label_id", ids[i] + 1); // recognized objects starting label_id=1
-        } else
+        tensors[i].set_string("label", gallery->GetLabelByID(ids[i].first));
+        if (ids[i].first != EmbeddingsGallery::unknown_id) {
+            tensors[i].set_int("label_id", ids[i].first + 1); // recognized objects starting label_id=1
+        } else {
             tensors[i].set_int("label_id", EmbeddingsGallery::unknown_id);
+        }
+        tensors[i].set_double("cos_dist", static_cast<double>(ids[i].second));
     }
 }
 
