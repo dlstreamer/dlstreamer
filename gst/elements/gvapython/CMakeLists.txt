@@ -13,10 +13,6 @@ pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
 find_package(PythonLibs 3.4)
 
-if (NOT PYGOBJECT_FOUND OR NOT PYTHONLIBS_FOUND)
-    return()
-endif()
-
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.c

@@ -39,7 +39,7 @@ class EmbeddingsGallery {
     static const int unknown_id;
     EmbeddingsGallery(GstBaseTransform *base_transform, std::string ids_list, double threshold);
     size_t size() const;
-    std::vector<int> GetIDsByEmbeddings(const std::vector<cv::Mat> &embeddings) const;
+    std::vector<std::pair<int, float>> GetIDsByEmbeddings(const std::vector<cv::Mat> &embeddings) const;
     std::string GetLabelByID(int id) const;
     std::vector<std::string> GetIDToLabelMap() const;
 
