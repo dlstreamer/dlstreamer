@@ -1,0 +1,363 @@
+<?xml version="1.0" ?>
+<mapping>
+	<map>
+		<framework name="312" out_port_id="312"/>
+		<IR id="67" name="311" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="303" out_port_id="303"/>
+		<IR id="61" name="303" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="245" out_port_id="245"/>
+		<IR id="20" name="244" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="294" out_port_id="294"/>
+		<IR id="54" name="293" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="329" out_port_id="329"/>
+		<IR id="79" name="329" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="272" out_port_id="272"/>
+		<IR id="39" name="272" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="232" out_port_id="232"/>
+		<IR id="11" name="232" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="341" out_port_id="341"/>
+		<IR id="88" name="341" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="284" out_port_id="284"/>
+		<IR id="47" name="283" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="339" out_port_id="339"/>
+		<IR id="86" name="339" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="288" out_port_id="288"/>
+		<IR id="50" name="288" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="289" out_port_id="289"/>
+		<IR id="51" name="289" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="238" out_port_id="238"/>
+		<IR id="15" name="237" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="282" out_port_id="282"/>
+		<IR id="46" name="282" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="242" out_port_id="242"/>
+		<IR id="18" name="242" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="251" out_port_id="251"/>
+		<IR id="24" name="251" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="266" out_port_id="266"/>
+		<IR id="35" name="266" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="332" out_port_id="332"/>
+		<IR id="81" name="332" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="280" out_port_id="280"/>
+		<IR id="44" name="279" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="340" out_port_id="340"/>
+		<IR id="87" name="340" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="298" out_port_id="298"/>
+		<IR id="57" name="297" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="316" out_port_id="316"/>
+		<IR id="70" name="316" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="255" out_port_id="255"/>
+		<IR id="27" name="255" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="269" out_port_id="269"/>
+		<IR id="37" name="269" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="227" out_port_id="227"/>
+		<IR id="7" name="226" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="278" out_port_id="278"/>
+		<IR id="43" name="277" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="285" out_port_id="285"/>
+		<IR id="48" name="285" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="302" out_port_id="302"/>
+		<IR id="60" name="302" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="275" out_port_id="275"/>
+		<IR id="41" name="274" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="301" out_port_id="301"/>
+		<IR id="59" name="300" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="306" out_port_id="306"/>
+		<IR id="63" name="306" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="335" out_port_id="335"/>
+		<IR id="83" name="334" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="220" out_port_id="220"/>
+		<IR id="2" name="219" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="295" out_port_id="295"/>
+		<IR id="55" name="295" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="264" out_port_id="264"/>
+		<IR id="33" name="263" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="262" out_port_id="262"/>
+		<IR id="32" name="262" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="257" out_port_id="257"/>
+		<IR id="28" name="256" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="315" out_port_id="315"/>
+		<IR id="69" name="314" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="243" out_port_id="243"/>
+		<IR id="19" name="243" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="291" out_port_id="291"/>
+		<IR id="52" name="290" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="246" out_port_id="246"/>
+		<IR id="21" name="246" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="338" out_port_id="338"/>
+		<IR id="85" name="337" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="317" out_port_id="317"/>
+		<IR id="71" name="317" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="271" out_port_id="271"/>
+		<IR id="38" name="270" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="313" out_port_id="313"/>
+		<IR id="68" name="313" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="308" out_port_id="308"/>
+		<IR id="64" name="307" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="222" out_port_id="222"/>
+		<IR id="4" name="222" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="259" out_port_id="259"/>
+		<IR id="30" name="259" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="231" out_port_id="231"/>
+		<IR id="10" name="230" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="343" out_port_id="0"/>
+		<IR id="91" name="343" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="324" out_port_id="324"/>
+		<IR id="75" name="323" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="292" out_port_id="292"/>
+		<IR id="53" name="292" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="236" out_port_id="236"/>
+		<IR id="14" name="236" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="320" out_port_id="320"/>
+		<IR id="73" name="320" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="224" out_port_id="224"/>
+		<IR id="5" name="223" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="336" out_port_id="336"/>
+		<IR id="84" name="336" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="input.1" out_port_id="input.1"/>
+		<IR id="1" name="Mul_/Fused_Mul_/FusedScaleShift_" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="276" out_port_id="276"/>
+		<IR id="42" name="276" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="250" out_port_id="250"/>
+		<IR id="23" name="249" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="221" out_port_id="221"/>
+		<IR id="3" name="221" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="258" out_port_id="258"/>
+		<IR id="29" name="258" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="268" out_port_id="268"/>
+		<IR id="36" name="267" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="273" out_port_id="273"/>
+		<IR id="40" name="273" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="239" out_port_id="239"/>
+		<IR id="16" name="239" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="309" out_port_id="309"/>
+		<IR id="65" name="309" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="229" out_port_id="229"/>
+		<IR id="9" name="229" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="261" out_port_id="261"/>
+		<IR id="31" name="260" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="328" out_port_id="328"/>
+		<IR id="78" name="327" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="254" out_port_id="254"/>
+		<IR id="26" name="253" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="252" out_port_id="252"/>
+		<IR id="25" name="252" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="281" out_port_id="281"/>
+		<IR id="45" name="281" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="310" out_port_id="310"/>
+		<IR id="66" name="310" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="305" out_port_id="305"/>
+		<IR id="62" name="304" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="342" out_port_id="342"/>
+		<IR id="90" name="342/Dims" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="319" out_port_id="319"/>
+		<IR id="72" name="318" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="331" out_port_id="331"/>
+		<IR id="80" name="330" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="296" out_port_id="296"/>
+		<IR id="56" name="296" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="299" out_port_id="299"/>
+		<IR id="58" name="299" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="333" out_port_id="333"/>
+		<IR id="82" name="333" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="287" out_port_id="287"/>
+		<IR id="49" name="286" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="228" out_port_id="228"/>
+		<IR id="8" name="228" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="265" out_port_id="265"/>
+		<IR id="34" name="265" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="248" out_port_id="248"/>
+		<IR id="22" name="247" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="322" out_port_id="322"/>
+		<IR id="74" name="321" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="234" out_port_id="234"/>
+		<IR id="12" name="233" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="241" out_port_id="241"/>
+		<IR id="17" name="240" out_port_id="3"/>
+	</map>
+	<map>
+		<framework name="235" out_port_id="235"/>
+		<IR id="13" name="235" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="325" out_port_id="325"/>
+		<IR id="76" name="325" out_port_id="2"/>
+	</map>
+	<map>
+		<framework name="326" out_port_id="326"/>
+		<IR id="77" name="326" out_port_id="1"/>
+	</map>
+	<map>
+		<framework name="225" out_port_id="225"/>
+		<IR id="6" name="225" out_port_id="1"/>
+	</map>
+</mapping>

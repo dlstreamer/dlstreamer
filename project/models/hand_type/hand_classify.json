@@ -1,0 +1,24 @@
+{
+  "json_schema_version": 1.0,
+  "input_preproc": [
+    {
+      "layer_name": "input.1",
+      "color_format": "BGR"
+    }
+  ],
+  "output_postproc": [
+    {
+      "layer_name": "343",
+      "attribute_name": "hand_type",
+      "labels": [
+        "cup",
+        "empty",
+        "others",
+        "phone",
+        "railing"
+      ],
+      "converter": "tensor_to_label",
+      "method": "max"
+    }
+  ]
+}
