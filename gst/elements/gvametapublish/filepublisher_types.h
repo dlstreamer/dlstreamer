@@ -11,17 +11,17 @@
 #include <stdio.h>
 
 // File specific constants
-#define BATCH "batch"
-#define STREAM "stream"
+#define JSON "json"
+#define JSON_LINES "json-lines"
 #define STDOUT "stdout"
 #define MIN_FILE_LEN 4
-#define BATCH_RECORD_PREFIX ",\n"
-#define STREAM_RECORD_SUFFIX "\n"
+#define JSON_RECORD_PREFIX ",\n"
+#define JSON_LINES_RECORD_SUFFIX "\n"
 
-typedef enum _tagPublishOutputFormat { FILE_PUBLISH_STREAM = 0, FILE_PUBLISH_BATCH = 1 } PublishOutputFormat;
+typedef enum _tagPublishOutputFormat { FILE_PUBLISH_JSON_LINES = 0, FILE_PUBLISH_JSON = 1 } PublishOutputFormat;
 typedef struct _FilePublishConfig {
     gchar *file_path;
-    PublishOutputFormat e_output_format;
+    PublishOutputFormat e_file_format;
     gboolean signal_handoffs;
 } FilePublishConfig;
 

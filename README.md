@@ -1,9 +1,9 @@
-# GStreamer Video Analytics (GVA) Plugin
+# [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) - DL Streamer repository
 
 ## Overview
 <div align="center"><img src="intro.gif" width=900/></div>
 
-This repository contains GStreamer* elements that enable CNN model-based video analytics capabilities in the GStreamer framework. These elements include such things as object detection, classification, and recognition. Example above shows concise GStreamer pipeline that runs detection & emotion classification, using specific models on a video file:
+This repository contains GStreamer* elements that enable CNN model-based video analytics capabilities using OpenVINO Inference Engine across all Intel Hardware. These elements can be used to perform use cases such as object detection, classification, recognition and tracking. The above sample video demonstrates the following GStreamer pipeline that executes face detection and emotion classification, using specific CNN models, on a video file:
 ```sh
 gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! xvimagesink sync=false
 ```
@@ -17,8 +17,14 @@ In addition, the solution installs the following Deep Learning-specific elements
 * Inference plugins leveraging [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) for high-performance inference using CNN models
 * Visualization of computer vision results (such as bounding boxes and labels of detected objects) on top of video stream
 
+In addition to the samples provided in this repository, please also review the following reference applications that use GStreamer Video Analytics plugin elements:
+* [Smart City - Traffic and Stadium Management](https://github.com/OpenVisualCloud/Smart-City-Sample)
+* [Intelligent Ad Insertion](https://github.com/OpenVisualCloud/Ad-Insertion-Sample)
+
 ## License
-The GStreamer Video Analytics Plugin is licensed under the [MIT license](LICENSE).
+The GStreamer Video Analytics Plugin, part of [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) - DL Streamer, is licensed under the [MIT license](LICENSE).
+
+GStreamer is an open source framework licensed under LGPL. See [license terms](https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html?gi-language=c). You are solely responsible for determining if your use of Gstreamer requires any additional licenses.  Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of Gstreamer
 
 GStreamer is an open source framework licensed under LGPL. See [license terms](https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html?gi-language=c). You are solely responsible for determining if your use of Gstreamer requires any additional licenses.  Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of Gstreamer
 
@@ -28,17 +34,17 @@ GStreamer is an open source framework licensed under LGPL. See [license terms](h
 * On platforms with Intel Gen graphics, see the gstreamer-vaapi for [hardware accelerated video decode and encode requirements](https://github.com/GStreamer/gstreamer-vaapi)
 
 ### Software
-* OpenVINO<sup>&#8482;</sup> Toolkit 2020.1 (Inference Engine 2.1.0) or above
+* OpenVINO<sup>&#8482;</sup> Toolkit 2020.2 (Inference Engine 2.1.0) or above
 * Linux* system with kernel 4.15 or above
 * GStreamer framework 1.14 or above
 
 ## Getting Started
-* Start here: [Getting Started Guide](https://github.com/opencv/gst-video-analytics/wiki/Getting-Started-Guide-%5B2020.1%5D)
+* Start here: [Install Guide](https://github.com/opencv/gst-video-analytics/wiki/Install-Guide)
 * [API reference](https://opencv.github.io/gst-video-analytics/)
 * Gstreamer VA plugin on YouTube: [Full pipeline simulation using GStreamer](https://www.youtube.com/watch?v=fWhPV_IqDy0); [Full pipeline simulation using GStreamer (Samples)](https://www.youtube.com/watch?v=EqHznsUR1sE)
 
 ## Samples
-See the [command-line examples](samples/shell) and [C++ example](samples/cpp/face_attributes)
+See the [command-line examples](samples/gst_launch) and [C++ example](samples/cpp/draw_face_attributes)
 
 ## Reporting Bugs and Feature Requests
 Report bugs and requests [on the issues page](https://github.com/opencv/gst-video-analytics/issues)

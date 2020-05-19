@@ -42,5 +42,3 @@ PUBLIC
         IE::inference_engine
         logger
 )
-
-install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)

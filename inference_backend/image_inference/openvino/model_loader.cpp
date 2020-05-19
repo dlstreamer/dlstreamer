@@ -16,40 +16,50 @@ using namespace InferenceBackend;
 namespace {
 
 void ReshapeNetwork(InferenceEngine::CNNNetwork &network, size_t batch_size, size_t width = 0, size_t height = 0) {
-    InferenceEngine::ICNNNetwork::InputShapes input_shapes = network.getInputShapes();
-    InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
-    InferenceEngine::InputInfo::Ptr &input = inputs.begin()->second;
-    InferenceEngine::Layout layout = input->getInputData()->getLayout();
+    try {
+        InferenceEngine::ICNNNetwork::InputShapes input_shapes = network.getInputShapes();
+        if (input_shapes.empty())
+            throw std::invalid_argument("There are no input shapes");
 
-    std::string input_name;
-    size_t batch_index, width_index, height_index;
-    InferenceEngine::SizeVector input_shape;
-    std::tie(input_name, input_shape) = *input_shapes.begin();
+        InferenceEngine::InputsDataMap inputs = network.getInputsInfo();
+        if (inputs.empty())
+            throw std::invalid_argument("Input layers info is absent for model");
 
-    switch (layout) {
-    case InferenceEngine::Layout::NCHW: {
-        batch_index = 0;
-        height_index = 2;
-        width_index = 3;
-        break;
-    }
-    case InferenceEngine::Layout::NHWC: {
-        batch_index = 0;
-        height_index = 1;
-        width_index = 2;
-        break;
-    }
-    default:
-        throw std::runtime_error("Unsuported layout format: " + std::to_string(layout));
-    }
+        InferenceEngine::InputInfo::Ptr &input = inputs.begin()->second;
+        InferenceEngine::Layout layout = input->getInputData()->getLayout();
 
-    input_shape[batch_index] = batch_size;
-    if (height > 0)
-        input_shape[height_index] = height;
-    if (width > 0)
-        input_shape[width_index] = width;
-    input_shapes[input_name] = input_shape;
-    network.reshape(input_shapes);
+        std::string input_name;
+        size_t batch_index, width_index, height_index;
+        InferenceEngine::SizeVector input_shape;
+        std::tie(input_name, input_shape) = *input_shapes.begin();
+
+        switch (layout) {
+        case InferenceEngine::Layout::NCHW: {
+            batch_index = 0;
+            height_index = 2;
+            width_index = 3;
+            break;
+        }
+        case InferenceEngine::Layout::NHWC: {
+            batch_index = 0;
+            height_index = 1;
+            width_index = 2;
+            break;
+        }
+        default:
+            throw std::runtime_error("Unsupported InferenceEngine::Layout format: " + std::to_string(layout));
+        }
+
+        input_shape[batch_index] = batch_size;
+        if (height > 0)
+            input_shape[height_index] = height;
+        if (width > 0)
+            input_shape[width_index] = width;
+        input_shapes[input_name] = input_shape;
+        network.reshape(input_shapes);
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to reshape network '" + network.getName() + "'"));
+    }
 }
 
 inline std::string fileNameNoExt(const std::string &filepath) {
@@ -88,7 +98,7 @@ InferenceEngine::CNNNetwork IrModelLoader::load(InferenceEngine::Core &core, con
         }
         return network;
     } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Error during loading IR model from " + model_xml));
+        std::throw_with_nested(std::runtime_error("Failed to load IR model '" + model_xml + "'"));
     }
     return InferenceEngine::CNNNetwork();
 }
@@ -120,14 +130,14 @@ InferenceEngine::ExecutableNetwork
 CompiledModelLoader::import(InferenceEngine::CNNNetwork &, const std::string &model, InferenceEngine::Core &core,
                             const std::map<std::string, std::string> &base_config,
                             const std::map<std::string, std::string> &inference_config) {
-    InferenceEngine::ExecutableNetwork executable_network;
-    if (base_config.count(KEY_DEVICE) == 0)
-        throw std::runtime_error("Device does not specified");
-    const std::string &device = base_config.at(KEY_DEVICE);
     try {
+        InferenceEngine::ExecutableNetwork executable_network;
+        if (base_config.count(KEY_DEVICE) == 0)
+            throw std::invalid_argument("Inference device is not specified");
+        const std::string &device = base_config.at(KEY_DEVICE);
         executable_network = core.ImportNetwork(model, device, inference_config);
+        return executable_network;
     } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Couldn't import pre-compiled model"));
+        std::throw_with_nested(std::runtime_error("Failed to import pre-compiled model"));
     }
-    return executable_network;
 }

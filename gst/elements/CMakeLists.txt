@@ -16,8 +16,6 @@ pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 
 file (GLOB MAIN_SRC
-    gvaidentify/*.cpp
-    gvaidentify/*.c
     gvametaconvert/*.cpp
     gvametaconvert/*.c
     gvametapublish/*.cpp
@@ -26,8 +24,6 @@ file (GLOB MAIN_SRC
     gvawatermark/*.c
     gvafpscounter/*.cpp
     gvafpscounter/*.c
-    gvaspeedometer/*.c
-    gvaspeedometer/*.cpp
     gvatrack/*.cpp
     gvatrack/*.c
     gvatrack/iou/*.cpp
@@ -39,7 +35,6 @@ file (GLOB MAIN_HEADERS
     gvametapublish/*.h
     gvawatermark/*.h
     gvafpscounter/*.h
-    gvaspeedometer/*.h
     gvatrack/*.h
     gvatrack/iou/*.h
 )
@@ -65,6 +60,17 @@ if(${ENABLE_VAS_TRACKER})
     list (APPEND MAIN_HEADERS ${VAS_HEADERS})
 endif()
 
+if(${ENABLE_VAS_TRACKER})
+    file (GLOB VAS_SRC
+        gvatrack/vas/*.cpp
+    )
+    file (GLOB VAS_HEADERS
+        gvatrack/vas/*.h
+    )
+    list (APPEND MAIN_SRC ${VAS_SRC})
+    list (APPEND MAIN_HEADERS ${VAS_HEADERS})
+endif()
+
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
@@ -76,7 +82,6 @@ PUBLIC
     gvametapublish
     gvawatermark
     gvafpscounter
-    gvaspeedometer
     gvatrack
     gvatrack/iou
 PRIVATE
@@ -107,7 +112,8 @@ PRIVATE
     image_inference
     image_inference_openvino
     logger
-    jsonconvert
+    json-hpp
+    json-schema-validator
 )
 
 if(${HAVE_VAAPI})

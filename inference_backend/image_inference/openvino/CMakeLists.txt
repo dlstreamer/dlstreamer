@@ -35,7 +35,6 @@ PUBLIC
 target_link_libraries(${TARGET_NAME}
 PUBLIC
         IE::inference_engine
+        IE::inference_engine_legacy
         logger
 )
-
-install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)

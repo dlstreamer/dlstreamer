@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "gva_base_inference.h"
 #include <gst/gst.h>
 #include <map>
 #include <string>

@@ -27,20 +27,20 @@ typedef struct _GvaBaseInference {
     gchar *model;
     gchar *model_proc;
     gchar *device;
-    guint every_nth_frame;
+    guint inference_interval;
     gboolean reshape;
     guint batch_size;
     guint reshape_width;
     guint reshape_height;
-    gboolean adaptive_skip;
+    gboolean no_block;
     guint nireq;
-    gchar *inference_id;
+    gchar *model_instance_id;
     guint cpu_streams;
     guint gpu_streams;
-    gchar *infer_config;
+    gchar *ie_config;
     gchar *allocator_name;
     gchar *pre_proc_name;
-    gchar *extension;
+    gchar *device_extensions;
 
     // other fields
     GstVideoInfo *info;

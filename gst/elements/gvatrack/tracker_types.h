@@ -1,16 +1,20 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
+#include "config.h"
 #include <gst/gst.h>
-
 G_BEGIN_DECLS
 
-typedef enum { IOU, SHORT_TERM, ZERO_TERM, POSE } GstGvaTrackingType;
+#ifdef ENABLE_TRACKER_TYPE_IOU
+typedef enum { IOU, SHORT_TERM, ZERO_TERM } GstGvaTrackingType;
+#else
+typedef enum { SHORT_TERM, ZERO_TERM } GstGvaTrackingType;
+#endif
 
 #define GST_GVA_TRACKING_TYPE (gst_gva_get_tracking_type())
 GType gst_gva_get_tracking_type(void);

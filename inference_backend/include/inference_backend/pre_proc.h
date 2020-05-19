@@ -12,7 +12,6 @@ namespace InferenceBackend {
 enum class PreProcessType {
     Invalid,
     OpenCV,
-    GAPI,
     VAAPI,
 };
 
@@ -30,6 +29,5 @@ class PreProc {
 int GetPlanesCount(int fourcc);
 Image ApplyCrop(const Image &src);
 
-PreProc *CreatePreProcGAPI();
 PreProc *CreatePreProcOpenCV();
 } // namespace InferenceBackend

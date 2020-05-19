@@ -18,9 +18,11 @@
 #include "gva_base_inference.h"
 #include "gva_tensor_meta.h"
 #include "gva_utils.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "inference_impl.h"
 #include "video_frame.h"
 
+#include "copy_blob_to_gststruct.h"
 #include "post_processors.h"
 
 namespace {
@@ -30,64 +32,40 @@ using namespace InferenceBackend;
 void ExtractInferenceResults(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
                              std::vector<InferenceFrame> frames,
                              const std::map<std::string, GstStructure *> & /*model_proc*/, const gchar *model_name) {
-    if (frames.empty())
-        std::logic_error("Vector of frames is empty.");
-    int batch_size = frames.begin()->gva_base_inference->batch_size;
-    size_t blob_id = 0;
+    try {
+        if (frames.empty())
+            throw std::invalid_argument("There are no inference frames");
 
-    for (const auto &blob_iter : output_blobs) {
-        const char *layer_name = blob_iter.first.c_str();
-        OutputBlob::Ptr blob = blob_iter.second;
-        if (blob == nullptr)
-            throw std::runtime_error("Blob is empty. Cannot access to null object.");
+        size_t blob_id = 0;
+        for (const auto &blob_iter : output_blobs) {
+            OutputBlob::Ptr blob = blob_iter.second;
+            if (not blob)
+                throw std::invalid_argument("Output blob is empty");
+            const char *layer_name = blob_iter.first.c_str();
 
-        const uint8_t *data = (const uint8_t *)blob->GetData();
-        auto dims = blob->GetDims();
-        int unbatched_blob_size = GetUnbatchedSizeInBytes(blob, batch_size);
+            for (size_t b = 0; b < frames.size(); b++) {
+                InferenceFrame &frame = frames[b];
 
-        for (size_t b = 0; b < frames.size(); b++) {
-            InferenceFrame &frame = frames[b];
-            GVA::VideoFrame video_frame(frame.buffer, frame.info);
-            GVA::Tensor tensor = video_frame.add_tensor();
+                GstGVATensorMeta *tensor_meta = GST_GVA_TENSOR_META_ADD(frame.buffer);
+                if (not tensor_meta)
+                    throw std::runtime_error("Failed to add GstGVATensorMeta instance");
+                gst_structure_set_name(tensor_meta->data, layer_name);
+                if (not gst_structure_has_name(tensor_meta->data, layer_name))
+                    throw std::invalid_argument("Failed to set '" + std::string(layer_name) + "' as GstStructure name");
 
-            // TODO: maybe we need to define possible gst structure fields instead hardcoded strings?
-            size_t dims_size = std::min(dims.size(), (size_t)GVA_TENSOR_MAX_RANK);
-            GValueArray *arr = g_value_array_new(dims_size);
-            // TODO: check NCHW case
-            GValue gvalue = G_VALUE_INIT;
-            g_value_init(&gvalue, G_TYPE_UINT);
+                CopyOutputBlobToGstStructure(blob, tensor_meta->data, model_name, layer_name, frames.size(), b);
 
-            // first dimension is batch-size set to 1 (cause we unbatched it)
-            g_value_set_uint(&gvalue, 1U);
-            g_value_array_append(arr, &gvalue);
-            for (guint i = 1; i < dims_size; ++i) {
-                g_value_set_uint(&gvalue, dims[i]);
-                g_value_array_append(arr, &gvalue);
+                // In different versions of GStreamer, metas are attached to the buffer in a different order. Thus, we
+                // identify our meta using tensor_id.
+                gst_structure_set(tensor_meta->data, "tensor_id", G_TYPE_INT, safe_convert<int>(blob_id), "element_id",
+                                  G_TYPE_STRING, frame.gva_base_inference->model_instance_id, NULL);
             }
-
-            tensor.set_array("dims", arr);
-            tensor.set_int("rank", dims_size);
-            tensor.set_int("precision", (int)blob->GetPrecision());
-            tensor.set_int("layout", (int)blob->GetLayout());
-            tensor.set_string("layer_name", layer_name);
-            tensor.set_string("model_name", model_name);
-            tensor.set_string("element_id", frame.gva_base_inference->inference_id);
-            tensor.set_int("total_bytes", unbatched_blob_size);
-            // In different versions of GStreamer, metas are attached to the buffer in a different order. Thus, we
-            // identify our meta using tensor_id.
-            tensor.set_int("tensor_id", blob_id);
-
-            GVariant *v =
-                g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, data + b * unbatched_blob_size, unbatched_blob_size, 1);
-            gsize n_elem;
-            gst_structure_set(tensor.gst_structure(), "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
-                              g_variant_get_fixed_array(v, &n_elem, 1), NULL);
-
-            g_value_array_free(arr);
+            ++blob_id;
         }
-        ++blob_id;
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to extract inference results"));
     }
-}
+} // namespace
 
 } // namespace
 

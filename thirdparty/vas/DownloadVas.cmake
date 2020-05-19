@@ -8,16 +8,16 @@ set(VAS_THIRDPARTY_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vas")
 
 set(EXTRACT_OS_NAME "grep '^NAME=\".*\"' /etc/os-release | sed '1 s/^NAME=\"\\(.*\\)\"$/\\1/'")
 
-set(BASE_URL "https://downloadmirror.intel.com/29360/eng")
+set(BASE_URL "https://downloadmirror.intel.com/29445/eng")
 
 execute_process(
     COMMAND bash -c ${EXTRACT_OS_NAME}
     OUTPUT_VARIABLE DIS)
 if("${DIS}" MATCHES "Ubuntu")
-    set(ARCHIVE_NAME "vasot.2020.1.ubuntu.tar.xz")
+    set(ARCHIVE_NAME "vasot.2020.1.ubuntu.opencv.4.3.tar.xz")
     set(LIBVASOTSO_LINK "${BASE_URL}/${ARCHIVE_NAME}")
 else()
-    set(ARCHIVE_NAME "vasot.2020.1.centos.tar.xz")
+    set(ARCHIVE_NAME "vasot.2020.1.centos.opencv.4.3.tar.xz")
     set(LIBVASOTSO_LINK "${BASE_URL}/${ARCHIVE_NAME}")
 endif()
 
@@ -47,4 +47,4 @@ add_custom_target(getexternalvas
     DEPENDS "${COMMON_HEADER_FILE}" "${OT_HEADER_FILE}" "${LIBVASOTSO_FILE}" "${VAS_LICENSE_FILE}"
 )
 
-install(FILES ${LIBVASOTSO_FILE} DESTINATION lib/gst-video-analytics)
+install(FILES ${LIBVASOTSO_FILE} DESTINATION ${DLSTREAMER_LIBRARIES_INSTALL_PATH})

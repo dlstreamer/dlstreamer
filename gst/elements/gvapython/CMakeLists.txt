@@ -11,7 +11,7 @@ set (TARGET_NAME "gvapython")
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
-find_package(PythonLibs 3.4 REQUIRED)
+find_package(PythonLibs 3.4)
 
 if (NOT PYGOBJECT_FOUND OR NOT PYTHONLIBS_FOUND)
     return()
@@ -48,4 +48,4 @@ PRIVATE
     common
 )
 
-install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)
+install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

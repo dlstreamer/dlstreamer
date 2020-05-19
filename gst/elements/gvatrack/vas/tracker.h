@@ -13,10 +13,11 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
+#include <functional>
 #include <memory>
 #include <mutex>
-
 #include <unordered_map>
+
 namespace VasWrapper {
 
 class Tracker : public ITracker {

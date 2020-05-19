@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 void create_iterative_fps_counter(const char *intervals);
-void create_average_fps_counter(unsigned int skip_frames);
+void create_average_fps_counter(unsigned int starting_frame);
 void fps_counter_new_frame(GstBuffer *, const char *element_name);
 void fps_counter_eos();
 

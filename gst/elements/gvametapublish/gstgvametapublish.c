@@ -6,6 +6,7 @@
 
 #include "gstgvametapublish.h"
 #include "gva_caps.h"
+#include "gva_json_meta.h"
 #include "statusmessage.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -50,12 +51,11 @@ static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 // File specific constants
 #define DEFAULT_PUBLISH_METHOD GST_GVA_METAPUBLISH_FILE
 #define DEFAULT_FILE_PATH STDOUT
-#define DEFAULT_OUTPUT_FORMAT BATCH
+#define DEFAULT_FILE_FORMAT JSON
 
 // Broker specific constants
-#define DEFAULT_HOST NULL
 #define DEFAULT_ADDRESS NULL
-#define DEFAULT_CLIENTID NULL
+#define DEFAULT_MQTTCLIENTID NULL
 #define DEFAULT_TOPIC NULL
 #define DEFAULT_SIGNAL_HANDOFFS FALSE
 #define DEFAULT_TIMEOUT NULL
@@ -64,10 +64,9 @@ enum {
     PROP_0,
     PROP_PUBLISH_METHOD,
     PROP_FILE_PATH,
-    PROP_OUTPUT_FORMAT,
-    PROP_HOST,
+    PROP_FILE_FORMAT,
     PROP_ADDRESS,
-    PROP_CLIENTID,
+    PROP_MQTTCLIENTID,
     PROP_TOPIC,
     PROP_TIMEOUT,
     PROP_SIGNAL_HANDOFFS,
@@ -131,15 +130,15 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_FILE_PATH,
-        g_param_spec_string("filepath", "FilePath",
-                            "[method= file] Absolute path to output file for published inferences.", DEFAULT_FILE_PATH,
+        g_param_spec_string("file-path", "FilePath",
+                            "[method= file] Absolute path to output file for publishing inferences.", DEFAULT_FILE_PATH,
                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(
-        gobject_class, PROP_OUTPUT_FORMAT,
-        g_param_spec_string("outputformat", "OutputFormat",
-                            "[method= file] Output format of published file. Set to one of: 'stream' (raw inference "
-                            "per line) or 'batch' (each file holds array of JSON inferences)",
-                            DEFAULT_OUTPUT_FORMAT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        gobject_class, PROP_FILE_FORMAT,
+        g_param_spec_string("file-format", "File Format", "[method= file] The following values are acceptable: \n\
+                            'json' (the whole file is valid JSON array element is inference results per frame), \n\
+                            'json-lines' (each line is valid JSON with inference results per frame)",
+                            DEFAULT_FILE_FORMAT, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     const guint metapublish_prop_len = 128;
     gchar *method_help = g_malloc(metapublish_prop_len * sizeof(gchar));
@@ -155,17 +154,15 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
                                                       GST_TYPE_GVA_METAPUBLISH_METHOD, DEFAULT_PUBLISH_METHOD,
                                                       G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     if (META_PUBLISH_MQTT || META_PUBLISH_KAFKA) {
-        g_object_class_install_property(gobject_class, PROP_HOST,
-                                        g_param_spec_string("host", "Host", "[method= kafka | mqtt] Broker host",
-                                                            DEFAULT_HOST, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
         g_object_class_install_property(gobject_class, PROP_ADDRESS,
                                         g_param_spec_string("address", "Address",
                                                             "[method= kafka | mqtt] Broker address", DEFAULT_ADDRESS,
                                                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
         g_object_class_install_property(
-            gobject_class, PROP_CLIENTID,
-            g_param_spec_string("clientid", "Clientid", "[method= kafka | mqtt] Broker client identifier",
-                                DEFAULT_CLIENTID, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+            gobject_class, PROP_MQTTCLIENTID,
+            g_param_spec_string("mqtt-client-id", "MQTT Client ID", "[method= mqtt] Unique identifier for the MQTT \
+                                client",
+                                DEFAULT_MQTTCLIENTID, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
         g_object_class_install_property(gobject_class, PROP_TIMEOUT,
                                         g_param_spec_string("timeout", "Timeout",
                                                             "[method= kafka | mqtt] Broker timeout", DEFAULT_TIMEOUT,
@@ -205,21 +202,17 @@ void gst_gva_meta_publish_set_property(GObject *object, guint property_id, const
         g_free(gvametapublish->file_path);
         gvametapublish->file_path = g_value_dup_string(value);
         break;
-    case PROP_OUTPUT_FORMAT:
-        g_free(gvametapublish->output_format);
-        gvametapublish->output_format = g_value_dup_string(value);
-        break;
-    case PROP_HOST:
-        g_free(gvametapublish->host);
-        gvametapublish->host = g_value_dup_string(value);
+    case PROP_FILE_FORMAT:
+        g_free(gvametapublish->file_format);
+        gvametapublish->file_format = g_value_dup_string(value);
         break;
     case PROP_ADDRESS:
         g_free(gvametapublish->address);
         gvametapublish->address = g_value_dup_string(value);
         break;
-    case PROP_CLIENTID:
-        g_free(gvametapublish->clientid);
-        gvametapublish->clientid = g_value_dup_string(value);
+    case PROP_MQTTCLIENTID:
+        g_free(gvametapublish->mqtt_client_id);
+        gvametapublish->mqtt_client_id = g_value_dup_string(value);
         break;
     case PROP_TOPIC:
         g_free(gvametapublish->topic);
@@ -250,17 +243,14 @@ void gst_gva_meta_publish_get_property(GObject *object, guint property_id, GValu
     case PROP_FILE_PATH:
         g_value_set_string(value, gvametapublish->file_path);
         break;
-    case PROP_OUTPUT_FORMAT:
-        g_value_set_string(value, gvametapublish->output_format);
-        break;
-    case PROP_HOST:
-        g_value_set_string(value, gvametapublish->host);
+    case PROP_FILE_FORMAT:
+        g_value_set_string(value, gvametapublish->file_format);
         break;
     case PROP_ADDRESS:
         g_value_set_string(value, gvametapublish->address);
         break;
-    case PROP_CLIENTID:
-        g_value_set_string(value, gvametapublish->clientid);
+    case PROP_MQTTCLIENTID:
+        g_value_set_string(value, gvametapublish->mqtt_client_id);
         break;
     case PROP_TOPIC:
         g_value_set_string(value, gvametapublish->topic);
@@ -307,17 +297,14 @@ static void gst_gva_meta_publish_cleanup(GstGvaMetaPublish *gvametapublish) {
     g_free(gvametapublish->file_path);
     gvametapublish->file_path = NULL;
 
-    g_free(gvametapublish->output_format);
-    gvametapublish->output_format = NULL;
-
-    g_free(gvametapublish->host);
-    gvametapublish->host = NULL;
+    g_free(gvametapublish->file_format);
+    gvametapublish->file_format = NULL;
 
     g_free(gvametapublish->address);
     gvametapublish->address = NULL;
 
-    g_free(gvametapublish->clientid);
-    gvametapublish->clientid = NULL;
+    g_free(gvametapublish->mqtt_client_id);
+    gvametapublish->mqtt_client_id = NULL;
 
     g_free(gvametapublish->topic);
     gvametapublish->topic = NULL;
@@ -335,11 +322,10 @@ static void gst_gva_meta_publish_reset(GstGvaMetaPublish *gvametapublish) {
     gst_gva_meta_publish_cleanup(gvametapublish);
 
     gvametapublish->method = DEFAULT_PUBLISH_METHOD;
-    gvametapublish->output_format = g_strdup(DEFAULT_OUTPUT_FORMAT);
+    gvametapublish->file_format = g_strdup(DEFAULT_FILE_FORMAT);
     gvametapublish->file_path = g_strdup(DEFAULT_FILE_PATH);
-    gvametapublish->host = g_strdup(DEFAULT_HOST);
     gvametapublish->address = g_strdup(DEFAULT_ADDRESS);
-    gvametapublish->clientid = g_strdup(DEFAULT_CLIENTID);
+    gvametapublish->mqtt_client_id = g_strdup(DEFAULT_MQTTCLIENTID);
     gvametapublish->topic = g_strdup(DEFAULT_TOPIC);
     gvametapublish->timeout = g_strdup(DEFAULT_TIMEOUT);
     gvametapublish->signal_handoffs = DEFAULT_SIGNAL_HANDOFFS;
@@ -365,7 +351,6 @@ static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
         GST_DEBUG_OBJECT(gvametapublish, "Assigned new instance METHOD: %u", gvametapublish->instance_impl.type);
         MetapublishStatusMessage status = OpenConnection(gvametapublish);
         GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
-        g_free(status.responseMessage);
         if (status.responseCode.ps == SUCCESS) {
             gvametapublish->is_connection_open = TRUE;
         } else {
@@ -387,7 +372,6 @@ static gboolean gst_gva_meta_publish_stop(GstBaseTransform *trans) {
     if (gvametapublish->is_connection_open) {
         MetapublishStatusMessage status = CloseConnection(gvametapublish);
         GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
-        g_free(status.responseMessage);
         if (status.responseCode.ps == SUCCESS) {
             gvametapublish->is_connection_open = FALSE;
         } else {
@@ -429,9 +413,13 @@ static GstFlowReturn gst_gva_meta_publish_transform_ip(GstBaseTransform *trans, 
         GST_DEBUG_OBJECT(gvametapublish, "Signal handoffs");
         g_signal_emit(gvametapublish, gst_interpret_signals[SIGNAL_HANDOFF], 0, buf);
     } else if (gvametapublish->is_connection_open) {
-        MetapublishStatusMessage status = WriteMessage(gvametapublish, buf);
-        GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
-        g_free(status.responseMessage);
+        GstGVAJSONMeta *jsonmeta = GST_GVA_JSON_META_GET(buf);
+        if (jsonmeta) {
+            MetapublishStatusMessage status = WriteMessage(gvametapublish, buf);
+            GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
+        } else {
+            GST_DEBUG_OBJECT(gvametapublish, "%s", "No json metadata to publish");
+        }
     }
 
     return GST_FLOW_OK;

@@ -12,8 +12,7 @@
 #include "statusmessage.h"
 #include <gst/gst.h>
 typedef struct _MQTTPublishConfig {
-    gchar *host;
-    gchar *bindaddress;
+    gchar *address;
     gchar *clientid;
     gchar *topic;
     gchar *timeout;

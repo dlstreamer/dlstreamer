@@ -164,10 +164,10 @@ void create_iterative_fps_counter(const char *intervals) {
     }
 }
 
-void create_average_fps_counter(unsigned int skip_frames) {
+void create_average_fps_counter(unsigned int starting_frame) {
     try {
         if (not fps_counters.count("average"))
-            fps_counters.insert({"average", std::shared_ptr<FpsCounter>(new AverageFpsCounter(skip_frames))});
+            fps_counters.insert({"average", std::shared_ptr<FpsCounter>(new AverageFpsCounter(starting_frame))});
     } catch (std::exception &e) {
         std::string msg = std::string("Error during creation average fpscounter: ") + e.what();
         GVA_ERROR(msg.c_str());

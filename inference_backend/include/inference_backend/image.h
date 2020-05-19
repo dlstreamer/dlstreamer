@@ -31,15 +31,15 @@ enum FourCC {
 };
 
 struct Rectangle {
-    int x;
-    int y;
-    int width;
-    int height;
+    uint32_t x;
+    uint32_t y;
+    uint32_t width;
+    uint32_t height;
 };
 
 struct Image {
     MemoryType type;
-    static const unsigned MAX_PLANES_NUMBER = 4;
+    static const uint32_t MAX_PLANES_NUMBER = 4;
     union {
         uint8_t *planes[MAX_PLANES_NUMBER]; // if type==SYSTEM
         int dma_fd;                         // if type==DMA_BUFFER
@@ -49,9 +49,9 @@ struct Image {
         };
     };
     int format; // FourCC
-    int width;
-    int height;
-    int stride[MAX_PLANES_NUMBER];
+    uint32_t width;
+    uint32_t height;
+    uint32_t stride[MAX_PLANES_NUMBER];
     Rectangle rect;
 };
 

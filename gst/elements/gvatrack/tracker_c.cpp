@@ -10,19 +10,18 @@
 #include "tracker_factory.h"
 
 ITracker *acquire_tracker_instance(const GstVideoInfo *info, GstGvaTrackingType tracking_type, GError **error) {
+    ITracker *tracker = nullptr;
     try {
         if (!info)
-            throw std::invalid_argument("Could not create tracker.");
+            throw std::invalid_argument("Failed to create tracker");
 
-        ITracker *tracker = TrackerFactory::Create(tracking_type, info);
+        tracker = TrackerFactory::Create(tracking_type, info);
         if (!tracker)
-            g_set_error(error, 1, 1, "Could not create tracker of %d tracking type", tracking_type);
-
-        return tracker;
+            throw std::runtime_error("Failed to create tracker of " + std::to_string(tracking_type) + " tracking type");
     } catch (const std::exception &e) {
         g_set_error(error, 1, 1, "%s", CreateNestedErrorMsg(e).c_str());
-        return nullptr;
     }
+    return tracker;
 }
 
 void transform_tracked_objects(ITracker *tracker, GstBuffer *buffer, GError **error) {
@@ -37,6 +36,9 @@ void transform_tracked_objects(ITracker *tracker, GstBuffer *buffer, GError **er
 }
 
 void release_tracker_instance(ITracker *tracker) {
-    if (tracker)
+    try {
         delete tracker;
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", e.what());
+    }
 }

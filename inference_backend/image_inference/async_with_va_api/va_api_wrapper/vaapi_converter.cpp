@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 #include <va/va_drmcommon.h>
 
 #include "inference_backend/pre_proc.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "vaapi_converter.h"
 #include "vaapi_images.h"
 #include "vaapi_utils.h"
@@ -53,7 +54,7 @@ VASurfaceID CreateVASurfaceFromDMA(VADisplay vpy, const Image &src) {
     }
 
     VASurfaceAttrib attribs[2] = {};
-    VASurfaceAttribExternalBuffers external = {};
+    VASurfaceAttribExternalBuffers external = VASurfaceAttribExternalBuffers();
     VASurfaceID va_surface_id;
 
     external.width = src.width;
@@ -66,7 +67,7 @@ VASurfaceID CreateVASurfaceFromDMA(VADisplay vpy, const Image &src) {
     external.data_size = 0;
     for (uint32_t i = 0; i < external.num_planes; i++) {
         external.pitches[i] = src.stride[i];
-        external.data_size += src.stride[i] * src.height;
+        external.data_size = safe_add(external.data_size, safe_mul(src.stride[i], src.height));
     }
 
     attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
@@ -145,12 +146,12 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
     }
     VASurfaceID dst_surface = dst.va_surface_id;
 
-    VAProcPipelineParameterBuffer pipeline_param = {};
+    VAProcPipelineParameterBuffer pipeline_param = VAProcPipelineParameterBuffer();
     pipeline_param.surface = src_surface;
-    VARectangle surface_region = {.x = (int16_t)src.rect.x,
-                                  .y = (int16_t)src.rect.y,
-                                  .width = (uint16_t)src.rect.width,
-                                  .height = (uint16_t)src.rect.height};
+    VARectangle surface_region = {.x = safe_convert<int16_t>(src.rect.x),
+                                  .y = safe_convert<int16_t>(src.rect.y),
+                                  .width = safe_convert<uint16_t>(src.rect.width),
+                                  .height = safe_convert<uint16_t>(src.rect.height)};
     if (surface_region.width > 0 && surface_region.height > 0)
         pipeline_param.surface_region = &surface_region;
 

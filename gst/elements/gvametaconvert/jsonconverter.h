@@ -13,9 +13,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-void all_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer);
-void detection_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer);
-void tensor_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer);
+gboolean to_json(GstGvaMetaConvert *converter, GstBuffer *buffer);
 
 #ifdef __cplusplus
 } /* extern C */

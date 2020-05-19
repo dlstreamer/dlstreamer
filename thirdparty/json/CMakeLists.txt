@@ -1,13 +1,10 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "jsonconvert")
-
-add_library(${TARGET_NAME} INTERFACE)
-
-target_include_directories(${TARGET_NAME} INTERFACE include)
+add_subdirectory(nlohmann)
+add_subdirectory(pboettch)

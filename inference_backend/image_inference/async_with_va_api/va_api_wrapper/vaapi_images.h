@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -20,7 +20,7 @@ namespace InferenceBackend {
 
 struct VaApiImage {
     VaApiContext *context = nullptr;
-    Image image = {};
+    Image image = Image();
     std::future<void> sync;
     bool completed = true;
     std::unique_ptr<ImageMap> image_map;
@@ -45,7 +45,7 @@ class VaApiImagePool {
     void ReleaseBuffer(VaApiImage *image);
 
     void Flush();
-    VaApiImagePool(VaApiContext *context_, int image_pool_size, int width, int height, int format);
+    VaApiImagePool(VaApiContext *context_, size_t image_pool_size, int width, int height, int format);
 };
 
 } // namespace InferenceBackend

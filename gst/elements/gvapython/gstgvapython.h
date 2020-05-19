@@ -28,7 +28,8 @@ struct _GstGvaPython {
     gchar *module_name;
     gchar *class_name;
     gchar *function_name;
-    gchar *arg_string;
+    void *kwargs;
+    void *args;
     struct PythonCallback *python_callback;
 };
 

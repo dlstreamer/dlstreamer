@@ -7,20 +7,34 @@
 
 set -e
 
-BASEDIR=$(dirname "$0")/../../..
-if [ -n ${GST_SAMPLES_DIR} ]; then
-  source $BASEDIR/scripts/setup_env.sh
-fi
-source $BASEDIR/scripts/setlocale.sh
-source $BASEDIR/scripts/path_extractor.sh
+INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 
-if [ -z ${1} ]; then
-  echo "ERROR set path to video"
-  echo "Usage: ./draw_face_attributes.sh <path/to/your/video/sample>"
-  exit
-fi
+GET_MODEL_PATH() {
+    model_name=$1
+    precision=${2:-"FP32"}
+    for models_dir in ${MODELS_PATH//:/ }; do
+        paths=$(find $models_dir -type f -name "*$model_name.xml" -print)
+        if [ ! -z "$paths" ];
+        then
+            considered_precision_paths=$(echo "$paths" | grep "/$precision/")
+           if [ ! -z "$considered_precision_paths" ];
+            then
+                echo $(echo "$considered_precision_paths" | head -n 1)
+                exit 0
+            else
+                echo $(echo "$paths" | head -n 1)
+                exit 0
+            fi
+        fi
+    done
 
-INPUT=${1}
+    echo -e "\e[31mModel $model_name file was not found. Please set MODELS_PATH\e[0m" 1>&2
+    exit 1
+}
+
+PROC_PATH() {
+    echo ./model_proc/$1.json
+}
 
 MODEL_D=face-detection-adas-0001
 MODEL_C1=age-gender-recognition-retail-0013
@@ -35,6 +49,5 @@ PATH_C3=$(GET_MODEL_PATH $MODEL_C3)
 echo Running sample with the following parameters:
 echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
 
-PYTHONPATH=$PYTHONPATH:$BASEDIR/python:$BASEDIR/samples/python \
-LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$GST_PLUGIN_PATH \
+PYTHONPATH=$PYTHONPATH:$(dirname "$0")/../../../python \
 python3 $(dirname "$0")/draw_face_attributes.py -i ${INPUT} -d ${PATH_D} -c1 ${PATH_C1} -c2 ${PATH_C2} -c3 ${PATH_C3}

@@ -15,12 +15,12 @@ pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 file (GLOB MAIN_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/metadata/*.c
         )
 
 file (GLOB MAIN_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/metadata/*.h
         )
 
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
@@ -32,6 +32,7 @@ PUBLIC
         ${GSTREAMER_INCLUDE_DIRS}
         ${GLIB2_INCLUDE_DIRS}
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}/metadata
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -42,4 +43,10 @@ PUBLIC
         ${GLIB2_LIBRARIES}
 )
 
-install(TARGETS ${TARGET_NAME} DESTINATION lib/gst-video-analytics)
+configure_file(${CMAKE_SOURCE_DIR}/cmake/dl-streamer.pc.in ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc @ONLY)
+
+install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc DESTINATION ${DLSTREAMER_LIBRARIES_INSTALL_PATH}/pkgconfig/)
+
+install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_LIBRARIES_INSTALL_PATH}/)
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} DESTINATION ${DLSTREAMER_HEADERS_INSTALL_PATH}/gst FILES_MATCHING PATTERN "*.h")

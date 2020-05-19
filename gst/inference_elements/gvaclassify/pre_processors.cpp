@@ -12,6 +12,7 @@
 #include "gstgvaclassify.h"
 #include "gva_base_inference.h"
 #include "gva_utils.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "region_of_interest.h"
 
 #include <inference_backend/image_inference.h>
@@ -24,6 +25,8 @@ namespace {
 using namespace InferenceBackend;
 
 cv::Mat GetTransform(cv::Mat *src, cv::Mat *dst) {
+    if (not src or not dst)
+        throw std::invalid_argument("Invalid cv::Mat inputs for GetTransform");
     cv::Mat col_mean_src;
     reduce(*src, col_mean_src, 0, cv::REDUCE_AVG);
     for (int i = 0; i < src->rows; i++) {
@@ -58,7 +61,6 @@ void align_rgb_image(Image &image, const std::vector<float> &landmarks_points,
     cv::Mat ref_landmarks = cv::Mat(reference_points.size() / 2, 2, CV_32F);
     cv::Mat landmarks =
         cv::Mat(landmarks_points.size() / 2, 2, CV_32F, const_cast<float *>(&landmarks_points.front())).clone();
-
     for (int i = 0; i < ref_landmarks.rows; i++) {
         ref_landmarks.at<float>(i, 0) = reference_points[2 * i] * image.width;
         ref_landmarks.at<float>(i, 1) = reference_points[2 * i + 1] * image.height;
@@ -90,8 +92,6 @@ void align_rgb_image(Image &image, const std::vector<float> &landmarks_points,
 //     cv::split(paddedImage, planes);
 // }
 
-
-
 bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint current_num_frame, GstBuffer * /* *buffer*/,
                                GstVideoRegionOfInterestMeta *roi) {
     GstGvaClassify *gva_classify = (GstGvaClassify *)gva_base_inference;
@@ -99,10 +99,10 @@ bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint curre
     // Check is object-class same with roi type
     if (gva_classify->object_class[0]) {
         static std::map<std::string, std::vector<std::string>> elemets_object_classes;
-        auto it = elemets_object_classes.find(gva_base_inference->inference_id);
+        auto it = elemets_object_classes.find(gva_base_inference->model_instance_id);
         if (it == elemets_object_classes.end())
             it = elemets_object_classes.insert(
-                it, {gva_base_inference->inference_id, SplitString(gva_classify->object_class, ',')});
+                it, {gva_base_inference->model_instance_id, SplitString(gva_classify->object_class, ',')});
 
         auto compare_quark_string = [roi](const std::string &str) {
             const gchar *roi_type = roi->roi_type ? g_quark_to_string(roi->roi_type) : "";
@@ -114,40 +114,45 @@ bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint curre
     }
 
     // Check is object recently classified
-    return (!gva_classify->skip_classified_objects or
-            gva_classify->classification_history->IsROIClassificationNeeded(roi, current_num_frame));
+    assert(gva_classify->classification_history != NULL);
+    return (gva_classify->classification_history->IsROIClassificationNeeded(roi, current_num_frame));
 }
 
 RoiPreProcessorFunction InputPreProcess(GstStructure *preproc, GstVideoRegionOfInterestMeta *roi_meta) {
-    const gchar *converter = preproc ? gst_structure_get_string(preproc, "converter") : "";
-    if (std::string(converter) == "alignment") {
-        std::vector<float> reference_points;
-        std::vector<float> landmarks_points;
-        // look for tensor data with corresponding format
-        GVA::RegionOfInterest roi(roi_meta);
-        for (auto tensor : roi) {
-            if (tensor.format() == "landmark_points") {
-                landmarks_points = tensor.data<float>();
-                break;
+    try {
+        const gchar *converter = preproc ? gst_structure_get_string(preproc, "converter") : "";
+        if (std::string(converter) == "alignment") {
+            std::vector<float> reference_points;
+            std::vector<float> landmarks_points;
+            // look for tensor data with corresponding format
+            GVA::RegionOfInterest roi(roi_meta);
+            for (auto tensor : roi.tensors()) {
+                if (tensor.format() == "landmark_points") {
+                    landmarks_points = tensor.data<float>();
+                    break;
+                }
             }
-        }
-        // load reference points from JSON input_preproc description
-        GValueArray *alignment_points = nullptr;
-        if (gst_structure_get_array(preproc, "alignment_points", &alignment_points)) {
-            for (size_t i = 0; i < alignment_points->n_values; i++) {
-                reference_points.push_back(g_value_get_double(alignment_points->values + i));
+            // load reference points from JSON input_preproc description
+            GValueArray *alignment_points = nullptr;
+            if (gst_structure_get_array(preproc, "alignment_points", &alignment_points)) {
+                for (size_t i = 0; i < alignment_points->n_values; i++) {
+                    reference_points.push_back(g_value_get_double(alignment_points->values + i));
+                }
+                G_GNUC_BEGIN_IGNORE_DEPRECATIONS
+                g_value_array_free(alignment_points);
+                G_GNUC_END_IGNORE_DEPRECATIONS
             }
-            G_GNUC_BEGIN_IGNORE_DEPRECATIONS
-            g_value_array_free(alignment_points);
-            G_GNUC_END_IGNORE_DEPRECATIONS
-        }
 
-        if (landmarks_points.size() && landmarks_points.size() == reference_points.size()) {
-            return [reference_points, landmarks_points](Image &picture) {
-                align_rgb_image(picture, landmarks_points, reference_points);
-            };
+            if (landmarks_points.size() && landmarks_points.size() == reference_points.size()) {
+                return [reference_points, landmarks_points](Image &picture) {
+                    align_rgb_image(picture, landmarks_points, reference_points);
+                };
+            }
         }
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to construct input pre-processing function"));
     }
+
     return [](Image &) {};
 }
 

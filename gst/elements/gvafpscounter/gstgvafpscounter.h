@@ -25,7 +25,7 @@ typedef struct _GstGvaFpscounterClass GstGvaFpscounterClass;
 struct _GstGvaFpscounter {
     GstBaseTransform base_gvafpscounter;
     gchar *interval;
-    guint skip_frames;
+    guint starting_frame;
 };
 
 struct _GstGvaFpscounterClass {

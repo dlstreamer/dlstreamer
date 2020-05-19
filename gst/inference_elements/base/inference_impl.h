@@ -43,8 +43,8 @@ class InferenceImpl {
 
     enum InferenceStatus {
         INFERENCE_EXECUTED = 1,
-        INFERENCE_SKIPPED_PER_PROPERTY = 2, // frame skipped due to every-nth-frame set to value greater than 1
-        INFERENCE_SKIPPED_ADAPTIVE = 3,     // frame skipped due to adaptive-skip policy
+        INFERENCE_SKIPPED_PER_PROPERTY = 2, // frame skipped due to inference-interval set to value greater than 1
+        INFERENCE_SKIPPED_NO_BLOCK = 3,     // frame skipped due to no-block policy
         INFERENCE_SKIPPED_ROI = 4           // roi skipped because is_roi_classification_needed() returned false
     };
 
@@ -59,7 +59,7 @@ class InferenceImpl {
                                GstBuffer *buffer);
     std::shared_ptr<InferenceResult> MakeInferenceResult(GvaBaseInference *gva_base_inference, Model &model,
                                                          GstVideoRegionOfInterestMeta *meta,
-                                                         std::shared_ptr<InferenceBackend::Image> image,
+                                                         std::shared_ptr<InferenceBackend::Image> &image,
                                                          GstBuffer *buffer);
     RoiPreProcessorFunction GetPreProcFunction(GvaBaseInference *gva_base_inference, GstStructure *input_preproc,
                                                GstVideoRegionOfInterestMeta *meta);

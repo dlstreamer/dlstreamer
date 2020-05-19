@@ -14,6 +14,7 @@
 #include "tracker.h"
 #include "gva_tensor_meta.h"
 #include "gva_utils.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "kuhn_munkres.h"
 
 using namespace iou;
@@ -61,14 +62,15 @@ void Tracker::FilterDetectionsAndStore(GVA::VideoFrame &frame) {
 
     size_t i = 0;
     for (auto &roi : frame.regions()) {
-        GstVideoRegionOfInterestMeta *meta = roi.meta();
-        cv::Rect rect(meta->x, meta->y, meta->w, meta->h);
+        auto _rect = roi.rect();
+        cv::Rect rect(_rect.x, _rect.y, _rect.w, _rect.h);
 
         float aspect_ratio = static_cast<float>(rect.height) / rect.width;
         if (roi.confidence() > params_.min_det_conf && IsInRange(aspect_ratio, params_.bbox_aspect_ratios_range) &&
             IsInRange(rect.height, params_.bbox_heights_range)) {
-            TrackedObject tracked_obj(rect, roi.confidence(), -1, i, -1);
-            for (GVA::Tensor &tensor : roi) {
+            TrackedObject tracked_obj(rect, roi.confidence(), -1, safe_convert<int>(i), -1);
+
+            for (GVA::Tensor &tensor : roi.tensors()) {
                 if (tensor.has_field("label_id")) {
                     tracked_obj.label = tensor.get_int("label_id");
                     break;
@@ -236,8 +238,14 @@ float Tracker::ShapeAffinity(const cv::Rect &trk, const cv::Rect &det) {
 }
 
 float Tracker::MotionAffinity(const cv::Rect &trk, const cv::Rect &det) {
-    float x_dist = static_cast<float>(trk.x - det.x) * (trk.x - det.x) / (det.width * det.width);
-    float y_dist = static_cast<float>(trk.y - det.y) * (trk.y - det.y) / (det.height * det.height);
+    float square_of_width = static_cast<float>(det.width) * static_cast<float>(det.width);
+    float square_of_height = static_cast<float>(det.height) * static_cast<float>(det.height);
+    float eps = std::numeric_limits<float>::epsilon();
+    if (square_of_width < eps || square_of_height < eps)
+        throw std::runtime_error("Math error: Attempted to divide by Zero\n");
+
+    float x_dist = static_cast<float>(trk.x - det.x) * static_cast<float>(trk.x - det.x) / square_of_width;
+    float y_dist = static_cast<float>(trk.y - det.y) * static_cast<float>(trk.y - det.y) / square_of_height;
     return exp(-params_.motion_affinity_w * (x_dist + y_dist));
 }
 
@@ -362,11 +370,10 @@ TrackedObjects Tracker::TrackedDetectionsWithLabels() const {
         const auto &track = tracks().at(idx);
         if (IsTrackValid(idx) && !track.lost) {
             TrackedObject object = track.objects.back();
-            int counter = 1;
+            size_t counter = 1;
             int start = track.objects.size() >= (size_t)params_.averaging_window_size
                             ? track.objects.size() - params_.averaging_window_size
                             : 0;
-
             for (size_t i = start; i < track.objects.size() - 1; i++) {
                 object.rect.width += track.objects[i].rect.width;
                 object.rect.height += track.objects[i].rect.height;
@@ -411,7 +418,7 @@ void Tracker::track(GstBuffer *buffer) {
     // Set object id in metadata
     for (TrackedObject &tracked_obj : TrackedDetections())
         if (tracked_obj.object_id >= 0 && tracked_obj.object_index < static_cast<int>(frame.regions().size()))
-            set_object_id(frame.regions()[tracked_obj.object_index].meta(), tracked_obj.object_id + 1);
+            frame.regions()[tracked_obj.object_index].set_object_id(tracked_obj.object_id + 1);
 }
 
 int iou::LabelWithMaxFrequencyInTrack(const Track &track) {

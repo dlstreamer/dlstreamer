@@ -25,22 +25,22 @@ static std::mutex inference_pool_mutex_;
     g_free(_DST);                                                                                                      \
     _DST = g_strdup(_SRC);
 
-void registerElement(GvaBaseInference *ovino, GError **error) {
+gboolean registerElement(GvaBaseInference *base_inference) {
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        std::string name(ovino->inference_id);
+        std::string name(base_inference->model_instance_id);
 
         auto it = inference_pool_.find(name);
         if (it == inference_pool_.end()) {
             std::unique_ptr<InferenceRefs> infRefs(new InferenceRefs);
             ++infRefs->numRefs;
             infRefs->proxy = nullptr;
-            if (ovino->model) {
+            if (base_inference->model) {
                 // save master element to indicate that this element has full properties set
-                infRefs->masterElement = ovino;
+                infRefs->masterElement = base_inference;
             } else {
                 // lazy initialization
-                infRefs->elementsToInit.push_back(ovino);
+                infRefs->elementsToInit.push_back(base_inference);
             }
             inference_pool_.insert({name, infRefs.release()});
         } else {
@@ -49,17 +49,20 @@ void registerElement(GvaBaseInference *ovino, GError **error) {
                 throw std::runtime_error("'infRefs' is set to NULL.");
             }
             ++infRefs->numRefs;
-            if (ovino->model) {
+            if (base_inference->model) {
                 // save master element to indicate that this element has full properties set
-                infRefs->masterElement = ovino;
+                infRefs->masterElement = base_inference;
             } else {
                 // lazy initialization
-                infRefs->elementsToInit.push_back(ovino);
+                infRefs->elementsToInit.push_back(base_inference);
             }
         }
     } catch (const std::exception &e) {
-        g_set_error(error, 1, 1, "%s", CreateNestedErrorMsg(e).c_str());
+        GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference based element registration failed"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
+        return FALSE;
     }
+    return TRUE;
 }
 
 void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem, InferenceImpl *inference_impl) {
@@ -70,101 +73,116 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     COPY_GSTRING(targetElem->device, masterElem->device);
     COPY_GSTRING(targetElem->model_proc, masterElem->model_proc);
     targetElem->batch_size = masterElem->batch_size;
-    targetElem->every_nth_frame = masterElem->every_nth_frame;
-    targetElem->adaptive_skip = masterElem->adaptive_skip;
+    targetElem->inference_interval = masterElem->inference_interval;
+    targetElem->no_block = masterElem->no_block;
     targetElem->nireq = masterElem->nireq;
     targetElem->cpu_streams = masterElem->cpu_streams;
     targetElem->gpu_streams = masterElem->gpu_streams;
-    COPY_GSTRING(targetElem->infer_config, masterElem->infer_config);
+    COPY_GSTRING(targetElem->ie_config, masterElem->ie_config);
     COPY_GSTRING(targetElem->allocator_name, masterElem->allocator_name);
     COPY_GSTRING(targetElem->pre_proc_name, masterElem->pre_proc_name);
-    // no need to copy inference_id because it should match already.
+    // no need to copy model_instance_id because it should match already.
 }
 
 void initExistingElements(InferenceRefs *infRefs) {
-    if (!infRefs->masterElement) {
-        g_error(
-            "There is no master element. Please, check if all of mandatory parameters are set, for example 'model'.");
+    if (not infRefs->masterElement) {
+        throw std::logic_error("There is no master inference element. Please, check if all of mandatory parameters are "
+                               "set, for example 'model'.");
     }
     for (auto elem : infRefs->elementsToInit) {
         fillElementProps(elem, infRefs->masterElement, infRefs->proxy);
     }
 }
 
-InferenceImpl *acquire_inference_instance(GvaBaseInference *ovino, GError **error) {
+InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        std::string name(ovino->inference_id);
+        std::string name(base_inference->model_instance_id);
 
         InferenceRefs *infRefs = nullptr;
         auto it = inference_pool_.find(name);
 
-        // Current ovino element with ovino->inference-id has not been registered
+        // Current base_inference element with base_inference->inference-id has not been registered
         assert(it != inference_pool_.end());
 
         infRefs = it->second;
-        // if ovino is not master element, it will get all master element's properties here
+        // if base_inference is not master element, it will get all master element's properties here
         initExistingElements(infRefs);
 
-        if (infRefs->proxy == nullptr)                 // no instance for current inference-id acquired yet
-            infRefs->proxy = new InferenceImpl(ovino); // one instance for all elements with same inference-id
+        if (infRefs->proxy == nullptr)                          // no instance for current inference-id acquired yet
+            infRefs->proxy = new InferenceImpl(base_inference); // one instance for all elements with same inference-id
 
         return infRefs->proxy;
     } catch (const std::exception &e) {
-        g_set_error(error, 1, 1, "%s", CreateNestedErrorMsg(e).c_str());
+        GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference plugin intitialization failed"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
         return nullptr;
     }
 }
 
-void release_inference_instance(GvaBaseInference *ovino) {
-    std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-    std::string name(ovino->inference_id);
+void release_inference_instance(GvaBaseInference *base_inference) {
+    try {
+        std::lock_guard<std::mutex> guard(inference_pool_mutex_);
+        std::string name(base_inference->model_instance_id);
 
-    auto it = inference_pool_.find(name);
-    if (it == inference_pool_.end())
-        return;
+        auto it = inference_pool_.find(name);
+        if (it == inference_pool_.end())
+            return;
 
-    InferenceRefs *infRefs = it->second;
-    auto refcounter = --infRefs->numRefs;
-    if (refcounter == 0) {
-        delete infRefs->proxy;
-        delete infRefs;
-        inference_pool_.erase(name);
+        InferenceRefs *infRefs = it->second;
+        auto refcounter = --infRefs->numRefs;
+        if (refcounter == 0) {
+            delete infRefs->proxy;
+            delete infRefs;
+            inference_pool_.erase(name);
+        }
+    } catch (const std::exception &e) {
+        GST_ELEMENT_ERROR(base_inference, LIBRARY, SHUTDOWN, ("base_inference failed on releasing inference instance"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
     }
 }
 
-GstFlowReturn frame_to_base_inference(GvaBaseInference *element, GstBuffer *buf, GstVideoInfo *info) {
-    if (!element || !element->inference) {
-        GST_ERROR_OBJECT(element, "empty inference instance!!!!");
+GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffer *buf, GstVideoInfo *info) {
+    if (!base_inference || !base_inference->inference) {
+        GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
+                          ("empty inference instance"));
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }
 
     GstFlowReturn status;
     try {
-        status = ((InferenceImpl *)element->inference)->TransformFrameIp(element, buf, info);
+        status = ((InferenceImpl *)base_inference->inference)->TransformFrameIp(base_inference, buf, info);
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(element, "%s", CreateNestedErrorMsg(e).c_str());
+        GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
         status = GST_FLOW_ERROR;
     }
 
     return status;
 }
 
-void base_inference_sink_event(GvaBaseInference *ovino, GstEvent *event) {
+void base_inference_sink_event(GvaBaseInference *base_inference, GstEvent *event) {
     try {
-        if (ovino->inference) {
-            ((InferenceImpl *)ovino->inference)->SinkEvent(event);
+        if (base_inference->inference) {
+            ((InferenceImpl *)base_inference->inference)->SinkEvent(event);
         }
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(ovino, "%s", CreateNestedErrorMsg(e).c_str());
+        GST_ELEMENT_ERROR(base_inference, CORE, EVENT, ("base_inference failed while handling sink"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
     }
 }
 
-void flush_inference(GvaBaseInference *ovino) {
-    if (!ovino || !ovino->inference) {
-        GST_ERROR_OBJECT(ovino, "empty inference instance!!!!");
+void flush_inference(GvaBaseInference *base_inference) {
+    if (!base_inference || !base_inference->inference) {
+        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
+                          ("empty inference instance"));
         return;
     }
 
-    ((InferenceImpl *)ovino->inference)->FlushInference();
+    try {
+        ((InferenceImpl *)base_inference->inference)->FlushInference();
+    } catch (const std::exception &e) {
+        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
+                          ("%s", CreateNestedErrorMsg(e).c_str()));
+    }
 }

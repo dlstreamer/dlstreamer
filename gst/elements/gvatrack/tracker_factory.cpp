@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,9 +7,6 @@
 #include "tracker_factory.h"
 #include "config.h"
 #include "iou/tracker.h"
-#ifdef ENABLE_POSE_TRACKER
-#include "posetrack/trackskeleton.h"
-#endif
 #ifdef ENABLE_VAS_TRACKER
 #include "vas/tracker.h"
 #endif
@@ -20,13 +17,13 @@ bool TrackerFactory::registered_all = TrackerFactory::RegisterAll();
 
 bool TrackerFactory::RegisterAll() {
     bool result = true;
+#ifdef ENABLE_TRACKER_TYPE_IOU
     result &= TrackerFactory::Register(GstGvaTrackingType::IOU, iou::Tracker::Create);
+#endif
+
 #ifdef ENABLE_VAS_TRACKER
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM, VasWrapper::Tracker::CreateShortTerm);
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM, VasWrapper::Tracker::CreateZeroTerm);
-#endif
-#ifdef ENABLE_POSE_TRACKER
-    result &= TrackerFactory::Register(GstGvaTrackingType::POSE, skeletontracker::Tracker::Create);
 #endif
     return result;
 }

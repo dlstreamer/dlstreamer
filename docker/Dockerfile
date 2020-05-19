@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,14 +10,40 @@ FROM ubuntu:18.04 AS base
 WORKDIR /home
 
 # COMMON BUILD TOOLS
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends cmake build-essential automake autoconf libtool make git wget pciutils cpio libtool lsb-release ca-certificates pkg-config bison flex libcurl4-gnutls-dev zlib1g-dev
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        cmake \
+        build-essential \
+        automake \
+        autoconf \
+        libtool \
+        make \
+        git \
+        wget \
+        pciutils \
+        cpio \
+        libtool \
+        lsb-release \
+        ca-certificates \
+        pkg-config \
+        bison \
+        flex \
+        libcurl4-gnutls-dev \
+        zlib1g-dev \
+        nasm \
+        yasm \
+        libx11-dev \
+        xorg-dev \
+        libgl1-mesa-dev \
+        openbox \
+        python3 \
+        python3-pip \
+        python3-setuptools && \
+    rm -rf /var/lib/apt/lists/*
 
 # Build x264
 ARG X264_VER=stable
 ARG X264_REPO=https://github.com/mirror/x264
-
-RUN apt-get update && apt-get install -y -q --no-install-recommends nasm yasm
-
 RUN  git clone ${X264_REPO} && \
     cd x264 && \
     git checkout ${X264_VER} && \
@@ -26,11 +52,8 @@ RUN  git clone ${X264_REPO} && \
     make install DESTDIR="/home/build" && \
     make install
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libx11-dev xorg-dev libgl1-mesa-dev openbox
-
 # Build Intel(R) Media SDK
-ARG MSDK_REPO=https://github.com/Intel-Media-SDK/MediaSDK/releases/download/intel-mediasdk-19.1.0/MediaStack.tar.gz
-
+ARG MSDK_REPO=https://github.com/Intel-Media-SDK/MediaSDK/releases/download/intel-mediasdk-19.3.1/MediaStack.tar.gz
 RUN wget -O - ${MSDK_REPO} | tar xz && \
     cd MediaStack && \
     \
@@ -47,7 +70,7 @@ ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_VAAPI_ALL_DRIVERS=1
 
-#clinfo needs to be installed after build directory is copied over
+# clinfo needs to be installed after build directory is copied over
 RUN mkdir neo && cd neo && \
     wget https://github.com/intel/compute-runtime/releases/download/19.31.13700/intel-gmmlib_19.2.3_amd64.deb && \
     wget https://github.com/intel/compute-runtime/releases/download/19.31.13700/intel-igc-core_1.0.10-2364_amd64.deb && \
@@ -62,252 +85,410 @@ RUN mkdir neo && cd neo && \
     dpkg-deb -x intel-ocloc_19.31.13700_amd64.deb /home/build/ && \
     cp -a /home/build/. /
 
-FROM base AS dldt-internal
-WORKDIR /home
-
-ARG DLDT_VER=2020.1
-ARG DLDT_REPO=https://github.com/opencv/dldt.git
-
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev python3 python3-pip python3-setuptools python-yaml
-
-RUN git clone -b ${DLDT_VER} ${DLDT_REPO} && \
-    cd dldt && \
-    git submodule init && \
-    git submodule update --recursive && \
-    mkdir build && \
-    cd build && \
-    cmake -DENABLE_VALIDATION_SET=OFF -DCMAKE_INSTALL_PREFIX=/opt/intel/dldt -DLIB_INSTALL_PATH=/opt/intel/dldt -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=ON -DENABLE_SAMPLE_CORE=OFF  .. && \
-    make -j $(nproc) && \
-    rm -rf ../bin/intel64/Release/lib/libgtest* && \
-    rm -rf ../bin/intel64/Release/lib/libgmock* && \
-    rm -rf ../bin/intel64/Release/lib/libmock* && \
-    rm -rf ../bin/intel64/Release/lib/libtest*
-
-# Delete TBB debug libs to prevent CI testing failing with TBB asserts
-RUN find /home/dldt/inference-engine/temp/tbb/lib/ -name "*tbb*debug*so*" -exec rm -rf {} \;
-
-ARG libdir=/opt/intel/dldt/inference-engine/lib/intel64
-
-RUN mkdir -p    build/opt/intel/dldt/inference-engine/include && \
-    cp -r       dldt/inference-engine/include/*                     build/opt/intel/dldt/inference-engine/include && \
-    \
-    mkdir -p    build/${libdir} && \
-    cp -r       dldt/bin/intel64/Release/lib/*     build${libdir} && \
-    \
-    mkdir -p    build/opt/intel/dldt/inference-engine/src && \
-    cp -r       dldt/inference-engine/src/*                         build/opt/intel/dldt/inference-engine/src/ && \
-    \
-    mkdir -p    build/opt/intel/dldt/inference-engine/share && \
-    cp -r       dldt/build/share/*                 build/opt/intel/dldt/inference-engine/share/ && \
-    \
-    mkdir -p    build/opt/intel/dldt/inference-engine/external/ && \
-    mv          dldt/inference-engine/temp/opencv_*_ubuntu18        dldt/inference-engine/temp/opencv && \
-    cp -r       dldt/inference-engine/temp/*                        build/opt/intel/dldt/inference-engine/external
-
-RUN for p in /usr /home/build/usr /opt/intel/dldt/inference-engine /home/build/opt/intel/dldt/inference-engine; do \
-    pkgconfiglibdir="$p/lib/x86_64-linux-gnu" && \
-    mkdir -p "${pkgconfiglibdir}/pkgconfig" && \
-    pc="${pkgconfiglibdir}/pkgconfig/dldt.pc" && \
-    echo "prefix=/opt" > "$pc" && \
-    echo "libdir=${libdir}" >> "$pc" && \
-    echo "includedir=/opt/intel/dldt/inference-engine/include" >> "$pc" && \
-    echo "" >> "$pc" && \
-    echo "Name: DLDT" >> "$pc" && \
-    echo "Description: Intel Deep Learning Deployment Toolkit" >> "$pc" && \
-    echo "Version: 5.0" >> "$pc" && \
-    echo "" >> "$pc" && \
-    echo "Libs: -L\${libdir} -linference_engine -linference_engine_c_wrapper" >> "$pc" && \
-    echo "Cflags: -I\${includedir}" >> "$pc"; \
-    done;
-
-ENV InferenceEngine_DIR=/opt/intel/dldt/inference-engine/share
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/intel/dldt/inference-engine/lib:/opt/intel/dldt/inference-engine/external/tbb/lib:${libdir}
-ENV HDDL_INSTALL_DIR=/opt/intel/dldt/inference-engine/external/hddl
 
 FROM base AS gst-internal
 WORKDIR /home
-# Build the gstreamer core
 
-# TODO: If you step up this version to version 'x.y.z', please review gst-plugins-good installation step and remove rtpjitterbuffer patch applying, if patch is contained in gst-plugins-good-'x.y.z'
-ARG GST_VER=1.16.0
-ARG GST_REPO=https://gstreamer.freedesktop.org/src/gstreamer/gstreamer-${GST_VER}.tar.xz
+# GStreamer core
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install --no-install-recommends -q -y \
+        libglib2.0-dev \
+        libgmp-dev \
+        libgsl-dev \
+        gobject-introspection \
+        libcap-dev \
+        libcap2-bin \
+        gettext \
+        libgirepository1.0-dev && \
+    rm -rf /var/lib/apt/lists/* && \
+    pip3 install --no-cache-dir meson ninja
 
-RUN  DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libglib2.0-dev gobject-introspection libgirepository1.0-dev libpango-1.0-0 libpangocairo-1.0-0 autopoint
-RUN  wget -O - ${GST_REPO} | tar xJ && \
-    cd gstreamer-${GST_VER} && \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --enable-introspection \
-    --disable-examples  \
-    --disable-gtk-doc && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install;
+ARG PACKAGE_ORIGIN="Intel (R) GStreamer Distribution"
 
-# Build the gstreamer plugin bad set
-ARG GST_ORC_VER=0.4.29
-ARG GST_ORC_REPO=https://gstreamer.freedesktop.org/src/orc/orc-${GST_ORC_VER}.tar.xz
+ARG PREFIX=/usr
+ARG LIBDIR=/usr/lib/x86_64-linux-gnu
+ARG LIBEXECDIR=/usr/lib/x86_64-linux-gnu
 
-RUN  wget -O - ${GST_ORC_REPO} | tar xJ && \
-    cd orc-${GST_ORC_VER} && \
-    ./autogen.sh --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --disable-examples  \
-    --disable-gtk-doc && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+ARG GST_VERSION=1.16.2
+ARG BUILD_TYPE=release
 
-RUN  apt-get update && apt-get install -y -q --no-install-recommends libxrandr-dev libegl1-mesa-dev autopoint bison flex libudev-dev
+ENV GSTREAMER_LIB_DIR=${LIBDIR}
+ENV LIBRARY_PATH=${GSTREAMER_LIB_DIR}:${GSTREAMER_LIB_DIR}/gstreamer-1.0:${LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${LIBRARY_PATH}
+ENV PKG_CONFIG_PATH=${GSTREAMER_LIB_DIR}/pkgconfig
+
+RUN mkdir -p build/src
+
+ARG GST_REPO=https://gstreamer.freedesktop.org/src/gstreamer/gstreamer-${GST_VERSION}.tar.xz
+RUN wget ${GST_REPO} -O build/src/gstreamer-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gstreamer-${GST_VERSION}.tar.xz && \
+    cd gstreamer-${GST_VERSION} && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dbenchmarks=disabled \
+        -Dgtk_doc=disabled \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
+
+# ORC Acceleration
+ARG GST_ORC_VERSION=0.4.31
+ARG GST_ORC_REPO=https://gstreamer.freedesktop.org/src/orc/orc-${GST_ORC_VERSION}.tar.xz
+RUN wget ${GST_ORC_REPO} -O build/src/orc-${GST_ORC_VERSION}.tar.xz
+RUN tar xvf build/src/orc-${GST_ORC_VERSION}.tar.xz && \
+    cd orc-${GST_ORC_VERSION} && \
+    meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dbenchmarks=disabled \
+        -Dgtk_doc=disabled \
+        -Dorc-test=disabled \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
+
+
+# GStreamer Base plugins
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        libx11-dev \
+        iso-codes \
+        libegl1-mesa-dev \
+        libgles2-mesa-dev \
+        libgl-dev \
+        gudev-1.0 \
+        libtheora-dev \
+        libcdparanoia-dev \
+        libpango1.0-dev \
+        libgbm-dev \
+        libasound2-dev \
+        libjpeg-dev \
+        libvisual-0.4-dev \
+        libxv-dev \
+        libopus-dev \
+        libgraphene-1.0-dev \
+        libvorbis-dev && \
+    rm -rf /var/lib/apt/lists/*
+
 
 # Build the gstreamer plugin base
-ARG GST_PLUGIN_BASE_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-base/gst-plugins-base-${GST_VER}.tar.xz
+ARG GST_PLUGIN_BASE_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-base/gst-plugins-base-${GST_VERSION}.tar.xz
+RUN wget ${GST_PLUGIN_BASE_REPO} -O build/src/gst-plugins-base-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gst-plugins-base-${GST_VERSION}.tar.xz && \
+    cd gst-plugins-base-${GST_VERSION} && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dgtk_doc=disabled \
+        -Dnls=disabled \
+        -Dgl=disabled \
+        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
 
-RUN  DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libxv-dev libvisual-0.4-dev libtheora-dev libglib2.0-dev libasound2-dev libcdparanoia-dev libpango1.0-dev
 
-RUN  wget -O - ${GST_PLUGIN_BASE_REPO} | tar xJ && \
-    cd gst-plugins-base-${GST_VER} && \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-introspection \
-    --enable-shared \
-    --disable-examples  \
-    --disable-gtk-doc && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+# GStreamer Good plugins
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        libbz2-dev \
+        libv4l-dev \
+        libaa1-dev \
+        libflac-dev \
+        libgdk-pixbuf2.0-dev \
+        libmp3lame-dev \
+        libcaca-dev \
+        libdv4-dev \
+        libmpg123-dev \
+        libraw1394-dev \
+        libavc1394-dev \
+        libiec61883-dev \
+        libpulse-dev \
+        libsoup2.4-dev \
+        libspeex-dev \
+        libtag-extras-dev \
+        libtwolame-dev \
+        libwavpack-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-
-# Build the gstreamer plugin good set
+ARG GST_PLUGIN_GOOD_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-${GST_VERSION}.tar.xz
 
 # Lines below extract patch needed for Smart City Sample (OVS use case). Patch is applied before building gst-plugins-good
-RUN  mkdir gst-plugins-good-${GST_VER} && \
+RUN  mkdir gst-plugins-good-${GST_VERSION} && \
     git clone https://github.com/GStreamer/gst-plugins-good.git && \
     cd gst-plugins-good && \
-    git diff 080eba64de68161026f2b451033d6b455cb92a05 37d22186ffb29a830e8aad2e4d6456484e716fe7 > ../gst-plugins-good-${GST_VER}/rtpjitterbuffer-fix.patch
+    git diff 080eba64de68161026f2b451033d6b455cb92a05 37d22186ffb29a830e8aad2e4d6456484e716fe7 > ../gst-plugins-good-${GST_VERSION}/rtpjitterbuffer-fix.patch
 
-ARG GST_PLUGIN_GOOD_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-${GST_VER}.tar.xz
-
-RUN  apt-get update && apt-get install -y -q --no-install-recommends libsoup2.4-dev libjpeg-dev
-
-RUN  wget -O - ${GST_PLUGIN_GOOD_REPO} | tar xJ && \
-    cd gst-plugins-good-${GST_VER} && \
+RUN wget ${GST_PLUGIN_GOOD_REPO} -O build/src/gst-plugins-good-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gst-plugins-good-${GST_VERSION}.tar.xz && \
+    cd gst-plugins-good-${GST_VERSION}  && \
     patch -p1 < rtpjitterbuffer-fix.patch && \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --disable-examples  \
-    --disable-gtk-doc && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dgtk_doc=disabled \
+        -Dnls=disabled \
+        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
 
 
-# Build the gstreamer plugin bad set
-ARG GST_PLUGIN_BAD_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-${GST_VER}.tar.xz
+# GStreamer Bad plugins
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        libbluetooth-dev \
+        libusb-1.0.0-dev \
+        libass-dev \
+        libbs2b-dev \
+        libchromaprint-dev \
+        liblcms2-dev \
+        libssh2-1-dev \
+        libdc1394-22-dev \
+        libdirectfb-dev \
+        libssh-dev \
+        libdca-dev \
+        libfaac-dev \
+        libfdk-aac-dev \
+        flite1-dev \
+        libfluidsynth-dev \
+        libgme-dev \
+        libgsm1-dev \
+        nettle-dev \
+        libkate-dev \
+        liblrdf0-dev \
+        libde265-dev \
+        libmjpegtools-dev \
+        libmms-dev \
+        libmodplug-dev \
+        libmpcdec-dev \
+        libneon27-dev \
+        libopenal-dev \
+        libopenexr-dev \
+        libopenjp2-7-dev \
+        libopenmpt-dev \
+        libopenni2-dev \
+        libdvdnav-dev \
+        librtmp-dev \
+        librsvg2-dev \
+        libsbc-dev \
+        libsndfile1-dev \
+        libsoundtouch-dev \
+        libspandsp-dev \
+        libsrtp2-dev \
+        libzvbi-dev \
+        libvo-aacenc-dev \
+        libvo-amrwbenc-dev \
+        libwebrtc-audio-processing-dev \
+        libwebp-dev \
+        libwildmidi-dev \
+        libzbar-dev \
+        libnice-dev \
+        libxkbcommon-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN  apt-get update && apt-get install -y -q --no-install-recommends libssl-dev
+# Uninstalled dependencies: opencv, opencv4, libmfx(waiting intelMSDK), wayland(low version), vdpau
 
-RUN  wget -O - ${GST_PLUGIN_BAD_REPO} | tar xJ && \
-    cd gst-plugins-bad-${GST_VER} && \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --disable-examples  \
-    --disable-gtk-doc && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+ARG GST_PLUGIN_BAD_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-bad/gst-plugins-bad-${GST_VERSION}.tar.xz
+RUN wget ${GST_PLUGIN_BAD_REPO} -O build/src/gst-plugins-bad-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gst-plugins-bad-${GST_VERSION}.tar.xz && \
+    cd gst-plugins-bad-${GST_VERSION} && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Ddoc=disabled \
+        -Dnls=disabled \
+        -Dx265=disabled \
+        -Dyadif=disabled \
+        -Dresindvd=disabled \
+        -Dmplex=disabled \
+        -Ddts=disabled \
+        -Dofa=disabled \
+        -Dfaad=disabled \
+        -Dmpeg2enc=disabled \
+        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
 
 # Build the gstreamer plugin ugly set
-ARG GST_PLUGIN_UGLY_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-${GST_VER}.tar.xz
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        libmpeg2-4-dev \
+        libopencore-amrnb-dev \
+        libopencore-amrwb-dev \
+        liba52-0.7.4-dev \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN  wget -O - ${GST_PLUGIN_UGLY_REPO} | tar xJ; \
-    cd gst-plugins-ugly-${GST_VER}; \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --disable-examples  \
-    --disable-gtk-doc && \
+ARG GST_PLUGIN_UGLY_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-${GST_VERSION}.tar.xz
+
+RUN wget ${GST_PLUGIN_UGLY_REPO} -O build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz && \
+    cd gst-plugins-ugly-${GST_VERSION}  && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dgtk_doc=disabled \
+        -Dnls=disabled \
+        -Dcdio=disabled \
+        -Dsid=disabled \
+        -Dmpeg2dec=disabled \
+        -Ddvdread=disabled \
+        -Da52dec=disabled \
+        -Dx264=disabled \
+        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
+
+
+# FFmpeg
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        bzip2 \
+        autoconf
+
+RUN mkdir ffmpeg_sources && cd ffmpeg_sources && \
+    wget -O - https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.bz2 | tar xj && \
+    cd nasm-2.14.02 && \
+    ./autogen.sh && \
+    ./configure --prefix=${PREFIX} --bindir="${PREFIX}/bin" && \
+    make && make install
+
+RUN wget https://ffmpeg.org/releases/ffmpeg-4.2.2.tar.gz -O build/src/ffmpeg-4.2.2.tar.gz
+RUN cd ffmpeg_sources && \
+    tar xvf /home/build/src/ffmpeg-4.2.2.tar.gz && \
+    cd ffmpeg-4.2.2 && \
+    PATH="${PREFIX}/bin:$PATH" PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
+    ./configure \
+        --disable-gpl \
+        --enable-pic \
+        --disable-shared \
+        --enable-static \
+        --prefix=${PREFIX} \
+        --extra-cflags="-I${PREFIX}/include" \
+        --extra-ldflags="-L${PREFIX}/lib" \
+        --extra-libs=-lpthread \
+        --extra-libs=-lm \
+        --bindir="${PREFIX}/bin" \
+        --disable-vaapi && \
     make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
     make install
 
 # Build gst-libav
-ARG GST_PLUGIN_LIBAV_REPO=https://gstreamer.freedesktop.org/src/gst-libav/gst-libav-${GST_VER}.tar.xz
+ARG GST_PLUGIN_LIBAV_REPO=https://gstreamer.freedesktop.org/src/gst-libav/gst-libav-${GST_VERSION}.tar.xz
+RUN wget ${GST_PLUGIN_LIBAV_REPO} -O build/src/gst-libav-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gst-libav-${GST_VERSION}.tar.xz && \
+    cd gst-libav-${GST_VERSION} && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dgtk_doc=disabled \
+        -Dnls=disabled \
+        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends libssl-dev
-
-RUN wget -O - ${GST_PLUGIN_LIBAV_REPO} | tar xJ && \
-    cd gst-libav-${GST_VER} && \
-    ./autogen.sh \
-    --prefix="/usr" \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --enable-gpl \
-    --disable-gtk-doc && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+ENV PKG_CONFIG_PATH=/opt/intel/mediasdk/lib64/pkgconfig:${PKG_CONFIG_PATH}
+ENV LIBRARY_PATH=/opt/intel/mediasdk/lib64:${LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=/opt/intel/mediasdk/lib64:${LD_LIBRARY_PATH}
+ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
+ENV LIBVA_DRIVER_NAME=iHD
 
 # Build gstreamer plugin vaapi
-ARG GST_PLUGIN_VAAPI_REPO=https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-${GST_VER}.tar.xz
+ARG GST_PLUGIN_VAAPI_REPO=https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-${GST_VERSION}.tar.xz
 
-COPY ./patches/gstreamer-vaapi /patches/gstreamer-vaapi
+ENV GST_VAAPI_ALL_DRIVERS=1
 
-RUN  wget -O - ${GST_PLUGIN_VAAPI_REPO} | tar xJ && \
-    cd gstreamer-vaapi-${GST_VER} && git apply /patches/gstreamer-vaapi/vasurface_qdata.patch && \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --enable-shared \
-    --disable-examples \
-    --disable-gtk-doc  && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        libva-dev \
+        libxrandr-dev \
+        libudev-dev && \
+    rm -rf /var/lib/apt/lists/*
+
+ARG GSTREAMER_VAAPI_PATCH_URL=https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/vasurface_qdata.patch
+RUN wget ${GST_PLUGIN_VAAPI_REPO} -O build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz && \
+    cd gstreamer-vaapi-${GST_VERSION} && \
+    wget -O - ${GSTREAMER_VAAPI_PATCH_URL} | git apply && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dexamples=disabled \
+        -Dtests=disabled \
+        -Dgtk_doc=disabled \
+        -Dnls=disabled \
+        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
 
 # gst-python
-RUN apt-get update \
-    && apt-get install --no-install-recommends -y \
-    python3-dev \
-    python3-pip \
-    python3-setuptools \
-    python-gi-dev \
-    curl \
-    inetutils-ping \
-    libsoup2.4.1
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install --no-install-recommends -y \
+        python-gi-dev \
+        python3-dev && \
+    rm -rf /var/lib/apt/lists/*
 
-ARG GST_PYTHON_REPO=https://gstreamer.freedesktop.org/src/gst-python/gst-python-${GST_VER}.tar.xz
-RUN  wget -O - ${GST_PYTHON_REPO} | tar xJ && \
-    cd gst-python-${GST_VER} && \
-    ./autogen.sh \
-    --prefix=/usr \
-    --libdir=/usr/lib/x86_64-linux-gnu \
-    --libexecdir=/usr/lib/x86_64-linux-gnu \
-    --with-pygi-overrides-dir=/usr/lib/python3/dist-packages/gi/overrides \
-    --disable-dependency-tracking \
-    --disable-silent-rules \
-    --with-libpython-dir="/usr/lib/x86_64-linux-gnu/" \
-    PYTHON=/usr/bin/python3 && \
-    make -j $(nproc) && \
-    make install DESTDIR=/home/build && \
-    make install
+ARG GST_PYTHON_REPO=https://gstreamer.freedesktop.org/src/gst-python/gst-python-${GST_VERSION}.tar.xz
+RUN wget ${GST_PYTHON_REPO} -O build/src/gst-python-${GST_VERSION}.tar.xz
+RUN tar xvf build/src/gst-python-${GST_VERSION}.tar.xz && \
+    cd gst-python-${GST_VERSION} && \
+    PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
+        -Dpython=python3 \
+        --buildtype=${BUILD_TYPE} \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} \
+        --libexecdir=${LIBEXECDIR} \
+    build/ && \
+    ninja -C build && \
+    DESTDIR=/home/build meson install -C build/ && \
+    meson install -C build/
 
-RUN apt-get install -y -q --no-install-recommends gtk-doc-tools
+ENV GI_TYPELIB_PATH=${LIBDIR}/girepository-1.0
+
+ENV PYTHONPATH=${PREFIX}/lib/python3.6/site-packages:${PYTHONPATH}
 
 ARG ENABLE_PAHO_INSTALLATION=false
 ARG PAHO_VER=1.3.0
@@ -354,7 +535,9 @@ ARG RDKAFKA_REPO=https://github.com/edenhill/librdkafka/archive/v${RDKAFKA_VER}.
 RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
     wget -O - ${RDKAFKA_REPO} | tar -xz && \
     cd librdkafka-${RDKAFKA_VER} && \
-    ./configure --prefix=/usr --libdir=/usr/lib/x86_64-linux-gnu/ && \
+    ./configure \
+        --prefix=${PREFIX} \
+        --libdir=${LIBDIR} && \
     make && \
     make install && \
     make install DESTDIR=/home/build; \
@@ -362,6 +545,77 @@ RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
     echo "KAFKA install disabled"; \
     fi
 
+
+FROM base AS dldt-internal
+WORKDIR /home
+
+ARG CMAKE_VERSION=3.17.1
+RUN wget https://github.com/Kitware/CMake/archive/v${CMAKE_VERSION}.tar.gz -O - | tar xzf - && \
+    cd CMake-${CMAKE_VERSION} && \
+    ./bootstrap --system-curl --parallel=$(nproc) && \
+    make -j $(nproc) && \
+    make install
+
+ARG DLDT_VER=2020.2
+ARG DLDT_REPO=https://github.com/opencv/dldt.git
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    apt-get install -y -q --no-install-recommends \
+        libusb-1.0-0-dev \
+        libboost-all-dev \
+        libgtk2.0-dev \
+        python-yaml
+
+RUN git clone -b ${DLDT_VER} ${DLDT_REPO} && \
+    cd dldt && \
+    git submodule init && \
+    git submodule update --recursive && \
+    mkdir build && \
+    cd build && \
+    cmake -DENABLE_VALIDATION_SET=OFF -DCMAKE_INSTALL_PREFIX=/opt/intel/dldt -DLIB_INSTALL_PATH=/opt/intel/dldt -DENABLE_MKL_DNN=ON -DENABLE_CLDNN=ON -DENABLE_SAMPLE_CORE=OFF  .. && \
+    make -j $(nproc) && \
+    rm -rf ../bin/intel64/Release/lib/libgtest* && \
+    rm -rf ../bin/intel64/Release/lib/libgmock* && \
+    rm -rf ../bin/intel64/Release/lib/libmock* && \
+    rm -rf ../bin/intel64/Release/lib/libtest*
+
+# Delete TBB debug libs to prevent CI testing failing with TBB asserts
+RUN find /home/dldt/inference-engine/temp/tbb/lib/ -name "*tbb*debug*so*" -exec rm -rf {} \;
+
+ARG CUSTOM_IE_DIR=/opt/intel/dldt/inference-engine
+ARG LIBDIR=${CUSTOM_IE_DIR}/lib/intel64
+
+RUN mkdir -p    build/${CUSTOM_IE_DIR}/include && \
+    cp -r       dldt/inference-engine/include/*                     build/${CUSTOM_IE_DIR}/include && \
+    \
+    mkdir -p    build/${LIBDIR} && \
+    cp -r       dldt/bin/intel64/Release/lib/*     build${LIBDIR} && \
+    \
+    mkdir -p    build/${CUSTOM_IE_DIR}/src && \
+    cp -r       dldt/inference-engine/src/*                         build/${CUSTOM_IE_DIR}/src/ && \
+    \
+    mkdir -p    build/${CUSTOM_IE_DIR}/share && \
+    cp -r       dldt/build/share/*                 build/${CUSTOM_IE_DIR}/share/ && \
+    \
+    mkdir -p    build/${CUSTOM_IE_DIR}/external/ && \
+    mv          dldt/inference-engine/temp/opencv_*_ubuntu18        dldt/inference-engine/temp/opencv && \
+    cp -r       dldt/inference-engine/temp/*                        build/${CUSTOM_IE_DIR}/external
+
+RUN for p in /usr /home/build/usr /${CUSTOM_IE_DIR} /home/build/${CUSTOM_IE_DIR}; do \
+    pkgconfiglibdir="$p/lib/x86_64-linux-gnu" && \
+    mkdir -p "${pkgconfiglibdir}/pkgconfig" && \
+    pc="${pkgconfiglibdir}/pkgconfig/dldt.pc" && \
+    echo "prefix=/opt" > "$pc" && \
+    echo "libdir=${LIBDIR}" >> "$pc" && \
+    echo "includedir=${CUSTOM_IE_DIR}/include" >> "$pc" && \
+    echo "" >> "$pc" && \
+    echo "Name: DLDT" >> "$pc" && \
+    echo "Description: Intel Deep Learning Deployment Toolkit" >> "$pc" && \
+    echo "Version: 5.0" >> "$pc" && \
+    echo "" >> "$pc" && \
+    echo "Libs: -L\${LIBDIR} -linference_engine -linference_engine_c_wrapper" >> "$pc" && \
+    echo "Cflags: -I\${includedir}" >> "$pc"; \
+    done;
 
 
 FROM ${dldt} AS dldt-build
@@ -375,42 +629,62 @@ LABEL Vendor="Intel Corporation"
 WORKDIR /root
 
 # Prerequisites
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends libxv1 libxcb-shm0 libxcb-shape0 libxcb-xfixes0 libsdl2-2.0-0 libasound2 libvdpau1 \
-    libnuma1 libass9 libssl1.0.0 libglib2.0 libpango-1.0-0 libpangocairo-1.0-0 gobject-introspection libudev1 libx11-xcb1 libgl1-mesa-glx libxrandr2 libegl1-mesa \
-    libpng16-16 libvisual-0.4-0 libtheora0 libcdparanoia0 libsoup2.4-1 libjpeg8 libjpeg-turbo8 python3 python3-pip python-yaml \
-    libgtk2.0 clinfo \
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends \
+    libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev python-yaml \
     \
-    libusb-1.0-0-dev libboost-all-dev libjson-c-dev \
+    clinfo libboost-all-dev libjson-c-dev \
     build-essential cmake ocl-icd-opencl-dev wget gcovr vim git gdb ca-certificates libssl-dev uuid-dev \
-    libgirepository-1.0-1 \
-    python3 python3-wheel python3-pip python3-setuptools python-gi-dev python3.6-dev \
+    libgirepository1.0-dev \
+    python3-dev python3-wheel python3-pip python3-setuptools python-gi-dev python-yaml \
+    \
+    libglib2.0-dev libgmp-dev libgsl-dev gobject-introspection libcap-dev libcap2-bin gettext \
+    \
+    libx11-dev iso-codes libegl1-mesa-dev libgles2-mesa-dev libgl-dev gudev-1.0 libtheora-dev libcdparanoia-dev libpango1.0-dev libgbm-dev libasound2-dev libjpeg-dev \
+    libvisual-0.4-dev libxv-dev libopus-dev libgraphene-1.0-dev libvorbis-dev \
+    \
+    libbz2-dev libv4l-dev libaa1-dev libflac-dev libgdk-pixbuf2.0-dev libmp3lame-dev libcaca-dev libdv4-dev libmpg123-dev libraw1394-dev libavc1394-dev libiec61883-dev \
+    libpulse-dev libsoup2.4-dev libspeex-dev libtag-extras-dev libtwolame-dev libwavpack-dev \
+    \
+    libbluetooth-dev libusb-1.0.0-dev libass-dev libbs2b-dev libchromaprint-dev liblcms2-dev libssh2-1-dev libdc1394-22-dev libdirectfb-dev libssh-dev libdca-dev \
+    libfaac-dev libfdk-aac-dev flite1-dev libfluidsynth-dev libgme-dev libgsm1-dev nettle-dev libkate-dev liblrdf0-dev libde265-dev libmjpegtools-dev libmms-dev \
+    libmodplug-dev libmpcdec-dev libneon27-dev libopenal-dev libopenexr-dev libopenjp2-7-dev libopenmpt-dev libopenni2-dev libdvdnav-dev librtmp-dev librsvg2-dev \
+    libsbc-dev libsndfile1-dev libsoundtouch-dev libspandsp-dev libsrtp2-dev libzvbi-dev libvo-aacenc-dev libvo-amrwbenc-dev libwebrtc-audio-processing-dev libwebp-dev \
+    libwildmidi-dev libzbar-dev libnice-dev libxkbcommon-dev \
+    \
+    libmpeg2-4-dev libopencore-amrnb-dev libopencore-amrwb-dev liba52-0.7.4-dev \
+    \
+    libva-dev libxrandr-dev libudev-dev \
+    \
     && rm -rf /var/lib/apt/lists/* \
-    && python3.6 -m pip install numpy opencv-python
+    && python3.6 -m pip install numpy opencv-python pytest
 
 # Install
 COPY --from=dldt-build /home/build /
 COPY --from=gst-build /home/build /
 
+ARG LIBDIR=/usr/lib/x86_64-linux-gnu
+
 RUN echo "\
-    /usr/local/lib\n\
-    /usr/lib/x86_64-linux-gnu/gstreamer-1.0\n\
+    ${LIBDIR}/gstreamer-1.0\n\
     /opt/intel/dldt/inference-engine/lib/intel64/\n\
     /opt/intel/dldt/inference-engine/external/tbb/lib\n\
     /opt/intel/dldt/inference-engine/external/mkltiny_lnx/lib\n\
     /opt/intel/dldt/inference-engine/external/vpu/hddl/lib\n\
     /opt/intel/dldt/inference-engine/external/opencv/opencv/lib/" > /etc/ld.so.conf.d/opencv-dldt-gst.conf && ldconfig
 
-ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/mediasdk/lib64/pkgconfig:${PKG_CONFIG_PATH}
+ENV GI_TYPELIB_PATH=${LIBDIR}/girepository-1.0
+
+ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/mediasdk/lib64/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
 ENV InferenceEngine_DIR=/opt/intel/dldt/inference-engine/share
 ENV OpenCV_DIR=/opt/intel/dldt/inference-engine/external/opencv/opencv/cmake
-ENV LIBRARY_PATH=/opt/intel/mediasdk/lib64:/usr/lib:${LIBRARY_PATH}
-ENV PATH=/usr/bin:/opt/intel/mediasdk/bin:${PATH}
+ENV LIBRARY_PATH=/opt/intel/mediasdk/lib64:${LIBRARY_PATH}
+ENV PATH=/opt/intel/mediasdk/bin:${PATH}
 
 ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_VAAPI_ALL_DRIVERS=1
 ENV DISPLAY=:0.0
-ENV LD_LIBRARY_PATH=/opt/intel/dldt/inference-engine/external/hddl/lib
+ENV LD_LIBRARY_PATH=/usr/lib:/usr/local/lib:/opt/intel/dldt/inference-engine/external/hddl/lib
 ENV HDDL_INSTALL_DIR=/opt/intel/dldt/inference-engine/external/hddl
 
 ARG GIT_INFO
@@ -419,23 +693,23 @@ ARG SOURCE_REV
 COPY . gst-video-analytics
 ARG ENABLE_PAHO_INSTALLATION=false
 ARG ENABLE_RDKAFKA_INSTALLATION=false
+ARG BUILD_TYPE=Release
 ARG EXTERNAL_GVA_BUILD_FLAGS
 
 RUN mkdir -p gst-video-analytics/build \
     && cd gst-video-analytics/build \
     && cmake \
-    -DCMAKE_INSTALL_PREFIX=/usr \
-    -DVERSION_PATCH=${SOURCE_REV} \
-    -DGIT_INFO=${GIT_INFO} \
-    -DBUILD_SHARED_LIBS=ON \
-    -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
-    -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
-    -DHAVE_VAAPI=ON \
-    -DENABLE_VAS_TRACKER=ON \
-    ${EXTERNAL_GVA_BUILD_FLAGS} \
-    .. \
+        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+        -DVERSION_PATCH=${SOURCE_REV} \
+        -DGIT_INFO=${GIT_INFO} \
+        -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
+        -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
+        -DHAVE_VAAPI=ON \
+        ${EXTERNAL_GVA_BUILD_FLAGS} \
+        .. \
     && make -j $(nproc) \
-    && make install \
-    && echo "/usr/lib/gst-video-analytics" >> /etc/ld.so.conf.d/opencv-dldt-gst.conf && ldconfig
-ENV GST_PLUGIN_PATH=/usr/lib/gst-video-analytics/:/root/gst-video-analytics/
-ENV PYTHONPATH=/root/gst-video-analytics/python:$PYTHONPATH
+    && make install
+
+ENV GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0/:/root/gst-video-analytics/
+ENV PYTHONPATH=/root/gst-video-analytics/python:/usr/lib/python3.6/site-packages:$PYTHONPATH
+
