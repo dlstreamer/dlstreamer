@@ -14,12 +14,6 @@ if(${ENABLE_VAS_TRACKER})
     add_dependencies(vas getexternalvas)
 endif()
 
-if(${ENABLE_VAS_TRACKER})
-    add_subdirectory(vas)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/vas/DownloadVas.cmake)
-    add_dependencies(vas getexternalvas)
-endif()
-
 # Populate thirdparty/json dependency
 set(JSONCONVERT_SOURCE "https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp")
 set(JSONCONVERT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann")

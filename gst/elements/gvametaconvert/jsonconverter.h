@@ -7,7 +7,6 @@
 #include "gstgvametaconvert.h"
 #include "gva_json_meta.h"
 #include "gva_tensor_meta.h"
-#include "region_of_interest.h"
 
 #ifdef __cplusplus
 extern "C" {

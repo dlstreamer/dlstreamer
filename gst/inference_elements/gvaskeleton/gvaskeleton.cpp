@@ -46,13 +46,6 @@ void convertPoses2Array(const std::vector<HumanPose> &poses, float *data, size_t
         }
     }
 }
-void copy_buffer_to_structure(GstStructure *structure, const void *buffer, int size) {
-    ITT_TASK(__FUNCTION__);
-    GVariant *v = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, buffer, size, 1);
-    gsize n_elem;
-    gst_structure_set(structure, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
-                      g_variant_get_fixed_array(v, &n_elem, 1), NULL);
-}
 
 GvaSkeletonStatus attach_poses_to_buffer(const std::vector<HumanPose> &poses, GVA::VideoFrame &frame) {
     try {
@@ -136,10 +129,9 @@ GvaSkeletonStatus attach_bbox_hands_to_buffer(const std::vector<HumanPose> &pose
                                                  ? left_hand_bbox_y_min + left_hand_bbox_size * 2
                                                  : height;
 
-                auto left_hand_roi = frame.add_region(
-                    static_cast<int>(left_hand_bbox_x_min), static_cast<int>(left_hand_bbox_y_min),
-                    static_cast<int>(left_hand_bbox_x_max - left_hand_bbox_x_min),
-                    static_cast<int>(left_hand_bbox_y_max - left_hand_bbox_y_min), 0, 0.99, nullptr, "left_hand");
+                auto left_hand_roi = frame.add_region((left_hand_bbox_x_min), (left_hand_bbox_y_min),
+                                                      (left_hand_bbox_x_max - left_hand_bbox_x_min),
+                                                      (left_hand_bbox_y_max - left_hand_bbox_y_min), "left_hand", 0.99);
 
                 right_hand_bbox_x_min = (right_hand_bbox_x_min >= 0) ? right_hand_bbox_x_min : 0;
                 right_hand_bbox_x_min = (right_hand_bbox_x_min <= width) ? right_hand_bbox_x_min : width;
@@ -160,9 +152,8 @@ GvaSkeletonStatus attach_bbox_hands_to_buffer(const std::vector<HumanPose> &pose
                                             : height;
 
                 auto right_hand_roi = frame.add_region(
-                    static_cast<int>(right_hand_bbox_x_min), static_cast<int>(right_hand_bbox_y_min),
-                    static_cast<int>(right_hand_bbox_x_max - right_hand_bbox_x_min),
-                    static_cast<int>(right_hand_bbox_y_max - right_hand_bbox_y_min), 1, 0.99, nullptr, "right_hand");
+                    (right_hand_bbox_x_min), (right_hand_bbox_y_min), (right_hand_bbox_x_max - right_hand_bbox_x_min),
+                    (right_hand_bbox_y_max - right_hand_bbox_y_min), "right_hand", 0.99);
             }
         }
         return GVA_SKELETON_OK;
@@ -196,9 +187,8 @@ GvaSkeletonStatus attach_bbox_body_to_buffer(const std::vector<HumanPose> &poses
                     min_keypoint_y = keypoint.y;
             }
             auto right_hand_roi =
-                frame.add_region(static_cast<int>(min_keypoint_x), static_cast<int>(min_keypoint_y),
-                                 static_cast<int>(max_keypoint_x - min_keypoint_x),
-                                 static_cast<int>(max_keypoint_y - min_keypoint_y), 1, 0.99, nullptr, "body");
+                frame.add_region((min_keypoint_x), (min_keypoint_y), (max_keypoint_x - min_keypoint_x),
+                                 (max_keypoint_y - min_keypoint_y), "body", 0.99);
         }
         return GVA_SKELETON_OK;
     } catch (const std::exception &e) {

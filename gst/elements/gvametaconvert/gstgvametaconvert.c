@@ -73,7 +73,6 @@ GType gst_gva_metaconvert_get_format(void) {
     static GType gva_metaconvert_format_type = 0;
     static const GEnumValue format_types[] = {
         {GST_GVA_METACONVERT_JSON, "Conversion to GstGVAJSONMeta", "json"},
-        {GST_GVA_METACONVERT_TENSORS_TO_FILE, "Tensors to file", "tensors-to-file"},
         {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection to GST debug log", "dump-detection"},
         {0, NULL, NULL}};
 
@@ -354,7 +353,7 @@ static GstFlowReturn gst_gva_meta_convert_transform_ip(GstBaseTransform *trans, 
     if (gvametaconvert->signal_handoffs) {
         g_signal_emit(gvametaconvert, gst_interpret_signals[SIGNAL_HANDOFF], 0, buf);
     } else if (gvametaconvert->convert_function) {
-        status = gvametaconvert->convert_function(gvametaconvert, buf) ? GST_FLOW_OK : GST_FLOW_ERROR;
+        gvametaconvert->convert_function(gvametaconvert, buf);
     }
 
     return GST_FLOW_OK;

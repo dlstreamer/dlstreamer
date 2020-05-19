@@ -316,9 +316,6 @@ class IEOutputBlob : public OutputBlob {
     virtual const std::vector<size_t> &GetDims() const {
         return blob->getTensorDesc().getDims();
     }
-    virtual size_t GetSize() const {
-        return blob->size();
-    }
 
     virtual Layout GetLayout() const {
         return static_cast<Layout>((int)blob->getTensorDesc().getLayout());
@@ -409,8 +406,15 @@ OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
         InferenceEngine::ExecutableNetwork executable_network;
         std::tie(pre_processor, executable_network) = builder->createPreProcAndExecutableNetwork(network, core, model);
 
-        InferenceEngine::ExecutableNetwork executable_network;
-        std::tie(pre_processor, executable_network) = builder->createPreProcAndExecutableNetwork(network, core, model);
+        inputs = executable_network.GetInputsInfo();
+        outputs = executable_network.GetOutputsInfo();
+        std::map<std::string, InferenceEngine::TensorDesc> layers;
+        for (auto input : inputs) {
+            layers[input.first] = input.second->getTensorDesc();
+        }
+        for (auto output : outputs) {
+            layers[output.first] = output.second->getTensorDesc();
+        }
 
         if (nireq == 0) {
             nireq = optimalNireq(executable_network);

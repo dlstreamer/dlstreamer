@@ -20,6 +20,7 @@
 #include <vector>
 
 namespace GVA {
+
 /**
  * @brief This class represents tensor - map-like storage for inference result information, such as output blob
  * description (output layer dims, layout, rank, precision, etc.), inference result in a raw and interpreted forms.
@@ -325,6 +326,9 @@ class Tensor {
      */
     bool is_detection() const {
         return name() == "detection";
+    }
+    bool is_human_pose() const {
+        return name() == "human_pose";
     }
 
     /**

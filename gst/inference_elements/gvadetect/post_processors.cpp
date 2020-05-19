@@ -529,11 +529,6 @@ void ExtractDetectionResults(const std::map<std::string, InferenceBackend::Outpu
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to extract detection results"));
     }
-    gst_structure_set(detection_result, "layer_name", G_TYPE_STRING, layer_name.c_str(), "model_name", G_TYPE_STRING,
-                      model_name, NULL);
-
-    ConvertBlobToDetectionResults(output_blobs, frames, detection_result);
-    gst_structure_free(detection_result); // free initial structure filled with information, common for each ROI
 }
 } // namespace
 

@@ -27,6 +27,7 @@ file (GLOB MAIN_SRC
     gvatrack/*.cpp
     gvatrack/*.c
     gvatrack/iou/*.cpp
+    gvatrack/posetrack/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -37,18 +38,8 @@ file (GLOB MAIN_HEADERS
     gvafpscounter/*.h
     gvatrack/*.h
     gvatrack/iou/*.h
+    gvatrack/posetrack/*.h
 )
-if (${ENABLE_POSE_TRACKER})
-    file (GLOB POSE_SRC
-        gvatrack/posetrack/*.cpp
-    )
-    file (GLOB POSE_HEADERS
-        gvatrack/posetrack/*.h
-    )
-    list (APPEND MAIN_SRC ${POSE_SRC})
-    list (APPEND MAIN_HEADERS ${POSE_HEADERS})
-endif()
-
 if(${ENABLE_VAS_TRACKER})
     file (GLOB VAS_SRC
         gvatrack/vas/*.cpp

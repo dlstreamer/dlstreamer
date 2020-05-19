@@ -26,8 +26,6 @@ The GStreamer Video Analytics Plugin, part of [OpenVINO<sup>&#8482;</sup> Toolki
 
 GStreamer is an open source framework licensed under LGPL. See [license terms](https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html?gi-language=c). You are solely responsible for determining if your use of Gstreamer requires any additional licenses.  Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of Gstreamer
 
-GStreamer is an open source framework licensed under LGPL. See [license terms](https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html?gi-language=c). You are solely responsible for determining if your use of Gstreamer requires any additional licenses.  Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of Gstreamer
-
 ## Prerequisites
 ### Hardware
 * OpenVINO<sup>&#8482;</sup> Toolkit has information about the [hardware requirements for inference elements](https://software.intel.com/en-us/openvino-toolkit/hardware)

@@ -76,22 +76,6 @@ void align_rgb_image(Image &image, const std::vector<float> &landmarks_points,
     }
 }
 
-// void rezise_image(const cv::Mat& image, uint8_t* buffer) const {
-
-//     cv::Mat resizedImage;
-//     double scale = inputLayerSize.height / static_cast<double>(image.rows);
-//     cv::resize(image, resizedImage, cv::Size(), scale, scale, cv::INTER_CUBIC);
-//     cv::Mat paddedImage;
-//     cv::copyMakeBorder(resizedImage, paddedImage, pad(0), pad(2), pad(1), pad(3),
-//                        cv::BORDER_CONSTANT, meanPixel);
-//     std::vector<cv::Mat> planes(3);
-//     for (size_t pId = 0; pId < planes.size(); pId++) {
-//         planes[pId] = cv::Mat(inputLayerSize, CV_8UC1,
-//                               buffer + pId * inputLayerSize.area());
-//     }
-//     cv::split(paddedImage, planes);
-// }
-
 bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint current_num_frame, GstBuffer * /* *buffer*/,
                                GstVideoRegionOfInterestMeta *roi) {
     GstGvaClassify *gva_classify = (GstGvaClassify *)gva_base_inference;

@@ -20,7 +20,10 @@
 #include "video_frame.h"
 
 #include "post_processors.h"
-#include "post_processors_util.h"
+
+namespace {
+
+using namespace InferenceBackend;
 
 static void find_max_element_index(const std::vector<float> &array, int len, int &index, float &value) {
     ITT_TASK(__FUNCTION__);
@@ -259,7 +262,8 @@ void ExtractClassificationResults(const std::map<std::string, OutputBlob::Ptr> &
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to extract classification results"));
     }
-} // namespace
+}
+
 } // anonymous namespace
 
 PostProcFunction EXTRACT_CLASSIFICATION_RESULTS = ExtractClassificationResults;

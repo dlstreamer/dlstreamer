@@ -98,6 +98,7 @@ GstGVATensorMeta *find_tensor_meta_ext(GstBuffer *buffer, const char *model_name
         }
         return meta;
     }
+
     return NULL;
 }
 

@@ -283,7 +283,6 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
 
     gva_base_inference_cleanup(base_inference);
 
-    // Property
     base_inference->model = g_strdup(DEFAULT_MODEL);
     base_inference->device = g_strdup(DEFAULT_DEVICE);
     base_inference->model_proc = g_strdup(DEFAULT_MODEL_PROC);
@@ -377,12 +376,6 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_RESHAPE:
         base_inference->reshape = g_value_get_boolean(value);
         break;
-    case PROP_EVERY_NTH_FRAME:
-        base_inference->every_nth_frame = g_value_get_uint(value);
-        break;
-    case PROP_RESHAPE:
-        base_inference->reshape = g_value_get_boolean(value);
-        break;
     case PROP_BATCH_SIZE:
         base_inference->batch_size = g_value_get_uint(value);
         if (base_inference->batch_size != DEFAULT_BATCH_SIZE)
@@ -426,9 +419,6 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         g_free(base_inference->device_extensions);
         base_inference->device_extensions = g_value_dup_string(value);
         break;
-    case PROP_EXTENSION:
-        base_inference->extension = g_value_dup_string(value);
-        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -452,12 +442,6 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_INFERENCE_INTERVAL:
         g_value_set_uint(value, base_inference->inference_interval);
-        break;
-    case PROP_RESHAPE:
-        g_value_set_boolean(value, base_inference->reshape);
-        break;
-    case PROP_EVERY_NTH_FRAME:
-        g_value_set_uint(value, base_inference->every_nth_frame);
         break;
     case PROP_RESHAPE:
         g_value_set_boolean(value, base_inference->reshape);
@@ -494,9 +478,6 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_DEVICE_EXTENSIONS:
         g_value_set_string(value, base_inference->device_extensions);
-        break;
-    case PROP_EXTENSION:
-        g_value_set_string(value, base_inference->extension);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);

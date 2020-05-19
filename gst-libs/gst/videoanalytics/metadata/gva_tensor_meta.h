@@ -12,7 +12,6 @@
 #ifndef __GVA_TENSOR_META_H__
 #define __GVA_TENSOR_META_H__
 
-#include "tensor.h"
 #include <gst/gst.h>
 
 #define GVA_TENSOR_META_API_NAME "GstGVATensorMetaAPI"

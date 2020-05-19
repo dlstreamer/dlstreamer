@@ -55,7 +55,6 @@ class OutputBlob {
     enum class Precision { FP32 = 10, U8 = 40 };
     virtual ~OutputBlob() = default;
     virtual const std::vector<size_t> &GetDims() const = 0;
-    virtual size_t GetSize() const = 0;
     virtual Layout GetLayout() const = 0;
     virtual Precision GetPrecision() const = 0;
     virtual const void *GetData() const = 0;

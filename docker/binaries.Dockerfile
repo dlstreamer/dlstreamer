@@ -86,6 +86,7 @@ RUN mkdir neo && cd neo && \
     dpkg-deb -x intel-ocloc_19.31.13700_amd64.deb /home/build/ && \
     cp -a /home/build/. /
 
+
 FROM base AS gst-internal
 WORKDIR /home
 

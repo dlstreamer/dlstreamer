@@ -12,6 +12,7 @@
 #cmakedefine USE_VPUSMM
 #cmakedefine ENABLE_ITT
 #cmakedefine ENABLE_VAS_TRACKER
+#cmakedefine ENABLE_POSE_TRACKER
 #cmakedefine ENABLE_TRACKER_TYPE_IOU
 
 #endif

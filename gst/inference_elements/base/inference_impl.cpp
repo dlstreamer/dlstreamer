@@ -350,10 +350,6 @@ const std::vector<InferenceImpl::Model> &InferenceImpl::GetModels() const {
     return models;
 }
 
-const std::vector<InferenceImpl::Model> &InferenceImpl::GetModels() const {
-    return models;
-}
-
 GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inference, GstBuffer *buffer,
                                               GstVideoInfo *info) {
     ITT_TASK(__FUNCTION__);
