@@ -43,6 +43,16 @@ file (GLOB MAIN_HEADERS
     gvatrack/*.h
     gvatrack/iou/*.h
 )
+if (${ENABLE_POSE_TRACKER})
+    file (GLOB POSE_SRC
+        gvatrack/posetrack/*.cpp
+    )
+    file (GLOB POSE_HEADERS
+        gvatrack/posetrack/*.h
+    )
+    list (APPEND MAIN_SRC ${POSE_SRC})
+    list (APPEND MAIN_HEADERS ${POSE_HEADERS})
+endif()
 
 if(${ENABLE_VAS_TRACKER})
     file (GLOB VAS_SRC

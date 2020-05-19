@@ -11,6 +11,7 @@ GType gst_gva_get_tracking_type(void) {
     static const GEnumValue tracking_types[] = {{IOU, "IOU tracker", "iou"},
                                                 {SHORT_TERM, "Short-term tracker", "short-term"},
                                                 {ZERO_TERM, "Zero-term tracker", "zero-term"},
+                                                {POSE, "Pose trackes", "pose"},
                                                 {0, NULL, NULL}};
 
     if (!gva_tracking_type)

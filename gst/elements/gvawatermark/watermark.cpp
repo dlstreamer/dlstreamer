@@ -114,6 +114,10 @@ void render_human_pose(const GVA::VideoFrame &video_frame, cv::Mat &mat, int for
                        4, index2color(i++, format), -1);
             cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_ear_x"), human_pose_tensor.get_double("l_ear_y")),
                        4, index2color(i++, format), -1);
+            cv::putText(
+                mat, std::to_string(human_pose_tensor.get_int("object_id")),
+                cv::Point(human_pose_tensor.get_double("l_ear_x"), human_pose_tensor.get_double("l_ear_y") + 20),
+                cv::FONT_HERSHEY_TRIPLEX, 1, index2color(i++, format), 1);
         }
     }
 }
