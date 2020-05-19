@@ -23,6 +23,8 @@ file (GLOB MAIN_SRC
     gvawatermark/*.c
     gvafpscounter/*.cpp
     gvafpscounter/*.c
+    gvaspeedometer/*.c
+    gvaspeedometer/*.cpp
     gvatrack/*.cpp
     gvatrack/*.c
     gvatrack/iou/*.cpp
@@ -34,6 +36,7 @@ file (GLOB MAIN_HEADERS
     gvametapublish/*.h
     gvawatermark/*.h
     gvafpscounter/*.h
+    gvaspeedometer/*.h
     gvatrack/*.h
     gvatrack/iou/*.h
 )
@@ -60,6 +63,7 @@ PUBLIC
     gvametapublish
     gvawatermark
     gvafpscounter
+    gvaspeedometer
     gvatrack
     gvatrack/iou
 PRIVATE

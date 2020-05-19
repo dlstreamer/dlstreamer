@@ -16,6 +16,7 @@
 #include "gstgvametapublish.h"
 #include "gstgvatrack.h"
 #include "gstgvawatermark.h"
+#include "gstgvaspeedometer.h"
 
 #include "gva_json_meta.h"
 #include "gva_tensor_meta.h"
@@ -43,6 +44,8 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
 
     if (!gst_element_register(plugin, "gvatrack", GST_RANK_NONE, GST_TYPE_GVA_TRACK))
+        return FALSE;
+    if (!gst_element_register(plugin, "gvaspeedometer", GST_RANK_NONE, GST_TYPE_GVA_SPEEDOMETER))
         return FALSE;
 
     // register metadata
