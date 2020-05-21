@@ -327,6 +327,9 @@ class Tensor {
     bool is_detection() const {
         return name() == "detection";
     }
+    bool is_human_pose() const {
+        return name() == "human_pose";
+    }
 
     /**
      * @brief Construct Tensor instance from GstStructure. Tensor does not own structure, so if you use this

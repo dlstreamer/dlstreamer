@@ -7,7 +7,7 @@
 #include "tracker_factory.h"
 #include "config.h"
 #include "iou/tracker.h"
-
+#include "posetrack/trackskeleton.h"
 #ifdef ENABLE_VAS_TRACKER
 #include "vas/tracker.h"
 #endif
@@ -20,6 +20,10 @@ bool TrackerFactory::RegisterAll() {
     bool result = true;
 #ifdef ENABLE_TRACKER_TYPE_IOU
     result &= TrackerFactory::Register(GstGvaTrackingType::IOU, iou::Tracker::Create);
+#endif
+
+#ifdef ENABLE_POSE_TRACKER
+    result &= TrackerFactory::Register(GstGvaTrackingType::POSE, skeletontracker::Tracker::Create);
 #endif
 
 #ifdef ENABLE_VAS_TRACKER

@@ -58,6 +58,65 @@ int Fourcc2OpenCVType(int fourcc) {
     }
     return 0;
 }
+void render_human_pose(const GVA::VideoFrame &video_frame, cv::Mat &mat, int format) {
+    for (const GVA::Tensor &human_pose_tensor : video_frame.tensors()) {
+        if (human_pose_tensor.is_human_pose()) {
+            size_t i = 0;
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("nose_x"), human_pose_tensor.get_double("nose_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("neck_x"), human_pose_tensor.get_double("neck_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(
+                mat,
+                cv::Point(human_pose_tensor.get_double("r_shoulder_x"), human_pose_tensor.get_double("r_shoulder_y")),
+                4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_cubit_x"), human_pose_tensor.get_double("r_cubit_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_hand_x"), human_pose_tensor.get_double("r_hand_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(
+                mat,
+                cv::Point(human_pose_tensor.get_double("l_shoulder_x"), human_pose_tensor.get_double("l_shoulder_y")),
+                4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_cubit_x"), human_pose_tensor.get_double("l_cubit_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_hand_x"), human_pose_tensor.get_double("l_hand_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("r_hip_x"), human_pose_tensor.get_double("r_hip_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_knee_x"), human_pose_tensor.get_double("r_knee_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("r_foot_x"), human_pose_tensor.get_double("r_foot_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_hip_x"), human_pose_tensor.get_double("l_hip_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_knee_x"), human_pose_tensor.get_double("l_knee_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat,
+                       cv::Point(human_pose_tensor.get_double("l_foot_x"), human_pose_tensor.get_double("l_foot_y")), 4,
+                       index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("r_eye_x"), human_pose_tensor.get_double("r_eye_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_eye_x"), human_pose_tensor.get_double("l_eye_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("r_ear_x"), human_pose_tensor.get_double("r_ear_y")),
+                       4, index2color(i++, format), -1);
+            cv::circle(mat, cv::Point(human_pose_tensor.get_double("l_ear_x"), human_pose_tensor.get_double("l_ear_y")),
+                       4, index2color(i++, format), -1);
+            cv::putText(
+                mat, std::to_string(human_pose_tensor.get_int("object_id")),
+                cv::Point(human_pose_tensor.get_double("l_ear_x"), human_pose_tensor.get_double("l_ear_y") + 20),
+                cv::FONT_HERSHEY_TRIPLEX, 1, index2color(i++, format), 1);
+        }
+    }
+}
 
 static void clip_rect(double &x, double &y, double &w, double &h, GstVideoInfo *info) {
     x = (x < 0) ? 0 : (x > info->width) ? info->width : x;
@@ -83,6 +142,8 @@ gboolean draw_label(GstGvaWatermark *gvawatermark, GstBuffer *buffer) {
 
         // construct text labels
         GVA::VideoFrame video_frame(buffer, &gvawatermark->info);
+        render_human_pose(video_frame, mat, image.format);
+
         for (GVA::RegionOfInterest &roi : video_frame.regions()) {
             std::string text = "";
             size_t color_index = roi.label_id();
@@ -145,6 +206,10 @@ gboolean draw_label(GstGvaWatermark *gvawatermark, GstBuffer *buffer) {
             if (pos.y < 0)
                 pos.y = rect.y + 30.f;
             cv::putText(mat, text, pos, cv::FONT_HERSHEY_TRIPLEX, 1, color, 1);
+            // std::string path =
+            //     "/home/pbochenk/projects/diplom/video-samples/gvaskeleton_images_with_cv_clear/frame" +
+            //     std::to_string(index_for_images++) + ".jpg";
+            // cv::imwrite(path, mat);
         }
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(gvawatermark, STREAM, FAILED, ("watermark has failed to draw label"),

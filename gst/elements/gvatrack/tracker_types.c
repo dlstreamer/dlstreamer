@@ -13,11 +13,13 @@ GType gst_gva_get_tracking_type(void) {
     static const GEnumValue tracking_types[] = {{IOU, "IOU Intersection Over Union tracker", "iou"},
                                                 {SHORT_TERM, "Short-term tracker", "short-term"},
                                                 {ZERO_TERM, "Zero-term tracker", "zero-term"},
+                                                {POSE, "Human pose tracker", "pose"},
                                                 {0, NULL, NULL}};
 #else
 
     static const GEnumValue tracking_types[] = {{SHORT_TERM, "Short-term tracker", "short-term"},
                                                 {ZERO_TERM, "Zero-term tracker", "zero-term"},
+                                                {POSE, "Human pose tracker", "pose"},
                                                 {0, NULL, NULL}};
 #endif
 

@@ -9,6 +9,7 @@ cmake_minimum_required (VERSION 3.1)
 set (TARGET_NAME "elements")
 
 find_package(OpenCV REQUIRED core imgproc)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
@@ -28,6 +29,7 @@ file (GLOB MAIN_SRC
     gvatrack/*.cpp
     gvatrack/*.c
     gvatrack/iou/*.cpp
+    gvatrack/posetrack/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -39,7 +41,18 @@ file (GLOB MAIN_HEADERS
     gvaspeedometer/*.h
     gvatrack/*.h
     gvatrack/iou/*.h
+    gvatrack/posetrack/*.h
 )
+if(${ENABLE_VAS_TRACKER})
+    file (GLOB VAS_SRC
+        gvatrack/vas/*.cpp
+    )
+    file (GLOB VAS_HEADERS
+        gvatrack/vas/*.h
+    )
+    list (APPEND MAIN_SRC ${VAS_SRC})
+    list (APPEND MAIN_HEADERS ${VAS_HEADERS})
+endif()
 
 if(${ENABLE_VAS_TRACKER})
     file (GLOB VAS_SRC

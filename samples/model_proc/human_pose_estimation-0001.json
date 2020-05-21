@@ -1,0 +1,20 @@
+{
+    "json_schema_version" : 1.0,
+    "input_preproc": [
+      {
+        "color_format": "BGR"
+      }
+    ],
+    "output_postproc": [
+      {
+        "layer_name": "Mconv7_stage2_L1", 
+        "format": "skeleton_points"
+      },
+      {
+      "layer_name": "Mconv7_stage2_L2",
+      "format": "skeleton_points"
+      }
+
+    ]
+  }
+  
