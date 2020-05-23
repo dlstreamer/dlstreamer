@@ -12,33 +12,33 @@ WORKDIR /home
 # COMMON BUILD TOOLS
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        cmake \
-        build-essential \
-        automake \
-        autoconf \
-        libtool \
-        make \
-        git \
-        wget \
-        pciutils \
-        cpio \
-        libtool \
-        lsb-release \
-        ca-certificates \
-        pkg-config \
-        bison \
-        flex \
-        libcurl4-gnutls-dev \
-        zlib1g-dev \
-        nasm \
-        yasm \
-        libx11-dev \
-        xorg-dev \
-        libgl1-mesa-dev \
-        openbox \
-        python3 \
-        python3-pip \
-        python3-setuptools && \
+    cmake \
+    build-essential \
+    automake \
+    autoconf \
+    libtool \
+    make \
+    git \
+    wget \
+    pciutils \
+    cpio \
+    libtool \
+    lsb-release \
+    ca-certificates \
+    pkg-config \
+    bison \
+    flex \
+    libcurl4-gnutls-dev \
+    zlib1g-dev \
+    nasm \
+    yasm \
+    libx11-dev \
+    xorg-dev \
+    libgl1-mesa-dev \
+    openbox \
+    python3 \
+    python3-pip \
+    python3-setuptools && \
     rm -rf /var/lib/apt/lists/*
 
 # Build x264
@@ -92,14 +92,14 @@ WORKDIR /home
 # GStreamer core
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install --no-install-recommends -q -y \
-        libglib2.0-dev \
-        libgmp-dev \
-        libgsl-dev \
-        gobject-introspection \
-        libcap-dev \
-        libcap2-bin \
-        gettext \
-        libgirepository1.0-dev && \
+    libglib2.0-dev \
+    libgmp-dev \
+    libgsl-dev \
+    gobject-introspection \
+    libcap-dev \
+    libcap2-bin \
+    gettext \
+    libgirepository1.0-dev && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --no-cache-dir meson ninja
 
@@ -124,15 +124,15 @@ RUN wget ${GST_REPO} -O build/src/gstreamer-${GST_VERSION}.tar.xz
 RUN tar xvf build/src/gstreamer-${GST_VERSION}.tar.xz && \
     cd gstreamer-${GST_VERSION} && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dbenchmarks=disabled \
-        -Dgtk_doc=disabled \
-        -Dpackage-origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dbenchmarks=disabled \
+    -Dgtk_doc=disabled \
+    -Dpackage-origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -145,14 +145,14 @@ RUN wget ${GST_ORC_REPO} -O build/src/orc-${GST_ORC_VERSION}.tar.xz
 RUN tar xvf build/src/orc-${GST_ORC_VERSION}.tar.xz && \
     cd orc-${GST_ORC_VERSION} && \
     meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dbenchmarks=disabled \
-        -Dgtk_doc=disabled \
-        -Dorc-test=disabled \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dbenchmarks=disabled \
+    -Dgtk_doc=disabled \
+    -Dorc-test=disabled \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -162,23 +162,23 @@ RUN tar xvf build/src/orc-${GST_ORC_VERSION}.tar.xz && \
 # GStreamer Base plugins
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        libx11-dev \
-        iso-codes \
-        libegl1-mesa-dev \
-        libgles2-mesa-dev \
-        libgl-dev \
-        gudev-1.0 \
-        libtheora-dev \
-        libcdparanoia-dev \
-        libpango1.0-dev \
-        libgbm-dev \
-        libasound2-dev \
-        libjpeg-dev \
-        libvisual-0.4-dev \
-        libxv-dev \
-        libopus-dev \
-        libgraphene-1.0-dev \
-        libvorbis-dev && \
+    libx11-dev \
+    iso-codes \
+    libegl1-mesa-dev \
+    libgles2-mesa-dev \
+    libgl-dev \
+    gudev-1.0 \
+    libtheora-dev \
+    libcdparanoia-dev \
+    libpango1.0-dev \
+    libgbm-dev \
+    libasound2-dev \
+    libjpeg-dev \
+    libvisual-0.4-dev \
+    libxv-dev \
+    libopus-dev \
+    libgraphene-1.0-dev \
+    libvorbis-dev && \
     rm -rf /var/lib/apt/lists/*
 
 
@@ -188,16 +188,16 @@ RUN wget ${GST_PLUGIN_BASE_REPO} -O build/src/gst-plugins-base-${GST_VERSION}.ta
 RUN tar xvf build/src/gst-plugins-base-${GST_VERSION}.tar.xz && \
     cd gst-plugins-base-${GST_VERSION} && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dgtk_doc=disabled \
-        -Dnls=disabled \
-        -Dgl=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dgtk_doc=disabled \
+    -Dnls=disabled \
+    -Dgl=disabled \
+    -Dpackage_origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -207,24 +207,24 @@ RUN tar xvf build/src/gst-plugins-base-${GST_VERSION}.tar.xz && \
 # GStreamer Good plugins
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        libbz2-dev \
-        libv4l-dev \
-        libaa1-dev \
-        libflac-dev \
-        libgdk-pixbuf2.0-dev \
-        libmp3lame-dev \
-        libcaca-dev \
-        libdv4-dev \
-        libmpg123-dev \
-        libraw1394-dev \
-        libavc1394-dev \
-        libiec61883-dev \
-        libpulse-dev \
-        libsoup2.4-dev \
-        libspeex-dev \
-        libtag-extras-dev \
-        libtwolame-dev \
-        libwavpack-dev && \
+    libbz2-dev \
+    libv4l-dev \
+    libaa1-dev \
+    libflac-dev \
+    libgdk-pixbuf2.0-dev \
+    libmp3lame-dev \
+    libcaca-dev \
+    libdv4-dev \
+    libmpg123-dev \
+    libraw1394-dev \
+    libavc1394-dev \
+    libiec61883-dev \
+    libpulse-dev \
+    libsoup2.4-dev \
+    libspeex-dev \
+    libtag-extras-dev \
+    libtwolame-dev \
+    libwavpack-dev && \
     rm -rf /var/lib/apt/lists/*
 
 ARG GST_PLUGIN_GOOD_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-good/gst-plugins-good-${GST_VERSION}.tar.xz
@@ -240,15 +240,15 @@ RUN tar xvf build/src/gst-plugins-good-${GST_VERSION}.tar.xz && \
     cd gst-plugins-good-${GST_VERSION}  && \
     patch -p1 < rtpjitterbuffer-fix.patch && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dgtk_doc=disabled \
-        -Dnls=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dgtk_doc=disabled \
+    -Dnls=disabled \
+    -Dpackage_origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -258,54 +258,54 @@ RUN tar xvf build/src/gst-plugins-good-${GST_VERSION}.tar.xz && \
 # GStreamer Bad plugins
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        libbluetooth-dev \
-        libusb-1.0.0-dev \
-        libass-dev \
-        libbs2b-dev \
-        libchromaprint-dev \
-        liblcms2-dev \
-        libssh2-1-dev \
-        libdc1394-22-dev \
-        libdirectfb-dev \
-        libssh-dev \
-        libdca-dev \
-        libfaac-dev \
-        libfdk-aac-dev \
-        flite1-dev \
-        libfluidsynth-dev \
-        libgme-dev \
-        libgsm1-dev \
-        nettle-dev \
-        libkate-dev \
-        liblrdf0-dev \
-        libde265-dev \
-        libmjpegtools-dev \
-        libmms-dev \
-        libmodplug-dev \
-        libmpcdec-dev \
-        libneon27-dev \
-        libopenal-dev \
-        libopenexr-dev \
-        libopenjp2-7-dev \
-        libopenmpt-dev \
-        libopenni2-dev \
-        libdvdnav-dev \
-        librtmp-dev \
-        librsvg2-dev \
-        libsbc-dev \
-        libsndfile1-dev \
-        libsoundtouch-dev \
-        libspandsp-dev \
-        libsrtp2-dev \
-        libzvbi-dev \
-        libvo-aacenc-dev \
-        libvo-amrwbenc-dev \
-        libwebrtc-audio-processing-dev \
-        libwebp-dev \
-        libwildmidi-dev \
-        libzbar-dev \
-        libnice-dev \
-        libxkbcommon-dev && \
+    libbluetooth-dev \
+    libusb-1.0.0-dev \
+    libass-dev \
+    libbs2b-dev \
+    libchromaprint-dev \
+    liblcms2-dev \
+    libssh2-1-dev \
+    libdc1394-22-dev \
+    libdirectfb-dev \
+    libssh-dev \
+    libdca-dev \
+    libfaac-dev \
+    libfdk-aac-dev \
+    flite1-dev \
+    libfluidsynth-dev \
+    libgme-dev \
+    libgsm1-dev \
+    nettle-dev \
+    libkate-dev \
+    liblrdf0-dev \
+    libde265-dev \
+    libmjpegtools-dev \
+    libmms-dev \
+    libmodplug-dev \
+    libmpcdec-dev \
+    libneon27-dev \
+    libopenal-dev \
+    libopenexr-dev \
+    libopenjp2-7-dev \
+    libopenmpt-dev \
+    libopenni2-dev \
+    libdvdnav-dev \
+    librtmp-dev \
+    librsvg2-dev \
+    libsbc-dev \
+    libsndfile1-dev \
+    libsoundtouch-dev \
+    libspandsp-dev \
+    libsrtp2-dev \
+    libzvbi-dev \
+    libvo-aacenc-dev \
+    libvo-amrwbenc-dev \
+    libwebrtc-audio-processing-dev \
+    libwebp-dev \
+    libwildmidi-dev \
+    libzbar-dev \
+    libnice-dev \
+    libxkbcommon-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Uninstalled dependencies: opencv, opencv4, libmfx(waiting intelMSDK), wayland(low version), vdpau
@@ -315,23 +315,23 @@ RUN wget ${GST_PLUGIN_BAD_REPO} -O build/src/gst-plugins-bad-${GST_VERSION}.tar.
 RUN tar xvf build/src/gst-plugins-bad-${GST_VERSION}.tar.xz && \
     cd gst-plugins-bad-${GST_VERSION} && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Ddoc=disabled \
-        -Dnls=disabled \
-        -Dx265=disabled \
-        -Dyadif=disabled \
-        -Dresindvd=disabled \
-        -Dmplex=disabled \
-        -Ddts=disabled \
-        -Dofa=disabled \
-        -Dfaad=disabled \
-        -Dmpeg2enc=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Ddoc=disabled \
+    -Dnls=disabled \
+    -Dx265=disabled \
+    -Dyadif=disabled \
+    -Dresindvd=disabled \
+    -Dmplex=disabled \
+    -Ddts=disabled \
+    -Dofa=disabled \
+    -Dfaad=disabled \
+    -Dmpeg2enc=disabled \
+    -Dpackage_origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -340,10 +340,10 @@ RUN tar xvf build/src/gst-plugins-bad-${GST_VERSION}.tar.xz && \
 # Build the gstreamer plugin ugly set
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        libmpeg2-4-dev \
-        libopencore-amrnb-dev \
-        libopencore-amrwb-dev \
-        liba52-0.7.4-dev \
+    libmpeg2-4-dev \
+    libopencore-amrnb-dev \
+    libopencore-amrwb-dev \
+    liba52-0.7.4-dev \
     && rm -rf /var/lib/apt/lists/*
 
 ARG GST_PLUGIN_UGLY_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-${GST_VERSION}.tar.xz
@@ -352,21 +352,21 @@ RUN wget ${GST_PLUGIN_UGLY_REPO} -O build/src/gst-plugins-ugly-${GST_VERSION}.ta
 RUN tar xvf build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz && \
     cd gst-plugins-ugly-${GST_VERSION}  && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dgtk_doc=disabled \
-        -Dnls=disabled \
-        -Dcdio=disabled \
-        -Dsid=disabled \
-        -Dmpeg2dec=disabled \
-        -Ddvdread=disabled \
-        -Da52dec=disabled \
-        -Dx264=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dgtk_doc=disabled \
+    -Dnls=disabled \
+    -Dcdio=disabled \
+    -Dsid=disabled \
+    -Dmpeg2dec=disabled \
+    -Ddvdread=disabled \
+    -Da52dec=disabled \
+    -Dx264=disabled \
+    -Dpackage_origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -376,8 +376,8 @@ RUN tar xvf build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz && \
 # FFmpeg
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        bzip2 \
-        autoconf
+    bzip2 \
+    autoconf
 
 RUN mkdir ffmpeg_sources && cd ffmpeg_sources && \
     wget -O - https://www.nasm.us/pub/nasm/releasebuilds/2.14.02/nasm-2.14.02.tar.bz2 | tar xj && \
@@ -392,17 +392,17 @@ RUN cd ffmpeg_sources && \
     cd ffmpeg-4.2.2 && \
     PATH="${PREFIX}/bin:$PATH" PKG_CONFIG_PATH="${PREFIX}/lib/pkgconfig" \
     ./configure \
-        --disable-gpl \
-        --enable-pic \
-        --disable-shared \
-        --enable-static \
-        --prefix=${PREFIX} \
-        --extra-cflags="-I${PREFIX}/include" \
-        --extra-ldflags="-L${PREFIX}/lib" \
-        --extra-libs=-lpthread \
-        --extra-libs=-lm \
-        --bindir="${PREFIX}/bin" \
-        --disable-vaapi && \
+    --disable-gpl \
+    --enable-pic \
+    --disable-shared \
+    --enable-static \
+    --prefix=${PREFIX} \
+    --extra-cflags="-I${PREFIX}/include" \
+    --extra-ldflags="-L${PREFIX}/lib" \
+    --extra-libs=-lpthread \
+    --extra-libs=-lm \
+    --bindir="${PREFIX}/bin" \
+    --disable-vaapi && \
     make -j $(nproc) && \
     make install
 
@@ -412,15 +412,15 @@ RUN wget ${GST_PLUGIN_LIBAV_REPO} -O build/src/gst-libav-${GST_VERSION}.tar.xz
 RUN tar xvf build/src/gst-libav-${GST_VERSION}.tar.xz && \
     cd gst-libav-${GST_VERSION} && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dgtk_doc=disabled \
-        -Dnls=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dgtk_doc=disabled \
+    -Dnls=disabled \
+    -Dpackage_origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -439,9 +439,9 @@ ENV GST_VAAPI_ALL_DRIVERS=1
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        libva-dev \
-        libxrandr-dev \
-        libudev-dev && \
+    libva-dev \
+    libxrandr-dev \
+    libudev-dev && \
     rm -rf /var/lib/apt/lists/*
 
 ARG GSTREAMER_VAAPI_PATCH_URL=https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/vasurface_qdata.patch
@@ -450,15 +450,15 @@ RUN tar xvf build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz && \
     cd gstreamer-vaapi-${GST_VERSION} && \
     wget -O - ${GSTREAMER_VAAPI_PATCH_URL} | git apply && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dexamples=disabled \
-        -Dtests=disabled \
-        -Dgtk_doc=disabled \
-        -Dnls=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dexamples=disabled \
+    -Dtests=disabled \
+    -Dgtk_doc=disabled \
+    -Dnls=disabled \
+    -Dpackage_origin="${PACKAGE_ORIGIN}" \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -467,8 +467,8 @@ RUN tar xvf build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz && \
 # gst-python
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install --no-install-recommends -y \
-        python-gi-dev \
-        python3-dev && \
+    python-gi-dev \
+    python3-dev && \
     rm -rf /var/lib/apt/lists/*
 
 ARG GST_PYTHON_REPO=https://gstreamer.freedesktop.org/src/gst-python/gst-python-${GST_VERSION}.tar.xz
@@ -476,11 +476,11 @@ RUN wget ${GST_PYTHON_REPO} -O build/src/gst-python-${GST_VERSION}.tar.xz
 RUN tar xvf build/src/gst-python-${GST_VERSION}.tar.xz && \
     cd gst-python-${GST_VERSION} && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
-        -Dpython=python3 \
-        --buildtype=${BUILD_TYPE} \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} \
-        --libexecdir=${LIBEXECDIR} \
+    -Dpython=python3 \
+    --buildtype=${BUILD_TYPE} \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} \
+    --libexecdir=${LIBEXECDIR} \
     build/ && \
     ninja -C build && \
     DESTDIR=/home/build meson install -C build/ && \
@@ -536,8 +536,8 @@ RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
     wget -O - ${RDKAFKA_REPO} | tar -xz && \
     cd librdkafka-${RDKAFKA_VER} && \
     ./configure \
-        --prefix=${PREFIX} \
-        --libdir=${LIBDIR} && \
+    --prefix=${PREFIX} \
+    --libdir=${LIBDIR} && \
     make && \
     make install && \
     make install DESTDIR=/home/build; \
@@ -561,10 +561,10 @@ ARG DLDT_REPO=https://github.com/opencv/dldt.git
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get install -y -q --no-install-recommends \
-        libusb-1.0-0-dev \
-        libboost-all-dev \
-        libgtk2.0-dev \
-        python-yaml
+    libusb-1.0-0-dev \
+    libboost-all-dev \
+    libgtk2.0-dev \
+    python-yaml
 
 RUN git clone -b ${DLDT_VER} ${DLDT_REPO} && \
     cd dldt && \
@@ -699,17 +699,24 @@ ARG EXTERNAL_GVA_BUILD_FLAGS
 RUN mkdir -p gst-video-analytics/build \
     && cd gst-video-analytics/build \
     && cmake \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-        -DVERSION_PATCH=${SOURCE_REV} \
-        -DGIT_INFO=${GIT_INFO} \
-        -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
-        -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
-        -DHAVE_VAAPI=ON \
-        ${EXTERNAL_GVA_BUILD_FLAGS} \
-        .. \
+    -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+    -DVERSION_PATCH=${SOURCE_REV} \
+    -DGIT_INFO=${GIT_INFO} \
+    -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
+    -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
+    -DHAVE_VAAPI=ON \
+    ${EXTERNAL_GVA_BUILD_FLAGS} \
+    .. \
     && make -j $(nproc) \
     && make install
 
 ENV GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0/:/root/gst-video-analytics/
 ENV PYTHONPATH=/root/gst-video-analytics/python:/usr/lib/python3.6/site-packages:$PYTHONPATH
 
+# download models
+ENV MODELS_PATH=/root/gst-video-analytics/project/models
+RUN git clone https://github.com/opencv/open_model_zoo.git --branch develop --single-branch /root/omz/ && \
+    cd /root/omz/tools/downloader && \
+    python3 -mpip install -r ./requirements.in && \
+    python3 ./downloader.py --list /root/gst-video-analytics/samples/people_on_the_stairs_models.lst -o ${MODELS_PATH} && \
+    cd /root/ && rm -rf /root/omz/
