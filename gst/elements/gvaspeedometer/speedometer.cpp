@@ -72,8 +72,9 @@ class IterativeSpeedometer : public Speedometer {
     bool NewFrame(const std::string &element_name, FILE *output, GstBuffer *buf) override {
         UNUSED(element_name);
         UNUSED(output);
+        // if (buf != nullptr)
+        // {
         GVA::VideoFrame frame(buf);
-
         for (auto &roi : frame.regions()) {
             int object_id = roi.object_id();
 
@@ -117,40 +118,38 @@ class IterativeSpeedometer : public Speedometer {
                 bbox.w = new_w;
                 prev_bb[object_id] = {new_x, new_y, new_h, new_w};
 
-                // gdouble sec = std::chrono::duration_cast<seconds_double>(now - last_time).count();
-                // if (sec >= interval) {
+                gdouble sec = std::chrono::duration_cast<seconds_double>(now - last_time).count();
+                if (sec >= interval) {
 
-                //     last_time = now;
+                    last_time = now;
 
-                auto prev_bb = prev_centers_bb[object_id];
-                uint32_t cur_x_center = bbox.x + bbox.w / 2;
-                uint32_t cur_y_center = bbox.y + bbox.h / 2;
-                // auto cur_bb = std::pair<int, int> (cur_x_center, cur_y_center)
-                // auto smothed_bb = std::pair<int, int> (prev_bb.first + ALPHA * (cur_x_center - prev_bb.first),
-                //         prev_bb.second + ALPHA * (cur_x_center - prev_bb.second) )
-                gdouble d_bb = sqrt((cur_x_center - prev_bb.first) * (cur_x_center - prev_bb.first) +
-                                    (cur_y_center - prev_bb.second) * (cur_y_center - prev_bb.second));
-                // gdouble d_bb = sqrt( (smothed_bb.first - prev_bb.first) * (smothed_bb.first - prev_bb.first) +
-                //      (smothed_bb.second - prev_bb.second) * (smothed_bb.second - prev_bb.second) );
-                velocity = d_bb; // / interval;
-                velocities[object_id].push_back(velocity);
-                fprintf(stdout, "%f\t", velocity);
-                // PrintSpeed(stdout, object_id, velocity);
-                prev_centers_bb[object_id] = std::pair<uint32_t, uint32_t>(cur_x_center, cur_y_center);
-                avg_speed = CalcAverageSpeed(object_id);
-                if (avg_speed >= speedlimit) {
-                    // fprintf(stdout, "Average speed of id %d = %f \n", object_id, avg_speed);
-                    violations_num[object_id] += 1;
-                }
-                if (violations_num[object_id] >= speedlimit_violations) {
-                    // if (!violations[object_id])
-                    //     fprintf(stdout, "Warning! Id %d possibly violates speed limit \n", object_id);
-                    violations[object_id] = true;
-                }
+                    auto prev_bb = prev_centers_bb[object_id];
+                    uint32_t cur_x_center = bbox.x + bbox.w / 2;
+                    uint32_t cur_y_center = bbox.y + bbox.h / 2;
+                    // auto cur_bb = std::pair<int, int> (cur_x_center, cur_y_center)
+                    // auto smothed_bb = std::pair<int, int> (prev_bb.first + ALPHA * (cur_x_center - prev_bb.first),
+                    //         prev_bb.second + ALPHA * (cur_x_center - prev_bb.second) )
+                    gdouble d_bb = sqrt((cur_x_center - prev_bb.first) * (cur_x_center - prev_bb.first) +
+                                        (cur_y_center - prev_bb.second) * (cur_y_center - prev_bb.second));
+                    // gdouble d_bb = sqrt( (smothed_bb.first - prev_bb.first) * (smothed_bb.first - prev_bb.first) +
+                    //      (smothed_bb.second - prev_bb.second) * (smothed_bb.second - prev_bb.second) );
+                    velocity = d_bb / interval;
+                    // fprintf(stdout, "%f\t", velocity);
+                    velocities[object_id].push_back(velocity);
+                    // PrintSpeed(stdout, object_id, velocity);
+                    prev_centers_bb[object_id] = std::pair<uint32_t, uint32_t>(cur_x_center, cur_y_center);
+                    avg_speed = CalcAverageSpeed(object_id);
+                    if (avg_speed >= speedlimit) {
+                        // fprintf(stdout, "Average speed of id %d = %f \n", object_id, avg_speed);
+                        violations_num[object_id] += 1;
+                    }
+                    if (violations_num[object_id] >= speedlimit_violations) {
+                        // if (!violations[object_id])
+                        //     fprintf(stdout, "Warning! Id %d possibly violates speed limit \n", object_id);
+                        violations[object_id] = true;
+                    }
 
-                // }
-                // else
-                if (!velocities[object_id].empty()) {
+                } else if (!velocities[object_id].empty()) {
                     velocity = velocities[object_id].back();
                     avg_speed = CalcAverageSpeed(object_id);
 
@@ -164,6 +163,7 @@ class IterativeSpeedometer : public Speedometer {
                 result_meta.set_double("avg_velocity", avg_speed);
             }
         }
+
         return true;
     }
     void EOS(FILE *) override {
