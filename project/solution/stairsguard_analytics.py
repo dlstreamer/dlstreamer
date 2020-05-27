@@ -54,6 +54,9 @@ def analyze_face():
         return person_id, person
 
 
+OTHER_STUFF = ["cup", "others", "phone"]
+
+
 def analyze_hands():
     with open(HAND_OUTPUT_PATH, 'r') as f:
         raw_result = json.load(f)
@@ -66,8 +69,9 @@ def analyze_hands():
         right_hand_pred = right_count.most_common(1)[0][0]
 
         railing = left_hand_pred == 'railing' or right_hand_pred == 'railing'
+        other_stuff = left_hand_pred in OTHER_STUFF or right_hand_pred in OTHER_STUFF
 
-        return left_hand_pred, right_hand_pred, railing
+        return railing, other_stuff
 
 
 ID_TO_PERSON_MAP = {
@@ -108,23 +112,15 @@ def get_actual_features_by_filename(filename):
     model_id = int(features[0])
     speed = features[1]
 
-    feature2 = features[2] if features[2] != 'free' else 'empty'
-
-    if features[4] == 'up':
-        left_hand = 'railing' if features[3] == 'hold' else 'empty'
-        right_hand = feature2
-
-    else:
-        left_hand = feature2
-        right_hand = 'railing' if features[3] == 'hold' else 'empty'
+    violation = features[1] != 'regular' or features[2] != 'free' or features[3] != 'hold'
 
     return {
         'id': ID_TO_PERSON_MAP[model_id]['id'],
         'label': ID_TO_PERSON_MAP[model_id]['label'],
         'speed': speed,
-        'left_hand': left_hand,
-        'right_hand': right_hand,
-        'railing': True if features[3] == 'hold' else False
+        'other_stuff': features[2] != 'free',
+        'railing': features[3] == 'hold',
+        'violation': violation
     }
 
 
@@ -139,17 +135,17 @@ if __name__ == '__main__':
             'overall': 0,
             'id': 0,
             'speed': 0,
-            'left_hand': 0,
-            'right_hand': 0,
-            'railing': 0
+            'other_stuff': 0,
+            'railing': 0,
+            'violation': 0
         },
         'matches': {
             'overall': 0,
             'id': 0,
             'speed': 0,
-            'left_hand': 0,
-            'right_hand': 0,
-            'railing': 0
+            'other_stuff': 0,
+            'railing': 0,
+            'violation': 0
         },
         'samples': []
     }
@@ -172,15 +168,17 @@ if __name__ == '__main__':
 
         person = analyze_face()
         speed = 'fast' if analyze_speed() else 'regular'
-        left_hand, right_hand, railing = analyze_hands()
+        railing, other_stuff = analyze_hands()
+
+        violation = speed == 'fast' or not railing or other_stuff
 
         pred = {
             'id': person[0],
             'label': person[1],
             'speed': speed,
-            'left_hand': left_hand,
-            'right_hand': right_hand,
-            'railing': railing
+            'other_stuff': other_stuff,
+            'railing': railing,
+            'violation': violation
         }
 
         local_res = {"actual": actual_features, "pred": pred}
@@ -195,21 +193,21 @@ if __name__ == '__main__':
             results['matches']['id'] += 1
         if actual_features['speed'] == pred['speed']:
             results['matches']['speed'] += 1
-        if actual_features['left_hand'] == pred['left_hand']:
-            results['matches']['left_hand'] += 1
-        if actual_features['right_hand'] == pred['right_hand']:
-            results['matches']['right_hand'] += 1
+        if actual_features['other_stuff'] == pred['other_stuff']:
+            results['matches']['other_stuff'] += 1
         if actual_features['railing'] == pred['railing']:
             results['matches']['railing'] += 1
+        if actual_features['violation'] == pred['violation']:
+            results['matches']['violation'] += 1
 
     print("Done!")
 
     results['accuracy']['overall'] = results['matches']['overall'] / dataset_count
     results['accuracy']['id'] = results['matches']['id'] / dataset_count
     results['accuracy']['speed'] = results['matches']['speed'] / dataset_count
-    results['accuracy']['left_hand'] = results['matches']['left_hand'] / dataset_count
-    results['accuracy']['right_hand'] = results['matches']['right_hand'] / dataset_count
+    results['accuracy']['other_stuff'] = results['matches']['other_stuff'] / dataset_count
     results['accuracy']['railing'] = results['matches']['railing'] / dataset_count
+    results['accuracy']['violation'] = results['matches']['voilation'] / dataset_count
 
     print("Accuracy: ")
     print(results['accuracy'])
