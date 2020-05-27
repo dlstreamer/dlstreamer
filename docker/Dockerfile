@@ -704,6 +704,7 @@ RUN mkdir -p gst-video-analytics/build \
     -DGIT_INFO=${GIT_INFO} \
     -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
     -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
+    -DENABLE_VAS_TRACKER=OFF \
     -DHAVE_VAAPI=ON \
     ${EXTERNAL_GVA_BUILD_FLAGS} \
     .. \
@@ -711,7 +712,7 @@ RUN mkdir -p gst-video-analytics/build \
     && make install
 
 ENV GST_PLUGIN_PATH=/usr/local/lib/gstreamer-1.0/:/root/gst-video-analytics/
-ENV PYTHONPATH=/root/gst-video-analytics/python:/usr/lib/python3.6/site-packages:$PYTHONPATH
+ENV PYTHONPATH=/root/gst-video-analytics/python:/usr/lib/python3.6/site-packages:/root/gst-video-analytics/project/solution:$PYTHONPATH
 
 # download models
 ENV MODELS_PATH=/root/gst-video-analytics/project/models
@@ -719,4 +720,11 @@ RUN git clone https://github.com/opencv/open_model_zoo.git --branch develop --si
     cd /root/omz/tools/downloader && \
     python3 -mpip install -r ./requirements.in && \
     python3 ./downloader.py --list /root/gst-video-analytics/samples/people_on_the_stairs_models.lst -o ${MODELS_PATH} && \
-    cd /root/ && rm -rf /root/omz/
+    cd /root/ && rm -rf /root/omz/ && \
+    python3 -mpip install sklearn
+
+WORKDIR /root/gst-video-analytics/project/solution
+
+RUN chmod +x start.sh
+
+
