@@ -2,6 +2,7 @@ import subprocess
 import json
 import numpy as np
 import pickle
+import timeit
 from collections import Counter
 
 import os
@@ -125,7 +126,8 @@ def get_actual_features_by_filename(filename):
 
 
 if __name__ == '__main__':
-    dataset = os.listdir(environ.get('DATASET_PATH', DATASET_PATH))
+    dataset_path = environ.get('DATASET_PATH', DATASET_PATH)
+    dataset = os.listdir(dataset_path)
     dataset_count = len(dataset)
 
     print(f"Found {dataset_count} samples in dataset.")
@@ -147,13 +149,14 @@ if __name__ == '__main__':
             'railing': 0,
             'violation': 0
         },
-        'samples': []
+        'samples': {}
     }
 
     for i in range(0, dataset_count):
         print(f"Running sample {i+1}/{dataset_count}")
+        start_time = timeit.default_timer()
 
-        file_path = DATASET_PATH + dataset[i]
+        file_path = dataset_path + dataset[i]
 
         print(f"Sample: {file_path}")
 
@@ -185,7 +188,7 @@ if __name__ == '__main__':
 
         print(local_res)
 
-        results['samples'].append(local_res)
+        results['samples'][dataset[i]] = local_res
 
         if actual_features == pred:
             results['matches']['overall'] += 1
@@ -200,6 +203,12 @@ if __name__ == '__main__':
         if actual_features['violation'] == pred['violation']:
             results['matches']['violation'] += 1
 
+        finish_time = timeit.default_timer()
+
+        print(f"Sample took {finish_time - start_time} seconds to calculate")
+
+        print(f"Approximately {(finish_time - start_time) * (dataset_count - i - 1) / 60} minutes left")
+
     print("Done!")
 
     results['accuracy']['overall'] = results['matches']['overall'] / dataset_count
@@ -207,7 +216,7 @@ if __name__ == '__main__':
     results['accuracy']['speed'] = results['matches']['speed'] / dataset_count
     results['accuracy']['other_stuff'] = results['matches']['other_stuff'] / dataset_count
     results['accuracy']['railing'] = results['matches']['railing'] / dataset_count
-    results['accuracy']['violation'] = results['matches']['voilation'] / dataset_count
+    results['accuracy']['violation'] = results['matches']['violation'] / dataset_count
 
     print("Accuracy: ")
     print(results['accuracy'])
