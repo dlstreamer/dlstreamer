@@ -119,8 +119,7 @@ PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, co
 gboolean callPython(GstBuffer *buffer, PyObjectWrapper &py_videoframe_class, PyObjectWrapper &py_caps,
                     PyObjectWrapper &py_function) {
     DECL_WRAPPER(py_buffer, pyg_boxed_new(buffer->mini_object.type, buffer, TRUE, TRUE));
-    DECL_WRAPPER(py_none, Py_None);
-    DECL_WRAPPER(frame, PyObject_CallFunctionObjArgs(py_videoframe_class, (PyObject *)py_buffer, (PyObject *)py_none,
+    DECL_WRAPPER(frame, PyObject_CallFunctionObjArgs(py_videoframe_class, (PyObject *)py_buffer, Py_None,
                                                      (PyObject *)py_caps, nullptr));
     DECL_WRAPPER(args, Py_BuildValue("(O)", (PyObject *)frame));
 
