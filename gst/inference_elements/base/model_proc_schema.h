@@ -1,3 +1,9 @@
+/*******************************************************************************
+ * Copyright (C) 2020 Intel Corporation
+ *
+ * SPDX-License-Identifier: MIT
+ ******************************************************************************/
+
 #include <nlohmann/json.hpp>
 
 const nlohmann::json MODEL_PROC_SCHEMA = R"({
