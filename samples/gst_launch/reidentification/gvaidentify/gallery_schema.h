@@ -1,3 +1,9 @@
+/*******************************************************************************
+ * Copyright (C) 2018-2020 Intel Corporation
+ *
+ * SPDX-License-Identifier: MIT
+ ******************************************************************************/
+
 #include <nlohmann/json.hpp>
 
 const nlohmann::json GALLERY_SCHEMA = R"({
