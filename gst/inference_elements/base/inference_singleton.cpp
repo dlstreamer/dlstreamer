@@ -7,8 +7,8 @@
 #include "inference_singleton.h"
 
 #include "gva_base_inference.h"
-#include "gva_utils.h"
 #include "inference_impl.h"
+#include "utils.h"
 #include <assert.h>
 
 struct InferenceRefs {
@@ -16,6 +16,7 @@ struct InferenceRefs {
     std::list<GvaBaseInference *> elementsToInit;
     GvaBaseInference *masterElement = nullptr;
     InferenceImpl *proxy = nullptr;
+    GstVideoFormat videoFormat = GST_VIDEO_FORMAT_UNKNOWN;
 };
 
 static std::map<std::string, InferenceRefs *> inference_pool_;
@@ -59,7 +60,7 @@ gboolean registerElement(GvaBaseInference *base_inference) {
         }
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference based element registration failed"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
         return FALSE;
     }
     return TRUE;
@@ -94,6 +95,22 @@ void initExistingElements(InferenceRefs *infRefs) {
     }
 }
 
+void check_image_formats_same(GstVideoFormat &existing_format, const GstVideoFormat &received_format) {
+    if (existing_format == GST_VIDEO_FORMAT_UNKNOWN)
+        existing_format = received_format;
+    else if (existing_format != received_format) {
+        std::string err_msg =
+            "All image formats for the same model-instance-id in multichannel mode must be the same. The current image "
+            "format of this inference element in caps is " +
+            std::string(gst_video_format_to_string(received_format)) +
+            " , but the first one accepted in another inference element is " +
+            std::string(gst_video_format_to_string(existing_format)) +
+            ". Try converting video frames to one image format in each channel in front of inference elements using "
+            "various converters, or use different model-instance-id for each channel";
+        throw std::logic_error(err_msg);
+    }
+}
+
 InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
@@ -106,6 +123,7 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
         assert(it != inference_pool_.end());
 
         infRefs = it->second;
+        check_image_formats_same(infRefs->videoFormat, base_inference->info->finfo->format);
         // if base_inference is not master element, it will get all master element's properties here
         initExistingElements(infRefs);
 
@@ -115,7 +133,7 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
         return infRefs->proxy;
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference plugin intitialization failed"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
         return nullptr;
     }
 }
@@ -138,7 +156,7 @@ void release_inference_instance(GvaBaseInference *base_inference) {
         }
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, LIBRARY, SHUTDOWN, ("base_inference failed on releasing inference instance"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
     }
 }
 
@@ -154,7 +172,7 @@ GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffe
         status = ((InferenceImpl *)base_inference->inference)->TransformFrameIp(base_inference, buf, info);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
         status = GST_FLOW_ERROR;
     }
 
@@ -168,7 +186,7 @@ void base_inference_sink_event(GvaBaseInference *base_inference, GstEvent *event
         }
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, CORE, EVENT, ("base_inference failed while handling sink"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
     }
 }
 
@@ -183,6 +201,6 @@ void flush_inference(GvaBaseInference *base_inference) {
         ((InferenceImpl *)base_inference->inference)->FlushInference();
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
     }
 }

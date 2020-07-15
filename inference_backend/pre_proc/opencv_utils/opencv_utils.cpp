@@ -38,6 +38,38 @@ void ImageToMat(const Image &src, cv::Mat &dst) {
         cv::merge(channels, dst);
         break;
     }
+    case FOURCC_I420: {
+        const uint32_t height = src.height;
+        const uint32_t width = src.width;
+        const uint32_t size = height * width;
+
+        const uint32_t half_height = src.height / 2;
+        const uint32_t half_width = src.width / 2;
+        const uint32_t quarter_size = half_height * half_width;
+
+        cv::Mat yuv420;
+        if (src.planes[1] == (src.planes[0] + size) and src.planes[2] == (src.planes[1] + quarter_size)) {
+            // If image is provided by libav decoder, YUV planes are stored sequentially with zero strides
+            yuv420 = cv::Mat(height + half_height, width, CV_8UC1, src.planes[0]);
+        } else {
+            // If image is provided by vaapi decoder/postprocessing, YUV planes are stored with non-zero strides
+            yuv420 = cv::Mat(height + half_height, width, CV_8UC1);
+
+            cv::Mat raw_y = cv::Mat(height, width, CV_8UC1, src.planes[0], src.stride[0]);
+            cv::Mat y = cv::Mat(height, width, CV_8UC1, yuv420.data, width);
+            raw_y.copyTo(y);
+
+            cv::Mat raw_u = cv::Mat(half_height, half_width, CV_8UC1, src.planes[2], src.stride[2]);
+            cv::Mat u = cv::Mat(half_height, half_width, CV_8UC1, yuv420.data + size, half_width);
+            raw_u.copyTo(u);
+
+            cv::Mat raw_v = cv::Mat(half_height, half_width, CV_8UC1, src.planes[1], src.stride[1]);
+            cv::Mat v = cv::Mat(half_height, half_width, CV_8UC1, yuv420.data + size + quarter_size, half_width);
+            raw_v.copyTo(v);
+        }
+        cv::cvtColor(yuv420, dst, cv::COLOR_YUV420p2BGR);
+        break;
+    }
     default:
         throw std::invalid_argument("Failed to create cv::Mat from image: unsupported image format");
     }

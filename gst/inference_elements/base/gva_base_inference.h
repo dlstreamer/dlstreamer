@@ -19,6 +19,12 @@ G_BEGIN_DECLS
 
 #define GST_TYPE_GVA_BASE_INFERENCE (gva_base_inference_get_type())
 #define GVA_BASE_INFERENCE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVA_BASE_INFERENCE, GvaBaseInference))
+#define GVA_BASE_INFERENCE_CLASS(klass)                                                                                \
+    (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_GVA_BASE_INFERENCE, GvaBaseInferenceClass))
+#define GVA_BASE_INFERENCE_GET_CLASS(obj)                                                                              \
+    (G_TYPE_INSTANCE_GET_CLASS((obj), GST_TYPE_GVA_BASE_INFERENCE, GvaBaseInferenceClass))
+
+typedef void (*OnBaseInferenceInitializedFunction)(GvaBaseInference *base_inference);
 
 typedef struct _GvaBaseInference {
     GstBaseTransform base_transform;
@@ -50,8 +56,8 @@ typedef struct _GvaBaseInference {
 
     IsROIClassificationNeededFunction is_roi_classification_needed;
     PreProcFunction pre_proc;
-    GetROIPreProcFunction get_roi_pre_proc;
-    PostProcFunction post_proc;
+    InputPreprocessorsFactory input_prerocessors_factory;
+    PostProcessor *post_proc;
 
     gboolean initialized;
     guint num_skipped_frames;
@@ -59,6 +65,8 @@ typedef struct _GvaBaseInference {
 
 typedef struct _GvaBaseInferenceClass {
     GstBaseTransformClass base_transform_class;
+
+    OnBaseInferenceInitializedFunction on_initialized;
 } GvaBaseInferenceClass;
 
 GType gva_base_inference_get_type(void);

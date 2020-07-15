@@ -8,7 +8,7 @@
 
 #include "python_callback.h"
 
-#include "gva_utils.h"
+#include "utils.h"
 #include <nlohmann/json.hpp>
 using nlohmann::json;
 
@@ -85,7 +85,7 @@ gboolean update_keyword_arguments(const char *argument, void **args) {
         GST_ERROR("argument %s is not a valid JSON value, error: %s", argument, e.what());
         result = FALSE;
     } catch (const std::exception &e) {
-        GST_ERROR("error processing argument: %s, error: %s", argument, CreateNestedErrorMsg(e).c_str());
+        GST_ERROR("error processing argument: %s, error: %s", argument, Utils::createNestedErrorMsg(e).c_str());
         result = FALSE;
     }
     if (!result) {
@@ -111,7 +111,7 @@ gboolean update_arguments(const char *argument, void **args) {
         GST_ERROR("argument %s is not a valid JSON value, error: %s", argument, e.what());
         result = FALSE;
     } catch (const std::exception &e) {
-        GST_ERROR("error processing argument: %s, error: %s", argument, CreateNestedErrorMsg(e).c_str());
+        GST_ERROR("error processing argument: %s, error: %s", argument, Utils::createNestedErrorMsg(e).c_str());
         result = FALSE;
     }
     if (!result) {
@@ -130,7 +130,7 @@ PythonCallback *create_python_callback(const char *module_path, const char *clas
     try {
         return new PythonCallback(module_path, class_name, function_name, args_string, keyword_args_string);
     } catch (const std::exception &e) {
-        GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
+        GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
         return nullptr;
     }
 }
@@ -144,7 +144,7 @@ gboolean set_python_callback_caps(struct PythonCallback *python_callback, GstCap
         python_callback->SetCaps(caps);
         return TRUE;
     } catch (const std::exception &e) {
-        GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
+        GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
         log_python_error();
         return FALSE;
     }
@@ -162,7 +162,7 @@ GstFlowReturn invoke_python_callback(struct PythonCallback *python_callback, Gst
             return GST_BASE_TRANSFORM_FLOW_DROPPED;
         }
     } catch (const std::exception &e) {
-        GST_ERROR("%s", CreateNestedErrorMsg(e).c_str());
+        GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
         log_python_error();
         return GST_FLOW_ERROR;
     }

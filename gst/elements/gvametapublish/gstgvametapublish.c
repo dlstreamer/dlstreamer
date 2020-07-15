@@ -355,6 +355,9 @@ static gboolean gst_gva_meta_publish_start(GstBaseTransform *trans) {
             gvametapublish->is_connection_open = TRUE;
         } else {
             gvametapublish->is_connection_open = FALSE;
+            GST_ELEMENT_ERROR(gvametapublish, RESOURCE, NOT_FOUND, ("Failed to start"),
+                              ("Failed to open a connection for method %s",
+                               g_enum_to_string(gst_gva_metapublish_get_method(), gvametapublish->method)));
         }
     }
     GST_DEBUG_OBJECT(gvametapublish, "start");
@@ -416,6 +419,11 @@ static GstFlowReturn gst_gva_meta_publish_transform_ip(GstBaseTransform *trans, 
         GstGVAJSONMeta *jsonmeta = GST_GVA_JSON_META_GET(buf);
         if (jsonmeta) {
             MetapublishStatusMessage status = WriteMessage(gvametapublish, buf);
+            if (status.responseCode.ps != SUCCESS) {
+                GST_ELEMENT_ERROR(gvametapublish, RESOURCE, NOT_FOUND, ("Failed to write message"),
+                                  ("Failed to write message for method %s. Connection to the broker may have been lost",
+                                   g_enum_to_string(gst_gva_metapublish_get_method(), gvametapublish->method)));
+            }
             GST_DEBUG_OBJECT(gvametapublish, "%s", status.responseMessage);
         } else {
             GST_DEBUG_OBJECT(gvametapublish, "%s", "No json metadata to publish");

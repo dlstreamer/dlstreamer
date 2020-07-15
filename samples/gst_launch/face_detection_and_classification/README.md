@@ -10,9 +10,9 @@ This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvadetect](./gvadetect.md) for face detection based on OpenVINO Inference Engine
-* [gvaclassify](./gvaclassify.md) inserted into pipeline three times for face classification on three DL models (age-gender, emotion, landmark points)
-* [gvawatermark](./gvawatermark.md) for bounding boxes and labels visualization
+* [gvadetect](https://github.com/opencv/gst-video-analytics/wiki/gvadetect) for face detection based on OpenVINO Inference Engine
+* [gvaclassify](https://github.com/opencv/gst-video-analytics/wiki/gvaclassify) inserted into pipeline three times for face classification on three DL models (age-gender, emotion, landmark points)
+* [gvawatermark](https://github.com/opencv/gst-video-analytics/wiki/gvawatermark) for bounding boxes and labels visualization
 * `fpsdisplaysink` for rendering output video into screen
 > **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
 
@@ -47,4 +47,4 @@ The sample
 * starts the command and visualizes video with bouding boxes around detected faces, facial landmarks points and text with classification results (age/gender, emotion) for each detected face
 
 ## See also
-* [DL Streamer samples](./SamplesOverview.md)
+* [DL Streamer samples](../../README.md)

@@ -55,6 +55,8 @@ void OpenCV_VPP::Convert(const Image &raw_src, Image &dst, bool bAllocateDestina
             (src.format == FourCC::FOURCC_RGBP or src.format == FourCC::FOURCC_RGBP_F32) and src.width == dst.width and
             src.height == dst.height) {
             CopyImage(raw_src, dst);
+            // do not return here. Code below is mandatory to execute landmarks inference on CentOS in case of vaapi
+            // pre-proc
         }
 
         cv::Mat mat_image;

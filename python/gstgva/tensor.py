@@ -11,6 +11,7 @@ import ctypes
 import numpy
 import gi
 from typing import List
+from warnings import warn
 
 gi.require_version('Gst', '1.0')
 
@@ -34,9 +35,9 @@ class Tensor:
 
     ## @brief This enum describes model layer precision
     class PRECISION(Enum):
-        ANY = 0    
-        FP32 = 10  
-        U8 = 40     
+        ANY = 0
+        FP32 = 10
+        U8 = 40
 
     ## @brief This enum describes model layer layout
     class LAYOUT(Enum):
@@ -134,7 +135,7 @@ class Tensor:
     def fields(self) -> List[str]:
         return [libgst.gst_structure_nth_field_name(self.__structure, i).decode("utf-8") for i in range(self.__len__())]
 
-    ## @brief Get item by the field name 
+    ## @brief Get item by the field name
     #  @param key Field name
     #  @return Item, None if failed to get
     def __getitem__(self, key):
@@ -177,14 +178,14 @@ class Tensor:
                     try:
                         value.append(libgobject.g_value_get_uint(g_value))
                     except Exception:
-                        raise TypeError("Tensor array can contain only uint values")        
+                        raise TypeError("Tensor array can contain only uint values")
                 return value
 
     ## @brief Get number of fields contained in Tensor instance
     #  @return Number of fields contained in Tensor instance
     def __len__(self) -> int:
         return libgst.gst_structure_n_fields(self.__structure)
-    
+
     ## @brief Iterable by all Tensor fields
     # @return Generator for all Tensor fields
     def __iter__(self):
@@ -211,7 +212,7 @@ class Tensor:
     def element_id(self) -> str:
         return self["element_id"]
 
-    ## @brief Set Tensor instance's name 
+    ## @brief Set Tensor instance's name
     def set_name(self, name: str) -> None:
         libgst.gst_structure_set_name(self.__structure, name.encode('utf-8'))
 
@@ -246,21 +247,23 @@ class Tensor:
             self['label'] = label
         else:
             raise RuntimeError("Detection GVA::Tensor can't have label.")
-    
+
     ## @brief Check if Tensor instance has field
     #  @param field_name field name
     #  @return True if field with this name is found, False otherwise
     def has_field(self, field_name: str) -> bool:
         return True if self[field_name] else False
-    
+
     ## @brief Check if this Tensor is detection Tensor (contains detection results)
     #  @return True if tensor contains detection results, False otherwise
     def is_detection(self) -> bool:
         return self.name() == "detection"
 
-    ## @brief Set list of labels used as lookup table for label_id
+    ## @brief Set list of labels used as lookup table for label_id.
+    #  @deprecated This function and result of calling it should never be used. User application must not expect Tensor to contain labels
     #  @return Object itself
     def set_labels(self, labels: List[str]):
+        warn("set_labels method is deprecated and will be removed in future")
         arr = GObject.ValueArray.new(len(labels))
         gvalue = GObject.Value()
         gvalue.init(GObject.TYPE_STRING)

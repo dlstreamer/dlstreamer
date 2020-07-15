@@ -1,8 +1,13 @@
 {
-  "json_schema_version": "1.0.0",
+  "json_schema_version": "2.0.0",
   "input_preproc": [
     {
-      "color_format": "BGR"
+      "layer_name": "data",
+      "format": "image"
+    },
+    {
+      "layer_name": "seq_ind",
+      "format": "sequence_index"
     }
   ],
   "output_postproc": [

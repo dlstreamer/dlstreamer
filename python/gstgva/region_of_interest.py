@@ -58,6 +58,21 @@ class RegionOfInterest(object):
         detection = self.detection()
         return detection.confidence() if detection else None
 
+    ## @brief Get object id
+    # @return object id as an int, None if failed to get
+    def object_id(self) -> int:
+        param = self.meta()._params
+        object_id_tensor = None
+        while param:
+            tensor_structure = param.contents.data
+            if libgst.gst_structure_has_name(tensor_structure, "object_id".encode('utf-8')):
+                object_id_tensor = Tensor(tensor_structure)
+                break
+            param = param.contents.next
+        if object_id_tensor == None:
+            return None
+        return object_id_tensor['id']
+
     ## @brief Get all Tensor instances added to this RegionOfInterest
     # @return list of Tensor instances added to this RegionOfInterest
     def tensors(self):

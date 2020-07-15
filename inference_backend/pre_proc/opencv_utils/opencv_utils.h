@@ -13,7 +13,6 @@ namespace InferenceBackend {
 
 namespace Utils {
 
-// TODO: add I420 support
 void ImageToMat(const Image &src, cv::Mat &dst);
 void NV12ImageToMats(const Image &src, cv::Mat &y, cv::Mat &uv);
 void MatToMultiPlaneImage(const cv::Mat &mat, Image &dst);

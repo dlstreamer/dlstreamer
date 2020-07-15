@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "gva_base_inference.h"
+#include "common/pre_processors.h"
 
 #define DEFAULT_MODEL NULL
 #define DEFAULT_MODEL_INSTANCE_ID NULL
@@ -138,7 +139,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         gobject_class, PROP_DEVICE,
         g_param_spec_string(
             "device", "Device",
-            "Target device for inference. Please see OpenVINO documentation for list of supported devices.",
+            "Target device for inference. Please see OpenVINO™ Toolkit documentation for list of supported devices.",
             DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(gobject_class, PROP_BATCH_SIZE,
@@ -195,23 +196,23 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_CPU_THROUGHPUT_STREAMS,
-        g_param_spec_uint(
-            "cpu-throughput-streams", "CPU-Throughput-Streams",
-            "Sets the cpu-throughput-streams configuration key for OpenVINO's "
-            "cpu device plugin. Configuration allows for multiple inference streams "
-            "for better performance. Default mode is auto. See OpenVINO CPU plugin documentation for more details",
-            DEFAULT_MIN_CPU_THROUGHPUT_STREAMS, DEFAULT_MAX_CPU_THROUGHPUT_STREAMS, DEFAULT_CPU_THROUGHPUT_STREAMS,
-            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_param_spec_uint("cpu-throughput-streams", "CPU-Throughput-Streams",
+                          "Sets the cpu-throughput-streams configuration key for OpenVINO™ Toolkit's "
+                          "cpu device plugin. Configuration allows for multiple inference streams "
+                          "for better performance. Default mode is auto. See OpenVINO™ Toolkit CPU plugin "
+                          "documentation for more details",
+                          DEFAULT_MIN_CPU_THROUGHPUT_STREAMS, DEFAULT_MAX_CPU_THROUGHPUT_STREAMS,
+                          DEFAULT_CPU_THROUGHPUT_STREAMS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_GPU_THROUGHPUT_STREAMS,
-        g_param_spec_uint(
-            "gpu-throughput-streams", "GPU-Throughput-Streams",
-            "Sets the gpu-throughput-streams configuration key for OpenVINO's "
-            "gpu device plugin. Configuration allows for multiple inference streams "
-            "for better performance. Default mode is auto. See OpenVINO GPU plugin documentation for more details",
-            DEFAULT_MIN_GPU_THROUGHPUT_STREAMS, DEFAULT_MAX_GPU_THROUGHPUT_STREAMS, DEFAULT_GPU_THROUGHPUT_STREAMS,
-            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_param_spec_uint("gpu-throughput-streams", "GPU-Throughput-Streams",
+                          "Sets the gpu-throughput-streams configuration key for OpenVINO™ Toolkit's "
+                          "gpu device plugin. Configuration allows for multiple inference streams "
+                          "for better performance. Default mode is auto. See OpenVINO™ Toolkit GPU plugin "
+                          "documentation for more details",
+                          DEFAULT_MIN_GPU_THROUGHPUT_STREAMS, DEFAULT_MAX_GPU_THROUGHPUT_STREAMS,
+                          DEFAULT_GPU_THROUGHPUT_STREAMS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_IE_CONFIG,
@@ -223,7 +224,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         gobject_class, PROP_DEVICE_EXTENSIONS,
         g_param_spec_string(
             "device-extensions", "ExtensionString",
-            "Comma separated list of KEY=VALUE pairs specifying the OpenVINO Inference Engine extension for a device",
+            "Comma separated list of KEY=VALUE pairs specifying the Inference Engine extension for a device",
             DEFAULT_DEVICE_EXTENSIONS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
@@ -308,7 +309,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->inference = NULL;
     base_inference->is_roi_classification_needed = NULL;
     base_inference->pre_proc = NULL;
-    base_inference->get_roi_pre_proc = NULL;
+    base_inference->input_prerocessors_factory = GET_INPUT_PREPROCESSORS;
     base_inference->post_proc = NULL;
 }
 
@@ -518,7 +519,12 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     }
     gst_video_info_from_caps(base_inference->info, incaps);
 
-    base_inference->inference = acquire_inference_instance(base_inference);
+    if (base_inference->inference == NULL) {
+        base_inference->inference = acquire_inference_instance(base_inference);
+        GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_GET_CLASS(base_inference);
+        if (base_inference_class->on_initialized)
+            base_inference_class->on_initialized(base_inference);
+    }
 
     return base_inference->inference != NULL;
 }

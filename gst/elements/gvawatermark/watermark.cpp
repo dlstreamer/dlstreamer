@@ -8,7 +8,7 @@
 #include "config.h"
 #include "glib.h"
 #include "gva_buffer_map.h"
-#include "gva_utils.h"
+#include "utils.h"
 #include "video_frame.h"
 #include <gst/allocators/gstdmabuf.h>
 #include <opencv2/opencv.hpp>
@@ -148,7 +148,7 @@ gboolean draw_label(GstGvaWatermark *gvawatermark, GstBuffer *buffer) {
         }
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(gvawatermark, STREAM, FAILED, ("watermark has failed to draw label"),
-                          ("%s", CreateNestedErrorMsg(e).c_str()));
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
         return FALSE;
     }
     return TRUE;

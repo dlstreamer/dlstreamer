@@ -45,10 +45,15 @@ class MappedMat {
             this->mat() = cv::Mat(cv::Size(video_info->width, static_cast<int32_t>(video_info->height * 1.5f)), CV_8UC1,
                                   reinterpret_cast<char *>(map_info.data), stride);
             break;
+        case GST_VIDEO_FORMAT_I420:
+            this->mat() = cv::Mat(cv::Size(video_info->width, static_cast<int32_t>(video_info->height * 1.5f)), CV_8UC1,
+                                  reinterpret_cast<char *>(map_info.data), stride);
+            break;
         case GST_VIDEO_FORMAT_BGRA:
         case GST_VIDEO_FORMAT_BGRx:
             this->mat() = cv::Mat(cv::Size(video_info->width, video_info->height), CV_8UC4,
                                   reinterpret_cast<char *>(map_info.data), stride);
+
             break;
 
         default:

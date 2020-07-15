@@ -64,6 +64,7 @@ FilePublishStatus do_write_message(FILE **pFile, const PublishOutputFormat eOutF
         write_message_prefix(*pFile, eOutFormat);
         fputs(inference_message, *pFile);
         write_message_suffix(*pFile, eOutFormat);
+        fflush(*pFile);
     } else {
         return FILE_ERROR;
     }

@@ -29,11 +29,12 @@ class ImageInferenceAsync : public ImageInference {
 
     ~ImageInferenceAsync() override;
 
-    void SubmitImage(const Image &image, IFramePtr user_data, std::function<void(Image &)> pre_rocessor) override;
+    void SubmitImage(const Image &image, IFramePtr user_data,
+                     const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) override;
 
     const std::string &GetModelName() const override;
 
-    void GetModelInputInfo(int *width, int *height, int *batch_size, int *format) const override;
+    void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format) const override;
 
     bool IsQueueFull() override;
 
@@ -51,7 +52,8 @@ class ImageInferenceAsync : public ImageInference {
 
     // mutex for inference
 
-    void SubmitInference(VaApiImage *va_api_image, IFramePtr user_data, std::function<void(Image &)> pre_processor);
+    void SubmitInference(VaApiImage *va_api_image, IFramePtr user_data,
+                         const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors);
 };
 
 } // namespace InferenceBackend
