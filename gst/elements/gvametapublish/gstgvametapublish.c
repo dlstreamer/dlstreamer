@@ -21,6 +21,12 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define ELEMENT_LONG_NAME "Generic metadata publisher"
 #define ELEMENT_DESCRIPTION "Generic metadata publisher"
 
+static GstStaticPadTemplate sink_factory =
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("ANY"));
+
+static GstStaticPadTemplate src_factory =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS("ANY"));
+
 /* prototypes */
 
 static void gst_gva_meta_publish_set_property(GObject *object, guint property_id, const GValue *value,
@@ -102,12 +108,8 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
 
     GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS(klass);
 
-    gst_element_class_add_pad_template(
-        GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
-    gst_element_class_add_pad_template(
-        GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
+    gst_element_class_add_pad_template(GST_ELEMENT_CLASS(klass), gst_static_pad_template_get(&src_factory));
+    gst_element_class_add_pad_template(GST_ELEMENT_CLASS(klass), gst_static_pad_template_get(&sink_factory));
 
     gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(klass), ELEMENT_LONG_NAME, "Metadata", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");

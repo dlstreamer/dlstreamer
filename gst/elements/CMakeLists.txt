@@ -13,6 +13,9 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.14 REQUIRED)
+endif()
 
 file (GLOB MAIN_SRC
     gvametaconvert/*.cpp
@@ -49,6 +52,17 @@ if(${ENABLE_VAS_TRACKER})
     list (APPEND MAIN_HEADERS ${VAS_HEADERS})
 endif()
 
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+    file (GLOB AUDIO_SRC
+        gvametaconvert/audioconverter/*.cpp
+    )
+    file (GLOB AUDIO_HEADERS
+        gvametaconvert/audioconverter/*.h
+    )
+    list (APPEND MAIN_SRC ${AUDIO_SRC})
+    list (APPEND MAIN_HEADERS ${AUDIO_HEADERS})
+endif()
+
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
@@ -80,6 +94,12 @@ if(${ENABLE_VAS_TRACKER})
     )
 endif()
 
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+    target_include_directories(${TARGET_NAME}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/gvametaconvert/audioconverter
+    )
+endif()
 target_link_libraries(${TARGET_NAME}
 PRIVATE
     ${OpenCV_LIBS}
@@ -94,6 +114,10 @@ PRIVATE
     json-schema-validator
     utils
 )
+
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
+endif()
 
 if(${HAVE_VAAPI})
         target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async)

@@ -617,6 +617,28 @@ RUN for p in /usr /home/build/usr /${CUSTOM_IE_DIR} /home/build/${CUSTOM_IE_DIR}
     echo "Cflags: -I\${includedir}" >> "$pc"; \
     done;
 
+#install Model Optimizer in the DLDT for Dev
+#installing dependency libs to mo_libs directory to avoid issues with updates to Python version
+RUN apt-get install -y python3-dev
+RUN cd dldt/model-optimizer && \
+pip3 install wheel && \
+pip3 install --target=/home/build/mo_libs -r requirements.txt && \
+pip3 install -r requirements.txt && \
+pip3 install --target=/home/build/mo_libs test-generator && \
+pip3 install test-generator;
+
+#Copy over Model Optimizer to same directory as Inference Engine
+RUN cp -r dldt/model-optimizer /opt/intel/dldt/model-optimizer
+RUN cp -r dldt/model-optimizer /home/build/opt/intel/dldt/model-optimizer
+
+#Add open model zoo to better replicate OpenVINO directory structure
+ARG OPEN_MODEL_ZOO_REPO=https://github.com/opencv/open_model_zoo/archive/${DLDT_VER}.tar.gz
+RUN wget -O - ${OPEN_MODEL_ZOO_REPO} | tar xz && \
+    mkdir -p /opt/intel/dldt/open_model_zoo && \
+    cp -r open_model_zoo-${DLDT_VER}/* /opt/intel/dldt/open_model_zoo/. && \
+    mkdir -p /home/build/opt/intel/dldt/open_model_zoo && \
+    cp -r open_model_zoo-${DLDT_VER}/* /home/build/opt/intel/dldt/open_model_zoo/. && \
+    python3 -m pip install pyyaml
 
 FROM ${dldt} AS dldt-build
 
@@ -679,6 +701,8 @@ ENV InferenceEngine_DIR=/opt/intel/dldt/inference-engine/share
 ENV OpenCV_DIR=/opt/intel/dldt/inference-engine/external/opencv/opencv/cmake
 ENV LIBRARY_PATH=/opt/intel/mediasdk/lib64:${LIBRARY_PATH}
 ENV PATH=/opt/intel/mediasdk/bin:${PATH}
+RUN python3 -m pip install pyyaml
+ENV PYTHONPATH=${PYTHONPATH}:/mo_libs
 
 ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
 ENV LIBVA_DRIVER_NAME=iHD
@@ -694,6 +718,7 @@ COPY . gst-video-analytics
 ARG ENABLE_PAHO_INSTALLATION=false
 ARG ENABLE_RDKAFKA_INSTALLATION=false
 ARG BUILD_TYPE=Release
+ARG ENABLE_AUDIO_INFERENCE_ELEMENTS=true
 ARG EXTERNAL_GVA_BUILD_FLAGS
 
 RUN mkdir -p gst-video-analytics/build \
@@ -704,6 +729,7 @@ RUN mkdir -p gst-video-analytics/build \
         -DGIT_INFO=${GIT_INFO} \
         -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
         -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
+        -DENABLE_AUDIO_INFERENCE_ELEMENTS=${ENABLE_AUDIO_INFERENCE_ELEMENTS} \
         -DHAVE_VAAPI=ON \
         ${EXTERNAL_GVA_BUILD_FLAGS} \
         .. \

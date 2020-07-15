@@ -14,6 +14,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
+
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/metadata/*.c
         )
@@ -22,6 +23,17 @@ file (GLOB MAIN_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         ${CMAKE_CURRENT_SOURCE_DIR}/metadata/*.h
         )
+
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+    file (GLOB AUDIO_META_SRC
+         ${CMAKE_CURRENT_SOURCE_DIR}/audio/*.c
+    )
+    file (GLOB AUDIO_META_HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/audio/*.h
+    )
+    list (APPEND MAIN_SRC ${AUDIO_META_SRC})
+    list (APPEND MAIN_HEADERS ${AUDIO_META_HEADERS})
+endif()
 
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
 set_target_lib_version(${TARGET_NAME})
@@ -34,6 +46,13 @@ PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}/metadata
 )
+
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+    target_include_directories(${TARGET_NAME}
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/audio
+    )
+endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC

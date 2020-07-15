@@ -35,6 +35,9 @@ namespace GVA {
  */
 class Tensor {
     friend class VideoFrame;
+#ifdef AUDIO
+    friend class AudioFrame;
+#endif
 
   public:
     /**

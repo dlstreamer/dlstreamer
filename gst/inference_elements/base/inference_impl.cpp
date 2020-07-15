@@ -565,9 +565,13 @@ void InferenceImpl::InferenceCompletionCallback(
         inference_frames.push_back(inference_roi);
     }
 
-    if (post_proc != nullptr) {
-        post_proc->process(blobs, inference_frames);
-    }
+    try {
+        if (post_proc != nullptr) {
+            post_proc->process(blobs, inference_frames);
+        }
 
-    PushOutput();
+        PushOutput();
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", e.what());
+    }
 }

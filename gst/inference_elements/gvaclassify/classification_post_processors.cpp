@@ -192,8 +192,13 @@ ConverterFunctionType getConverter(GstStructure *model_proc_info) {
 
 GstStructure *createResultStructure(OutputBlob::Ptr &blob, ClassificationLayerInfo &info, const std::string &model_name,
                                     const std::string &layer_name, size_t batch_size, size_t frame_index) {
-    GstStructure *classification_result = copy(info.model_proc_info.get(), gst_structure_copy);
-    if (classification_result == nullptr)
+    GstStructure *classification_result = nullptr;
+    if (info.model_proc_info)
+        classification_result = copy(info.model_proc_info.get(), gst_structure_copy);
+    else
+        throw std::runtime_error("Failed to create classification result structure: model-proc is null.");
+
+    if (!classification_result)
         throw std::runtime_error("Failed to create classification result tensor");
 
     CopyOutputBlobToGstStructure(blob, classification_result, model_name.c_str(), layer_name.c_str(), batch_size,
