@@ -7,7 +7,6 @@
 cmake_minimum_required (VERSION 3.1)
 
 add_subdirectory(cpp/draw_face_attributes)
-add_subdirectory(gst_launch/reidentification/gvaidentify)
 
 add_custom_target(copy_model_proc ALL)
 add_custom_command(TARGET copy_model_proc POST_BUILD

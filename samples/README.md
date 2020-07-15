@@ -3,13 +3,14 @@
 Samples are simple applications that demonstrate how to use the DL Streamer. The samples are available in the `<INSTALL_DIR>/data_processing/dl_streamer/samples` directory.
 
 Samples separated into several categories
-1. gst_launch command-line samples construct GStreamer pipeline via `gst-launch-1.0` command-line utility
-    * [Face Detection And Classification Sample](./gst_launch/face_detection_and_classification/README.md) - constructs object detection and classification pipeline example to detect faces and estimate age, gender, emotions and landmark points
-    * [Vehicle and Pedestrian Tracking Sample](./gst_launch/vehicle_pedestrian_tracking/README.md) - demonstrates object tracking via `gvatrack` element
-    * [gvapython Samples](./gst_launch/gvapython/face_detection_and_classification/README.md) demostrates pipeline customization with `gvapython` element and application provided python script for inference pre- or post-processing
-2. C++ samples construct GStreamer pipeline using "C" API
+1. gst_launch command-line samples (samples construct GStreamer pipeline via [gst-launch-1.0](https://gstreamer.freedesktop.org/documentation/tools/gst-launch.html) command-line utility)
+    * [Face Detection And Classification Sample](./gst_launch/face_detection_and_classification/README.md) - constructs object detection and classification pipeline example with [gvadetect](./gvadetect.md) and [gvaclassify](./gvaclassify.md) elements to detect faces and estimate age, gender, emotions and landmark points
+    * [Vehicle and Pedestrian Tracking Sample](./gst_launch/vehicle_pedestrian_tracking/README.md) - demonstrates object tracking via [gvatrack](./gvatrack.md) element
+    * [Metadata Publishing Sample](./gst_launch/metapublish/README.md) - demonstrates how [gvametaconvert](./gvametaconvert.md) and [gvametapublish](./gvametapublish.md) elements are used for converting metadata with inference results into JSON format and publishing to file or Kafka/MQTT message bus
+    * [gvapython Sample](./gst_launch/gvapython/face_detection_and_classification/README.md) - demostrates pipeline customization with [gvapython](./gvapython.md) element and application provided Python script for inference post-processing
+2. C++ samples
     * [Draw Face Attributes C++ Sample](./cpp/draw_face_attributes/README.md) - constructs pipeline and sets "C" callback to access frame metadata and visualize inference results
-3. Python samples construct GStreamer pipeline using Python API
+3. Python samples
     * [Draw Face Attributes Python Sample](./python/draw_face_attributes/README.md) - constructs pipeline and sets Python callback to access frame metadata and visualize inference results
 4. Benchmark
     * [Benchmark Sample](./benchmark/README.md) - measures overall performance of single-channel or multi-channel video analytics pipelines

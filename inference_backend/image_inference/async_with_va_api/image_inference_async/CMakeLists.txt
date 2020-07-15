@@ -31,6 +31,7 @@ target_link_libraries(${TARGET_NAME}
 PRIVATE
         logger
         va_api_wrapper
+        runtime_feature_toggling
 )
 
 if(${ENABLE_ITT})

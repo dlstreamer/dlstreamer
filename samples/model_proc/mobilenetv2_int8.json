@@ -1,11 +1,11 @@
 {
+    "json_schema_version": "2.0.0",
     "input_preproc": [
         {
-            "color_format": "BGR",
+            "format": "image",
             "layer_name": "data"
         }
     ],
-    "json_schema_version": "1.0.0",
     "output_postproc": [
         {
             "converter": "tensor_to_label",

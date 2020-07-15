@@ -1,6 +1,6 @@
 # Vehicle and Pedestrian Tracking Sample (gst-launch command line)
 
-This sample demonstrates [gvatrack](./gvatrack.md) element and object tracking capabilities on example of person and vehicle tracking. Object tracking increases performance by running inference on object detection and classification models less frequently (not every frame).
+This sample demonstrates [gvatrack](https://github.com/opencv/gst-video-analytics/wiki/gvatrack) element and object tracking capabilities on example of person and vehicle tracking. Object tracking increases performance by running inference on object detection and classification models less frequently (not every frame).
 
 ## How It Works
 The sample utilizes GStreamer command-line tool `gst-launch-1.0` which can build and run GStreamer pipeline described in a string format.
@@ -16,10 +16,10 @@ Overall this sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvadetect](./gvadetect.md) for person and vehicle detection based on OpenVINO™ Inference Engine
-* [gvatrack](./gvatrack.md) for tracking objects
-* [gvaclassify](./gvaclassify.md) inserted into pipeline twice for person and vehicle classification
-* [gvawatermark](./gvawatermark.md) for bounding boxes and labels visualization
+* [gvadetect](https://github.com/opencv/gst-video-analytics/wiki/gvadetect) for person and vehicle detection based on OpenVINO™ Inference Engine
+* [gvatrack](https://github.com/opencv/gst-video-analytics/wiki/gvatrack) for tracking objects
+* [gvaclassify](https://github.com/opencv/gst-video-analytics/wiki/gvaclassify) inserted into pipeline twice for person and vehicle classification
+* [gvawatermark](https://github.com/opencv/gst-video-analytics/wiki/gvawatermark) for bounding boxes and labels visualization
 * `fpsdisplaysink` for rendering output video into screen
 > **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
 

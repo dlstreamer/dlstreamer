@@ -92,6 +92,7 @@ PRIVATE
     logger
     json-hpp
     json-schema-validator
+    utils
 )
 
 if(${HAVE_VAAPI})

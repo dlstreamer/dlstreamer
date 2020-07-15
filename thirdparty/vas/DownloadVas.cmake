@@ -8,21 +8,21 @@ set(VAS_THIRDPARTY_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}/vas")
 
 set(EXTRACT_OS_NAME "grep '^NAME=\".*\"' /etc/os-release | sed '1 s/^NAME=\"\\(.*\\)\"$/\\1/'")
 
-set(BASE_URL "https://downloadmirror.intel.com/29445/eng")
+set(BASE_URL "https://downloadmirror.intel.com/29629/eng")
 
 execute_process(
     COMMAND bash -c ${EXTRACT_OS_NAME}
     OUTPUT_VARIABLE DIS)
 if("${DIS}" MATCHES "Ubuntu")
-    set(ARCHIVE_NAME "vasot.2020.1.ubuntu.opencv.4.3.tar.xz")
+    set(ARCHIVE_NAME "vasot.2020.4.ubuntu.opencv.4.4.tar.xz")
     set(LIBVASOTSO_LINK "${BASE_URL}/${ARCHIVE_NAME}")
 else()
-    set(ARCHIVE_NAME "vasot.2020.1.centos.opencv.4.3.tar.xz")
+    set(ARCHIVE_NAME "vasot.2020.4.centos.opencv.4.4.tar.xz")
     set(LIBVASOTSO_LINK "${BASE_URL}/${ARCHIVE_NAME}")
 endif()
 
 set(WGET_TIMEOUT_SECONDS 90)
-set(WGET_RETRY_COUNT 1)
+set(WGET_RETRY_COUNT 5)
 
 set(OT_HEADER_FILE "${VAS_THIRDPARTY_ROOT_DIR}/include/vas/ot.h")
 set(COMMON_HEADER_FILE "${VAS_THIRDPARTY_ROOT_DIR}/include/vas/common.h")

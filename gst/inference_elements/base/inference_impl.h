@@ -7,7 +7,12 @@
 #ifndef __BASE_INFERENCE_H__
 #define __BASE_INFERENCE_H__
 
+#include "classification_history.h"
+#include "common/input_model_preproc.h"
+#include "gstgvaclassify.h"
 #include "gva_base_inference.h"
+
+#include "feature_toggling/ifeature_toggler.h"
 #include "inference_backend/image_inference.h"
 
 #include <gst/video/video.h>
@@ -21,8 +26,9 @@ class InferenceImpl {
     struct Model {
         std::string name;
         std::shared_ptr<InferenceBackend::ImageInference> inference;
-        std::map<std::string, GstStructure *> proc;
-        GstStructure *input_preproc;
+        std::vector<ModelInputProcessorInfo::Ptr> input_processor_info;
+        std::map<std::string, GstStructure *> output_processor_info;
+        std::map<std::string, GValueArray *> labels;
     };
 
     InferenceImpl(GvaBaseInference *gva_base_inference);
@@ -36,7 +42,7 @@ class InferenceImpl {
 
   private:
     struct InferenceResult : public InferenceBackend::ImageInference::IFrameBase {
-        InferenceFrame inference_frame;
+        std::shared_ptr<InferenceFrame> inference_frame;
         Model *model;
         std::shared_ptr<InferenceBackend::Image> image;
     };
@@ -48,7 +54,26 @@ class InferenceImpl {
         INFERENCE_SKIPPED_ROI = 4           // roi skipped because is_roi_classification_needed() returned false
     };
 
+    mutable std::mutex _mutex;
+    int frame_num;
+    std::vector<Model> models;
+    std::shared_ptr<InferenceBackend::Allocator> allocator;
+    std::unique_ptr<FeatureToggling::Base::IFeatureToggler> feature_toggler;
+
+    struct OutputFrame {
+        GstBuffer *buffer;
+        GstBuffer *writable_buffer;
+        int inference_count;
+        GvaBaseInference *filter;
+        std::vector<std::shared_ptr<InferenceFrame>> inference_rois;
+    };
+
+    std::list<OutputFrame> output_frames;
+    std::mutex output_frames_mutex;
+
     void PushOutput();
+    void PushBufferToSrcPad(OutputFrame &output_frame);
+    void PushFramesIfInferenceFailed(std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
     void InferenceCompletionCallback(std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,
                                      std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
     Model CreateModel(GvaBaseInference *gva_base_inference, std::shared_ptr<InferenceBackend::Allocator> &allocator,
@@ -61,23 +86,6 @@ class InferenceImpl {
                                                          GstVideoRegionOfInterestMeta *meta,
                                                          std::shared_ptr<InferenceBackend::Image> &image,
                                                          GstBuffer *buffer);
-    RoiPreProcessorFunction GetPreProcFunction(GvaBaseInference *gva_base_inference, GstStructure *input_preproc,
-                                               GstVideoRegionOfInterestMeta *meta);
-
-    mutable std::mutex _mutex;
-    int frame_num;
-    std::vector<Model> models;
-    std::shared_ptr<InferenceBackend::Allocator> allocator;
-
-    struct OutputFrame {
-        GstBuffer *buffer;
-        GstBuffer *writable_buffer;
-        int inference_count;
-        GvaBaseInference *filter;
-    };
-
-    std::list<OutputFrame> output_frames;
-    std::mutex output_frames_mutex;
 };
 
 #endif /* __BASE_INFERENCE_H__ */

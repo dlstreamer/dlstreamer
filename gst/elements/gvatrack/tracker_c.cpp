@@ -5,9 +5,9 @@
  ******************************************************************************/
 
 #include "tracker_c.h"
-#include "gva_utils.h"
 #include "iou/tracker.h"
 #include "tracker_factory.h"
+#include "utils.h"
 
 ITracker *acquire_tracker_instance(const GstVideoInfo *info, GstGvaTrackingType tracking_type, GError **error) {
     ITracker *tracker = nullptr;
@@ -19,7 +19,7 @@ ITracker *acquire_tracker_instance(const GstVideoInfo *info, GstGvaTrackingType 
         if (!tracker)
             throw std::runtime_error("Failed to create tracker of " + std::to_string(tracking_type) + " tracking type");
     } catch (const std::exception &e) {
-        g_set_error(error, 1, 1, "%s", CreateNestedErrorMsg(e).c_str());
+        g_set_error(error, 1, 1, "%s", Utils::createNestedErrorMsg(e).c_str());
     }
     return tracker;
 }
@@ -31,7 +31,7 @@ void transform_tracked_objects(ITracker *tracker, GstBuffer *buffer, GError **er
         }
         tracker->track(buffer);
     } catch (const std::exception &e) {
-        g_set_error(error, 1, 1, "%s", CreateNestedErrorMsg(e).c_str());
+        g_set_error(error, 1, 1, "%s", Utils::createNestedErrorMsg(e).c_str());
     }
 }
 

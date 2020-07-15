@@ -48,17 +48,10 @@ inline int gstFormatToFourCC(int format) {
 }
 
 #ifdef USE_VPUSMM
-int gva_dmabuffer_import(GstBuffer *buffer) {
+int gva_dmabuffer_import(GstMemory *mem) {
     int fd = 0;
-    auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buffer, 0), gst_memory_unref);
     try {
-        if (not mem.get())
-            throw std::runtime_error("Failed to get GstBuffer memory");
-
-        if (not gst_is_dmabuf_memory(mem.get()))
-            throw std::runtime_error("GstBuffer memory is not DMA buffer");
-
-        int fd = gst_dmabuf_memory_get_fd(mem.get());
+        fd = gst_dmabuf_memory_get_fd(mem);
         if (fd <= 0)
             throw std::runtime_error("Failed to get file desc associated with GstBuffer memory");
 
@@ -71,16 +64,10 @@ int gva_dmabuffer_import(GstBuffer *buffer) {
     return fd;
 }
 
-void gva_dmabuffer_unimport(GstBuffer *buffer) {
-    auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buffer, 0), gst_memory_unref);
+void gva_dmabuffer_unimport(GstMemory *mem) {
+    int fd = 0;
     try {
-        if (not mem.get())
-            throw std::runtime_error("Failed to get GstBuffer memory");
-
-        if (not gst_is_dmabuf_memory(mem.get()))
-            throw std::runtime_error("GstBuffer memory is not DMA buffer");
-
-        int fd = gst_dmabuf_memory_get_fd(mem.get());
+        fd = gst_dmabuf_memory_get_fd(mem);
         if (fd <= 0)
             throw std::runtime_error("Failed to get file desc associated with GstBuffer memory");
 
@@ -124,7 +111,11 @@ void gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
                 image.stride[i] = GST_VIDEO_FRAME_PLANE_STRIDE(&map_context.frame, i);
             }
 #ifdef USE_VPUSMM
-            gva_dmabuffer_import(buffer);
+            auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buffer, 0), gst_memory_unref);
+            if (not mem.get())
+                throw std::runtime_error("Failed to get GstBuffer memory");
+            if (gst_is_dmabuf_memory(mem.get()))
+                gva_dmabuffer_import(mem.get());
 #endif
             break;
         }
@@ -165,7 +156,11 @@ void gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
 void gva_buffer_unmap(GstBuffer *buffer, Image &, BufferMapContext &map_context) {
     if (map_context.frame.buffer) {
 #if defined(USE_VPUSMM)
-        gva_dmabuffer_unimport(buffer);
+        auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buffer, 0), gst_memory_unref);
+        if (not mem.get())
+            throw std::runtime_error("Failed to get GstBuffer memory");
+        if (gst_is_dmabuf_memory(mem.get()))
+            gva_dmabuffer_unimport(mem.get());
 #else
         UNUSED(buffer);
 #endif

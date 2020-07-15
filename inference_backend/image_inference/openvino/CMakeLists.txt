@@ -36,5 +36,6 @@ target_link_libraries(${TARGET_NAME}
 PUBLIC
         IE::inference_engine
         IE::inference_engine_legacy
+        utils
         logger
 )

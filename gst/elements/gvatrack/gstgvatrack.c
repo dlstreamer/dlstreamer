@@ -23,7 +23,7 @@ enum {
 };
 
 /// the capabilities of the inputs and outputs.
-#define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA, BGR }") "; "
+#define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA, BGR, I420, NV12}") "; "
 #define VIDEO_SINK_CAPS SYSTEM_MEM_CAPS
 #define VIDEO_SRC_CAPS SYSTEM_MEM_CAPS
 
@@ -151,6 +151,7 @@ static gboolean gst_gva_track_set_caps(GstBaseTransform *trans, GstCaps *incaps,
     gst_video_info_from_caps(gva_track->info, incaps);
     if (gva_track->tracker != NULL) {
         release_tracker_instance(gva_track->tracker);
+        gva_track->tracker = NULL;
     }
     if (gva_track->tracker == NULL) {
         GError *error = NULL;

@@ -80,7 +80,12 @@ MetapublishStatusMessage mqtt_write_message(MQTTClient client, MQTTPublishConfig
         message.payload = jsonmeta->message;
         message.payloadlen = (gint)strlen(message.payload);
         message.retained = 0;
-        MQTTClient_publishMessage(client, gvametapublish->topic, &message, &token);
+        int publish_result = MQTTClient_publishMessage(client, gvametapublish->topic, &message, &token);
+        if (publish_result != 0) {
+            returnMessage.responseCode.mps = MQTT_ERROR_NO_CONNECTION;
+            prepare_response_message(&returnMessage, "No mqtt client connection\n");
+            return returnMessage;
+        }
         MQTTClient_waitForCompletion(client, token, Timeout);
         returnMessage.responseCode.mps = MQTT_SUCCESS;
         prepare_response_message(&returnMessage, "Message with delivery token delivered\n");

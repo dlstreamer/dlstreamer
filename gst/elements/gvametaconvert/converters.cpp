@@ -15,6 +15,7 @@
 #include "gva_utils.h"
 
 #define UNUSED(x) (void)(x)
+#define GST_CAT_DEFAULT gst_gva_meta_convert_debug_category
 
 gboolean dump_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     if (converter == nullptr) {

@@ -17,19 +17,26 @@ pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/*.h
 )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -42,9 +49,12 @@ target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/base/
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/
+    ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTVIDEO_INCLUDE_DIRS}
@@ -65,6 +75,8 @@ PRIVATE
     logger
     json-hpp
     json-schema-validator
+PUBLIC
+    runtime_feature_toggling
 )
 
 if(${HAVE_VAAPI})

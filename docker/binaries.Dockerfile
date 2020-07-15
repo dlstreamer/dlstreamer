@@ -40,7 +40,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         python3 \
         python3-pip \
         python3-setuptools && \
-    rm -rf /var/lib/apt/lists/*  
+    rm -rf /var/lib/apt/lists/*
 
 # Build x264
 ARG X264_VER=stable
@@ -194,7 +194,7 @@ RUN tar xvf build/src/gst-plugins-base-${GST_VERSION}.tar.xz && \
         -Dgtk_doc=disabled \
         -Dnls=disabled \
         -Dgl=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
         --buildtype=${BUILD_TYPE} \
         --prefix=${PREFIX} \
         --libdir=${LIBDIR} \
@@ -245,7 +245,7 @@ RUN tar xvf build/src/gst-plugins-good-${GST_VERSION}.tar.xz && \
         -Dtests=disabled \
         -Dgtk_doc=disabled \
         -Dnls=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
         --buildtype=${BUILD_TYPE} \
         --prefix=${PREFIX} \
         --libdir=${LIBDIR} \
@@ -328,7 +328,7 @@ RUN tar xvf build/src/gst-plugins-bad-${GST_VERSION}.tar.xz && \
         -Dofa=disabled \
         -Dfaad=disabled \
         -Dmpeg2enc=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
         --buildtype=${BUILD_TYPE} \
         --prefix=${PREFIX} \
         --libdir=${LIBDIR} \
@@ -350,7 +350,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
 ARG GST_PLUGIN_UGLY_REPO=https://gstreamer.freedesktop.org/src/gst-plugins-ugly/gst-plugins-ugly-${GST_VERSION}.tar.xz
 
 RUN wget ${GST_PLUGIN_UGLY_REPO} -O build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz
-RUN tar xvf build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz && \    
+RUN tar xvf build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz && \
     cd gst-plugins-ugly-${GST_VERSION}  && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
         -Dexamples=disabled \
@@ -363,7 +363,7 @@ RUN tar xvf build/src/gst-plugins-ugly-${GST_VERSION}.tar.xz && \
         -Ddvdread=disabled \
         -Da52dec=disabled \
         -Dx264=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
         --buildtype=${BUILD_TYPE} \
         --prefix=${PREFIX} \
         --libdir=${LIBDIR} \
@@ -417,7 +417,7 @@ RUN tar xvf build/src/gst-libav-${GST_VERSION}.tar.xz && \
         -Dtests=disabled \
         -Dgtk_doc=disabled \
         -Dnls=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
         --buildtype=${BUILD_TYPE} \
         --prefix=${PREFIX} \
         --libdir=${LIBDIR} \
@@ -455,7 +455,7 @@ RUN tar xvf build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz && \
         -Dtests=disabled \
         -Dgtk_doc=disabled \
         -Dnls=disabled \
-        -Dpackage_origin="${PACKAGE_ORIGIN}" \
+        -Dpackage-origin="${PACKAGE_ORIGIN}" \
         --buildtype=${BUILD_TYPE} \
         --prefix=${PREFIX} \
         --libdir=${LIBDIR} \
@@ -550,7 +550,7 @@ RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
 FROM base AS dldt-binaries
 WORKDIR /home
 
-ARG OpenVINO_VERSION=2020.2.120
+ARG OpenVINO_VERSION=2020.4.287
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends cpio
 
