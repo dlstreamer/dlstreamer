@@ -62,6 +62,7 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
 
         // TODO: check data buffer size
         copy_buffer_to_structure(gst_struct, data + batch_index * size, size);
+
         gst_structure_set(gst_struct, "layer_name", G_TYPE_STRING, layer_name, "model_name", G_TYPE_STRING, model_name,
                           "precision", G_TYPE_INT, (int)blob->GetPrecision(), "layout", G_TYPE_INT,
                           (int)blob->GetLayout(), NULL);

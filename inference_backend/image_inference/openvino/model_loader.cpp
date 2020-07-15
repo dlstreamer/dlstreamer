@@ -85,12 +85,13 @@ InferenceEngine::CNNNetwork IrModelLoader::load(InferenceEngine::Core &core, con
     try {
         // Load IR network (.xml file)
         InferenceEngine::CNNNetwork network = core.ReadNetwork(model_xml);
-
-        const bool reshape = std::stoi(base_config.at(KEY_RESHAPE));
-        if (reshape) {
-            ReshapeNetwork(network, std::stoul(base_config.at(KEY_BATCH_SIZE)),
-                           std::stoul(base_config.at(KEY_RESHAPE_WIDTH)),
-                           std::stoul(base_config.at(KEY_RESHAPE_HEIGHT)));
+        if (base_config.find(KEY_RESHAPE) != base_config.end()) {
+            const bool reshape = std::stoi(base_config.at(KEY_RESHAPE));
+            if (reshape) {
+                ReshapeNetwork(network, std::stoul(base_config.at(KEY_BATCH_SIZE)),
+                               std::stoul(base_config.at(KEY_RESHAPE_WIDTH)),
+                               std::stoul(base_config.at(KEY_RESHAPE_HEIGHT)));
+            }
         }
         return network;
     } catch (const std::exception &e) {

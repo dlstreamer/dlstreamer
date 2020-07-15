@@ -11,6 +11,11 @@
 #include <iostream>
 #include <nlohmann/json.hpp>
 
+#ifdef AUDIO
+#include "audioconverter.h"
+#endif
+#include "convert_tensor.h"
+
 using json = nlohmann::json;
 
 GST_DEBUG_CATEGORY_STATIC(gst_json_converter_debug);
@@ -29,62 +34,6 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     if (converter->tags && json::accept(converter->tags))
         res["tags"] = json::parse(converter->tags);
     return res;
-}
-
-json convert_tensor(const GVA::Tensor &s_tensor) {
-    json jobject = json::object();
-    std::string precision_value = s_tensor.precision_as_string();
-    if (!precision_value.empty()) {
-        jobject.push_back(json::object_t::value_type("precision", precision_value));
-    }
-    std::string layout_value = s_tensor.layout_as_string();
-    if (!layout_value.empty()) {
-        jobject.push_back(json::object_t::value_type("layout", layout_value));
-    }
-    std::string name_value = s_tensor.name();
-    if (!name_value.empty()) {
-        jobject.push_back(json::object_t::value_type("name", name_value));
-    }
-    std::string model_name_value = s_tensor.model_name();
-    if (!model_name_value.empty()) {
-        jobject.push_back(json::object_t::value_type("model_name", model_name_value));
-    }
-    std::string layer_name_value = s_tensor.layer_name();
-    if (!layer_name_value.empty()) {
-        jobject.push_back(json::object_t::value_type("layer_name", layer_name_value));
-    }
-    std::string format_value = s_tensor.format();
-    if (!format_value.empty()) {
-        jobject.push_back(json::object_t::value_type("format", format_value));
-    }
-    if (!s_tensor.is_detection()) {
-        std::string label_value = s_tensor.label();
-        if (!label_value.empty()) {
-            jobject.push_back(json::object_t::value_type("label", label_value));
-        }
-    }
-    if (s_tensor.has_field("confidence")) {
-        jobject.push_back(json::object_t::value_type("confidence", s_tensor.confidence()));
-    }
-    if (s_tensor.has_field("label_id")) {
-        jobject.push_back(json::object_t::value_type("label_id", s_tensor.get_int("label_id")));
-    }
-    json data_array;
-    if (s_tensor.precision() == GVA::Tensor::Precision::U8) {
-        const std::vector<uint8_t> data = s_tensor.data<uint8_t>();
-        for (guint i = 0; i < data.size(); i++) {
-            data_array += data[i];
-        }
-    } else {
-        const std::vector<float> data = s_tensor.data<float>();
-        for (guint i = 0; i < data.size(); i++) {
-            data_array += data[i];
-        }
-    }
-    if (!data_array.is_null()) {
-        jobject.push_back(json::object_t::value_type("data", data_array));
-    }
-    return jobject;
 }
 
 json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
@@ -188,34 +137,41 @@ json convert_frame_tensors(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 gboolean to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     GST_DEBUG_CATEGORY_INIT(gst_json_converter_debug, "jsonconverter", 0, "JSON converter");
     try {
-        json jframe_tensors;
-        json jframe = get_frame_data(converter, buffer);
-        json jroi_detection = convert_roi_detection(converter, buffer);
+        if (converter->info) {
+            json jframe_tensors;
+            json jframe = get_frame_data(converter, buffer);
+            json jroi_detection = convert_roi_detection(converter, buffer);
 
-        if (converter->add_tensor_data) {
-            jframe_tensors = convert_frame_tensors(converter, buffer);
-        }
-
-        if (jroi_detection.empty() && jframe_tensors.empty()) {
-            if (!converter->add_empty_detection_results) {
-                GST_DEBUG_OBJECT(converter, "No detections found. Not posting JSON message");
-                return TRUE;
-            }
-        }
-
-        if (!jframe.is_null()) {
-            if (!jroi_detection.empty()) {
-                jframe.update(jroi_detection);
+            if (converter->add_tensor_data) {
+                jframe_tensors = convert_frame_tensors(converter, buffer);
             }
 
-            if (!jframe_tensors.empty()) {
-                jframe["tensors"] = jframe_tensors;
+            if (jroi_detection.empty() && jframe_tensors.empty()) {
+                if (!converter->add_empty_detection_results) {
+                    GST_DEBUG_OBJECT(converter, "No detections found. Not posting JSON message");
+                    return TRUE;
+                }
             }
-            std::string json_message = jframe.dump(converter->json_indent);
-            GVA::VideoFrame video_frame(buffer, converter->info);
-            video_frame.add_message(json_message);
-            GST_INFO_OBJECT(converter, "JSON message: %s", json_message.c_str());
+
+            if (!jframe.is_null()) {
+                if (!jroi_detection.empty()) {
+                    jframe.update(jroi_detection);
+                }
+
+                if (!jframe_tensors.empty()) {
+                    jframe["tensors"] = jframe_tensors;
+                }
+                std::string json_message = jframe.dump(converter->json_indent);
+                GVA::VideoFrame video_frame(buffer, converter->info);
+                video_frame.add_message(json_message);
+                GST_INFO_OBJECT(converter, "JSON message: %s", json_message.c_str());
+            }
         }
+#ifdef AUDIO
+        else {
+            return convert_audio_meta_to_json(converter, buffer);
+        }
+#endif
     } catch (const std::exception &e) {
         GST_ERROR_OBJECT(converter, "%s", e.what());
         return FALSE;

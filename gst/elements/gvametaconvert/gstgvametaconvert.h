@@ -7,6 +7,9 @@
 #ifndef _GST_GVA_META_CONVERT_H_
 #define _GST_GVA_META_CONVERT_H_
 
+#ifdef AUDIO
+#include <gst/audio/audio.h>
+#endif
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
 
@@ -42,6 +45,9 @@ struct _GstGvaMetaConvert {
     gboolean signal_handoffs;
     convert_function_type convert_function;
     GstVideoInfo *info;
+#ifdef AUDIO
+    GstAudioInfo *audio_info;
+#endif
     gint json_indent;
 };
 

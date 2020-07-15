@@ -67,6 +67,17 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value) {
         }
         // TODO: need to be implemented in case of nested dict
         case nlohmann::json::value_t::object: {
+            g_value_init(&gvalue, GST_TYPE_STRUCTURE);
+            json obj = (json)value;
+            GstStructure *s = gst_structure_new_empty("jsonobject");
+            for (json::const_iterator it = obj.begin(); it != obj.end(); ++it) {
+                std::string key = it.key();
+                auto value = it.value();
+                GValue gvalue = JsonReader::convertToGValue(value);
+                gst_structure_set_value(s, key.data(), &gvalue);
+            }
+            gst_value_set_structure(&gvalue, s);
+            break;
             // g_value_init(&gvalue, G_TYPE_POINTER);
             // GHashTable *hash_table = g_hash_table_new(g_direct_hash, g_direct_equal);
             // for (auto it = value.begin(); it != value.end(); ++it) {

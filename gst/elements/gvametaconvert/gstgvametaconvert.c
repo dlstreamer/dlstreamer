@@ -110,10 +110,10 @@ static void gst_gva_meta_convert_class_init(GstGvaMetaConvertClass *klass) {
        base_class_init if you intend to subclass this class. */
     gst_element_class_add_pad_template(
         GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
+        gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string("ANY")));
     gst_element_class_add_pad_template(
         GST_ELEMENT_CLASS(klass),
-        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
+        gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string("ANY")));
 
     gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(klass), ELEMENT_LONG_NAME, "Video", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");
@@ -195,6 +195,12 @@ static void gst_gva_meta_convert_cleanup(GstGvaMetaConvert *gvametaconvert) {
         gst_video_info_free(gvametaconvert->info);
         gvametaconvert->info = NULL;
     }
+#ifdef AUDIO
+    if (gvametaconvert->audio_info) {
+        gst_audio_info_free(gvametaconvert->audio_info);
+        gvametaconvert->audio_info = NULL;
+    }
+#endif
 }
 
 static void gst_gva_meta_convert_reset(GstGvaMetaConvert *gvametaconvert) {
@@ -213,6 +219,9 @@ static void gst_gva_meta_convert_reset(GstGvaMetaConvert *gvametaconvert) {
     gst_gva_metaconvert_set_format(gvametaconvert, DEFAULT_FORMAT);
     gvametaconvert->info = NULL;
     gvametaconvert->json_indent = DEFAULT_JSON_INDENT;
+#ifdef AUDIO
+    gvametaconvert->audio_info = NULL;
+#endif
 }
 
 static GstStateChangeReturn gst_gva_meta_convert_change_state(GstElement *element, GstStateChange transition) {
@@ -232,7 +241,6 @@ static GstStateChangeReturn gst_gva_meta_convert_change_state(GstElement *elemen
     default:
         break;
     }
-
     return ret;
 }
 
@@ -337,10 +345,28 @@ static gboolean gst_gva_meta_convert_set_caps(GstBaseTransform *trans, GstCaps *
 
     GstGvaMetaConvert *gvametaconvert = GST_GVA_META_CONVERT(trans);
     GST_DEBUG_OBJECT(gvametaconvert, "set_caps");
-    if (!gvametaconvert->info) {
-        gvametaconvert->info = gst_video_info_new();
+    GstStructure *caps = gst_caps_get_structure((const GstCaps *)incaps, 0);
+    const gchar *name = gst_structure_get_name(caps);
+    if (g_strrstr(name, "video")) {
+
+        if (!gvametaconvert->info) {
+            gvametaconvert->info = gst_video_info_new();
+        }
+        gst_video_info_from_caps(gvametaconvert->info, incaps);
     }
-    gst_video_info_from_caps(gvametaconvert->info, incaps);
+#ifdef AUDIO
+    else if (g_strrstr(name, "audio")) {
+        if (!gvametaconvert->audio_info) {
+            gvametaconvert->audio_info = gst_audio_info_new();
+        }
+        gst_audio_info_from_caps(gvametaconvert->audio_info, incaps);
+    }
+#endif
+    else {
+        GST_ERROR_OBJECT(gvametaconvert, "Invalid input caps");
+        return FALSE;
+    }
+
     return TRUE;
 }
 

@@ -59,15 +59,15 @@ void ImageToMat(const Image &src, cv::Mat &dst) {
             cv::Mat y = cv::Mat(height, width, CV_8UC1, yuv420.data, width);
             raw_y.copyTo(y);
 
-            cv::Mat raw_u = cv::Mat(half_height, half_width, CV_8UC1, src.planes[2], src.stride[2]);
+            cv::Mat raw_u = cv::Mat(half_height, half_width, CV_8UC1, src.planes[1], src.stride[1]);
             cv::Mat u = cv::Mat(half_height, half_width, CV_8UC1, yuv420.data + size, half_width);
             raw_u.copyTo(u);
 
-            cv::Mat raw_v = cv::Mat(half_height, half_width, CV_8UC1, src.planes[1], src.stride[1]);
+            cv::Mat raw_v = cv::Mat(half_height, half_width, CV_8UC1, src.planes[2], src.stride[2]);
             cv::Mat v = cv::Mat(half_height, half_width, CV_8UC1, yuv420.data + size + quarter_size, half_width);
             raw_v.copyTo(v);
         }
-        cv::cvtColor(yuv420, dst, cv::COLOR_YUV420p2BGR);
+        cv::cvtColor(yuv420, dst, cv::COLOR_YUV2BGR_I420);
         break;
     }
     default:

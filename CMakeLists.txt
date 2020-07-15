@@ -130,6 +130,7 @@ endif()
 option(HAVE_VAAPI "Parameter to enable VAAPI for image pre-processing" OFF)
 option(SUPPORT_DMA_BUFFER "Parameter to enable DMABuf in sink/source caps" OFF)
 option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
+option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
 option(ENABLE_TRACKER_TYPE_IOU "Enables iou tracker type as part of gvatrack" OFF)
 option(USE_VPUSMM "Parameter to use VPUSMM" OFF)
@@ -147,6 +148,10 @@ if(${ENABLE_RDKAFKA_INSTALLATION})
     find_library(KAFKA rdkafka)
 endif()
 
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DAUDIO ")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DAUDIO ")
+endif()
 
 configure_file(cmake/config.h.in configs/config.h @ONLY)
 
