@@ -11,7 +11,7 @@
 extern "C" {
 #endif
 
-extern AudioPreProcFunction NORMALIZE_SAMPLES;
+extern AudioPreProcFunction GET_NORMALIZED_SAMPLES;
 extern AudioNumOfSamplesRequired GET_NUM_OF_SAMPLES_REQUIRED;
 
 #ifdef __cplusplus

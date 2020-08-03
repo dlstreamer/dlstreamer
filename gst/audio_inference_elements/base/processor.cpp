@@ -107,8 +107,8 @@ GstFlowReturn infer_audio(GvaAudioBaseInference *audio_base_inference, GstBuffer
             frame.buffer = buf;
             impl_handle->fillAudioFrame(&frame);
             AudioPreProcFunction pre_proc = audio_base_inference->pre_proc;
-            void *data = pre_proc(&frame);
-            inf_handle->setInputBlob(data);
+            std::vector<float> normalized_samples = pre_proc(&frame);
+            inf_handle->setInputBlob(normalized_samples.data());
             inf_handle->infer();
             AudioPostProcFunction post_proc = audio_base_inference->post_proc;
             post_proc(&frame, inf_handle->getInferenceOutput());

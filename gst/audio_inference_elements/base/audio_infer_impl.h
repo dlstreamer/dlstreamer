@@ -18,7 +18,7 @@ class AudioInferImpl {
     void setNumOfSamplesToSlide();
 
   private:
-    std::vector<int16_t> audioData;
+    std::vector<float> audioData;
     std::vector<ulong> inferenceStartTime;
     bool startTimeSet = false;
     GvaAudioBaseInference *audio_base_inference;

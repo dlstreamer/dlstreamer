@@ -1,19 +1,20 @@
 **GVAMETAPUBLISH**
 
-A GStreamer element to publish JSON data to a designated file, or a chosen message broker:
+A GStreamer* element to publish JSON* data to a designated file, or a chosen message broker:
 
   1. File (default)
 
-  2. MQTT broker
+  2. MQTT* broker
 
-  3. Kafka broker
+  3. Kafka* broker
 
 **Build components
 
 1. Build libraries either through docker or on host machine
 
     Follow instructions here:
-    https://gitlab.devtools.intel.com/video-analytics/gstreamer-plugins/wikis/Getting-Started-Guide-%5BR2%5D
+    https://github.com/opencv/gst-video-analytics/wiki/Install-Guide
+    
     Docker image built with Dockerfile will include all necessary dependencies for kafka/mqtt.
     If building on host machine these dependencies will be resolved by the install_metapublish_dependencies.sh script
 
@@ -27,7 +28,7 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
 3. Create your own pipeline and add gvametapublish element with the following parameters: 
 
     gvametapublish method=file filepath=/root/video-example/detections_2019.json
-    1. Optionally provide file-format=json-lines to have raw JSON inferences written to the file, or file-format=json (default) to have the file populated as an array of JSON inferences:
+    1. Optionally provide file-format=json-lines to have raw JSON* inferences written to the file, or file-format=json (default) to have the file populated as an array of JSON inferences:
 
     gvametapublish method=file filepath="/root/video-examples/detections_2019.json" file-format=json-lines ! \
 
@@ -40,3 +41,6 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
     gvametapublish method=kafka address=127.0.0.1:9092 topic=topicName 
 
 Note: *method is a required property of gvametapublish element.
+
+---
+\* Other names and brands may be claimed as the property of others.

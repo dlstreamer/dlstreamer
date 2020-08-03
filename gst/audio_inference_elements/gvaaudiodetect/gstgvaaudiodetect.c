@@ -44,7 +44,7 @@ void gst_gva_audio_detect_init(GvaAudioDetect *gvaaudiodetect) {
 
     if (gvaaudiodetect == NULL)
         return;
-    gvaaudiodetect->audio_base_inference.pre_proc = NORMALIZE_SAMPLES;
+    gvaaudiodetect->audio_base_inference.pre_proc = GET_NORMALIZED_SAMPLES;
     gvaaudiodetect->audio_base_inference.post_proc = EXTRACT_RESULTS;
     gvaaudiodetect->audio_base_inference.req_sample_size = GET_NUM_OF_SAMPLES_REQUIRED;
     gvaaudiodetect->req_num_samples = SAMPLE_AUDIO_RATE;

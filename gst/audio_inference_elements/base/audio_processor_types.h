@@ -22,7 +22,7 @@ struct _GvaAudioBaseInference;
 typedef struct _GvaAudioBaseInference GvaAudioBaseInference;
 struct AudioInferenceFrame {
     GstBuffer *buffer;
-    std::vector<int16_t> samples;
+    std::vector<float> samples;
     gulong startTime;
     gulong endTime;
 };
@@ -34,7 +34,7 @@ struct AudioInferenceOutput {
     std::map<std::string, std::pair<InferenceBackend::OutputBlob::Ptr, int>> output_blobs;
 };
 typedef int (*AudioNumOfSamplesRequired)(GvaAudioBaseInference *audio_base_inference);
-typedef void *(*AudioPreProcFunction)(AudioInferenceFrame *frame);
+typedef std::vector<float> (*AudioPreProcFunction)(AudioInferenceFrame *frame);
 typedef void (*AudioPostProcFunction)(AudioInferenceFrame *frame, AudioInferenceOutput *output);
 
 #else // __cplusplus
