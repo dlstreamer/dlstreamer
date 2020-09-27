@@ -38,7 +38,7 @@ GStreamer is an open source framework licensed under LGPL. See [license terms](h
 
 ## Getting Started
 * Start here: [Install Guide](https://github.com/opencv/gst-video-analytics/wiki/Install-Guide)
-* [API reference](https://opencv.github.io/gst-video-analytics/)
+* [API reference](https://openvinotoolkit.github.io/dlstreamer_gst/)
 * Gstreamer VA plugin on YouTube: [Full pipeline simulation using GStreamer](https://www.youtube.com/watch?v=fWhPV_IqDy0); [Full pipeline simulation using GStreamer (Samples)](https://www.youtube.com/watch?v=EqHznsUR1sE)
 
 ## Samples
