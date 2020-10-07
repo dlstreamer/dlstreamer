@@ -8,14 +8,44 @@
 
 using namespace InferenceBackend;
 
-VaApiImage::VaApiImage(VaApiContext *context_, int width, int height, int format) {
+namespace {
+
+VASurfaceID CreateVASurface(VADisplay dpy, uint32_t width, uint32_t height, FourCC format,
+                            int rt_format = VA_RT_FORMAT_YUV420) {
+    VASurfaceAttrib surface_attrib;
+    surface_attrib.type = VASurfaceAttribPixelFormat;
+    surface_attrib.flags = VA_SURFACE_ATTRIB_SETTABLE;
+    surface_attrib.value.type = VAGenericValueTypeInteger;
+    surface_attrib.value.value.i = format;
+
+    VAConfigAttrib format_attrib;
+    format_attrib.type = VAConfigAttribRTFormat;
+    VA_CALL(vaGetConfigAttributes(dpy, VAProfileNone, VAEntrypointVideoProc, &format_attrib, 1));
+    if (not(format_attrib.value & rt_format))
+        throw std::invalid_argument("Unsupported runtime format for surface.");
+
+    VASurfaceID va_surface_id;
+    VA_CALL(vaCreateSurfaces(dpy, rt_format, width, height, &va_surface_id, 1, &surface_attrib, 1))
+    return va_surface_id;
+}
+
+} // namespace
+
+VaApiImage::VaApiImage() {
+    image.va_surface_id = VA_INVALID_SURFACE;
+    image.va_display = nullptr;
+}
+
+VaApiImage::VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, FourCC format, MemoryType memory_type) {
     context = context_;
-    image.type = MemoryType::ANY;
+    image.type = memory_type;
     image.width = width;
     image.height = height;
     image.format = format;
+    image.va_display = context->Display();
+    image.va_surface_id = CreateVASurface(image.va_display, width, height, format);
+    image_map = std::unique_ptr<ImageMap>(ImageMap::Create(memory_type));
     completed = true;
-    image_map = std::unique_ptr<ImageMap>(ImageMap::Create());
 }
 
 VaApiImage::~VaApiImage() {
@@ -37,9 +67,12 @@ Image VaApiImage::Map() {
     return image_map->Map(image);
 }
 
-VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, int width, int height, int format) {
+VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, ImageInfo info) {
+    if (not context_)
+        throw std::invalid_argument("VaApiContext is nullptr");
     for (size_t i = 0; i < image_pool_size; ++i) {
-        _images.push_back(std::unique_ptr<VaApiImage>(new VaApiImage(context_, width, height, format)));
+        _images.push_back(std::unique_ptr<VaApiImage>(
+            new VaApiImage(context_, info.width, info.height, info.format, info.memory_type)));
     }
 }
 
@@ -57,6 +90,9 @@ VaApiImage *VaApiImagePool::AcquireBuffer() {
 }
 
 void VaApiImagePool::ReleaseBuffer(VaApiImage *image) {
+    if (!image)
+        throw std::runtime_error("Recived VA-API image is null");
+
     image->completed = true;
     _free_image_condition_variable.notify_one();
 }

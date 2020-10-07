@@ -13,11 +13,14 @@
 #include "feature_toggling/ifeature_toggle.h"
 #include "gst_allocator_wrapper.h"
 #include "gva_buffer_map.h"
+#include "gva_caps.h"
 #include "gva_utils.h"
 #include "inference_backend/logger.h"
+#include "inference_backend/pre_proc.h"
 #include "inference_backend/safe_arithmetic.h"
 #include "logger_functions.h"
 #include "model_proc/model_proc_provider.h"
+#include "region_of_interest.h"
 #include "runtime_feature_toggler.h"
 #include "utils.h"
 #include "video_frame.h"
@@ -25,10 +28,12 @@
 #include <gst/allocators/allocators.h>
 
 #include <assert.h>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <map>
 #include <memory>
+#include <regex>
 #include <sstream>
 #include <string>
 #include <thread>
@@ -99,15 +104,26 @@ void ParseExtension(const char *extension_string, std::map<std::string, std::str
         auto it_ = supported_extensions.find(it->first);
         if (it_ != supported_extensions.end()) {
             base_config[it_->second] = it->second;
-            extensions.erase(it->first);
         } else {
             throw std::runtime_error("Does not support extension for device " + it->first);
         }
     }
 }
 
-inline std::map<std::string, std::map<std::string, std::string>>
-CreateNestedConfig(const GvaBaseInference *gva_base_inference) {
+ImagePreprocessorType GetImagePreprocessorType(const std::string &image_preprocessor_name) {
+    ImagePreprocessorType type = ImagePreprocessorType::INVALID;
+    if (image_preprocessor_name == "vaapi")
+        type = ImagePreprocessorType::VAAPI_SYSTEM;
+    if (image_preprocessor_name == "vaapi-surface-sharing")
+        type = ImagePreprocessorType::VAAPI_SURFACE_SHARING;
+    if (image_preprocessor_name == "opencv")
+        type = ImagePreprocessorType::OPENCV;
+    if (image_preprocessor_name == "ie")
+        type = ImagePreprocessorType::IE;
+    return type;
+}
+
+std::map<std::string, std::map<std::string, std::string>> CreateNestedConfig(GvaBaseInference *gva_base_inference) {
     std::map<std::string, std::map<std::string, std::string>> config;
     std::map<std::string, std::string> base;
     std::map<std::string, std::string> inference = StringToMap(gva_base_inference->ie_config);
@@ -130,9 +146,35 @@ CreateNestedConfig(const GvaBaseInference *gva_base_inference) {
                                                             : std::to_string(gva_base_inference->gpu_streams);
             }
         }
+#ifdef USE_VPUSMM
+        if (device.find("KMB") != std::string::npos) {
+            if (device == "KMB") {
+                gva_base_inference->vpu_device_id = 0u;
+            } else {
+                const std::regex kmb_vpu_id_regex{"^KMB\\.VPU-([0-3])$"};
+                std::smatch kmb_vpu_id_matcher{};
+
+                if (std::regex_match(device, kmb_vpu_id_matcher, kmb_vpu_id_regex)) {
+                    assert(kmb_vpu_id_matcher.size() == 2);
+
+                    const std::ssub_match _kmb_vpu_id_matcher = kmb_vpu_id_matcher[1];
+                    const std::string id_str = _kmb_vpu_id_matcher.str();
+
+                    gva_base_inference->vpu_device_id = static_cast<uint32_t>(std::stoi(id_str));
+                } else {
+                    throw std::invalid_argument("Device does not match KMB.VPU-<id> pattern, where id is in 0..3 "
+                                                "range. Check your device name: " +
+                                                device);
+                }
+            }
+        }
+
+        GST_WARNING("VPU_DEVICE_ID: %u", gva_base_inference->vpu_device_id);
+#endif
     }
     if (gva_base_inference->pre_proc_name != nullptr) {
-        base[KEY_PRE_PROCESSOR_TYPE] = std::string(gva_base_inference->pre_proc_name);
+        base[KEY_PRE_PROCESSOR_TYPE] =
+            std::to_string(static_cast<int>(GetImagePreprocessorType(gva_base_inference->pre_proc_name)));
     }
     base[KEY_IMAGE_FORMAT] =
         GstVideoFormatToString(static_cast<GstVideoFormat>(gva_base_inference->info->finfo->format));
@@ -178,21 +220,41 @@ void UpdateConfigWithLayerInfo(const std::vector<ModelInputProcessorInfo::Ptr> &
     config[KEY_FORMAT] = format;
 }
 
-void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, const GstVideoRegionOfInterestMeta *meta) {
-    // TODO: this is also implemented in VideoFrame::clip_normalized_rect, get rid of duplicate
-    // workaround for cases when tinyyolov2 output blob parsing result coordinates are out of image
-    // boundaries
-    if (image->width < meta->x or image->height < meta->y) {
-        image->rect = Rectangle();
+void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, GstVideoRegionOfInterestMeta *meta,
+                          bool is_full_frame) {
+    if (!meta) {
+        throw std::invalid_argument("Region of interest meta is null.");
     }
-    image->rect = {.x = meta->x,
-                   .y = meta->y,
-                   .width = (safe_add(meta->x, meta->w) > image->width) ? (image->width - meta->x) : meta->w,
-                   .height = (safe_add(meta->y, meta->h) > image->height) ? (image->height - meta->y) : meta->h};
+
+    if (is_full_frame) {
+        image->rect = {meta->x, meta->y, meta->w, meta->h};
+        return;
+    }
+
+    const auto image_width = image->width;
+    const auto image_height = image->height;
+
+    GVA::RegionOfInterest roi(meta);
+    const GVA::Rect<double> normalized_bbox = roi.normalized_rect();
+
+    const constexpr double zero = 0;
+    const GVA::Rect<uint32_t> raw_coordinates = {
+        .x = static_cast<uint32_t>((std::max(round(normalized_bbox.x * image_width), zero))),
+        .y = static_cast<uint32_t>((std::max(round(normalized_bbox.y * image_height), zero))),
+        .w = static_cast<uint32_t>((std::max(round(normalized_bbox.w * image_width), zero))),
+        .h = static_cast<uint32_t>((std::max(round(normalized_bbox.h * image_height), zero)))};
+
+    image->rect.x = std::min(raw_coordinates.x, image_width);
+    image->rect.y = std::min(raw_coordinates.y, image_height);
+    image->rect.width = (safe_add(raw_coordinates.w, raw_coordinates.x) > image_width) ? image_width - image->rect.x
+                                                                                       : raw_coordinates.w;
+    image->rect.height = (safe_add(raw_coordinates.h, raw_coordinates.y) > image_height) ? image_height - image->rect.y
+                                                                                         : raw_coordinates.h;
 }
 
 std::shared_ptr<InferenceBackend::Image> CreateImage(GstBuffer *buffer, GstVideoInfo *info,
-                                                     InferenceBackend::MemoryType mem_type, GstMapFlags map_flags) {
+                                                     InferenceBackend::MemoryType mem_type, GstMapFlags map_flags,
+                                                     unsigned int vpu_device_id) {
     ITT_TASK(__FUNCTION__);
     try {
         std::unique_ptr<InferenceBackend::Image> unique_image = std::unique_ptr<InferenceBackend::Image>(new Image);
@@ -201,10 +263,10 @@ std::shared_ptr<InferenceBackend::Image> CreateImage(GstBuffer *buffer, GstVideo
         std::shared_ptr<BufferMapContext> map_context = std::make_shared<BufferMapContext>();
         assert(map_context.get() != nullptr);
 
-        gva_buffer_map(buffer, *unique_image, *map_context, info, mem_type, map_flags);
+        gva_buffer_map(buffer, *unique_image, *map_context, info, mem_type, map_flags, vpu_device_id);
 
-        auto image_deleter = [buffer, map_context](InferenceBackend::Image *image) {
-            gva_buffer_unmap(buffer, *image, *map_context);
+        auto image_deleter = [buffer, map_context, vpu_device_id](InferenceBackend::Image *image) {
+            gva_buffer_unmap(buffer, *image, *map_context, vpu_device_id);
             delete image;
         };
         return std::shared_ptr<InferenceBackend::Image>(unique_image.release(), image_deleter);
@@ -221,6 +283,63 @@ void UpdateClassificationHistory(GstVideoRegionOfInterestMeta *meta, GvaBaseInfe
     if (gvaclassify->reclassify_interval != 1 and meta_id > 0)
         gvaclassify->classification_history->UpdateROIParams(meta_id, classification_result);
 }
+
+MemoryType GetMemoryType(CapsFeature caps_feature) {
+    MemoryType type = MemoryType::ANY;
+    switch (caps_feature) {
+    case CapsFeature::SYSTEM_MEMORY_CAPS_FEATURE:
+        type = MemoryType::SYSTEM;
+        break;
+    case CapsFeature::DMA_BUF_CAPS_FEATURE:
+#if defined(USE_VPUSMM)
+        type = MemoryType::SYSTEM;
+#else
+        type = MemoryType::DMA_BUFFER;
+#endif
+        break;
+    case CapsFeature::VA_SURFACE_CAPS_FEATURE:
+        type = MemoryType::VAAPI;
+        break;
+    }
+    return type;
+}
+
+MemoryType GetMemoryType(MemoryType input_image_memory_type, ImagePreprocessorType image_preprocessor_type) {
+    MemoryType type = MemoryType::ANY;
+    switch (input_image_memory_type) {
+    case MemoryType::SYSTEM: {
+        switch (image_preprocessor_type) {
+        case ImagePreprocessorType::OPENCV:
+        case ImagePreprocessorType::IE:
+            type = MemoryType::SYSTEM;
+            break;
+        default:
+            throw std::invalid_argument("For system memory only supports ie, opencv image preprocessors");
+        }
+        break;
+    }
+    case MemoryType::VAAPI:
+    case MemoryType::DMA_BUFFER: {
+        switch (image_preprocessor_type) {
+        case ImagePreprocessorType::OPENCV:
+        case ImagePreprocessorType::IE:
+            type = MemoryType::SYSTEM;
+            break;
+        case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
+        case ImagePreprocessorType::VAAPI_SYSTEM:
+            type = input_image_memory_type;
+            break;
+        default:
+            throw std::invalid_argument("Invalid image preprocessor type");
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return type;
+}
+
 } // namespace
 
 InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_inference,
@@ -257,7 +376,7 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
     }
     UpdateConfigWithLayerInfo(model.input_processor_info, model.output_processor_info, ie_config);
     auto image_inference =
-        ImageInference::make_shared(MemoryType::ANY, model_file, ie_config, allocator.get(),
+        ImageInference::make_shared(memory_type, model_file, ie_config, allocator.get(),
                                     std::bind(&InferenceImpl::InferenceCompletionCallback, this, _1, _2),
                                     std::bind(&InferenceImpl::PushFramesIfInferenceFailed, this, _1));
     if (not image_inference)
@@ -268,7 +387,7 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
     return model;
 }
 
-InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) : frame_num(0) {
+InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) {
     assert(gva_base_inference != nullptr);
 
     feature_toggler = std::unique_ptr<FeatureToggling::Runtime::RuntimeFeatureToggler>(
@@ -286,12 +405,16 @@ InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) : frame_num(0
     }
 
     allocator = CreateAllocator(gva_base_inference->allocator_name);
+    memory_type = GetMemoryType(GetMemoryType(gva_base_inference->caps_feature),
+                                GetImagePreprocessorType(gva_base_inference->pre_proc_name));
 
     for (size_t i = 0; i < model_files.size(); i++) {
         std::string model_proc = i < model_procs.size() ? model_procs[i] : std::string();
         Model model = CreateModel(gva_base_inference, allocator, model_files[i], model_proc);
         this->models.push_back(std::move(model));
     }
+    // for VPUX devices
+    vpu_device_id = gva_base_inference->vpu_device_id;
 }
 
 void InferenceImpl::FlushInference() {
@@ -316,7 +439,6 @@ void InferenceImpl::PushOutput() {
     ITT_TASK(__FUNCTION__);
     while (!output_frames.empty()) {
         auto &front = output_frames.front();
-        assert(front.inference_count >= 0);
         if (front.inference_count != 0) {
             break; // inference not completed yet
         }
@@ -370,24 +492,13 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
                                           const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstVideoInfo *info,
                                           GstBuffer *buffer) {
     ITT_TASK(__FUNCTION__);
-    InferenceBackend::MemoryType mem_type = InferenceBackend::MemoryType::SYSTEM;
     try {
-        if (std::string(gva_base_inference->pre_proc_name) == "vaapi") {
-#ifdef HAVE_VAAPI
-            mem_type = MemoryType::VAAPI;
-#elif defined(SUPPORT_DMA_BUFFER)
-            GstMemory *mem = gst_buffer_get_memory(buffer, 0);
-            if (not mem)
-                throw std::runtime_error("Failed to get GstBuffer memory");
-            mem_type = gst_is_fd_memory(mem) ? MemoryType::DMA_BUFFER : MemoryType::SYSTEM;
-            gst_memory_unref(mem);
-#endif
-        }
-        std::shared_ptr<InferenceBackend::Image> image = CreateImage(buffer, info, mem_type, GST_MAP_READ);
+        std::shared_ptr<InferenceBackend::Image> image =
+            CreateImage(buffer, info, memory_type, GST_MAP_READ, vpu_device_id);
 
         for (InferenceImpl::Model &model : models) {
             for (const auto meta : metas) {
-                ApplyImageBoundaries(image, meta);
+                ApplyImageBoundaries(image, meta, gva_base_inference->is_full_frame);
                 auto result = MakeInferenceResult(gva_base_inference, model, meta, image, buffer);
                 std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> input_preprocessors;
                 if (not model.input_processor_info.empty() and gva_base_inference->input_prerocessors_factory)
@@ -451,7 +562,8 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             gpointer state = NULL;
             while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
                 if (!gva_base_inference->is_roi_classification_needed ||
-                    gva_base_inference->is_roi_classification_needed(gva_base_inference, frame_num, buffer, meta)) {
+                    gva_base_inference->is_roi_classification_needed(gva_base_inference, gva_base_inference->frame_num,
+                                                                     buffer, meta)) {
                     metas.push_back(meta);
                 }
             }
@@ -459,8 +571,12 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     }
 
     // count number ROIs to run inference on
-    int inference_count = (status == INFERENCE_EXECUTED) ? metas.size() * models.size() : 0;
-    frame_num++;
+    size_t inference_count = (status == INFERENCE_EXECUTED) ? metas.size() * models.size() : 0;
+    gva_base_inference->frame_num++;
+    if (gva_base_inference->frame_num == G_MAXUINT64) {
+        GST_WARNING_OBJECT(gva_base_inference,
+                           "The frame counter value limit has been reached. This value will be reset.");
+    }
 
     // push into output_frames queue
     {
@@ -565,8 +681,14 @@ void InferenceImpl::InferenceCompletionCallback(
         inference_frames.push_back(inference_roi);
     }
 
-    if (post_proc != nullptr) {
-        post_proc->process(blobs, inference_frames);
+    try {
+        if (post_proc != nullptr) {
+            PostProcessorExitStatus pp_e_s = post_proc->process(blobs, inference_frames);
+            if (pp_e_s == PostProcessorExitStatus::FAIL)
+                throw std::runtime_error("Post-processing has been exited with FAIL code.");
+        }
+    } catch (const std::exception &e) {
+        GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
     }
 
     PushOutput();

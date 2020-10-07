@@ -7,8 +7,7 @@
             "labels": [
                 "background",
                 "face"
-            ],
-            "layer_name": "detection_out"
+            ]
         }
     ]
 }

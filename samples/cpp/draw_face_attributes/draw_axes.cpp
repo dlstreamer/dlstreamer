@@ -3,7 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  * Reused 2 functions from interactive_face_detection_demo
- * See https://github.com/opencv/open_model_zoo/blob/2018/demos/interactive_face_detection_demo
+ * See https://github.com/openvinotoolkit/open_model_zoo/blob/2018/demos/interactive_face_detection_demo
  * Changed argument list for HeadPoseDetection::drawAxes
  * Added return value for HeadPoseDetection::buildCameraMatrix
  * Adapted code style to match with Video Analytics GStreamer* plugins project

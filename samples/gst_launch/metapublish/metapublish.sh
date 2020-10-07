@@ -25,7 +25,7 @@ OUTPUT_PROPERTY=""
 if [[ "$METHOD" == "file" ]]; then
     FILE_FORMAT="json" # Use json for persistent files, json-lines for FIFO files
     if [ "${OUTPUT}" != "" ]; then # default output file is stdout - print to console
-        OUTPUT_PROPERTY="file-path=${OUTPUT} file-format='$FILE_FORMAT'"
+        OUTPUT_PROPERTY="file-path=${OUTPUT} file-format=$FILE_FORMAT"
     fi
 else
     if [ "${OUTPUT}" == "" ]; then

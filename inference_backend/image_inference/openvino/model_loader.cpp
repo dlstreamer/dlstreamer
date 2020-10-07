@@ -9,6 +9,14 @@
 #include "inference_backend/logger.h"
 #include "utils.h"
 
+#include <ie_compound_blob.h>
+#include <inference_engine.hpp>
+
+#ifdef ENABLE_VAAPI
+#include <cldnn/cldnn_config.hpp>
+#include <gpu/gpu_context_api_va.hpp>
+#endif
+
 #include <fstream>
 
 using namespace InferenceBackend;
@@ -85,12 +93,13 @@ InferenceEngine::CNNNetwork IrModelLoader::load(InferenceEngine::Core &core, con
     try {
         // Load IR network (.xml file)
         InferenceEngine::CNNNetwork network = core.ReadNetwork(model_xml);
-
-        const bool reshape = std::stoi(base_config.at(KEY_RESHAPE));
-        if (reshape) {
-            ReshapeNetwork(network, std::stoul(base_config.at(KEY_BATCH_SIZE)),
-                           std::stoul(base_config.at(KEY_RESHAPE_WIDTH)),
-                           std::stoul(base_config.at(KEY_RESHAPE_HEIGHT)));
+        if (base_config.find(KEY_RESHAPE) != base_config.end()) {
+            const bool reshape = std::stoi(base_config.at(KEY_RESHAPE));
+            if (reshape) {
+                ReshapeNetwork(network, std::stoul(base_config.at(KEY_BATCH_SIZE)),
+                               std::stoul(base_config.at(KEY_RESHAPE_WIDTH)),
+                               std::stoul(base_config.at(KEY_RESHAPE_HEIGHT)));
+            }
         }
         return network;
     } catch (const std::exception &e) {
@@ -107,10 +116,30 @@ InferenceEngine::ExecutableNetwork IrModelLoader::import(InferenceEngine::CNNNet
                                                          InferenceEngine::Core &core,
                                                          const std::map<std::string, std::string> &base_config,
                                                          const std::map<std::string, std::string> &inference_config) {
+
     if (base_config.count(KEY_DEVICE) == 0)
         throw std::runtime_error("Device does not specified");
     const std::string &device = base_config.at(KEY_DEVICE);
-    return core.LoadNetwork(network, device, inference_config);
+    InferenceEngine::ExecutableNetwork executable_network;
+
+#if defined(ENABLE_VAAPI)
+    if (_display and device == "GPU") {
+        InferenceEngine::gpu::VAContext::Ptr context =
+            InferenceEngine::gpu::make_shared_context(core, device, _display);
+        // This is a temporary workround to provide a compound blob instead of a remote one
+        std::map<std::string, std::string> inference_config_ = inference_config;
+        inference_config_[InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] =
+            InferenceEngine::PluginConfigParams::YES;
+        // Surface sharing works only with GPU_THROUGHPUT_STREAMS equal to default value ( = 1)
+        inference_config_.erase("GPU_THROUGHPUT_STREAMS");
+        executable_network = core.LoadNetwork(network, context, inference_config_);
+    } else {
+        executable_network = core.LoadNetwork(network, device, inference_config);
+    }
+#else
+    executable_network = core.LoadNetwork(network, device, inference_config);
+#endif
+    return executable_network;
 }
 
 InferenceEngine::CNNNetwork CompiledModelLoader::load(InferenceEngine::Core &, const std::string &,

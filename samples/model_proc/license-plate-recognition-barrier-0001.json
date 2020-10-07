@@ -12,7 +12,6 @@
   ],
   "output_postproc": [
     {
-      "layer_name": "decode",
       "attribute_name": "license_plate",
       "labels": [
         "0",

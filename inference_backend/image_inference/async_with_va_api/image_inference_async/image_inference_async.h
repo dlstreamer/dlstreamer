@@ -23,18 +23,21 @@ class VaApiImagePool;
 class VaApiImage;
 class VaApiContext;
 
+typedef void *VaApiDisplay;
 class ImageInferenceAsync : public ImageInference {
   public:
-    ImageInferenceAsync(ImageInference::Ptr &&inference, int image_pool_size);
+    ImageInferenceAsync(int image_pool_size, MemoryType input_memory_type);
 
     ~ImageInferenceAsync() override;
 
-    void SubmitImage(const Image &image, IFramePtr user_data,
+    virtual void Init() override;
+
+    void SubmitImage(const Image &image, IFrameBase::Ptr user_data,
                      const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) override;
 
     const std::string &GetModelName() const override;
-
-    void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format) const override;
+    void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
+                                int &memory_type) const override;
 
     bool IsQueueFull() override;
 
@@ -42,17 +45,22 @@ class ImageInferenceAsync : public ImageInference {
 
     void Close() override;
 
+    VaApiDisplay GetVaDisplay() const;
+
+    void SetInference(const ImageInference::Ptr &inference);
+
   private:
-    ImageInference::Ptr inference;
+    // vaapi image processing
     std::unique_ptr<VaApiContext> _va_context;
     std::unique_ptr<VaApiConverter> _va_converter;
-    std::unique_ptr<VaApiImagePool> _va_image_pool;
+    std::shared_ptr<VaApiImagePool> _va_image_pool;
+
+    ImageInference::Ptr _inference;
+
     ThreadPool _thread_pool;
     const size_t _VA_IMAGE_POOL_SIZE;
 
-    // mutex for inference
-
-    void SubmitInference(VaApiImage *va_api_image, IFramePtr user_data,
+    void SubmitInference(VaApiImage *va_api_image, IFrameBase::Ptr user_data,
                          const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors);
 };
 

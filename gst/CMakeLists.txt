@@ -12,6 +12,10 @@ add_subdirectory(elements)
 add_subdirectory(inference_elements)
 add_subdirectory(registrator)
 
+if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
+    add_subdirectory(audio_inference_elements)
+endif()
+
 if (NOT (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" OR ${CMAKE_SYSTEM_PROCESSOR} STREQUAL "arm"))
     add_subdirectory(gvaitttracer)
 endif()

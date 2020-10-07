@@ -27,8 +27,9 @@ InputPreprocessingFunction createImageInfoFunction(const GstStructure *params, c
     size_t width = 0;
     size_t height = 0;
     size_t batch = 0;
-    int format;
-    inference->GetModelImageInputInfo(width, height, batch, format);
+    int format = 0;
+    int memory_type = 0;
+    inference->GetModelImageInputInfo(width, height, batch, format, memory_type);
 
     return [width, height, scale](const InputBlob::Ptr &blob) {
         auto dims = blob->GetDims();

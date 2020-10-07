@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -23,6 +23,7 @@ typedef struct _GstGvaTrack {
     GstBaseTransform base_transform;
     GstVideoInfo *info;
 
+    gchar *device;
     GstGvaTrackingType tracking_type;
 
     ITracker *tracker;

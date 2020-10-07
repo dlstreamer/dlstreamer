@@ -61,7 +61,7 @@ MODEL3_PROC=$(PROC_PATH $MODEL3)
 MODEL4_PROC=$(PROC_PATH $MODEL4)
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! \
-decodebin ! videoconvert ! video/x-raw,format=BGRx ! \
+decodebin ! videoconvert ! video/x-raw,format=I420 ! \
 gvadetect model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
 gvaclassify model=$CLASS_MODEL_PATH model-proc=$MODEL2_PROC device=$DEVICE ! queue ! \
 gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$MODEL3_PROC device=$DEVICE ! queue ! \

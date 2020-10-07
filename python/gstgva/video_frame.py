@@ -179,12 +179,13 @@ class VideoFrame:
         return x >= 0 and y >= 0 and w >= 0 and h >= 0 and x + w <= self.__video_info.width and y + h <= self.__video_info.height
 
     def __clip(self, x, y, w, h):
-        frame_width, frame_height = self.video_info().width, self.video_info().height
+        frame_width, frame_height = self.__video_info.width, self.__video_info.height
 
-        x = 0 if x < 0 else frame_width if x > frame_width else x
-        y = 0 if y < 0 else frame_height if x > frame_height else y
-        w = 0 if w < 0 else frame_width - x if x + w > frame_width else w
-        h = 0 if h < 0 else frame_height - y if y + h > frame_height else h
+        x, y = min(max(x, 0), frame_width), min(max(y, 0), frame_height)
+
+        w, h = max(w, 0), max(h, 0)
+        w = (frame_width - x) if (w + x) > frame_width else w
+        h = (frame_height - y) if (h + y) > frame_height else h
 
         return x, y, w, h
 

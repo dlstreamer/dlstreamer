@@ -23,7 +23,7 @@ LayersInfoMap createLayersInfo(const InferenceImpl::Model &model);
 LayersInfoMap::iterator findFirstMatch(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
                                        LayersInfoMap &layers_info);
 LayersInfoMap::iterator findFirstMatchOrAppend(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
-                                               LayersInfoMap &layers_info);
+                                               LayersInfoMap &layers_info, std::string &layer_name);
 
 ConverterUniquePtr createConverter(const GstStructure *model_proc_info) {
     std::unique_ptr<Converter> converter;
@@ -62,11 +62,22 @@ LayersInfoMap::iterator findFirstMatch(const std::map<std::string, OutputBlob::P
 }
 
 LayersInfoMap::iterator findFirstMatchOrAppend(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
-                                               LayersInfoMap &layers_info) {
-    auto layer_info_it = findFirstMatch(output_blobs, layers_info);
-    if (layer_info_it == layers_info.end()) {
-        std::tie(layer_info_it, std::ignore) = layers_info.emplace(output_blobs.cbegin()->first, LayerInfo());
+                                               LayersInfoMap &layers_info, std::string &layer_name) {
+    if (layers_info.size() == 1 and layers_info.cbegin()->first == "ANY") {
+        GVA_DEBUG("\"layer_name\" has been not specified. Converter will be applied to all output blobs.");
+        layer_name = output_blobs.begin()->first;
+        return layers_info.begin();
     }
+    auto layer_info_it = layers_info.end();
+    if (layers_info.empty()) {
+        std::tie(layer_info_it, std::ignore) = layers_info.emplace(output_blobs.cbegin()->first, LayerInfo());
+    } else {
+        layer_info_it = findFirstMatch(output_blobs, layers_info);
+        if (layer_info_it == layers_info.end()) {
+            throw std::runtime_error("The specified \"layer_name\" has been not found among existing outputs.");
+        }
+    }
+    layer_name = layer_info_it->first;
     return layer_info_it;
 }
 
@@ -100,19 +111,19 @@ DetectionPostProcessor::DetectionPostProcessor(const InferenceImpl *inference_im
     model_name = models.front().name;
 }
 
-void DetectionPostProcessor::process(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
-                                     std::vector<std::shared_ptr<InferenceFrame>> &frames) {
+PostProcessor::ExitStatus DetectionPostProcessor::process(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
+                                                          std::vector<std::shared_ptr<InferenceFrame>> &frames) {
     ITT_TASK(__FUNCTION__);
     try {
         if (output_blobs.empty())
             throw std::invalid_argument("There are no output blobs");
 
-        auto layer_info_it = findFirstMatchOrAppend(output_blobs, layers_info);
+        std::string layer_name = "ANY";
+        auto layer_info_it = findFirstMatchOrAppend(output_blobs, layers_info, layer_name);
 
         auto detection_result =
             GstStructureUniquePtr(gst_structure_copy(layer_info_it->second.model_proc_info.get()), gst_structure_free);
         gst_structure_set_name(detection_result.get(), "detection");
-        std::string layer_name = layer_info_it->first;
         GValueArray *labels_raw = layer_info_it->second.labels.get();
         if (not detection_result.get())
             throw std::runtime_error("Failed to create GstStructure with 'detection' name");
@@ -124,9 +135,15 @@ void DetectionPostProcessor::process(const std::map<std::string, OutputBlob::Ptr
         if (not gva_detect)
             throw std::invalid_argument("gva_base_inference attached to inference frames is nullptr");
 
-        layer_info_it->second.converter->process(output_blobs, frames, detection_result.get(), gva_detect->threshold,
-                                                 labels_raw);
+        bool status = layer_info_it->second.converter->process(output_blobs, frames, detection_result.get(),
+                                                               gva_detect->threshold, labels_raw);
+        if (!status)
+            return PostProcessor::ExitStatus::FAIL;
+
+        return PostProcessor::ExitStatus::SUCCESS;
+
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to extract detection results"));
     }
+    return PostProcessor::ExitStatus::FAIL;
 }

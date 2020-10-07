@@ -4,7 +4,6 @@
     "output_postproc": [
         {
             "converter": "tensor_to_bbox_yolo_v2",
-            "layer_name": "output/YoloRegion",
             "classes": 20,
             "anchors": [
                 1.08,

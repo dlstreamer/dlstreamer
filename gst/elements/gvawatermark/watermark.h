@@ -14,6 +14,7 @@
 extern "C" {
 #endif
 
+void init(GstVideoInfo *info);
 gboolean draw_label(GstGvaWatermark *gvawatermark, GstBuffer *buffer);
 
 #ifdef __cplusplus

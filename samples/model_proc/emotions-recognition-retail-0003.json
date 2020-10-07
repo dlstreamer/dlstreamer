@@ -8,7 +8,6 @@
   ],
   "output_postproc": [
     {
-      "layer_name": "prob_emotion",
       "attribute_name": "emotion",
       "labels": [
         "neutral",

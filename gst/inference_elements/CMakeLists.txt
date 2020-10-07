@@ -53,7 +53,6 @@ PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
-    ${CMAKE_CURRENT_SOURCE_DIR}/common/
     ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
@@ -77,8 +76,9 @@ PRIVATE
     json-schema-validator
 PUBLIC
     runtime_feature_toggling
+    common
 )
 
-if(${HAVE_VAAPI})
+if(${ENABLE_VAAPI})
     target_link_libraries(${TARGET_NAME} PRIVATE va_api_wrapper image_inference_async)
 endif()

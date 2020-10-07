@@ -8,6 +8,7 @@
 
 #include "config.h"
 
+#include "gva_caps.h"
 #include "inference_singleton.h"
 #include "processor_types.h"
 
@@ -43,6 +44,7 @@ typedef struct _GvaBaseInference {
     gchar *model_instance_id;
     guint cpu_streams;
     guint gpu_streams;
+    guint vpu_device_id;
     gchar *ie_config;
     gchar *allocator_name;
     gchar *pre_proc_name;
@@ -50,6 +52,7 @@ typedef struct _GvaBaseInference {
 
     // other fields
     GstVideoInfo *info;
+    CapsFeature caps_feature;
     gboolean is_full_frame;
 
     InferenceImpl *inference;
@@ -60,7 +63,8 @@ typedef struct _GvaBaseInference {
     PostProcessor *post_proc;
 
     gboolean initialized;
-    guint num_skipped_frames;
+    guint64 num_skipped_frames;
+    guint64 frame_num;
 } GvaBaseInference;
 
 typedef struct _GvaBaseInferenceClass {

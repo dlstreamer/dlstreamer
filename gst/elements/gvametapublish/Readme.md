@@ -13,7 +13,7 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
 1. Build libraries either through docker or on host machine
 
     Follow instructions here:
-    https://gitlab.devtools.intel.com/video-analytics/gstreamer-plugins/wikis/Getting-Started-Guide-%5BR2%5D
+    https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide#install-message-brokers-optional
     Docker image built with Dockerfile will include all necessary dependencies for kafka/mqtt.
     If building on host machine these dependencies will be resolved by the install_metapublish_dependencies.sh script
 

@@ -116,10 +116,10 @@ PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, co
     return PyObject_CallFunctionObjArgs(class_type, NULL);
 }
 
-gboolean callPython(GstBuffer *buffer, PyObjectWrapper &py_videoframe_class, PyObjectWrapper &py_caps,
+gboolean callPython(GstBuffer *buffer, PyObjectWrapper &py_frame_class, PyObjectWrapper &py_caps,
                     PyObjectWrapper &py_function) {
     DECL_WRAPPER(py_buffer, pyg_boxed_new(buffer->mini_object.type, buffer, TRUE, TRUE));
-    DECL_WRAPPER(frame, PyObject_CallFunctionObjArgs(py_videoframe_class, (PyObject *)py_buffer, Py_None,
+    DECL_WRAPPER(frame, PyObject_CallFunctionObjArgs(py_frame_class, (PyObject *)py_buffer, Py_None,
                                                      (PyObject *)py_caps, nullptr));
     DECL_WRAPPER(args, Py_BuildValue("(O)", (PyObject *)frame));
 
@@ -131,9 +131,9 @@ gboolean callPython(GstBuffer *buffer, PyObjectWrapper &py_videoframe_class, PyO
     // increase reference counter back, disposal of py_buffer object will decrease it
     gst_buffer_ref(buffer);
     if (((PyObject *)result) == nullptr) {
-        throw std::runtime_error("Could not call py function");
+        throw std::runtime_error("Error in Python function");
     }
-    return PyObject_IsTrue(result);
+    return (PyObject_IsTrue(result) == 1) ? 1 : 0;
 }
 
 } // namespace
@@ -164,14 +164,14 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
     }
     PyObjectWrapper pluginModule(PyImport_Import(WRAPPER(PyUnicode_FromString(module_name.c_str()))));
     if (!(PyObject *)pluginModule) {
-        log_python_error();
+        log_python_error(nullptr, false);
         throw std::runtime_error("Error loading Python module " + std::string(module_path));
     }
     if (class_name) {
         py_class.reset(extractClass(pluginModule, class_name, args_string, kwargs_string), "py_class");
 
         if (!(PyObject *)py_class) {
-            log_python_error();
+            log_python_error(nullptr, false);
             throw std::runtime_error("Error creating Python class " + std::string(class_name));
         }
 
@@ -183,15 +183,36 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
         throw std::runtime_error("Error getting function '" + std::string(function_name) + "' from Python module " +
                                  std::string(module_path));
     }
-
-    // Get gstgva.VideoFrame constructor
-    DECL_WRAPPER(gva_module, PyImport_ImportModule("gstgva"));
-    if (!py_videoframe_class.reset(PyObject_GetAttrString(gva_module, "VideoFrame"), "videoframe_class")) {
-        throw std::runtime_error("Error getting gstgva.VideoFrame");
-    }
 }
 
 void PythonCallback::SetCaps(GstCaps *caps) {
+
+    if (!(PyObject *)py_frame_class) {
+        auto context_initializer = PythonContextInitializer();
+        GstStructure *caps_s = gst_caps_get_structure((const GstCaps *)caps, 0);
+        const gchar *name = gst_structure_get_name(caps_s);
+
+        if (g_strrstr(name, "video")) {
+            // Get gstgva.VideoFrame constructor
+            DECL_WRAPPER(gva_module, PyImport_ImportModule("gstgva"));
+            if (!py_frame_class.reset(PyObject_GetAttrString(gva_module, "VideoFrame"), "videoframe_class")) {
+                throw std::runtime_error("Error getting gstgva.VideoFrame");
+            }
+        }
+#ifdef AUDIO
+        else if (g_strrstr(name, "audio")) {
+            // Get gstgva.audio.AudioFrame constructor
+            DECL_WRAPPER(gva_audio_module, PyImport_ImportModule("gstgva.audio"));
+            if (!py_frame_class.reset(PyObject_GetAttrString(gva_audio_module, "AudioFrame"), "audioframe_class")) {
+                throw std::runtime_error("Error getting gstgva.audio.AudioFrame");
+            }
+        }
+#endif
+        else {
+            throw std::runtime_error("Invalid input caps");
+        }
+    }
+
     // Create Python caps
     if (!(PyObject *)py_caps) {
         if (!py_caps.reset(pyg_boxed_new(caps->mini_object.type, caps, TRUE, TRUE), "py_caps")) {
@@ -204,16 +225,13 @@ PythonCallback::~PythonCallback() {
     // TODO: when try to dealocate causes segfault
     py_class.release();
     py_caps.release();
+    py_function.release();
+    py_frame_class.release();
 }
 
 gboolean PythonCallback::CallPython(GstBuffer *buffer) {
     ITT_TASK(module_name.c_str());
-
-    PyGILState_STATE state = PyGILState_Ensure();
-
-    gboolean result = callPython(buffer, py_videoframe_class, py_caps, py_function);
-
-    PyGILState_Release(state);
-
+    auto context_initializer = PythonContextInitializer();
+    gboolean result = callPython(buffer, py_frame_class, py_caps, py_function);
     return result;
 }

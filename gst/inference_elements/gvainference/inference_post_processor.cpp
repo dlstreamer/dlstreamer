@@ -30,8 +30,9 @@ InferencePostProcessor::InferencePostProcessor(const InferenceImpl *inference_im
     model_name = models.front().name;
 }
 
-void InferencePostProcessor::process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
-                                     std::vector<std::shared_ptr<InferenceFrame>> &frames) {
+PostProcessor::ExitStatus
+InferencePostProcessor::process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
+                                std::vector<std::shared_ptr<InferenceFrame>> &frames) {
     try {
         if (frames.empty())
             throw std::invalid_argument("There are no inference frames");
@@ -42,6 +43,8 @@ void InferencePostProcessor::process(const std::map<std::string, InferenceBacken
             if (not blob)
                 throw std::invalid_argument("Output blob is empty");
             const char *layer_name = blob_iter.first.c_str();
+            std::string struct_name = "layer:" + blob_iter.first;
+            const char *struct_name_s = struct_name.c_str();
 
             for (size_t b = 0; b < frames.size(); b++) {
                 std::shared_ptr<InferenceFrame> frame = frames[b];
@@ -49,9 +52,10 @@ void InferencePostProcessor::process(const std::map<std::string, InferenceBacken
                 GstGVATensorMeta *tensor_meta = GST_GVA_TENSOR_META_ADD(frame->buffer);
                 if (not tensor_meta)
                     throw std::runtime_error("Failed to add GstGVATensorMeta instance");
-                gst_structure_set_name(tensor_meta->data, layer_name);
-                if (not gst_structure_has_name(tensor_meta->data, layer_name))
-                    throw std::invalid_argument("Failed to set '" + std::string(layer_name) + "' as GstStructure name");
+                gst_structure_set_name(tensor_meta->data, struct_name_s);
+                if (not gst_structure_has_name(tensor_meta->data, struct_name_s))
+                    throw std::invalid_argument("Failed to set '" + std::string(struct_name_s) +
+                                                "' as GstStructure name");
 
                 CopyOutputBlobToGstStructure(blob, tensor_meta->data, model_name.c_str(), layer_name, frames.size(), b);
 
@@ -62,7 +66,10 @@ void InferencePostProcessor::process(const std::map<std::string, InferenceBacken
             }
             ++blob_id;
         }
+        return PostProcessor::ExitStatus::SUCCESS;
+
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to extract inference results"));
     }
+    return PostProcessor::ExitStatus::FAIL;
 }

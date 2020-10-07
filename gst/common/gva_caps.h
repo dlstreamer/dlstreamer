@@ -4,21 +4,36 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#pragma once
+
 #include "config.h"
-#include <gst/video/video-info.h>
+
+#include <gst/gstcaps.h>
+
+#define DMABUF_FEATURE_STR "memory:DMABuf"
+#define VASURFACE_FEATURE_STR "memory:VASurface"
 
 #define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA, BGR, NV12, I420 }") "; "
 
-#ifdef SUPPORT_DMA_BUFFER
-#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:DMABuf", "{ NV12, RGBA }") "; "
-#else
-#define DMA_BUFFER_CAPS
-#endif
-
-#ifdef HAVE_VAAPI
-#define VASURFACE_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES("memory:VASurface", "{ NV12 }") "; "
+#ifdef ENABLE_VAAPI
+#define VASURFACE_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES(VASURFACE_FEATURE_STR, "{ NV12 }") "; "
 #else
 #define VASURFACE_CAPS
 #endif
 
+#if (defined USE_VPUSMM || defined ENABLE_VAAPI)
+#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, "{ NV12, RGBA, I420 }") "; "
+#else
+#define DMA_BUFFER_CAPS
+#endif
+
 #define GVA_CAPS SYSTEM_MEM_CAPS DMA_BUFFER_CAPS VASURFACE_CAPS
+typedef enum {
+    SYSTEM_MEMORY_CAPS_FEATURE,
+    VA_SURFACE_CAPS_FEATURE,
+    DMA_BUF_CAPS_FEATURE,
+} CapsFeature;
+
+__BEGIN_DECLS
+CapsFeature get_caps_feature(GstCaps *caps);
+__END_DECLS

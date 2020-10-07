@@ -75,10 +75,10 @@ static void gst_gva_python_class_init(GstGvaPythonClass *klass) {
 
     g_object_class_install_property(gobject_class, PROP_MODULE,
                                     g_param_spec_string("module", "Python module name", "Python module name",
-                                                        DEFAULT_MODULE, G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+                                                        DEFAULT_MODULE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(gobject_class, PROP_CLASS,
                                     g_param_spec_string("class", "(optional) Python class name", "Python class name",
-                                                        DEFAULT_CLASS, G_PARAM_WRITABLE | G_PARAM_STATIC_STRINGS));
+                                                        DEFAULT_CLASS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(
         gobject_class, PROP_ARGUMENT,
         g_param_spec_string("arg",
@@ -162,13 +162,13 @@ void gst_gva_python_set_property(GObject *object, guint property_id, const GValu
         gvapython->function_name = g_value_dup_string(value);
         break;
     case PROP_ARGUMENT:
-        if (update_arguments(g_value_get_string(value), &gvapython->args) == FALSE) {
+        if (!update_arguments(g_value_get_string(value), &gvapython->args)) {
             GST_ELEMENT_ERROR(gvapython, LIBRARY, INIT, ("Error updating arguments"),
                               ("%s is invalid JSON", g_value_get_string(value)));
         }
         break;
     case PROP_KW_ARGUMENT:
-        if (update_keyword_arguments(g_value_get_string(value), &gvapython->kwargs) == FALSE) {
+        if (!update_keyword_arguments(g_value_get_string(value), &gvapython->kwargs)) {
             GST_ELEMENT_ERROR(gvapython, LIBRARY, INIT, ("Error updating arguments"),
                               ("%s is invalid JSON", g_value_get_string(value)));
         }
@@ -181,22 +181,28 @@ void gst_gva_python_set_property(GObject *object, guint property_id, const GValu
 
 static gboolean gst_gva_python_start(GstBaseTransform *trans) {
     GstGvaPython *gvapython = GST_GVA_PYTHON(trans);
+    GST_DEBUG_OBJECT(gvapython, "start");
+    if (gvapython->python_callback) {
+        return TRUE;
+    }
     gchar *argument_string = NULL;
     gchar *keyword_argument_string = NULL;
-    GST_DEBUG_OBJECT(gvapython, "start");
-    if (!gvapython->python_callback) {
-        if (!gvapython->module_name) {
-            GST_ERROR_OBJECT(gvapython, "Parameter 'module' not set");
-            GST_ELEMENT_ERROR(gvapython, LIBRARY, INIT, ("Error creating Python callback"), ("Invalid module"));
-            return FALSE;
-        }
-        argument_string = get_arguments_string(gvapython->args);
-        keyword_argument_string = get_arguments_string(gvapython->kwargs);
-        if ((keyword_argument_string != NULL) && (argument_string != NULL)) {
-            gvapython->python_callback =
-                create_python_callback(gvapython->module_name, gvapython->class_name, gvapython->function_name,
-                                       argument_string, keyword_argument_string);
-        }
+    if (!gvapython->module_name) {
+        GST_ERROR_OBJECT(gvapython, "Parameter 'module' not set");
+        GST_ELEMENT_ERROR(gvapython, LIBRARY, INIT, ("Error creating Python callback"), ("Invalid module"));
+        return FALSE;
+    }
+    if (!gvapython->function_name) {
+        GST_ERROR_OBJECT(gvapython, "Parameter 'function-name' is null");
+        GST_ELEMENT_ERROR(gvapython, LIBRARY, INIT, ("Error creating Python callback."), ("Invalid function name."));
+        return FALSE;
+    }
+    argument_string = get_arguments_string(gvapython->args);
+    keyword_argument_string = get_arguments_string(gvapython->kwargs);
+    if (keyword_argument_string && argument_string) {
+        gvapython->python_callback =
+            create_python_callback(gvapython->module_name, gvapython->class_name, gvapython->function_name,
+                                   argument_string, keyword_argument_string);
     }
 
     if (!gvapython->python_callback) {
@@ -258,7 +264,7 @@ static GstFlowReturn gst_gva_python_transform_ip(GstBaseTransform *trans, GstBuf
     GstGvaPython *gvapython = GST_GVA_PYTHON(trans);
     GST_DEBUG_OBJECT(gvapython, "transform_ip");
 
-    return invoke_python_callback(gvapython->python_callback, buf);
+    return invoke_python_callback(gvapython, buf);
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {

@@ -9,18 +9,12 @@
 
 namespace InferenceBackend {
 
-enum class PreProcessType {
-    Invalid,
-    OpenCV,
-    VAAPI,
-};
-
-class PreProc {
+enum class ImagePreprocessorType { INVALID, OPENCV, IE, VAAPI_SYSTEM, VAAPI_SURFACE_SHARING };
+class ImagePreprocessor {
   public:
-    static PreProc *Create(PreProcessType type);
+    static ImagePreprocessor *Create(ImagePreprocessorType type);
 
-    virtual ~PreProc() {
-    }
+    virtual ~ImagePreprocessor() = default;
 
     virtual void Convert(const Image &src, Image &dst, bool bAllocateDestination = false) = 0;
     virtual void ReleaseImage(const Image &dst) = 0; // to be called if Convert called with bAllocateDestination = true
@@ -29,5 +23,5 @@ class PreProc {
 int GetPlanesCount(int fourcc);
 Image ApplyCrop(const Image &src);
 
-PreProc *CreatePreProcOpenCV();
+ImagePreprocessor *CreatePreProcOpenCV();
 } // namespace InferenceBackend

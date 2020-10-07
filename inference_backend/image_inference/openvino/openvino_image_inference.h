@@ -9,6 +9,7 @@
 #include "inference_backend/image_inference.h"
 #include "inference_backend/logger.h"
 #include "inference_backend/pre_proc.h"
+#include "model_builder.h"
 
 #include <atomic>
 #include <inference_engine.hpp>
@@ -19,24 +20,33 @@
 #include "config.h"
 #include "safe_queue.h"
 
+struct EntityBuilder;
 class OpenVINOImageInference : public InferenceBackend::ImageInference {
   public:
     OpenVINOImageInference(const std::string &model,
                            const std::map<std::string, std::map<std::string, std::string>> &config,
                            InferenceBackend::Allocator *allocator, CallbackFunc callback,
-                           ErrorHandlingFunc error_handler);
+                           ErrorHandlingFunc error_handler, InferenceBackend::MemoryType memory_type);
+
+    OpenVINOImageInference(const std::string &model,
+                           const std::map<std::string, std::map<std::string, std::string>> &config, void *display,
+                           CallbackFunc callback, ErrorHandlingFunc error_handler,
+                           InferenceBackend::MemoryType memory_type);
 
     void CreateInferRequests();
 
     virtual ~OpenVINOImageInference();
 
+    virtual void Init() override;
+
     virtual void
-    SubmitImage(const InferenceBackend::Image &image, IFramePtr user_data,
+    SubmitImage(const InferenceBackend::Image &image, IFrameBase::Ptr user_data,
                 const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) override;
 
     virtual const std::string &GetModelName() const;
 
-    virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format) const;
+    virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
+                                        int &memory_type) const;
 
     virtual bool IsQueueFull();
 
@@ -49,8 +59,9 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
     struct BatchRequest {
         InferenceEngine::InferRequest::Ptr infer_request;
-        std::vector<IFramePtr> buffers;
+        std::vector<IFrameBase::Ptr> buffers;
         std::vector<InferenceBackend::Allocator::AllocContext *> alloc_context;
+        InferenceEngine::RemoteContext::Ptr ie_remote_context;
     };
 
     // InferenceBackend::Image GetNextImageBuffer(std::shared_ptr<BatchRequest> request);
@@ -58,6 +69,8 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     void WorkingFunction(const std::shared_ptr<BatchRequest> &request);
 
     InferenceBackend::Allocator *allocator;
+    void *display;
+    InferenceBackend::MemoryType memory_type;
     CallbackFunc callback;
     ErrorHandlingFunc handleError;
 
@@ -68,12 +81,15 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::string model_name;
     std::string image_layer;
 
-    // Threading
     const int batch_size;
+    int nireq;
     SafeQueue<std::shared_ptr<BatchRequest>> freeRequests;
 
-    std::unique_ptr<InferenceBackend::PreProc> pre_processor;
+    std::unique_ptr<EntityBuilder> builder;
+    InferenceEngine::CNNNetwork network;
+    std::unique_ptr<InferenceBackend::ImagePreprocessor> pre_processor;
 
+    // Threading
     std::mutex mutex_;
     std::atomic<unsigned int> requests_processing_;
     std::condition_variable request_processed_;

@@ -7,8 +7,7 @@
             "labels": [
                 "background",
                 "vehicle"
-            ],
-            "layer_name": "detection_out"
+            ]
         }
     ]
 }

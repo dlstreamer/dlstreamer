@@ -140,7 +140,7 @@ static gboolean gst_gva_watermark_set_caps(GstBaseTransform *trans, GstCaps *inc
     GST_DEBUG_OBJECT(gvawatermark, "set_caps");
 
     gst_video_info_from_caps(&gvawatermark->info, incaps);
-
+    init(&gvawatermark->info);
     return TRUE;
 }
 

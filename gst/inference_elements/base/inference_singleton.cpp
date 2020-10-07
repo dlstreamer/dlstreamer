@@ -79,6 +79,7 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     targetElem->nireq = masterElem->nireq;
     targetElem->cpu_streams = masterElem->cpu_streams;
     targetElem->gpu_streams = masterElem->gpu_streams;
+    targetElem->vpu_device_id = masterElem->vpu_device_id;
     COPY_GSTRING(targetElem->ie_config, masterElem->ie_config);
     COPY_GSTRING(targetElem->allocator_name, masterElem->allocator_name);
     COPY_GSTRING(targetElem->pre_proc_name, masterElem->pre_proc_name);

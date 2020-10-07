@@ -37,8 +37,8 @@ class DetectionPostProcessor : public PostProcessor {
 
   public:
     DetectionPostProcessor(const InferenceImpl *inference_impl);
-    void process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
-                 std::vector<std::shared_ptr<InferenceFrame>> &frames);
+    ExitStatus process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
+                       std::vector<std::shared_ptr<InferenceFrame>> &frames) override;
     ~DetectionPostProcessor() = default;
 };
 

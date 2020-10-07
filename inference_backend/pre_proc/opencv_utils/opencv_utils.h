@@ -17,5 +17,7 @@ void ImageToMat(const Image &src, cv::Mat &dst);
 void NV12ImageToMats(const Image &src, cv::Mat &y, cv::Mat &uv);
 void MatToMultiPlaneImage(const cv::Mat &mat, Image &dst);
 cv::Mat ResizeMat(const cv::Mat &orig_image, const size_t height, const size_t width);
+
 } // namespace Utils
+
 } // namespace InferenceBackend

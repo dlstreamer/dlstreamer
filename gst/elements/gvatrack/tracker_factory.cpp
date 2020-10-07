@@ -6,7 +6,6 @@
 
 #include "tracker_factory.h"
 #include "config.h"
-#include "iou/tracker.h"
 
 #ifdef ENABLE_VAS_TRACKER
 #include "vas/tracker.h"
@@ -18,14 +17,20 @@ bool TrackerFactory::registered_all = TrackerFactory::RegisterAll();
 
 bool TrackerFactory::RegisterAll() {
     bool result = true;
-#ifdef ENABLE_TRACKER_TYPE_IOU
-    result &= TrackerFactory::Register(GstGvaTrackingType::IOU, iou::Tracker::Create);
-#endif
 
-#ifdef ENABLE_VAS_TRACKER
+#if defined(ENABLE_VAS_TRACKER)
+#if defined(DOWNLOAD_VAS_TRACKER)
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM, VasWrapper::Tracker::CreateShortTerm);
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM, VasWrapper::Tracker::CreateZeroTerm);
 #endif
+#if defined(ENABLE_IMAGELESS_TRACKER)
+    result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM_IMAGELESS,
+                                       VasWrapper::Tracker::CreateShortTermImageless);
+    result &=
+        TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS, VasWrapper::Tracker::CreateZeroTermImageless);
+#endif
+#endif
+
     return result;
 }
 
@@ -39,10 +44,10 @@ bool TrackerFactory::Register(const GstGvaTrackingType tracking_type, TrackerCre
     return false;
 }
 
-ITracker *TrackerFactory::Create(const GstGvaTrackingType tracking_type, const GstVideoInfo *video_info) {
-    auto tracker_it = registred_trackers.find(tracking_type);
+ITracker *TrackerFactory::Create(const GstGvaTrack *gva_track) {
+    auto tracker_it = registred_trackers.find(gva_track->tracking_type);
     if (tracker_it != registred_trackers.end())
-        return tracker_it->second(video_info);
+        return tracker_it->second(gva_track);
 
     return nullptr;
 }

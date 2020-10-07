@@ -3,9 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
-
-#ifndef __BASE_INFERENCE_H__
-#define __BASE_INFERENCE_H__
+#pragma once
 
 #include "classification_history.h"
 #include "common/input_model_preproc.h"
@@ -41,7 +39,11 @@ class InferenceImpl {
     ~InferenceImpl();
 
   private:
+    InferenceBackend::MemoryType memory_type;
     struct InferenceResult : public InferenceBackend::ImageInference::IFrameBase {
+        void SetImage(const std::shared_ptr<InferenceBackend::Image> &image_) override {
+            image = image_;
+        }
         std::shared_ptr<InferenceFrame> inference_frame;
         Model *model;
         std::shared_ptr<InferenceBackend::Image> image;
@@ -55,15 +57,17 @@ class InferenceImpl {
     };
 
     mutable std::mutex _mutex;
-    int frame_num;
     std::vector<Model> models;
     std::shared_ptr<InferenceBackend::Allocator> allocator;
     std::unique_ptr<FeatureToggling::Base::IFeatureToggler> feature_toggler;
 
+    // for VPUX devices
+    unsigned int vpu_device_id;
+
     struct OutputFrame {
         GstBuffer *buffer;
         GstBuffer *writable_buffer;
-        int inference_count;
+        uint64_t inference_count;
         GvaBaseInference *filter;
         std::vector<std::shared_ptr<InferenceFrame>> inference_rois;
     };
@@ -87,5 +91,3 @@ class InferenceImpl {
                                                          std::shared_ptr<InferenceBackend::Image> &image,
                                                          GstBuffer *buffer);
 };
-
-#endif /* __BASE_INFERENCE_H__ */

@@ -23,7 +23,6 @@
   ],
   "output_postproc": [
     {
-      "layer_name": "658",
       "attribute_name": "face_id",
       "format": "cosine_distance"
     }

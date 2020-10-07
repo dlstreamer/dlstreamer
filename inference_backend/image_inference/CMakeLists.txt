@@ -10,7 +10,7 @@ set (TARGET_NAME "image_inference")
 
 add_subdirectory(openvino)
 
-if(${HAVE_VAAPI})
+if(${ENABLE_VAAPI})
         add_subdirectory(async_with_va_api)
 endif()
 
