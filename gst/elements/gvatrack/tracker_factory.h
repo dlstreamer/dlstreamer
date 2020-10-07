@@ -1,11 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
+#include "gstgvatrack.h"
 #include "itracker.h"
 #include "tracker_types.h"
 
@@ -16,10 +17,10 @@
 
 class TrackerFactory {
   public:
-    using TrackerCreator = std::function<ITracker *(const GstVideoInfo *video_info)>;
+    using TrackerCreator = std::function<ITracker *(const GstGvaTrack *gva_track)>;
     TrackerFactory() = delete;
     static bool Register(const GstGvaTrackingType, TrackerCreator);
-    static ITracker *Create(const GstGvaTrackingType tracking_type, const GstVideoInfo *video_info);
+    static ITracker *Create(const GstGvaTrack *gva_track);
 
   private:
     static bool RegisterAll();

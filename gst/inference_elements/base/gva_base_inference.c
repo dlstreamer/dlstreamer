@@ -6,13 +6,14 @@
 
 #include "gva_base_inference.h"
 #include "common/pre_processors.h"
+#include "config.h"
 
 #define DEFAULT_MODEL NULL
 #define DEFAULT_MODEL_INSTANCE_ID NULL
 #define DEFAULT_MODEL_PROC NULL
 #define DEFAULT_DEVICE "CPU"
 #define DEFAULT_DEVICE_EXTENSIONS ""
-#define DEFAULT_PRE_PROC "ie"
+#define DEFAULT_PRE_PROC ""
 
 #define DEFAULT_MIN_THRESHOLD 0.
 #define DEFAULT_MAX_THRESHOLD 1.
@@ -21,6 +22,7 @@
 #define DEFAULT_MIN_INFERENCE_INTERVAL 1
 #define DEFAULT_MAX_INFERENCE_INTERVAL UINT_MAX
 #define DEFAULT_INFERENCE_INTERVAL 1
+#define DEFAULT_FIRST_FRAME_NUM 0
 
 #define DEFAULT_RESHAPE FALSE
 
@@ -49,6 +51,8 @@
 #define DEFAULT_GPU_THROUGHPUT_STREAMS 0
 #define DEFAULT_MIN_GPU_THROUGHPUT_STREAMS 0
 #define DEFAULT_MAX_GPU_THROUGHPUT_STREAMS UINT_MAX
+
+#define DEFAULT_VPU_DEVICE_ID 0
 
 #define DEFAULT_ALLOCATOR_NAME NULL
 
@@ -85,6 +89,7 @@ static gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *in
 static gboolean gva_base_inference_start(GstBaseTransform *trans);
 static gboolean gva_base_inference_stop(GstBaseTransform *trans);
 static gboolean gva_base_inference_sink_event(GstBaseTransform *trans, GstEvent *event);
+static gboolean gva_base_inference_propose_allocation(GstBaseTransform *trans, GstQuery *decide_query, GstQuery *query);
 
 static GstFlowReturn gva_base_inference_transform_ip(GstBaseTransform *trans, GstBuffer *buf);
 static void gva_base_inference_cleanup(GvaBaseInference *base_inference);
@@ -108,6 +113,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     base_transform_class->stop = GST_DEBUG_FUNCPTR(gva_base_inference_stop);
     base_transform_class->sink_event = GST_DEBUG_FUNCPTR(gva_base_inference_sink_event);
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gva_base_inference_transform_ip);
+    base_transform_class->propose_allocation = GST_DEBUG_FUNCPTR(gva_base_inference_propose_allocation);
     element_class->change_state = GST_DEBUG_FUNCPTR(gva_base_inference_change_state);
 
     g_object_class_install_property(gobject_class, PROP_MODEL,
@@ -124,10 +130,11 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_PROC_BACKEND,
-        g_param_spec_string(
-            "pre-process-backend", "Pre-processing method",
-            "Select a pre-processing method (color conversion and resize), one of 'ie', 'opencv', 'vaapi'",
-            DEFAULT_PRE_PROC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+        g_param_spec_string("pre-process-backend", "Pre-processing method",
+                            "Select a pre-processing method (color conversion, resize and crop), "
+                            "one of 'ie', 'opencv', 'vaapi', 'vaapi-surface-sharing'. If not set, it will be selected "
+                            "automatically: 'vaapi' for VASurface and DMABuf, 'ie' for SYSTEM memory.",
+                            DEFAULT_PRE_PROC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_MODEL_PROC,
@@ -274,10 +281,11 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     base_inference->initialized = FALSE;
 
     base_inference->num_skipped_frames = UINT_MAX - 1; // always run inference on first frame
+    base_inference->frame_num = DEFAULT_FIRST_FRAME_NUM;
 }
 
 void gva_base_inference_init(GvaBaseInference *base_inference) {
-    GST_DEBUG_OBJECT(base_inference, "gva_base_inference_reset");
+    GST_DEBUG_OBJECT(base_inference, "gva_base_inference_init");
 
     if (base_inference == NULL)
         return;
@@ -299,6 +307,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     // TODO: make one property for streams
     base_inference->cpu_streams = DEFAULT_CPU_THROUGHPUT_STREAMS;
     base_inference->gpu_streams = DEFAULT_GPU_THROUGHPUT_STREAMS;
+    base_inference->vpu_device_id = DEFAULT_VPU_DEVICE_ID;
     base_inference->ie_config = g_strdup("");
     base_inference->allocator_name = g_strdup(DEFAULT_ALLOCATOR_NAME);
     base_inference->device_extensions = g_strdup(DEFAULT_DEVICE_EXTENSIONS);
@@ -311,6 +320,8 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->pre_proc = NULL;
     base_inference->input_prerocessors_factory = GET_INPUT_PREPROCESSORS;
     base_inference->post_proc = NULL;
+
+    base_inference->frame_num = DEFAULT_FIRST_FRAME_NUM;
 }
 
 GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstStateChange transition) {
@@ -331,6 +342,16 @@ gboolean check_gva_base_inference_stopped(GvaBaseInference *base_inference) {
     is_stopped = state == GST_STATE_READY || state == GST_STATE_NULL;
     GST_OBJECT_UNLOCK(base_inference);
     return is_stopped;
+}
+
+gboolean gva_base_inference_propose_allocation(GstBaseTransform *trans, GstQuery *decide_query, GstQuery *query) {
+    UNUSED(decide_query);
+    UNUSED(trans);
+    if (query) {
+        gst_query_add_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 void gva_base_inference_set_model(GvaBaseInference *base_inference, const gchar *model_path) {
@@ -518,6 +539,25 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
         base_inference->info = gst_video_info_new();
     }
     gst_video_info_from_caps(base_inference->info, incaps);
+
+    base_inference->caps_feature = get_caps_feature(incaps);
+    if (g_strcmp0(base_inference->pre_proc_name, "") == 0) {
+        switch (base_inference->caps_feature) {
+        case SYSTEM_MEMORY_CAPS_FEATURE:
+            base_inference->pre_proc_name = g_strdup("ie");
+            break;
+        case VA_SURFACE_CAPS_FEATURE:
+            base_inference->pre_proc_name = g_strdup("vaapi");
+            break;
+        case DMA_BUF_CAPS_FEATURE:
+#if defined(USE_VPUSMM)
+            base_inference->pre_proc_name = g_strdup("ie");
+#else
+            base_inference->pre_proc_name = g_strdup("vaapi");
+#endif
+            break;
+        }
+    }
 
     if (base_inference->inference == NULL) {
         base_inference->inference = acquire_inference_instance(base_inference);

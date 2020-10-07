@@ -13,10 +13,9 @@
 
 class PythonCallback {
     PyObjectWrapper py_function;
-    PyObjectWrapper py_videoframe_class;
+    PyObjectWrapper py_frame_class;
     PyObjectWrapper py_caps;
     PyObjectWrapper py_class;
-    PyObjectWrapper py_json_load_s;
     std::string module_name;
 
   public:

@@ -14,6 +14,7 @@ struct BufferMapContext {
 };
 
 void gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext, GstVideoInfo *info,
-                    InferenceBackend::MemoryType memoryType, GstMapFlags mapFlags);
+                    InferenceBackend::MemoryType memoryType, GstMapFlags mapFlags, unsigned int vpu_device_id = 0);
 
-void gva_buffer_unmap(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext);
+void gva_buffer_unmap(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &mapContext,
+                      unsigned int vpu_device_id = 0);

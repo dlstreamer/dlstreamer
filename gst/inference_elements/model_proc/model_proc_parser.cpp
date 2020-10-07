@@ -8,6 +8,8 @@
 #include "inference_backend/logger.h"
 #include "json_reader.h"
 
+#include <cstring>
+
 std::map<std::string, GstStructure *> ModelProcParser::parseOutputPostproc(const nlohmann::json &output_postproc) {
     std::map<std::string, GstStructure *> postproc_desc;
     std::string layer_name;
@@ -28,7 +30,8 @@ std::map<std::string, GstStructure *> ModelProcParser::parseOutputPostproc(const
 }
 
 std::tuple<std::string, GstStructure *> ModelProcParser::parseProcessingItem(const nlohmann::basic_json<> &proc_item) {
-    std::string layer_name = "UNKNOWN";
+    const std::string def_layer_name = "ANY";
+    std::string layer_name(def_layer_name);
     GstStructure *s = gst_structure_new_empty(layer_name.data());
     assert(s != nullptr);
 
@@ -46,6 +49,10 @@ std::tuple<std::string, GstStructure *> ModelProcParser::parseProcessingItem(con
         GValue gvalue = JsonReader::convertToGValue(value);
         gst_structure_set_value(s, key.data(), &gvalue);
         g_value_unset(&gvalue);
+    }
+    if (layer_name == def_layer_name) {
+        const std::string msg = "\"layer_name\" field has not been set. Its value will be defined as " + def_layer_name;
+        GVA_WARNING(msg.c_str());
     }
 
     return std::make_tuple(layer_name, s);

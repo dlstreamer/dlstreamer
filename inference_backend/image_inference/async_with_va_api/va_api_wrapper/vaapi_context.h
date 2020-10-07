@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 
 #include "inference_backend/image.h"
 
+#include <functional>
 #include <stdexcept>
 
 #include <va/va.h>
@@ -18,18 +19,19 @@ namespace InferenceBackend {
 
 class VaApiContext {
   private:
-    MemoryType _memory_type;
     VADisplay _va_display = nullptr;
     VAConfigID _va_config = VA_INVALID_ID;
     VAContextID _va_context_id = VA_INVALID_ID;
     int _dri_file_descriptor = 0;
     bool _own_va_display = false;
+    std::function<void(const char *)> message_callback;
 
   public:
-    explicit VaApiContext(MemoryType memory_type, VADisplay va_display = nullptr);
+    explicit VaApiContext(VADisplay va_display);
+    VaApiContext();
+
     ~VaApiContext();
 
-    MemoryType GetMemoryType();
     VADisplay Display();
     VAContextID Id();
 };

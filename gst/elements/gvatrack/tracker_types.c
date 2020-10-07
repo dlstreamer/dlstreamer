@@ -8,18 +8,16 @@
 
 GType gst_gva_get_tracking_type(void) {
     static GType gva_tracking_type = 0;
-#ifdef ENABLE_TRACKER_TYPE_IOU
-
-    static const GEnumValue tracking_types[] = {{IOU, "IOU Intersection Over Union tracker", "iou"},
-                                                {SHORT_TERM, "Short-term tracker", "short-term"},
-                                                {ZERO_TERM, "Zero-term tracker", "zero-term"},
-                                                {0, NULL, NULL}};
-#else
-
-    static const GEnumValue tracking_types[] = {{SHORT_TERM, "Short-term tracker", "short-term"},
-                                                {ZERO_TERM, "Zero-term tracker", "zero-term"},
-                                                {0, NULL, NULL}};
+    static const GEnumValue tracking_types[] = {
+#ifdef DOWNLOAD_VAS_TRACKER
+        {SHORT_TERM, "Short-term tracker", "short-term"},
+        {ZERO_TERM, "Zero-term tracker", "zero-term"},
 #endif
+#ifdef ENABLE_IMAGELESS_TRACKER
+        {SHORT_TERM_IMAGELESS, "Short-term imageless tracker", "short-term-imageless"},
+        {ZERO_TERM_IMAGELESS, "Zero-term imageless tracker", "zero-term-imageless"},
+#endif
+        {0, NULL, NULL}};
 
     if (!gva_tracking_type)
         gva_tracking_type = g_enum_register_static("GstGvaTrackingType", tracking_types);

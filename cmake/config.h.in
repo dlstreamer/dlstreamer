@@ -7,11 +7,11 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
-#cmakedefine SUPPORT_DMA_BUFFER
-#cmakedefine HAVE_VAAPI
+#cmakedefine ENABLE_VAAPI
 #cmakedefine USE_VPUSMM
 #cmakedefine ENABLE_ITT
 #cmakedefine ENABLE_VAS_TRACKER
-#cmakedefine ENABLE_TRACKER_TYPE_IOU
+#cmakedefine DOWNLOAD_VAS_TRACKER
+#cmakedefine ENABLE_IMAGELESS_TRACKER
 
 #endif

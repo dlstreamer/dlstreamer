@@ -68,7 +68,7 @@ bool YOLOV2Converter::process(const std::map<std::string, InferenceBackend::Outp
 
                     using Index = YOLOV2Converter::OutputLayerShapeConfig::Index;
 
-                    const float bbox_confidence = blob_data[getIndex(Index::CONFIDENCE, common_offset)];
+                    float bbox_confidence = blob_data[getIndex(Index::CONFIDENCE, common_offset)];
                     if (bbox_confidence <= confidence_threshold)
                         continue;
 
@@ -95,6 +95,9 @@ bool YOLOV2Converter::process(const std::map<std::string, InferenceBackend::Outp
                             bbox_class.second = bbox_class_prob;
                         }
                     }
+                    bbox_confidence *= bbox_class.second;
+                    if (bbox_confidence <= confidence_threshold)
+                        continue;
 
                     DetectedObject object(bbox_x, bbox_y, bbox_w, bbox_h, bbox_class.first, bbox_confidence);
                     objects.push_back(object);

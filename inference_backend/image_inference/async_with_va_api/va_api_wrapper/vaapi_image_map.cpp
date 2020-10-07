@@ -9,22 +9,31 @@
 
 #include "inference_backend/logger.h"
 
-namespace InferenceBackend {
+using namespace InferenceBackend;
 
-ImageMap *ImageMap::Create() {
-    return new VaApiImageMap();
+ImageMap *ImageMap::Create(MemoryType type) {
+    ImageMap *map = nullptr;
+    switch (type) {
+    case MemoryType::SYSTEM:
+        map = new VaApiImageMap_SytemMemory();
+        break;
+    case MemoryType::VAAPI:
+        map = new VaApiImageMap_VASurafce();
+        break;
+    default:
+        throw std::invalid_argument("Unsupported format for ImageMap");
+    }
+    return map;
 }
 
-VaApiImageMap::VaApiImageMap() : va_display(nullptr), va_image(VAImage()) {
+VaApiImageMap_SytemMemory::VaApiImageMap_SytemMemory() : va_display(nullptr), va_image(VAImage()) {
 }
 
-VaApiImageMap::~VaApiImageMap() {
+VaApiImageMap_SytemMemory::~VaApiImageMap_SytemMemory() {
     Unmap();
 }
 
-Image VaApiImageMap::Map(const Image &image) {
-    if (image.type != MemoryType::VAAPI)
-        throw std::runtime_error("VAAPIImageMap supports only MemoryType::VAAPI");
+Image VaApiImageMap_SytemMemory::Map(const Image &image) {
 
     va_display = image.va_display;
 
@@ -46,7 +55,7 @@ Image VaApiImageMap::Map(const Image &image) {
     return image_sys;
 }
 
-void VaApiImageMap::Unmap() {
+void VaApiImageMap_SytemMemory::Unmap() {
     if (va_display) {
         try {
             VA_CALL(vaUnmapBuffer(va_display, va_image.buf))
@@ -58,4 +67,17 @@ void VaApiImageMap::Unmap() {
         }
     }
 }
-} // namespace InferenceBackend
+
+VaApiImageMap_VASurafce::VaApiImageMap_VASurafce() {
+}
+
+VaApiImageMap_VASurafce::~VaApiImageMap_VASurafce() {
+    Unmap();
+}
+
+Image VaApiImageMap_VASurafce::Map(const Image &image) {
+    return image;
+}
+
+void VaApiImageMap_VASurafce::Unmap() {
+}

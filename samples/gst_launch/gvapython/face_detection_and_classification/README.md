@@ -1,6 +1,6 @@
 # gvapython Sample
 
-This sample demonstrates [gvapython](https://github.com/opencv/gst-video-analytics/wiki/gvapython) element and ability to customize pipeline with application provided Python script for pre- or post-processing of inference operations. It typically used for interpretation of inference results and various application logic, especially if required in the middle of GStreamer pipeline.
+This sample demonstrates [gvapython](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvapython) element and ability to customize pipeline with application provided Python script for pre- or post-processing of inference operations. It typically used for interpretation of inference results and various application logic, especially if required in the middle of GStreamer pipeline.
 
 ## How It Works
  In this sample the `gvapython` element inserted into pipeline twice.
@@ -11,7 +11,7 @@ This sample demonstrates [gvapython](https://github.com/opencv/gst-video-analyti
 
 ## Models
 
-The sample uses by default the following pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/opencv/open_model_zoo)
+The sample uses by default the following pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 *   __face-detection-adas-0001__ is primary detection network for finding faces
 *   __age-gender-recognition-retail-0013__ age and gender estimation on detected faces
 

@@ -111,7 +111,9 @@ def bus_call(bus, message, pipeline):
         pipeline.set_state(Gst.State.NULL)
         sys.exit()
     elif t == Gst.MessageType.ERROR:
-        print("error {}".format(message))
+        err, debug = message.parse_error()
+        print("Error:\n{}\nAdditional debug info:\n{}\n".format(err, debug))
+        pipeline.set_state(Gst.State.NULL)
         sys.exit()
     else:
         pass

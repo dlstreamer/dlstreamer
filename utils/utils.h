@@ -12,7 +12,7 @@
 
 namespace Utils {
 
-std::string createNestedErrorMsg(const std::exception &e, int level = 0);
+std::string createNestedErrorMsg(const std::exception &e, int level = 0, std::string &&msg = "");
 std::vector<std::string> splitString(const std::string &input, char delimiter = ',');
 bool fileExists(const std::string &path);
 

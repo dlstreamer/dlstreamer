@@ -39,10 +39,16 @@ class ClassificationPostProcessor : public PostProcessor {
     std::string model_name;
     ClassificationLayersInfoMap layers_info;
 
+    void fillLayersInfoIfEmpty(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs);
+    PostProcessor::ExitStatus pushClassificationResultToFrames(InferenceBackend::OutputBlob::Ptr &blob,
+                                                               ClassificationLayerInfo &layer_info,
+                                                               const std::string &layer_name,
+                                                               std::vector<std::shared_ptr<InferenceFrame>> &frames);
+
   public:
     ClassificationPostProcessor(const InferenceImpl *inference_impl);
-    void process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
-                 std::vector<std::shared_ptr<InferenceFrame>> &frames);
+    ExitStatus process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
+                       std::vector<std::shared_ptr<InferenceFrame>> &frames) override;
 };
 
 } // namespace ClassificationPlugin

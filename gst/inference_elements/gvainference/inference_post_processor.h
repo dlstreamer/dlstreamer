@@ -17,8 +17,8 @@ class InferencePostProcessor : public PostProcessor {
 
   public:
     InferencePostProcessor(const InferenceImpl *inference_impl);
-    void process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
-                 std::vector<std::shared_ptr<InferenceFrame>> &frames);
+    ExitStatus process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
+                       std::vector<std::shared_ptr<InferenceFrame>> &frames) override;
 };
 
 } // namespace InferencePlugin

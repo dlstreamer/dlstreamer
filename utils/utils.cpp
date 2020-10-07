@@ -11,13 +11,12 @@
 
 namespace Utils {
 
-std::string createNestedErrorMsg(const std::exception &e, int level) {
-    static std::string msg = "\n";
-    msg += std::string(level, ' ') + e.what() + "\n";
+std::string createNestedErrorMsg(const std::exception &e, int level, std::string &&msg) {
+    msg += std::string(level, '\t') + e.what() + "\n";
     try {
         std::rethrow_if_nested(e);
     } catch (const std::exception &e) {
-        createNestedErrorMsg(e, level + 1);
+        msg = createNestedErrorMsg(e, ++level, std::move(msg));
     }
     return msg;
 }

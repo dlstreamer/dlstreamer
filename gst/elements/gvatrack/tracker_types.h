@@ -10,11 +10,16 @@
 #include <gst/gst.h>
 G_BEGIN_DECLS
 
-#ifdef ENABLE_TRACKER_TYPE_IOU
-typedef enum { IOU, SHORT_TERM, ZERO_TERM } GstGvaTrackingType;
-#else
-typedef enum { SHORT_TERM, ZERO_TERM } GstGvaTrackingType;
+typedef enum {
+#ifdef DOWNLOAD_VAS_TRACKER
+    SHORT_TERM,
+    ZERO_TERM,
 #endif
+#ifdef ENABLE_IMAGELESS_TRACKER
+    SHORT_TERM_IMAGELESS,
+    ZERO_TERM_IMAGELESS
+#endif
+} GstGvaTrackingType;
 
 #define GST_GVA_TRACKING_TYPE (gst_gva_get_tracking_type())
 GType gst_gva_get_tracking_type(void);

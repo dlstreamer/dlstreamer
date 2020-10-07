@@ -3,7 +3,6 @@
   "input_preproc": [],
   "output_postproc": [
     {
-      "layer_name": "detection_out",
       "labels": [
         "",
         "person",

@@ -104,7 +104,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     rm -rf /var/lib/apt/lists/* && \
     pip3 install --no-cache-dir meson ninja
 
-ARG PACKAGE_ORIGIN="Intel (R) GStreamer Distribution"
+ARG PACKAGE_ORIGIN="https://gstreamer.freedesktop.org"
 
 ARG PREFIX=/usr
 ARG LIBDIR=/usr/lib/x86_64-linux-gnu
@@ -492,35 +492,36 @@ ENV GI_TYPELIB_PATH=${LIBDIR}/girepository-1.0
 ENV PYTHONPATH=${PREFIX}/lib/python3.6/site-packages:${PYTHONPATH}
 
 ARG ENABLE_PAHO_INSTALLATION=false
-ARG PAHO_VER=1.3.0
+ARG PAHO_VER=1.3.4
 ARG PAHO_REPO=https://github.com/eclipse/paho.mqtt.c/archive/v${PAHO_VER}.tar.gz
 RUN if [ "$ENABLE_PAHO_INSTALLATION" = "true" ] ; then \
     wget -O - ${PAHO_REPO} | tar -xz && \
     cd paho.mqtt.c-${PAHO_VER} && \
     make && \
     make install && \
-    cp build/output/libpaho-mqtt3c.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/ && \
-    cp build/output/libpaho-mqtt3cs.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/ && \
-    cp build/output/libpaho-mqtt3a.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/ && \
-    cp build/output/libpaho-mqtt3as.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/ && \
+    cp build/output/libpaho-mqtt3c.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/ && \
+    cp build/output/libpaho-mqtt3cs.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/ && \
+    cp build/output/libpaho-mqtt3a.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/ && \
+    cp build/output/libpaho-mqtt3as.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/ && \
     cp build/output/paho_c_version /home/build/usr/bin/ && \
     cp build/output/samples/paho_c_pub /home/build/usr/bin/ && \
     cp build/output/samples/paho_c_sub /home/build/usr/bin/ && \
     cp build/output/samples/paho_cs_pub /home/build/usr/bin/ && \
     cp build/output/samples/paho_cs_sub /home/build/usr/bin/ && \
-    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1.0 && \
-    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1.0 && \
-    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1.0 && \
-    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1.0 && \
-    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1 && \
-    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1 && \
-    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1 && \
-    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1.0 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1 && \
+    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1.3 && \
+    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1.3 && \
+    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1.3 && \
+    chmod 644 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1.3 && \
+    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1 && \
+    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1 && \
+    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1 && \
+    ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1.3 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1 && \
     ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so.1 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3c.so && \
     ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so.1 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3cs.so && \
     ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so.1 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3a.so && \
     ln /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so.1 /home/build/usr/lib/x86_64-linux-gnu/libpaho-mqtt3as.so && \
     cp src/MQTTAsync.h /home/build/usr/include/ && \
+    cp src/MQTTExportDeclarations.h /home/build/usr/include/ && \
     cp src/MQTTClient.h /home/build/usr/include/ && \
     cp src/MQTTClientPersistence.h /home/build/usr/include/ && \
     cp src/MQTTProperties.h /home/build/usr/include/ && \
@@ -531,7 +532,7 @@ RUN if [ "$ENABLE_PAHO_INSTALLATION" = "true" ] ; then \
     fi
 
 ARG ENABLE_RDKAFKA_INSTALLATION=false
-ARG RDKAFKA_VER=1.0.0
+ARG RDKAFKA_VER=1.5.0
 ARG RDKAFKA_REPO=https://github.com/edenhill/librdkafka/archive/v${RDKAFKA_VER}.tar.gz
 RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
     wget -O - ${RDKAFKA_REPO} | tar -xz && \
@@ -550,7 +551,7 @@ RUN if [ "$ENABLE_RDKAFKA_INSTALLATION" = "true" ] ; then \
 FROM base AS dldt-binaries
 WORKDIR /home
 
-ARG OpenVINO_VERSION=2020.4.287
+ARG OpenVINO_VERSION=2021.1.110
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && apt-get install -y -q --no-install-recommends cpio
 
@@ -566,23 +567,41 @@ RUN tar -xvzf l_openvino_toolkit_p_${OpenVINO_VERSION}.tgz && \
 ARG IE_DIR=/home/build/opt/intel/dldt/inference-engine
 
 RUN mkdir -p ${IE_DIR}/include && \
-    cp -r /opt/intel/openvino/inference_engine/include/* ${IE_DIR}/include && \
+    cp -r /opt/intel/openvino_2021/inference_engine/include/* ${IE_DIR}/include && \
 
     mkdir -p ${IE_DIR}/lib/intel64 && \
-    cp -r /opt/intel/openvino/inference_engine/lib/intel64/* ${IE_DIR}/lib/intel64 && \
+    cp -r /opt/intel/openvino_2021/inference_engine/lib/intel64/* ${IE_DIR}/lib/intel64 && \
 
     mkdir -p ${IE_DIR}/share && \
-    cp -r  /opt/intel/openvino/inference_engine/share/* ${IE_DIR}/share/ && \
+    cp -r  /opt/intel/openvino_2021/inference_engine/share/* ${IE_DIR}/share/ && \
 
     mkdir -p ${IE_DIR}/external/ && \
-    cp -r /opt/intel/openvino/inference_engine/external/* ${IE_DIR}/external && \
+    cp -r /opt/intel/openvino_2021/inference_engine/external/* ${IE_DIR}/external && \
 
     mkdir -p ${IE_DIR}/external/opencv && \
-    cp -r /opt/intel/openvino/opencv/* ${IE_DIR}/external/opencv/ && \
+    cp -r /opt/intel/openvino_2021/opencv/* ${IE_DIR}/external/opencv/ && \
 
     mkdir -p ${IE_DIR}/external/ngraph && \
-    cp -r /opt/intel/openvino/deployment_tools/ngraph/* ${IE_DIR}/external/ngraph/
+    cp -r /opt/intel/openvino_2021/deployment_tools/ngraph/* ${IE_DIR}/external/ngraph/
 
+#install Model Optimizer in the DLDT for Dev
+#installing dependency libs to mo_libs directory to avoid issues with updates to Python version
+RUN apt-get install -y python3-dev
+RUN cd  /opt/intel/openvino_2021/deployment_tools/model_optimizer && \
+    pip3 install --upgrade pip && \
+    pip3 install wheel && \
+    pip3 install --target=/home/build/mo_libs -r requirements.txt && \
+    pip3 install -r requirements.txt && \
+    pip3 install --target=/home/build/mo_libs test-generator && \
+    pip3 install test-generator;
+
+#Copy over Model Optimizer to same directory as Inference Engine
+RUN cp -r /opt/intel/openvino_2021/deployment_tools/model_optimizer /home/build/opt/intel/dldt/model-optimizer
+
+#Add open model zoo to better replicate OpenVINO directory structure
+RUN mkdir -p /home/build/opt/intel/dldt/open_model_zoo && \
+    cp -r /opt/intel/openvino_2021/deployment_tools/open_model_zoo /home/build/opt/intel/dldt/open_model_zoo && \
+    python3 -m pip install pyyaml
 
 FROM ${dldt} AS dldt-build
 
@@ -596,9 +615,9 @@ WORKDIR /root
 
 # Prerequisites
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-install-recommends \
-    libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev python-yaml \
+    libusb-1.0-0-dev libboost-all-dev libgtk2.0-dev lsb-release python-yaml \
     \
-    clinfo libboost-all-dev libjson-c-dev \
+    clinfo opencl-headers ocl-icd-libopencl1 libnuma1 libboost-all-dev libjson-c-dev \
     build-essential cmake ocl-icd-opencl-dev wget gcovr vim git gdb ca-certificates libssl-dev uuid-dev \
     libgirepository1.0-dev \
     python3-dev python3-wheel python3-pip python3-setuptools python-gi-dev python-yaml \
@@ -622,7 +641,7 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --no-
     libva-dev libxrandr-dev libudev-dev \
     \
     && rm -rf /var/lib/apt/lists/* \
-    && python3.6 -m pip install numpy opencv-python pytest
+    && python3.6 -m pip install numpy==1.19.1 opencv-python==4.2.0.34 pytest==6.0.1
 
 # Install
 COPY --from=dldt-build /home/build /
@@ -647,6 +666,9 @@ ENV InferenceEngine_DIR=/opt/intel/dldt/inference-engine/share
 ENV OpenCV_DIR=/opt/intel/dldt/inference-engine/external/opencv/cmake
 ENV LIBRARY_PATH=/opt/intel/mediasdk/lib64:/usr/lib:${LIBRARY_PATH}
 ENV PATH=/usr/bin:/opt/intel/mediasdk/bin:${PATH}
+ENV PYTHONPATH=${PYTHONPATH}:/mo_libs
+ENV MO_DIR=/opt/intel/dldt/model-optimizer
+ENV OMZ_DIR=/opt/intel/dldt/open_model_zoo
 
 ENV LIBVA_DRIVERS_PATH=/opt/intel/mediasdk/lib64
 ENV LIBVA_DRIVER_NAME=iHD
@@ -667,17 +689,16 @@ ARG EXTERNAL_GVA_BUILD_FLAGS
 RUN mkdir -p gst-video-analytics/build \
         && cd gst-video-analytics/build \
         && cmake \
-        -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
-        -DCMAKE_INSTALL_PREFIX=/usr \
-        -DVERSION_PATCH=${SOURCE_REV} \
-        -DGIT_INFO=${GIT_INFO} \
-        -DBUILD_SHARED_LIBS=ON \
-        -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
-        -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
-        -DHAVE_VAAPI=ON \
-        -DENABLE_VAS_TRACKER=ON \
-        ${EXTERNAL_GVA_BUILD_FLAGS} \
-        .. \
+            -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DVERSION_PATCH=${SOURCE_REV} \
+            -DGIT_INFO=${GIT_INFO} \
+            -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
+            -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
+            -DENABLE_VAAPI=ON \
+            -DENABLE_VAS_TRACKER=ON \
+            ${EXTERNAL_GVA_BUILD_FLAGS} \
+            .. \
         && make -j $(nproc) \
         && make install \
         && echo "/usr/lib/gst-video-analytics" >> /etc/ld.so.conf.d/opencv-dldt-gst.conf && ldconfig

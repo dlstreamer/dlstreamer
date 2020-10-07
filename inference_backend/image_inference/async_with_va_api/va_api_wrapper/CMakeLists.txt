@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2020 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -35,6 +35,8 @@ target_link_libraries(${TARGET_NAME}
 PUBLIC
         ${VA_LIBRARIES}
         logger
+        pre_proc
+        opencv_pre_proc
 PRIVATE
         ${VADRM_LIBRARIES}
 )

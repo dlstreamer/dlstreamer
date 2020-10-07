@@ -15,7 +15,7 @@
 using namespace InferenceBackend;
 using namespace InferenceBackend::Utils;
 
-PreProc *InferenceBackend::CreatePreProcOpenCV() {
+ImagePreprocessor *InferenceBackend::CreatePreProcOpenCV() {
     return new OpenCV_VPP();
 }
 

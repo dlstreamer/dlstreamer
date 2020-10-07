@@ -23,7 +23,8 @@ class PythonError {
         DECL_WRAPPER(traceback_module, PyImport_ImportModule("traceback"));
         py_traceback_print_exception.reset(PyObject_GetAttrString(traceback_module, "print_exception"));
     }
-    void log_python_error(PyObject *ptype, PyObject *pvalue, PyObject *ptraceback) {
+    void log_python_error(PyObject *ptype, PyObject *pvalue, PyObject *ptraceback, GstGvaPython *gvapython,
+                          gboolean is_fatal) {
         DECL_WRAPPER(py_stringio_instance, PyObject_CallObject(py_stringio_constructor, NULL));
         PyErr_NormalizeException(&ptype, &pvalue, &ptraceback);
         DECL_WRAPPER(py_args,
@@ -32,15 +33,19 @@ class PythonError {
         DECL_WRAPPER(py_traceback_result, PyObject_CallObject(py_traceback_print_exception, py_args));
         DECL_WRAPPER(py_getvalue, PyObject_GetAttrString(py_stringio_instance, "getvalue"));
         DECL_WRAPPER(py_result, PyObject_CallObject(py_getvalue, nullptr));
-        GST_ERROR("%s", PyUnicode_AsUTF8(py_result));
+        if (is_fatal && gvapython != nullptr) {
+            GST_ELEMENT_ERROR(gvapython, RESOURCE, NOT_FOUND, ("%s", PyUnicode_AsUTF8(py_result)), (NULL));
+        } else {
+            GST_ERROR("%s", PyUnicode_AsUTF8(py_result));
+        }
     }
 };
 
-void log_python_error() {
+void log_python_error(GstGvaPython *gvapython, gboolean is_fatal) {
     PyObject *ptype, *pvalue, *ptraceback;
     PyErr_Fetch(&ptype, &pvalue, &ptraceback);
     static PythonError pythonError;
-    pythonError.log_python_error(ptype, pvalue, ptraceback);
+    pythonError.log_python_error(ptype, pvalue, ptraceback, gvapython, is_fatal);
     PyErr_Restore(ptype, pvalue, ptraceback);
 }
 
@@ -145,25 +150,25 @@ gboolean set_python_callback_caps(struct PythonCallback *python_callback, GstCap
         return TRUE;
     } catch (const std::exception &e) {
         GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
-        log_python_error();
+        log_python_error(nullptr, false);
         return FALSE;
     }
 }
 
-GstFlowReturn invoke_python_callback(struct PythonCallback *python_callback, GstBuffer *buffer) {
-    if (python_callback == nullptr) {
-        GST_ERROR("python_callback is not initialized");
+GstFlowReturn invoke_python_callback(GstGvaPython *gvapython, GstBuffer *buffer) {
+    if (gvapython->python_callback == nullptr) {
+        GST_ELEMENT_ERROR(gvapython, RESOURCE, NOT_FOUND, ("Python_callback is not initialized."), (NULL));
         return GST_FLOW_ERROR;
     }
     try {
-        if (python_callback->CallPython(buffer)) {
+        if (gvapython->python_callback->CallPython(buffer)) {
             return GST_FLOW_OK;
         } else {
             return GST_BASE_TRANSFORM_FLOW_DROPPED;
         }
     } catch (const std::exception &e) {
         GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
-        log_python_error();
+        log_python_error(gvapython, true);
         return GST_FLOW_ERROR;
     }
 }

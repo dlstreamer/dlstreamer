@@ -6,8 +6,8 @@
 
 #pragma once
 
+#include "gstgvatrack.h"
 #include "itracker.h"
-#include "loader.h"
 #include "vas/ot.h"
 
 #include <gst/gst.h>
@@ -22,17 +22,18 @@ namespace VasWrapper {
 
 class Tracker : public ITracker {
   private:
-    Loader loader;
     std::unique_ptr<vas::ot::ObjectTracker> object_tracker;
-    std::unique_ptr<GstVideoInfo, std::function<void(GstVideoInfo *)>> video_info;
+    const GstGvaTrack *gva_track;
     std::unordered_map<int, std::string> labels;
 
   public:
-    Tracker(const GstVideoInfo *video_info, const std::string &tracking_type);
+    Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type);
     ~Tracker() = default;
 
-    static ITracker *CreateShortTerm(const GstVideoInfo *video_info);
-    static ITracker *CreateZeroTerm(const GstVideoInfo *video_info);
+    static ITracker *CreateShortTerm(const GstGvaTrack *gva_track);
+    static ITracker *CreateZeroTerm(const GstGvaTrack *gva_track);
+    static ITracker *CreateShortTermImageless(const GstGvaTrack *gva_track);
+    static ITracker *CreateZeroTermImageless(const GstGvaTrack *gva_track);
 
     void track(GstBuffer *buffer) override;
 };

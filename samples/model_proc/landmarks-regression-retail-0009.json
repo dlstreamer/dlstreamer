@@ -3,7 +3,6 @@
   "input_preproc": [],
   "output_postproc": [
     {
-      "layer_name": "95",
       "format": "landmark_points"
     }
   ]

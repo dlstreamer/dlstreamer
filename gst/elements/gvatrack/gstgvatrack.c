@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "gstgvatrack.h"
+#include "gva_caps.h"
 #include "tracker_c.h"
 
 #define ELEMENT_LONG_NAME "Object tracker (generates GstGvaObjectTrackerMeta, GstVideoRegionOfInterestMeta)"
@@ -15,17 +16,19 @@
 GST_DEBUG_CATEGORY_STATIC(gst_gva_track_debug_category);
 #define GST_CAT_DEFAULT gst_gva_track_debug_category
 
+#define DEFAULT_DEVICE "CPU"
+
+#ifdef ENABLE_IMAGELESS_TRACKER
+#define DEFAULT_TRACKING_TYPE SHORT_TERM_IMAGELESS
+#else
 #define DEFAULT_TRACKING_TYPE SHORT_TERM
+#endif
 
 enum {
     PROP_0,
+    PROP_DEVICE,
     PROP_TRACKING_TYPE,
 };
-
-/// the capabilities of the inputs and outputs.
-#define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA, BGR, I420, NV12}") "; "
-#define VIDEO_SINK_CAPS SYSTEM_MEM_CAPS
-#define VIDEO_SRC_CAPS SYSTEM_MEM_CAPS
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaTrack, gst_gva_track, GST_TYPE_BASE_TRANSFORM,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_track_debug_category, "gvatrack", 0,
@@ -36,6 +39,7 @@ static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *v
 static void gst_gva_track_dispose(GObject *object);
 static void gst_gva_track_finalize(GObject *object);
 
+static void gst_gva_track_cleanup(GstGvaTrack *gva_track);
 static gboolean gst_gva_track_set_caps(GstBaseTransform *trans, GstCaps *incaps, GstCaps *outcaps);
 static gboolean gst_gva_track_sink_event(GstBaseTransform *trans, GstEvent *event);
 static gboolean gst_gva_track_start(GstBaseTransform *trans);
@@ -43,6 +47,19 @@ static gboolean gst_gva_track_stop(GstBaseTransform *trans);
 static GstFlowReturn gst_gva_track_transform_ip(GstBaseTransform *trans, GstBuffer *buf);
 
 static GstStateChangeReturn gst_gva_track_change_state(GstElement *element, GstStateChange transition);
+
+void gst_gva_track_cleanup(GstGvaTrack *gva_track) {
+    GST_DEBUG_OBJECT(gva_track, "gst_gva_track_cleanup");
+
+    if (gva_track == NULL)
+        return;
+
+    release_tracker_instance(gva_track->tracker);
+    gva_track->tracker = NULL;
+
+    g_free(gva_track->device);
+    gva_track->device = NULL;
+}
 
 static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
@@ -66,23 +83,34 @@ static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
                                           "Intel Corporation");
 
     gst_element_class_add_pad_template(
-        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(VIDEO_SRC_CAPS)));
-    gst_element_class_add_pad_template(element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-                                                                           gst_caps_from_string(VIDEO_SINK_CAPS)));
+        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
+    gst_element_class_add_pad_template(
+        element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
 
     const GParamFlags kDefaultGParamFlags = (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
     g_object_class_install_property(
         gobject_class, PROP_TRACKING_TYPE,
         g_param_spec_enum("tracking-type", "TrackingType",
                           "Tracking algorithm used to identify the same object in multiple frames. "
                           "Please see user guide for more details",
                           GST_GVA_TRACKING_TYPE, DEFAULT_TRACKING_TYPE, kDefaultGParamFlags));
+    g_object_class_install_property(gobject_class, PROP_DEVICE,
+                                    g_param_spec_string("device", "Device",
+                                                        "Target device for tracking. Supported devices are CPU "
+                                                        "(default) and VPU.<id>, where id is VPU slice id.",
+                                                        DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static void gst_gva_track_init(GstGvaTrack *gva_track) {
+    GST_DEBUG_OBJECT(gva_track, "gst_gva_track_init");
+
+    if (gva_track == NULL)
+        return;
+
+    gst_gva_track_cleanup(gva_track);
+
     gva_track->tracking_type = DEFAULT_TRACKING_TYPE;
-    gva_track->tracker = NULL;
+    gva_track->device = g_strdup(DEFAULT_DEVICE);
 }
 
 static void gst_gva_track_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
@@ -90,6 +118,10 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
     GST_DEBUG_OBJECT(gva_track, "gst_gva_track_set_property %d", prop_id);
 
     switch (prop_id) {
+    case PROP_DEVICE:
+        g_free(gva_track->device);
+        gva_track->device = g_value_dup_string(value);
+        break;
     case PROP_TRACKING_TYPE:
         gva_track->tracking_type = g_value_get_enum(value);
         break;
@@ -101,8 +133,12 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
 
 static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     GstGvaTrack *gva_track = GST_GVA_TRACK(object);
+    GST_DEBUG_OBJECT(gva_track, "gst_gva_track_get_property %d", prop_id);
 
     switch (prop_id) {
+    case PROP_DEVICE:
+        g_value_set_string(value, gva_track->device);
+        break;
     case PROP_TRACKING_TYPE:
         g_value_set_enum(value, gva_track->tracking_type);
         break;
@@ -115,7 +151,7 @@ static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *v
 void gst_gva_track_dispose(GObject *object) {
     GstGvaTrack *gva_track = GST_GVA_TRACK(object);
 
-    GST_DEBUG_OBJECT(gva_track, "dispose");
+    GST_DEBUG_OBJECT(gva_track, "gst_gva_track_dispose");
 
     /* clean up as possible.  may be called multiple times */
 
@@ -124,8 +160,9 @@ void gst_gva_track_dispose(GObject *object) {
 
 void gst_gva_track_finalize(GObject *object) {
     GstGvaTrack *gva_track = GST_GVA_TRACK(object);
-    release_tracker_instance(gva_track->tracker);
-    gva_track->tracker = NULL;
+    GST_DEBUG_OBJECT(gva_track, "gst_gva_track_finalize");
+
+    gst_gva_track_cleanup(gva_track);
 
     G_OBJECT_CLASS(gst_gva_track_parent_class)->finalize(object);
 }
@@ -155,7 +192,7 @@ static gboolean gst_gva_track_set_caps(GstBaseTransform *trans, GstCaps *incaps,
     }
     if (gva_track->tracker == NULL) {
         GError *error = NULL;
-        gva_track->tracker = acquire_tracker_instance(gva_track->info, gva_track->tracking_type, &error);
+        gva_track->tracker = acquire_tracker_instance(gva_track, &error);
         if (error) {
             GST_ELEMENT_ERROR(gva_track, LIBRARY, INIT, ("tracker intitialization failed"), ("%s", error->message));
             g_error_free(error);

@@ -26,7 +26,8 @@ struct ModelLoader {
 };
 
 struct IrModelLoader : ModelLoader {
-
+    void *_display;
+    IrModelLoader(void *display = nullptr) : _display(display){};
     InferenceEngine::CNNNetwork load(InferenceEngine::Core &core, const std::string &model_xml,
                                      const std::map<std::string, std::string> &base_config) override;
 

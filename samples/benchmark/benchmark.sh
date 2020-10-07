@@ -15,7 +15,7 @@ if [ -z ${1} ]; then
   exit
 fi
 
-SOURCE_ELEMENT="filesrc location=${1}"
+VIDEO_FILE_NAME=${1}
 DECODE_DEVICE=${2:-CPU}
 INFERENCE_DEVICE=${3:-CPU}
 CHANNELS_COUNT=${4:-1}
@@ -53,17 +53,16 @@ DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
 
 if [ $DECODE_DEVICE == CPU ]; then
   unset GST_VAAPI_ALL_DRIVERS
-  VIDEO_PROCESSING="decodebin ! videoscale ! video/x-raw"
-  PRE_PROC=ie
+  MEMORY_TYPE=""
 else
   export GST_VAAPI_ALL_DRIVERS=1
-  VIDEO_PROCESSING="decodebin ! vaapipostproc ! video/x-raw(memory:VASurface)"
-  PRE_PROC=vaapi
+  MEMORY_TYPE="(memory:DMABuf)"
 fi
 
-PIPELINE=" ${SOURCE_ELEMENT} ! ${VIDEO_PROCESSING} ! \
-gvadetect model-instance-id=inf0 model=${DETECT_MODEL_PATH} device=${INFERENCE_DEVICE} pre-process-backend=${PRE_PROC} ! queue ! \
-gvafpscounter ! fakesink "
+PIPELINE=" filesrc location=${VIDEO_FILE_NAME} ! \
+decodebin ! video/x-raw${MEMORY_TYPE} ! \
+gvadetect model-instance-id=inf0 model=${DETECT_MODEL_PATH} device=${INFERENCE_DEVICE} ! queue ! \
+gvafpscounter ! fakesink async=false "
 
 FINAL_PIPELINE_STR=""
 

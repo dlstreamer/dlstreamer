@@ -17,6 +17,7 @@ pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.c
         )
 
 file (GLOB MAIN_HEADERS

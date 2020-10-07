@@ -4,7 +4,6 @@
     "output_postproc": [
         {
             "converter": "tensor_to_bbox_yolo_v2",
-            "layer_name": "conv2d_23/BiasAdd/YoloRegion",
             "classes": 80,
             "anchors": [
                 0.57273,

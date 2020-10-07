@@ -8,7 +8,9 @@
 #include "inference_backend/image_inference.h"
 
 struct PostProcessor {
-    virtual void process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
-                         std::vector<std::shared_ptr<InferenceFrame>> &frames) = 0;
+    enum class ExitStatus { SUCCESS, FAIL };
+
+    virtual ExitStatus process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
+                               std::vector<std::shared_ptr<InferenceFrame>> &frames) = 0;
     virtual ~PostProcessor() = default;
 };

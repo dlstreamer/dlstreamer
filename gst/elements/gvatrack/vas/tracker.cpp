@@ -8,6 +8,7 @@
 #include "mapped_mat.h"
 
 #include "gva_utils.h"
+#include "utils.h"
 #include "video_frame.h"
 
 #include <functional>
@@ -16,11 +17,9 @@ using namespace VasWrapper;
 
 namespace {
 
-constexpr char K_VAS_OT_PATH[] = "libvasot.so";
 const int DEFAULT_MAX_NUM_OBJECTS = -1;
 
-using BuilderCreatorFunctionType = decltype(&CreateObjectTrackerBuilder);
-using BuilderDeleterFunctionType = decltype(&DeleteObjectTrackerBuilder);
+const constexpr int NO_ASSOCIATION = -1;
 
 inline bool CaseInsCharCompareN(char a, char b) {
     return (toupper(a) == toupper(b));
@@ -35,11 +34,28 @@ vas::ot::TrackingType trackingType(const std::string &tracking_type) {
         return vas::ot::TrackingType::ZERO_TERM;
     } else if (CaseInsCompare(tracking_type, "SHORT_TERM")) {
         return vas::ot::TrackingType::SHORT_TERM;
+    } else if (CaseInsCompare(tracking_type, "ZERO_TERM_IMAGELESS")) {
+        return vas::ot::TrackingType::ZERO_TERM_IMAGELESS;
+    } else if (CaseInsCompare(tracking_type, "SHORT_TERM_IMAGELESS")) {
+        return vas::ot::TrackingType::SHORT_TERM_IMAGELESS;
     } else {
-        std::string message =
-            std::string("Unknown tracking name ") + tracking_type.c_str() + ". Will be treated as SHORT_TERM";
-        GVA_WARNING(message.c_str());
-        return vas::ot::TrackingType::SHORT_TERM;
+        throw std::invalid_argument("Unknown tracking name " + tracking_type);
+    }
+}
+
+vas::BackendType backendType(const std::string &backend_type) {
+    if (CaseInsCompare(backend_type, "CPU")) {
+        return vas::BackendType::CPU;
+    } else if (CaseInsCompare(backend_type, "VPU")) {
+        return vas::BackendType::VPU;
+    } else if (CaseInsCompare(backend_type, "GPU")) {
+        return vas::BackendType::GPU;
+    } else if (CaseInsCompare(backend_type, "FPGA")) {
+        return vas::BackendType::FPGA;
+    } else if (CaseInsCompare(backend_type, "HDDL")) {
+        return vas::BackendType::HDDL;
+    } else {
+        throw std::invalid_argument("Unknown tracking device " + backend_type);
     }
 }
 
@@ -70,7 +86,6 @@ std::vector<vas::ot::DetectedObject> extractDetectedObjects(GVA::VideoFrame &vid
         auto rect = roi.rect();
         cv::Rect obj_rect(rect.x, rect.y, rect.w, rect.h);
         detected_objects.emplace_back(obj_rect, label_id);
-        video_frame.remove_region(roi);
     }
     return detected_objects;
 }
@@ -84,39 +99,47 @@ void append(GVA::VideoFrame &video_frame, const vas::ot::Object &tracked_object,
 
 } // namespace
 
-Tracker::Tracker(const GstVideoInfo *video_info, const std::string &tracking_type)
-    : loader(K_VAS_OT_PATH), video_info(gst_video_info_copy(video_info), gst_video_info_free) {
-    if (tracking_type.empty() || video_info == nullptr) {
+Tracker::Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type) : gva_track(gva_track) {
+    if (tracking_type.empty() || gva_track == nullptr) {
         throw std::invalid_argument("Tracker::Tracker: nullptr arguments is not allowed");
     }
-    auto builder_factory_function = loader.load<BuilderCreatorFunctionType>("CreateObjectTrackerBuilder");
-    auto builder_deleter_function = loader.load<BuilderDeleterFunctionType>("DeleteObjectTrackerBuilder");
 
-    auto builder = std::unique_ptr<vas::ot::ObjectTracker::Builder, BuilderDeleterFunctionType>(
-        builder_factory_function(), builder_deleter_function);
-    builder->input_image_format = ConvertFormat(video_info->finfo->format);
-    builder->max_num_objects = DEFAULT_MAX_NUM_OBJECTS;
+    vas::ot::ObjectTracker::Builder builder;
+    builder.input_image_format = ConvertFormat(gva_track->info->finfo->format);
+    builder.max_num_objects = DEFAULT_MAX_NUM_OBJECTS;
 
-    object_tracker = builder->Build(trackingType(tracking_type));
+    // examples: VPU.1, CPU, VPU, etc.
+    std::vector<std::string> full_device = Utils::splitString(gva_track->device, '.');
+    builder.backend_type = backendType(full_device[0]);
+    if (builder.backend_type == vas::BackendType::VPU and full_device.size() > 1) {
+        std::map<std::string, std::string> config;
+        config["device_id"] = full_device[1];
+        builder.platform_config = config;
+    }
+
+    object_tracker = builder.Build(trackingType(tracking_type));
 }
 
 void Tracker::track(GstBuffer *buffer) {
     if (buffer == nullptr)
         throw std::invalid_argument("buffer is nullptr");
     try {
-        GVA::VideoFrame video_frame(buffer, video_info.get());
+        GVA::VideoFrame video_frame(buffer, gva_track->info);
         std::vector<vas::ot::DetectedObject> detected_objects = extractDetectedObjects(video_frame, labels);
 
-        MappedMat cv_mat(buffer, video_info.get(), GST_MAP_READ);
-
+        MappedMat cv_mat(buffer, gva_track->info, GST_MAP_READ);
+        std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
         const auto tracked_objects = object_tracker->Track(cv_mat.mat(), detected_objects);
-
         for (const auto &tracked_object : tracked_objects) {
             if (tracked_object.status == vas::ot::TrackingStatus::LOST)
                 continue;
-            auto it = labels.find(tracked_object.class_label);
-            std::string label = it != labels.end() ? it->second : std::string();
-            append(video_frame, tracked_object, label);
+            if (tracked_object.association_idx != NO_ASSOCIATION)
+                regions[tracked_object.association_idx].set_object_id(tracked_object.tracking_id);
+            else {
+                auto it = labels.find(tracked_object.class_label);
+                std::string label = it != labels.end() ? it->second : std::string();
+                append(video_frame, tracked_object, label);
+            }
         }
     } catch (const std::exception &e) {
         GST_ERROR("Exception within tracker occured: %s", e.what());
@@ -124,10 +147,19 @@ void Tracker::track(GstBuffer *buffer) {
     }
 }
 
-ITracker *Tracker::CreateShortTerm(const GstVideoInfo *video_info) {
-    return new Tracker(video_info, "SHORT_TERM");
+// TODO: use one typed function instead of four. Second arg is GVA-level tracking type enum (get rid of strings)
+ITracker *Tracker::CreateShortTerm(const GstGvaTrack *gva_track) {
+    return new Tracker(gva_track, "SHORT_TERM");
 }
 
-ITracker *Tracker::CreateZeroTerm(const GstVideoInfo *video_info) {
-    return new Tracker(video_info, "ZERO_TERM");
+ITracker *Tracker::CreateZeroTerm(const GstGvaTrack *gva_track) {
+    return new Tracker(gva_track, "ZERO_TERM");
+}
+
+ITracker *Tracker::CreateShortTermImageless(const GstGvaTrack *gva_track) {
+    return new Tracker(gva_track, "SHORT_TERM_IMAGELESS");
+}
+
+ITracker *Tracker::CreateZeroTermImageless(const GstGvaTrack *gva_track) {
+    return new Tracker(gva_track, "ZERO_TERM_IMAGELESS");
 }

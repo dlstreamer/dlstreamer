@@ -4,10 +4,11 @@ Samples are simple applications that demonstrate how to use the DL Streamer. The
 
 Samples separated into several categories
 1. gst_launch command-line samples (samples construct GStreamer pipeline via [gst-launch-1.0](https://gstreamer.freedesktop.org/documentation/tools/gst-launch.html) command-line utility)
-    * [Face Detection And Classification Sample](./gst_launch/face_detection_and_classification/README.md) - constructs object detection and classification pipeline example with [gvadetect](./gvadetect.md) and [gvaclassify](./gvaclassify.md) elements to detect faces and estimate age, gender, emotions and landmark points
-    * [Vehicle and Pedestrian Tracking Sample](./gst_launch/vehicle_pedestrian_tracking/README.md) - demonstrates object tracking via [gvatrack](./gvatrack.md) element
-    * [Metadata Publishing Sample](./gst_launch/metapublish/README.md) - demonstrates how [gvametaconvert](./gvametaconvert.md) and [gvametapublish](./gvametapublish.md) elements are used for converting metadata with inference results into JSON format and publishing to file or Kafka/MQTT message bus
-    * [gvapython Sample](./gst_launch/gvapython/face_detection_and_classification/README.md) - demostrates pipeline customization with [gvapython](./gvapython.md) element and application provided Python script for inference post-processing
+    * [Face Detection And Classification Sample](./gst_launch/face_detection_and_classification/README.md) - constructs object detection and classification pipeline example with [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) and [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) elements to detect faces and estimate age, gender, emotions and landmark points
+    * [Audio Event Detection Sample ](./gst_launch/audio_detect/README.md) - constructs audio event detection pipeline example with [gvaaudiodetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaaudiodetect) element and uses  [gvametaconvert](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametaconvert), [gvametapublish](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametapublish) elements to convert audio event metadata with inference results into JSON format and to print on standard out
+    * [Vehicle and Pedestrian Tracking Sample](./gst_launch/vehicle_pedestrian_tracking/README.md) - demonstrates object tracking via [gvatrack](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvatrack) element
+    * [Metadata Publishing Sample](./gst_launch/metapublish/README.md) - demonstrates how [gvametaconvert](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametaconvert) and [gvametapublish](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametapublish) elements are used for converting metadata with inference results into JSON format and publishing to file or Kafka/MQTT message bus
+    * [gvapython Sample](./gst_launch/gvapython/face_detection_and_classification/README.md) - demostrates pipeline customization with [gvapython](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvapython) element and application provided Python script for inference post-processing
 2. C++ samples
     * [Draw Face Attributes C++ Sample](./cpp/draw_face_attributes/README.md) - constructs pipeline and sets "C" callback to access frame metadata and visualize inference results
 3. Python samples
@@ -23,7 +24,7 @@ Other samples (without C/C++ code) provide .sh script for constucting and execut
 
 ## DL Models
 
-DL Streamer samples use pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/opencv/open_model_zoo)
+DL Streamer samples use pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 
 Before running samples, run script `download_models.sh` once to download all models required for samples. The script located in `samples` top folder.
 

@@ -8,8 +8,7 @@
         "vehicle",
         "license-plate"
       ],
-      "converter": "tensor_to_bbox_ssd",
-      "layer_name": "DetectionOutput_"
+      "converter": "tensor_to_bbox_ssd"
     }
   ]
 }

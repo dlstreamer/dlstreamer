@@ -16,7 +16,7 @@ ClassificationHistory::ClassificationHistory(GstGvaClassify *gva_classify)
     : gva_classify(gva_classify), current_num_frame(0), history(CLASSIFICATION_HISTORY_SIZE) {
 }
 
-bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, unsigned current_num_frame) {
+bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, uint64_t current_num_frame) {
     try {
         std::lock_guard<std::mutex> guard(history_mutex);
         this->current_num_frame = current_num_frame;
@@ -34,11 +34,17 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
             result = true;
         } else if (gva_classify->reclassify_interval == 0) {
             return false;
-        } else if (current_num_frame - history.get(id).frame_of_last_update >= gva_classify->reclassify_interval) {
-            // new object or reclassify old object
-            history.get(id).frame_of_last_update = current_num_frame;
-            result = true;
+        } else {
+            auto current_interval = current_num_frame - history.get(id).frame_of_last_update;
+            if (current_interval > INT64_MAX && history.get(id).frame_of_last_update > current_num_frame)
+                current_interval = (UINT64_MAX - history.get(id).frame_of_last_update) + current_num_frame + 1;
+            if (current_interval >= gva_classify->reclassify_interval) {
+                // new object or reclassify old object
+                history.get(id).frame_of_last_update = current_num_frame;
+                result = true;
+            }
         }
+
         return result;
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to check if detection tensor classification needed"));

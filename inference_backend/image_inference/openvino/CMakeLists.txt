@@ -9,7 +9,6 @@ cmake_minimum_required(VERSION 3.1)
 set (TARGET_NAME "image_inference_openvino")
 
 find_package(InferenceEngine 2.1.0 REQUIRED)
-
 find_package(PkgConfig REQUIRED)
 
 file (GLOB MAIN_SRC
@@ -39,3 +38,10 @@ PUBLIC
         utils
         logger
 )
+
+if(${ENABLE_VAAPI})
+        find_package(OpenCL REQUIRED)
+
+        target_include_directories(${TARGET_NAME} PRIVATE ${OpenCL_INCLUDE_DIRS})
+        target_link_libraries(${TARGET_NAME} PUBLIC ${OpenCL_LIBRARY})
+endif()

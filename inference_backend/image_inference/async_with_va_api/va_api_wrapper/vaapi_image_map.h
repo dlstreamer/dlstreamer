@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,10 +11,10 @@
 
 namespace InferenceBackend {
 
-class VaApiImageMap : public ImageMap {
+class VaApiImageMap_SytemMemory : public ImageMap {
   public:
-    VaApiImageMap();
-    ~VaApiImageMap();
+    VaApiImageMap_SytemMemory();
+    ~VaApiImageMap_SytemMemory();
 
     Image Map(const Image &image) override;
     void Unmap() override;
@@ -22,6 +22,15 @@ class VaApiImageMap : public ImageMap {
   protected:
     VADisplay va_display;
     VAImage va_image;
+};
+
+class VaApiImageMap_VASurafce : public ImageMap {
+  public:
+    VaApiImageMap_VASurafce();
+    ~VaApiImageMap_VASurafce();
+
+    Image Map(const Image &image) override;
+    void Unmap() override;
 };
 
 } // namespace InferenceBackend

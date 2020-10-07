@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -20,7 +20,16 @@ using namespace InferenceBackend;
 
 namespace {
 
-/*
+static void message_callback_error(void *user_context, const char *message) {
+    (void)user_context;
+    GVA_ERROR(message);
+}
+
+static void message_callback_info(void *user_context, const char *message) {
+    (void)user_context;
+    GVA_INFO(message);
+}
+
 std::tuple<VADisplay, int> create_va_display_and_device_descriptor() {
     int dri_file_descriptor = open("/dev/dri/renderD128", O_RDWR);
     if (!dri_file_descriptor) {
@@ -32,19 +41,26 @@ std::tuple<VADisplay, int> create_va_display_and_device_descriptor() {
         throw std::runtime_error("Error opening VAAPI Display");
     }
 
+    vaSetErrorCallback(display, message_callback_error, nullptr);
+    vaSetInfoCallback(display, message_callback_info, nullptr);
     int major_version = 0, minor_version = 0;
     VA_CALL(vaInitialize(display, &major_version, &minor_version));
 
     return std::make_tuple(display, dri_file_descriptor);
 }
-*/
 
-std::tuple<VAConfigID, VAContextID> create_config_and_context(VADisplay display) {
+std::tuple<VAConfigID, VAContextID> create_config_and_context(VADisplay display,
+                                                              int surface_rt_format = VA_RT_FORMAT_YUV420) {
     if (!display) {
         throw std::invalid_argument("VADisplay is nullptr. Cannot initialize VaApiContext without VADisplay.");
     }
+    VAConfigAttrib attrib;
+    attrib.type = VAConfigAttribRTFormat;
+    VA_CALL(vaGetConfigAttributes(display, VAProfileNone, VAEntrypointVideoProc, &attrib, 1));
+    if (not(attrib.value & surface_rt_format))
+        throw std::invalid_argument("Unsupported runtime format for surface.");
     VAConfigID config_id = 0;
-    VA_CALL(vaCreateConfig(display, VAProfileNone, VAEntrypointVideoProc, nullptr, 0, &config_id));
+    VA_CALL(vaCreateConfig(display, VAProfileNone, VAEntrypointVideoProc, &attrib, 1, &config_id));
     if (config_id == 0) {
         throw std::invalid_argument("Could not create VA config. Cannot initialize VaApiContext without VA config.");
     }
@@ -58,14 +74,15 @@ std::tuple<VAConfigID, VAContextID> create_config_and_context(VADisplay display)
 
 } // namespace
 
-VaApiContext::VaApiContext(MemoryType memory_type, VADisplay va_display)
-    : _memory_type(memory_type), _va_display(va_display) {
-    if (memory_type == MemoryType::VAAPI) {
-        assert(_va_display != nullptr);
-    } else {
-        throw std::runtime_error("VaApiConverter: unsupported MemoryType");
-    }
+VaApiContext::VaApiContext(VADisplay va_display) : _va_display(va_display) {
+    if (!_va_display)
+        throw std::runtime_error("VADisplay is nullptr. Cannot initialize VaApiContext without VADisplay.");
+    std::tie(_va_config, _va_context_id) = create_config_and_context(_va_display);
+}
 
+VaApiContext::VaApiContext() {
+    std::tie(_va_display, _dri_file_descriptor) = create_va_display_and_device_descriptor();
+    _own_va_display = true;
     std::tie(_va_config, _va_context_id) = create_config_and_context(_va_display);
 }
 
@@ -81,13 +98,13 @@ VaApiContext::~VaApiContext() {
         if (status != VA_STATUS_SUCCESS) {
             std::string error_message =
                 std::string("VA Display termination failed with code ") + std::to_string(status);
-            GVA_WARNING(error_message.c_str());
+            GVA_WARNING(error_message.c_str())
         }
         int status_code = close(_dri_file_descriptor);
         if (status_code != 0) {
             std::string error_message =
                 std::string("DRI file descriptor closing failed with code ") + std::to_string(status_code);
-            GVA_WARNING(error_message.c_str());
+            GVA_WARNING(error_message.c_str())
         }
     }
 }
@@ -98,7 +115,4 @@ VAContextID VaApiContext::Id() {
 
 VADisplay VaApiContext::Display() {
     return _va_display;
-}
-MemoryType VaApiContext::GetMemoryType() {
-    return _memory_type;
 }

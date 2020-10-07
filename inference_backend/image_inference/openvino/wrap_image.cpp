@@ -11,6 +11,10 @@
 #include <ie_compound_blob.h>
 #include <inference_backend/image.h>
 
+#ifdef ENABLE_VAAPI
+#include <gpu/gpu_context_api_va.hpp>
+#endif
+
 using namespace InferenceBackend;
 using namespace InferenceEngine;
 namespace {
@@ -126,3 +130,29 @@ Blob::Ptr WrapImageToBlob(const Image &image) {
         std::throw_with_nested(std::runtime_error("Failed to wrap image to InferenceEngine blob"));
     }
 }
+
+#ifdef ENABLE_VAAPI
+Blob::Ptr WrapImageToBlob(const Image &image, const RemoteContext::Ptr &remote_context) {
+    GVA_DEBUG(__FUNCTION__);
+    ITT_TASK(__FUNCTION__);
+    try {
+        Blob::Ptr blob = nullptr;
+        switch (image.format) {
+        case FourCC::FOURCC_NV12: {
+            if (image.va_surface_id == 0xffffffff)
+                throw std::runtime_error("Incorrect va surface");
+            if (!remote_context)
+                throw std::runtime_error("Incorrect context, can not create surface");
+
+            blob = gpu::make_shared_blob_nv12(image.width, image.height, remote_context, image.va_surface_id);
+            break;
+        }
+        default:
+            throw std::invalid_argument("Unsupported image type");
+        }
+        return blob;
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to wrap image to InferenceEngine blob"));
+    }
+}
+#endif
