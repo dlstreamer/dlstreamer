@@ -94,7 +94,7 @@ void append(GVA::VideoFrame &video_frame, const vas::ot::Object &tracked_object,
     auto roi = video_frame.add_region(tracked_object.rect.x, tracked_object.rect.y, tracked_object.rect.width,
                                       tracked_object.rect.height, label, 1.0);
     roi.detection().set_int("label_id", tracked_object.class_label);
-    roi.set_object_id(tracked_object.tracking_id + 1); // gvaclassify identify tracking id starts 1.
+    roi.set_object_id(tracked_object.tracking_id);
 }
 
 } // namespace
