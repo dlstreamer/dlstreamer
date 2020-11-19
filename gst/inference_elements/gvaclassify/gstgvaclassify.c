@@ -156,7 +156,7 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
             DEFAULT_MIN_RECLASSIFY_INTERVAL, DEFAULT_MAX_RECLASSIFY_INTERVAL, DEFAULT_RECLASSIFY_INTERVAL,
             (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    // Property that determines whether or not the "about-to-classify" signal
+    // Property that determines whether or not the "classify-roi" signal
     // should be raised before classifying a tracked object.
     g_object_class_install_property(
         gobject_class, PROP_SIGNAL_CLASSIFY_ROI,
