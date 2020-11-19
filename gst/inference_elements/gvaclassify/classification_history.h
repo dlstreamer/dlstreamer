@@ -49,6 +49,7 @@ struct ClassificationHistory {
     ClassificationHistory(GstGvaClassify *gva_classify);
 
     bool IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, uint64_t current_num_frame);
+    bool IsROIClassificationNeededDueToMeta(const GstVideoRegionOfInterestMeta *roi) const;
     void UpdateROIParams(int roi_id, const GstStructure *roi_param);
     void FillROIParams(GstBuffer *buffer);
 };
