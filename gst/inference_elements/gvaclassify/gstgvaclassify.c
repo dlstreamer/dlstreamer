@@ -167,7 +167,8 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
 
     // Signal which indicates to a subscriber that classification of the ROI is
     // about to occur and allows the subscriber to request that classification
-    // be skipped due to some aspect of the ROI's metadata.
+    // be skipped due to some aspect of the ROI's metadata or the frame (buffer)
+    // that contains the ROI.
     // Return value:
     //  FALSE - classification should be run.
     //  TRUE  - classification should be skipped
@@ -177,7 +178,8 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
         g_signal_new(
             "classify-roi", G_TYPE_FROM_CLASS (gvaclassify_class),
              G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET (GstGvaClassifyClass, classify_roi),
-             NULL, NULL, NULL, G_TYPE_BOOLEAN, 1,
+             NULL, NULL, NULL, G_TYPE_BOOLEAN, 2,
+             GST_TYPE_BUFFER | G_SIGNAL_TYPE_STATIC_SCOPE,
              GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE | G_SIGNAL_TYPE_STATIC_SCOPE);
 }
 

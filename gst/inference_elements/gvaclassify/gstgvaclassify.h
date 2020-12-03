@@ -35,7 +35,7 @@ typedef struct _GstGvaClassifyClass {
     GvaBaseInferenceClass base_class;
 
     // Declare class handler so that sub-classes have the ability to override it.
-    gboolean (*classify_roi) (GstElement *element, GstVideoRegionOfInterestMeta *roi);
+    gboolean (*classify_roi) (GstElement *element, GstBuffer *buf, GstVideoRegionOfInterestMeta *roi);
 } GstGvaClassifyClass;
 
 GType gst_gva_classify_get_type(void);
