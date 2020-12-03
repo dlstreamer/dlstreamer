@@ -19,8 +19,10 @@
 #include <gst/video/video.h>
 #include <gst/video/gstvideometa.h>
 
+
 #define ELEMENT_LONG_NAME "Object classification (requires GstVideoRegionOfInterestMeta on input)"
 #define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+
 #define DEFAULT_SIGNAL_CLASSIFY_ROI FALSE
 
 enum {
@@ -156,7 +158,7 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
             DEFAULT_MIN_RECLASSIFY_INTERVAL, DEFAULT_MAX_RECLASSIFY_INTERVAL, DEFAULT_RECLASSIFY_INTERVAL,
             (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-    // Property that determines whether or not the "classify-roi" signal
+    // Property that determines whether or not the "about-to-classify" signal
     // should be raised before classifying a tracked object.
     g_object_class_install_property(
         gobject_class, PROP_SIGNAL_CLASSIFY_ROI,
@@ -167,7 +169,8 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
 
     // Signal which indicates to a subscriber that classification of the ROI is
     // about to occur and allows the subscriber to request that classification
-    // be skipped due to some aspect of the ROI's metadata.
+    // be skipped due to some aspect of the ROI's metadata or the frame (buffer)
+    // that contains the ROI.
     // Return value:
     //  FALSE - classification should be run.
     //  TRUE  - classification should be skipped
@@ -177,7 +180,8 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
         g_signal_new(
             "classify-roi", G_TYPE_FROM_CLASS (gvaclassify_class),
              G_SIGNAL_RUN_LAST, G_STRUCT_OFFSET (GstGvaClassifyClass, classify_roi),
-             NULL, NULL, NULL, G_TYPE_BOOLEAN, 1,
+             NULL, NULL, NULL, G_TYPE_BOOLEAN, 2,
+             GST_TYPE_BUFFER | G_SIGNAL_TYPE_STATIC_SCOPE,
              GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE | G_SIGNAL_TYPE_STATIC_SCOPE);
 }
 
