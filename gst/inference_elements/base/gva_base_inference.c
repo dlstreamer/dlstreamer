@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "gva_base_inference.h"
+
 #include "common/pre_processors.h"
 #include "config.h"
 
@@ -14,6 +15,7 @@
 #define DEFAULT_DEVICE "CPU"
 #define DEFAULT_DEVICE_EXTENSIONS ""
 #define DEFAULT_PRE_PROC ""
+#define DEFAULT_INFERENCE_REGION FULL_FRAME
 
 #define DEFAULT_MIN_THRESHOLD 0.
 #define DEFAULT_MAX_THRESHOLD 1.
@@ -77,8 +79,21 @@ enum {
     PROP_CPU_THROUGHPUT_STREAMS,
     PROP_GPU_THROUGHPUT_STREAMS,
     PROP_IE_CONFIG,
-    PROP_DEVICE_EXTENSIONS
+    PROP_DEVICE_EXTENSIONS,
+    PROP_INFERENCE_REGION
 };
+
+GType gst_gva_base_inference_get_inf_region(void) {
+    static GType gva_inference_region = 0;
+    static const GEnumValue inference_region_types[] = {{FULL_FRAME, "Perform inference for full frame", "full-frame"},
+                                                        {ROI_LIST, "Perform inference for roi list", "roi-list"},
+                                                        {0, NULL, NULL}};
+
+    if (!gva_inference_region) {
+        gva_inference_region = g_enum_register_static("InferenceRegionType", inference_region_types);
+    }
+    return gva_inference_region;
+}
 
 static void gva_base_inference_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
 static void gva_base_inference_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec);
@@ -86,6 +101,7 @@ static void gva_base_inference_dispose(GObject *object);
 static void gva_base_inference_finalize(GObject *object);
 
 static gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, GstCaps *outcaps);
+static gboolean gva_base_inference_check_properties_correctness(GvaBaseInference *base_inference);
 static gboolean gva_base_inference_start(GstBaseTransform *trans);
 static gboolean gva_base_inference_stop(GstBaseTransform *trans);
 static gboolean gva_base_inference_sink_event(GstBaseTransform *trans, GstEvent *event);
@@ -233,6 +249,13 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
             "device-extensions", "ExtensionString",
             "Comma separated list of KEY=VALUE pairs specifying the Inference Engine extension for a device",
             DEFAULT_DEVICE_EXTENSIONS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(
+        gobject_class, PROP_INFERENCE_REGION,
+        g_param_spec_enum("inference-region", "Inference-Region",
+                          "Identifier responsible for the region on which inference will be performed",
+                          GST_TYPE_GVA_BASE_INFERENCE_REGION, DEFAULT_INFERENCE_REGION,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
@@ -314,7 +337,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
 
     base_inference->initialized = FALSE;
     base_inference->info = NULL;
-    base_inference->is_full_frame = TRUE;
+    base_inference->inference_region = DEFAULT_INFERENCE_REGION;
     base_inference->inference = NULL;
     base_inference->is_roi_classification_needed = NULL;
     base_inference->pre_proc = NULL;
@@ -441,6 +464,9 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         g_free(base_inference->device_extensions);
         base_inference->device_extensions = g_value_dup_string(value);
         break;
+    case PROP_INFERENCE_REGION:
+        base_inference->inference_region = g_value_get_enum(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -501,6 +527,9 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_DEVICE_EXTENSIONS:
         g_value_set_string(value, base_inference->device_extensions);
         break;
+    case PROP_INFERENCE_REGION:
+        g_value_set_enum(value, base_inference->inference_region);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -541,24 +570,6 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     gst_video_info_from_caps(base_inference->info, incaps);
 
     base_inference->caps_feature = get_caps_feature(incaps);
-    if (g_strcmp0(base_inference->pre_proc_name, "") == 0) {
-        switch (base_inference->caps_feature) {
-        case SYSTEM_MEMORY_CAPS_FEATURE:
-            base_inference->pre_proc_name = g_strdup("ie");
-            break;
-        case VA_SURFACE_CAPS_FEATURE:
-            base_inference->pre_proc_name = g_strdup("vaapi");
-            break;
-        case DMA_BUF_CAPS_FEATURE:
-#if defined(USE_VPUSMM)
-            base_inference->pre_proc_name = g_strdup("ie");
-#else
-            base_inference->pre_proc_name = g_strdup("vaapi");
-#endif
-            break;
-        }
-    }
-
     if (base_inference->inference == NULL) {
         base_inference->inference = acquire_inference_instance(base_inference);
         GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_GET_CLASS(base_inference);
@@ -569,28 +580,36 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     return base_inference->inference != NULL;
 }
 
-gboolean gva_base_inference_start(GstBaseTransform *trans) {
-    GvaBaseInference *base_inference = GVA_BASE_INFERENCE(trans);
-
-    GST_DEBUG_OBJECT(base_inference, "start");
-
+gboolean gva_base_inference_check_properties_correctness(GvaBaseInference *base_inference) {
     if (!base_inference->model_instance_id) {
         base_inference->model_instance_id = g_strdup(GST_ELEMENT_NAME(GST_ELEMENT(base_inference)));
 
         if (base_inference->model == NULL) {
             GST_ELEMENT_ERROR(base_inference, RESOURCE, NOT_FOUND, ("'model' is not set"),
                               ("'model' property is not set"));
-            goto exit;
+            return FALSE;
         } else if (!g_file_test(base_inference->model, G_FILE_TEST_EXISTS)) {
             GST_ELEMENT_ERROR(base_inference, RESOURCE, NOT_FOUND, ("'model' does not exist"),
                               ("path %s set in 'model' does not exist", base_inference->model));
-            goto exit;
+            return FALSE;
         }
     }
 
     if (base_inference->model_proc != NULL && !g_file_test(base_inference->model_proc, G_FILE_TEST_EXISTS)) {
-        GST_ELEMENT_WARNING(base_inference, RESOURCE, NOT_FOUND, ("'model-proc' does not exist"),
-                            ("path %s set in 'model-proc' does not exist", base_inference->model_proc));
+        GST_ELEMENT_ERROR(base_inference, RESOURCE, NOT_FOUND, ("'model-proc' does not exist"),
+                          ("path %s set in 'model-proc' does not exist", base_inference->model_proc));
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean gva_base_inference_start(GstBaseTransform *trans) {
+    GvaBaseInference *base_inference = GVA_BASE_INFERENCE(trans);
+
+    GST_DEBUG_OBJECT(base_inference, "start");
+    if (!gva_base_inference_check_properties_correctness(base_inference)) {
+        goto exit;
     }
 
     gboolean success = registerElement(base_inference);
@@ -607,8 +626,7 @@ gboolean gva_base_inference_stop(GstBaseTransform *trans) {
     GvaBaseInference *base_inference = GVA_BASE_INFERENCE(trans);
 
     GST_DEBUG_OBJECT(base_inference, "stop");
-    // FIXME: Hangs when multichannel
-    // flush_inference(base_inference);
+    flush_inference(base_inference);
 
     return TRUE;
 }
@@ -637,7 +655,7 @@ GstFlowReturn gva_base_inference_transform_ip(GstBaseTransform *trans, GstBuffer
         return GST_FLOW_ERROR;
     }
 
-    return frame_to_base_inference(base_inference, buf, base_inference->info);
+    return frame_to_base_inference(base_inference, buf);
 
     /* return GST_FLOW_OK; FIXME shouldn't signal about dropping frames in inplace transform function*/
 }

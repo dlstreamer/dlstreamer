@@ -19,7 +19,9 @@
 #include <gst/video/video.h>
 
 #define ELEMENT_LONG_NAME "Object classification (requires GstVideoRegionOfInterestMeta on input)"
-#define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+#define ELEMENT_DESCRIPTION                                                                                            \
+    "Performs object classification. Accepts the ROI or full frame as an input and "                                   \
+    "outputs classification results with metadata."
 
 enum {
     PROP_0,
@@ -44,6 +46,8 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaClassify, gst_gva_classify, GST_TYPE_GVA_BASE_INFE
 static GstPadProbeReturn FillROIParamsCallback(GstPad *pad, GstPadProbeInfo *info, gpointer user_data);
 static void gst_gva_classify_finalize(GObject *);
 static void gst_gva_classify_cleanup(GstGvaClassify *);
+static gboolean gst_gva_classify_check_properties_correctness(GstGvaClassify *gvaclassify);
+static gboolean gst_gva_classify_start(GstBaseTransform *trans);
 static void on_base_inference_initialized(GvaBaseInference *base_inference);
 
 void gst_gva_classify_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
@@ -119,6 +123,9 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
     GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_CLASS(gvaclassify_class);
     base_inference_class->on_initialized = on_base_inference_initialized;
 
+    GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS(gvaclassify_class);
+    base_transform_class->start = GST_DEBUG_FUNCPTR(gst_gva_classify_start);
+
     g_object_class_install_property(
         gobject_class, PROP_OBJECT_CLASS,
         g_param_spec_string("object-class", "ObjectClass",
@@ -148,7 +155,8 @@ void gst_gva_classify_init(GstGvaClassify *gvaclassify) {
         return;
     gst_gva_classify_cleanup(gvaclassify);
 
-    gvaclassify->base_inference.is_full_frame = FALSE;
+    gvaclassify->base_inference.type = GST_GVA_CLASSIFY_TYPE;
+    gvaclassify->base_inference.inference_region = ROI_LIST;
     gvaclassify->object_class = g_strdup(DEFAULT_OBJECT_CLASS);
     gvaclassify->reclassify_interval = DEFAULT_RECLASSIFY_INTERVAL;
     gvaclassify->classification_history = create_classification_history(gvaclassify);
@@ -169,11 +177,15 @@ void gst_gva_classify_cleanup(GstGvaClassify *gvaclassify) {
         gvaclassify->classification_history = NULL;
     }
 
-    g_free(gvaclassify->object_class);
-    gvaclassify->object_class = NULL;
+    if (gvaclassify->object_class) {
+        g_free(gvaclassify->object_class);
+        gvaclassify->object_class = NULL;
+    }
 
-    releaseClassificationPostProcessor(gvaclassify->base_inference.post_proc);
-    gvaclassify->base_inference.post_proc = NULL;
+    if (gvaclassify->base_inference.post_proc) {
+        releaseClassificationPostProcessor(gvaclassify->base_inference.post_proc);
+        gvaclassify->base_inference.post_proc = NULL;
+    }
 }
 
 void gst_gva_classify_finalize(GObject *object) {
@@ -193,6 +205,35 @@ GstPadProbeReturn FillROIParamsCallback(GstPad *pad, GstPadProbeInfo *info, gpoi
         fill_roi_params_from_history((struct ClassificationHistory *)user_data, buffer);
 
     return GST_PAD_PROBE_OK;
+}
+
+gboolean gst_gva_classify_check_properties_correctness(GstGvaClassify *gvaclassify) {
+    GvaBaseInference *base_inference = GVA_BASE_INFERENCE(gvaclassify);
+
+    if (base_inference->inference_region == FULL_FRAME && !g_str_equal(gvaclassify->object_class, "")) {
+        GST_ERROR_OBJECT(gvaclassify,
+                         ("You cannot use 'object-class' property on gvaclassify if you set 'full-frame' for "
+                          "'inference-region' property."));
+        return FALSE;
+    }
+
+    if (base_inference->inference_region == FULL_FRAME && gvaclassify->reclassify_interval != 1) {
+        GST_ERROR_OBJECT(gvaclassify,
+                         ("You cannot use 'inference-interval' property on gvaclassify if you set 'full-frame' for "
+                          "'inference-region' property."));
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+gboolean gst_gva_classify_start(GstBaseTransform *trans) {
+    GstGvaClassify *gvaclassify = (GstGvaClassify *)(trans);
+
+    if (!gst_gva_classify_check_properties_correctness(gvaclassify))
+        return FALSE;
+
+    return GST_BASE_TRANSFORM_CLASS(gst_gva_classify_parent_class)->start(trans);
 }
 
 void on_base_inference_initialized(GvaBaseInference *base_inference) {

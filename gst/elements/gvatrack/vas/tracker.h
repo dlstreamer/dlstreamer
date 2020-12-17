@@ -25,6 +25,8 @@ class Tracker : public ITracker {
     std::unique_ptr<vas::ot::ObjectTracker> object_tracker;
     const GstGvaTrack *gva_track;
     std::unordered_map<int, std::string> labels;
+    vas::ot::TrackingType tracker_type;
+    cv::Mat cv_empty_mat;
 
   public:
     Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type);

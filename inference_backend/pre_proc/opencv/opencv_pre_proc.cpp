@@ -41,7 +41,82 @@ void CopyImage(const Image &src, Image &dst) {
 
 } // namespace
 
-void OpenCV_VPP::Convert(const Image &raw_src, Image &dst, bool bAllocateDestination) {
+cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format, const cv::Size &dst_size,
+                           const InputImageLayerDesc::Ptr &pre_proc_info,
+                           const ImageTransformationParams::Ptr &image_transform_info) {
+    try {
+        if (!pre_proc_info)
+            throw std::runtime_error("Pre-processor info for custom image pre-processing is null.");
+
+        cv::Mat result_img(orig_image.size(), orig_image.type());
+        if (pre_proc_info->doNeedColorSpaceConversion(src_color_format)) {
+            ColorSpaceConvert(orig_image, result_img, src_color_format, pre_proc_info->getTargetColorSpace());
+        } else {
+            orig_image.copyTo(result_img);
+        }
+        if (pre_proc_info->doNeedResize() and result_img.size() != dst_size) {
+            switch (pre_proc_info->getResizeType()) {
+            case InputImageLayerDesc::Resize::NO_ASPECT_RATIO:
+                Resize(result_img, dst_size);
+                break;
+            case InputImageLayerDesc::Resize::ASPECT_RATIO:
+                if (pre_proc_info->doNeedCrop()) { // resize to bigger size, because after we using Crop to dst size -
+                                                   // standart practic
+                    // scale_parameter: 1 + 1//scale_parameter
+                    ResizeAspectRatio(result_img, dst_size, image_transform_info, 8);
+                } else {
+                    ResizeAspectRatio(result_img, dst_size, image_transform_info);
+                }
+                break;
+            default:
+                break;
+            }
+        }
+        if (pre_proc_info->doNeedCrop() and result_img.size() != dst_size) {
+            cv::Rect crop_roi;
+            switch (pre_proc_info->getCropType()) {
+            case InputImageLayerDesc::Crop::CENTRAL:
+                crop_roi = cv::Rect((result_img.size().width - dst_size.width) / 2,
+                                    (result_img.size().height - dst_size.height) / 2, dst_size.width, dst_size.height);
+                break;
+            case InputImageLayerDesc::Crop::TOP_LEFT:
+                crop_roi = cv::Rect(0, 0, dst_size.width, dst_size.height);
+                break;
+            case InputImageLayerDesc::Crop::TOP_RIGHT:
+                crop_roi = cv::Rect(result_img.size().width - dst_size.width, 0, dst_size.width, dst_size.height);
+                break;
+            case InputImageLayerDesc::Crop::BOTTOM_LEFT:
+                crop_roi = cv::Rect(0, result_img.size().height - dst_size.height, dst_size.width, dst_size.height);
+                break;
+            case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
+                crop_roi = cv::Rect(result_img.size().width - dst_size.width,
+                                    result_img.size().height - dst_size.height, dst_size.width, dst_size.height);
+                break;
+            default:
+                break;
+            }
+            Crop(result_img, crop_roi, image_transform_info);
+        }
+        if (pre_proc_info->doNeedRangeNormalization()) {
+            const auto range_norm = pre_proc_info->getRangeNormalization();
+            const double std = 255.0 / (range_norm.max - range_norm.min);
+            const double mean = 0 - range_norm.min;
+            Normalization(result_img, mean, std);
+        }
+        if (pre_proc_info->doNeedDistribNormalization()) {
+            const auto distrib_norm = pre_proc_info->getDistribNormalization();
+            Normalization(result_img, distrib_norm.mean, distrib_norm.std);
+        }
+
+        return result_img;
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed custom image pre-processing."));
+    }
+    return cv::Mat();
+}
+
+void OpenCV_VPP::Convert(const Image &raw_src, Image &dst, const InputImageLayerDesc::Ptr &pre_proc_info,
+                         const ImageTransformationParams::Ptr &image_transform_info, bool bAllocateDestination) {
     ITT_TASK("OpenCV_VPP");
 
     try {
@@ -51,18 +126,30 @@ void OpenCV_VPP::Convert(const Image &raw_src, Image &dst, bool bAllocateDestina
 
         Image src = ApplyCrop(raw_src);
         // if identical format and resolution
-        if (src.format == dst.format and
-            (src.format == FourCC::FOURCC_RGBP or src.format == FourCC::FOURCC_RGBP_F32) and src.width == dst.width and
-            src.height == dst.height) {
+        if (doNeedPreProcessing(raw_src, dst)) {
             CopyImage(raw_src, dst);
             // do not return here. Code below is mandatory to execute landmarks inference on CentOS in case of vaapi
             // pre-proc
         }
 
-        cv::Mat mat_image;
-        ImageToMat(src, mat_image);
-        cv::Mat resized_image = ResizeMat(mat_image, dst.height, dst.width);
-        MatToMultiPlaneImage(resized_image, dst);
+        cv::Mat src_mat_image;
+        cv::Mat dst_mat_image;
+
+        auto converted_format = ImageToMat(src, src_mat_image);
+
+        if (doNeedCustomImageConvert(pre_proc_info)) {
+            if (dst.height > static_cast<uint32_t>(std::numeric_limits<int>::max()) and
+                dst.width > static_cast<uint32_t>(std::numeric_limits<int>::max()))
+                throw std::runtime_error("Image size too large.");
+
+            cv::Size dst_size(static_cast<int>(dst.width), static_cast<int>(dst.height));
+            dst_mat_image =
+                CustomImageConvert(src_mat_image, converted_format, dst_size, pre_proc_info, image_transform_info);
+        } else {
+            dst_mat_image = ResizeMat(src_mat_image, dst.height, dst.width);
+        }
+
+        MatToMultiPlaneImage(dst_mat_image, dst);
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed during OpenCV image pre-processing"));
     }

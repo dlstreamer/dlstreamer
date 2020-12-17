@@ -13,9 +13,11 @@
 #pragma once
 
 #include "tensor.h"
-#include <cassert>
+
 #include <gst/gst.h>
 #include <gst/video/gstvideometa.h>
+
+#include <cassert>
 #include <stdexcept>
 #include <string>
 #include <vector>

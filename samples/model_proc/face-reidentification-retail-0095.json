@@ -5,7 +5,6 @@
       "format": "image",
       "layer_name": "0",
       "params": {
-        "color_format": "BGR",
         "alignment_points": [
           0.31556875000000000,
           0.4615741071428571,

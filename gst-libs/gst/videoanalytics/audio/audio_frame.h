@@ -13,19 +13,21 @@
 #pragma once
 
 #include "audio_event.h"
-#include <algorithm>
-#include <assert.h>
-#include <functional>
+
+#include "metadata/gva_json_meta.h"
+#include "metadata/gva_tensor_meta.h"
+
 #include <gst/audio/audio.h>
 #include <gst/audio/gstaudiometa.h>
 #include <gst/gstbuffer.h>
+
+#include <algorithm>
+#include <assert.h>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
 #include <vector>
-
-#include "metadata/gva_json_meta.h"
-#include "metadata/gva_tensor_meta.h"
 
 namespace GVA {
 
@@ -194,6 +196,10 @@ class AudioFrame {
      */
     Tensor add_tensor() {
         const GstMetaInfo *meta_info = gst_meta_get_info(GVA_TENSOR_META_IMPL_NAME);
+
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         GstGVATensorMeta *tensor_meta = (GstGVATensorMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
 
         return Tensor(tensor_meta->data);
@@ -205,6 +211,10 @@ class AudioFrame {
      */
     void add_message(const std::string &message) {
         const GstMetaInfo *meta_info = gst_meta_get_info(GVA_JSON_META_IMPL_NAME);
+
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         GstGVAJSONMeta *json_meta = (GstGVAJSONMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
         json_meta->message = g_strdup(message.c_str());
     }
@@ -214,6 +224,9 @@ class AudioFrame {
      * @param event the AudioEvent to remove
      */
     void remove_event(const AudioEvent &event) {
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         if (!gst_buffer_remove_meta(buffer, (GstMeta *)event._meta())) {
             throw std::out_of_range("GVA::AudioFrame: AudioEvent doesn't belong to this frame");
         }
@@ -228,6 +241,9 @@ class AudioFrame {
         gpointer state = NULL;
         while ((meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state))) {
             if (meta->data == tensor._structure) {
+                if (!gst_buffer_is_writable(buffer))
+                    throw std::runtime_error("Buffer is not writable.");
+
                 if (gst_buffer_remove_meta(buffer, (GstMeta *)meta))
                     return;
             }

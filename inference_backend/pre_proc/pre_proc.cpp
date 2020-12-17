@@ -103,4 +103,20 @@ Image ApplyCrop(const Image &src) {
 
     return dst;
 }
+
+bool ImagePreprocessor::doNeedCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info) {
+    if (pre_proc_info)
+        if (pre_proc_info->isDefined())
+            return true;
+    return false;
+}
+
+bool ImagePreprocessor::doNeedPreProcessing(const Image &src, Image &dst) {
+    if (src.format == dst.format and (src.format == FourCC::FOURCC_RGBP or src.format == FourCC::FOURCC_RGBP_F32) and
+        src.width == dst.width and src.height == dst.height) {
+        return true;
+    }
+    return false;
+}
+
 } // namespace InferenceBackend

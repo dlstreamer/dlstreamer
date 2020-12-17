@@ -17,6 +17,9 @@ class ModelProcParserV2 : public ModelProcParser {
             std::shared_ptr<ModelInputProcessorInfo> preprocessor(new ModelInputProcessorInfo);
             preprocessor->layer_name = proc_item.at("layer_name");
             preprocessor->format = proc_item.at("format");
+            preprocessor->precision = (preprocessor->format == "image") ? "U8" : "FP32";
+            if (proc_item.find("precision") != proc_item.cend())
+                preprocessor->precision = proc_item.at("precision");
 
             preprocessor->params = gst_structure_new_empty("params");
             if (!preprocessor->params)

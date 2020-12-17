@@ -160,7 +160,7 @@ Gst.init(sys.argv)
 # post-processing code
 def process_frame(frame: VideoFrame, threshold: float = 0.5) -> bool:
     width = frame.video_info().width
-    height = frame.video_info().height    
+    height = frame.video_info().height
 
     for tensor in frame.tensors():
         dims = tensor.dims()
@@ -233,7 +233,7 @@ from gi.repository import Gst, GstVideo, GObject
 # GVA API modules
 from gstgva import VideoFrame, util
 ```
-Then, we parse command-line arguments. When run this script, you should specify input video with "-i" and your detection model with "-d": 
+Then, we parse command-line arguments. When run this script, you should specify input video with "-i" and your detection model with "-d":
 ```python
 parser = ArgumentParser(add_help=False)
 _args = parser.add_argument_group('Options')
@@ -247,7 +247,7 @@ Next, function `process_frame` defines post-processing. As we said above, this c
 Tons of image information regarding current video frame can be obtain with gstgva.video_frame.VideoFrame.video_info. You can get image width, height, channels format and much more:
 ```python
 width = frame.video_info().width
-height = frame.video_info().height    
+height = frame.video_info().height
 ```
 Next, we iterate by gstgva.video_frame.VideoFrame.tensors, which were added by **gvainference**. We can get some inference result information, like gstgva.tensor.Tensor.dims (list of model output blob dimensions) and gstgva.tensor.Tensor.data (raw output blob to interpret with your post-processing code):
 ```python

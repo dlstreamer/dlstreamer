@@ -11,8 +11,8 @@ The string contains a list of GStreamer elements separated by exclamation mark `
 Overall this sample builds GStreamer pipeline of the following elements:
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
-* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for detecting faces using the OpenVINO™ Inference Engine
-* [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) for recognizing the age and gender of detected faces using the the OpenVINO™ Inference Engine.
+* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for detecting faces using the OpenVINO™ Toolkit Inference Engine
+* [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) for recognizing the age and gender of detected faces using the the OpenVINO™ Toolkit Inference Engine.
 * [gvametaconvert](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametaconvert) for conversion of tensor and inference metadata to JSON format.
 * [gvametapublish](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametapublish) for publishing the JSON metadata as output to console, file, fifo, MQTT or Kafka.
 * `fakesink` to terminate the pipeline output without actually rendering video frames.
@@ -21,7 +21,7 @@ Overall this sample builds GStreamer pipeline of the following elements:
 
 ## Models
 
-The sample uses by default the following pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 *   __face-detection-adas-0001__ is primary detection network for detecting faces that appear within video frames.
 *   __age-gender-recognition-retail-0013__ classifies age and gender of detected face(s).
 
@@ -61,7 +61,7 @@ By default this is
 ### Examples
 1. Launch sample with no parameters to see stdout with pretty json.
    ```
-   ./metapublish.sh 
+   ./metapublish.sh
    ```
 
 1. Override the file or absolute path of output file.

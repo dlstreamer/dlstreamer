@@ -18,7 +18,7 @@
 #define UNUSED(x) (void)(x)
 
 #define ELEMENT_LONG_NAME "Metadata converter"
-#define ELEMENT_DESCRIPTION "Metadata converter"
+#define ELEMENT_DESCRIPTION "Converts the metadata structure to the JSON format."
 
 GST_DEBUG_CATEGORY(gst_gva_meta_convert_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_convert_debug_category

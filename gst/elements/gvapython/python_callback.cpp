@@ -192,7 +192,7 @@ void PythonCallback::SetCaps(GstCaps *caps) {
         GstStructure *caps_s = gst_caps_get_structure((const GstCaps *)caps, 0);
         const gchar *name = gst_structure_get_name(caps_s);
 
-        if (g_strrstr(name, "video")) {
+        if ((g_strrstr(name, "video")) || (g_strrstr(name, "image"))) {
             // Get gstgva.VideoFrame constructor
             DECL_WRAPPER(gva_module, PyImport_ImportModule("gstgva"));
             if (!py_frame_class.reset(PyObject_GetAttrString(gva_module, "VideoFrame"), "videoframe_class")) {

@@ -25,7 +25,7 @@ namespace {
 using namespace InferenceBackend;
 
 bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint64 current_num_frame,
-                               GstBuffer * /* *buffer*/, GstVideoRegionOfInterestMeta *roi) {
+                               GstBuffer * /* buffer */, GstVideoRegionOfInterestMeta *roi) {
     GstGvaClassify *gva_classify = (GstGvaClassify *)gva_base_inference;
 
     // Check is object-class same with roi type

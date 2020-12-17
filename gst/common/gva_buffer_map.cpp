@@ -111,6 +111,7 @@ void gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
             }
             for (guint i = 0; i < n_planes; ++i) {
                 image.stride[i] = GST_VIDEO_FRAME_PLANE_STRIDE(&map_context.frame, i);
+                image.offsets[i] = GST_VIDEO_FRAME_PLANE_OFFSET(&map_context.frame, i);
             }
 #if defined(USE_VPUSMM)
             auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buffer, 0), gst_memory_unref);

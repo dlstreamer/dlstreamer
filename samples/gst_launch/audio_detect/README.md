@@ -16,7 +16,7 @@ This sample builds a GStreamer pipeline using the following elements
 
 ## Model
 
-This sample uses the ACLNet model trained for audio event detection and made available through the Open Model Zoo. For more details see [here](https://download.01.org/opencv/models_contrib/sound_classification/aclnet/pytorch/15062020/aclnet_des_53_fp32.onnx).
+This sample uses the ACLNet model trained for audio event detection and made available through the Open Model Zoo. For more details see [here](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/aclnet/aclnet.md).
 *   __aclnet_des_53_fp32.onnx__ is end-to-end convolutional neural network architecture for audio classification
 
 > **NOTE**: Before running this sample you'll need to download and prepare the model. Execute `download_audio_models.sh` once to download and prepare models for all audio samples.
@@ -25,7 +25,7 @@ This sample uses the ACLNet model trained for audio event detection and made ava
 
 Along with the model network and weights, gvaudiodetect uses an additional `model-proc` json file that describes how to prepare the input for the model and interpret its output.
 
-`model-proc` is a JSON file that describes the output layer name and label mapping (Cat, Dog, Baby Crying) for the output of the model. For each possible output of the model (specified using a zero based index) you can set a label and output specific threshold [Check Here](model_proc/aclnet.json).
+`model-proc` is a JSON file that describes the output layer name and label mapping (Cat, Dog, Baby Crying) for the output of the model. For each possible output of the model (specified using a zero based index) you can set a label and output specific threshold. Check [here](model_proc/aclnet.json).
 
 ## Running
 

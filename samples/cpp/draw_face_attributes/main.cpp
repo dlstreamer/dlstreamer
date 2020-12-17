@@ -259,8 +259,8 @@ int main(int argc, char *argv[]) {
     if (classification_models == NULL) {
         for (const auto &model_to_path :
              FindModels(SplitString(env_models_path), default_classification_model_names, model_precision))
-            classify_str += "gvaclassify model=" + model_to_path.second + " device=" + device +
-                            " batch-size=" + std::to_string(batch_size) + " ! queue ! ";
+            classify_str += "gvainference model=" + model_to_path.second + " device=" + device +
+                            " batch-size=" + std::to_string(batch_size) + " inference-region=roi-list ! queue ! ";
     }
 
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";

@@ -29,6 +29,7 @@
                 3
             ],
             "bbox_number_on_cell": 3,
+            "cells_number": 13,
             "labels": [
                 "person",
                 "bicycle",

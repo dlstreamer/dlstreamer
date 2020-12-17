@@ -86,10 +86,10 @@ def create_launch_string():
 
     return "{}={} ! decodebin ! \
     videoconvert n-threads=4 ! capsfilter caps=\"video/x-raw,format=BGRx\" ! \
-    gvadetect model={} device=CPU batch-size=1 ! queue ! \
-    gvaclassify model={} device=CPU batch-size=1 ! queue ! \
-    gvaclassify model={} device=CPU batch-size=1 ! queue ! \
-    gvaclassify model={} batch-size=1 ! queue ! \
+    gvadetect model={} device=CPU ! queue ! \
+    gvainference model={} device=CPU inference-region=roi-list ! queue ! \
+    gvainference model={} device=CPU inference-region=roi-list ! queue ! \
+    gvainference model={} device=CPU inference-region=roi-list ! queue ! \
     gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! \
     fpsdisplaysink video-sink=xvimagesink sync=false".format(source, args.input, args.detection_model,
                                                              args.classification_model1, args.classification_model2,

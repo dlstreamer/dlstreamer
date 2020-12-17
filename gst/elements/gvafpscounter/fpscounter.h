@@ -4,22 +4,56 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#ifndef __FPSCOUNTER_H__
-#define __FPSCOUNTER_H__
+#pragma once
 
+#include <chrono>
 #include <gst/video/video.h>
+#include <map>
+#include <mutex>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+class FpsCounter {
+  public:
+    virtual ~FpsCounter() = default;
+    virtual bool NewFrame(const std::string &element_name, FILE *output) = 0;
+    virtual void EOS(FILE *output) = 0;
+};
 
-void create_iterative_fps_counter(const char *intervals);
-void create_average_fps_counter(unsigned int starting_frame);
-void fps_counter_new_frame(GstBuffer *, const char *element_name);
-void fps_counter_eos();
+class IterativeFpsCounter : public FpsCounter {
+  public:
+    IterativeFpsCounter(unsigned interval, bool print_each_stream = true)
+        : interval(interval), print_each_stream(print_each_stream) {
+    }
+    bool NewFrame(const std::string &element_name, FILE *output) override;
+    void EOS(FILE *) override {
+    }
 
-#ifdef __cplusplus
-}
-#endif
+  protected:
+    unsigned interval;
+    bool print_each_stream;
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
+    std::map<std::string, int> num_frames;
+    std::mutex mutex;
 
-#endif /* __FPSCOUNTER_H__ */
+    void PrintFPS(FILE *output, double sec);
+};
+
+class AverageFpsCounter : public FpsCounter {
+  public:
+    AverageFpsCounter(unsigned skipped_frames)
+        : skipped_frames(skipped_frames), total_frames(0), result_reported(false) {
+    }
+
+    bool NewFrame(const std::string &element_name, FILE *) override;
+    void EOS(FILE *output) override;
+
+  protected:
+    unsigned skipped_frames;
+    unsigned total_frames;
+    bool result_reported;
+    std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
+    std::map<std::string, int> num_frames;
+    std::mutex mutex;
+
+    void PrintFPS(FILE *output, double sec);
+};

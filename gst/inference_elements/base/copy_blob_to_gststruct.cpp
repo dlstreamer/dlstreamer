@@ -49,10 +49,30 @@ int GetUnbatchedSizeInBytes(InferenceBackend::OutputBlob::Ptr blob, size_t batch
     return size;
 }
 
+GValueArray *ConvertVectorToGValueArr(const std::vector<size_t> &vector) {
+    GValueArray *g_arr = g_value_array_new(vector.size());
+    if (not g_arr)
+        throw std::runtime_error("Failed to create GValueArray with " + std::to_string(vector.size()) + " elements");
+
+    try {
+        GValue gvalue = G_VALUE_INIT;
+        g_value_init(&gvalue, G_TYPE_UINT);
+        for (guint i = 0; i < vector.size(); ++i) {
+            g_value_set_uint(&gvalue, safe_convert<unsigned int>(vector[i]));
+            g_value_array_append(g_arr, &gvalue);
+        }
+
+        return g_arr;
+    } catch (const std::exception &e) {
+        if (g_arr)
+            g_value_array_free(g_arr);
+        std::throw_with_nested(std::runtime_error("Failed to convert std::vector to GValueArray"));
+    }
+}
+
 void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStructure *gst_struct,
                                   const char *model_name, const char *layer_name, int32_t batch_size,
                                   int32_t batch_index) {
-    GValueArray *arr = nullptr;
     try {
         const uint8_t *data = (const uint8_t *)blob->GetData();
         if (data == NULL)
@@ -72,20 +92,12 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
         if (dims.size() == 0)
             throw std::invalid_argument("Blob has 0 dimensions");
         dims[0] = 1; // unbatched
-        arr = g_value_array_new(dims.size());
-        if (not arr)
-            throw std::runtime_error("Failed to create GValueArray with " + std::to_string(dims.size()) + " elements");
-        GValue gvalue = G_VALUE_INIT;
-        g_value_init(&gvalue, G_TYPE_UINT);
-        for (guint i = 0; i < dims.size(); ++i) {
-            g_value_set_uint(&gvalue, safe_convert<unsigned int>(dims[i]));
-            g_value_array_append(arr, &gvalue);
-        }
-        gst_structure_set_array(gst_struct, "dims", arr);
-        g_value_array_free(arr);
+
+        // TODO: make shared
+        GValueArray *g_arr = ConvertVectorToGValueArr(dims);
+        gst_structure_set_array(gst_struct, "dims", g_arr);
+        g_value_array_free(g_arr);
     } catch (const std::exception &e) {
-        if (arr)
-            g_value_array_free(arr);
         std::throw_with_nested(std::runtime_error("Failed to copy model '" + std::string(model_name) +
                                                   "' output blob of layer '" + std::string(layer_name) +
                                                   "' to resulting Tensor"));

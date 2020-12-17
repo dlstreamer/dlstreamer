@@ -6,6 +6,7 @@
 
 #pragma once
 #include "image.h"
+#include "input_image_layer_descriptor.h"
 
 namespace InferenceBackend {
 
@@ -16,8 +17,14 @@ class ImagePreprocessor {
 
     virtual ~ImagePreprocessor() = default;
 
-    virtual void Convert(const Image &src, Image &dst, bool bAllocateDestination = false) = 0;
+    virtual void Convert(const Image &src, Image &dst, const InputImageLayerDesc::Ptr &pre_proc_info = nullptr,
+                         const ImageTransformationParams::Ptr &image_transform_info = nullptr,
+                         bool bAllocateDestination = false) = 0;
     virtual void ReleaseImage(const Image &dst) = 0; // to be called if Convert called with bAllocateDestination = true
+
+  protected:
+    bool doNeedPreProcessing(const Image &src, Image &dst);
+    bool doNeedCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info);
 };
 
 int GetPlanesCount(int fourcc);

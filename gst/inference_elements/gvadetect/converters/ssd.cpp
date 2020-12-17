@@ -7,17 +7,68 @@
 #include "converters/ssd.h"
 
 #include "gstgvadetect.h"
+#include "gva_utils.h"
 #include "inference_backend/logger.h"
 #include "video_frame.h"
 
 using namespace DetectionPlugin;
 using namespace Converters;
 
+/**
+ * Compares to metas of type GstVideoRegionOfInterestMeta by roi_type and coordinates.
+ *
+ * @param[in] left - pointer to first GstVideoRegionOfInterestMeta operand.
+ * @param[in] right - pointer to second GstVideoRegionOfInterestMeta operand.
+ *
+ * @return true if given metas are equal, false otherwise.
+ */
+inline bool sameRegion(GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInterestMeta *right) {
+    return left->roi_type == right->roi_type && left->x == right->x && left->y == right->y && left->w == right->w &&
+           left->h == right->h;
+}
+
+/**
+ * Iterating through GstBuffer's metas and searching for meta that matching frame's ROI.
+ *
+ * @param[in] frame - pointer to InferenceFrame containing pointers to buffer and ROI.
+ *
+ * @return GstVideoRegionOfInterestMeta - meta of GstBuffer, or nullptr.
+ *
+ * @throw std::invalid_argument when GstBuffer is nullptr.
+ */
+inline GstVideoRegionOfInterestMeta *findDetectionMeta(InferenceFrame *frame) {
+    GstBuffer *buffer = frame->buffer;
+    if (not buffer)
+        throw std::invalid_argument("Inference frame's buffer is nullptr");
+    auto frame_roi = &frame->roi;
+    GstVideoRegionOfInterestMeta *meta = NULL;
+    gpointer state = NULL;
+    while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
+        if (sameRegion(meta, frame_roi)) {
+            return meta;
+        }
+    }
+    return meta;
+}
+
+/**
+ * Applies inference results to the buffer. Extracting data from each resulting blob,
+ * adding ROI to the corresponding frame and addting metas to detection_result.
+ *
+ * @param[in] output_blobs - blobs containing inference results.
+ * @param[in] frames - frames processed during inference.
+ * @param[in] detection_result - detection tensor to attach meta in.
+ * @param[in] confidence_threshold - value between 0 and 1 determining the accuracy of inference results to be handled.
+ * @param[in] labels - GValueArray containing layers info from output_blobs.
+ *
+ * @return true if everything processed without exceptions.
+ *
+ * @throw std::invalid_argument when either blobs are invalid or their info is invalid.
+ */
 bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
                            const std::vector<std::shared_ptr<InferenceFrame>> &frames, GstStructure *detection_result,
                            double confidence_threshold, GValueArray *labels) {
     ITT_TASK(__FUNCTION__);
-    bool flag = false;
     try {
         if (not detection_result)
             throw std::invalid_argument("detection_result tensor is nullptr");
@@ -58,22 +109,33 @@ bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputB
             GstVideoInfo video_info;
             guint max_proposal_count = dims[dims_size - 2];
             for (guint i = 0; i < max_proposal_count; ++i) {
-                gint image_id = (gint)data[i * object_size + 0];
-                gint label_id = (gint)data[i * object_size + 1];
-                gdouble confidence = data[i * object_size + 2];
-                gdouble x_min = data[i * object_size + 3];
-                gdouble y_min = data[i * object_size + 4];
-                gdouble x_max = data[i * object_size + 5];
-                gdouble y_max = data[i * object_size + 6];
-
-                // check image_id
+                gint image_id = static_cast<gint>(data[i * object_size + 0]);
+                /* check if 'image_id' contains a valid index for 'frames' vector */
                 if (image_id < 0 || (size_t)image_id >= frames.size()) {
                     break;
                 }
 
-                // check confidence
+                gint label_id = static_cast<gint>(data[i * object_size + 1]);
+                gdouble confidence = data[i * object_size + 2];
+                /* discard inference results that do not match 'confidence_threshold' */
                 if (confidence < confidence_threshold) {
                     continue;
+                }
+
+                gdouble x_min = data[i * object_size + 3];
+                gdouble y_min = data[i * object_size + 4];
+                gdouble x_max = data[i * object_size + 5];
+                gdouble y_max = data[i * object_size + 6];
+                /* In case of gvadetect with inference-region=roi-list we get coordinates relative to ROI.
+                 * We need to convert them to coordinates relative to the full frame. */
+                if (frames[image_id]->gva_base_inference->inference_region == ROI_LIST) {
+                    GstVideoRegionOfInterestMeta *meta = findDetectionMeta(frames[image_id].get());
+                    if (meta) {
+                        x_min = (meta->x + meta->w * data[i * object_size + 3]) / frames[image_id]->info->width;
+                        y_min = (meta->y + meta->h * data[i * object_size + 4]) / frames[image_id]->info->height;
+                        x_max = (meta->x + meta->w * data[i * object_size + 5]) / frames[image_id]->info->width;
+                        y_max = (meta->y + meta->h * data[i * object_size + 6]) / frames[image_id]->info->height;
+                    }
                 }
 
                 // This post processing happens not in main gstreamer thread (but in separate one). Thus, we can run
@@ -86,7 +148,9 @@ bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputB
                     video_info.width = frames[image_id]->roi.w;
                     video_info.height = frames[image_id]->roi.h;
                 }
-                GVA::VideoFrame video_frame(frames[image_id]->buffer, frames[image_id]->info);
+
+                // TODO: in future we must return to use GVA::VideoFrame
+                // GVA::VideoFrame video_frame(frames[image_id]->buffer, frames[image_id]->info);
 
                 // TODO: check if we can simplify below code further
                 // apply roi_scale if set
@@ -101,15 +165,14 @@ bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputB
                     y_max = y_center + new_h * 0.5;
                 }
 
-                addRoi(frames[image_id]->buffer, frames[image_id]->info, x_min, y_min, x_max - x_min, y_max - y_min,
-                       label_id, confidence, gst_structure_copy(detection_result),
+                addRoi(frames[image_id]->buffer, frames[image_id]->info, frames[image_id]->image_transform_info, x_min,
+                       y_min, x_max - x_min, y_max - y_min, label_id, confidence, gst_structure_copy(detection_result),
                        labels); // each ROI gets its own copy, which is then
                                 // owned by GstVideoRegionOfInterestMeta
             }
         }
-        flag = true;
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to do SSD post-processing"));
     }
-    return flag;
+    return true;
 }

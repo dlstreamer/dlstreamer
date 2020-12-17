@@ -13,10 +13,8 @@ GType gst_gva_get_tracking_type(void) {
         {SHORT_TERM, "Short-term tracker", "short-term"},
         {ZERO_TERM, "Zero-term tracker", "zero-term"},
 #endif
-#ifdef ENABLE_IMAGELESS_TRACKER
         {SHORT_TERM_IMAGELESS, "Short-term imageless tracker", "short-term-imageless"},
         {ZERO_TERM_IMAGELESS, "Zero-term imageless tracker", "zero-term-imageless"},
-#endif
         {0, NULL, NULL}};
 
     if (!gva_tracking_type)

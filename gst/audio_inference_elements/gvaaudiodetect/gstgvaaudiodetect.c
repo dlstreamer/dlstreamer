@@ -8,8 +8,8 @@
 #include "post_processors.h"
 #include "pre_processors.h"
 
-#define ELEMENT_LONG_NAME " Audio event dtection based on input audio"
-#define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+#define ELEMENT_LONG_NAME "Audio event detection based on input audio"
+#define ELEMENT_DESCRIPTION "Performs audio event detection using AclNet model."
 
 enum { PROP_0 };
 

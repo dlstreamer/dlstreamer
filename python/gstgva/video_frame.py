@@ -148,7 +148,8 @@ class VideoFrame:
         with gst_buffer_data(self.__buffer, flag) as data:
             bytes_per_pix = self.__video_info.finfo.pixel_stride[0]  # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
             w = self.__video_info.width
-            if self.__video_info.finfo.format == GstVideo.VideoFormat.NV12:
+            if self.__video_info.finfo.format == GstVideo.VideoFormat.NV12 or \
+               self.__video_info.finfo.format == GstVideo.VideoFormat.I420:
                 h = int(self.__video_info.height * 1.5)
             elif self.__video_info.finfo.format == GstVideo.VideoFormat.BGR or \
                  self.__video_info.finfo.format == GstVideo.VideoFormat.BGRA or \

@@ -23,12 +23,10 @@ bool TrackerFactory::RegisterAll() {
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM, VasWrapper::Tracker::CreateShortTerm);
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM, VasWrapper::Tracker::CreateZeroTerm);
 #endif
-#if defined(ENABLE_IMAGELESS_TRACKER)
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM_IMAGELESS,
                                        VasWrapper::Tracker::CreateShortTermImageless);
     result &=
         TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS, VasWrapper::Tracker::CreateZeroTermImageless);
-#endif
 #endif
 
     return result;

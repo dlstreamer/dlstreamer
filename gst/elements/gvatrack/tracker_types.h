@@ -15,10 +15,8 @@ typedef enum {
     SHORT_TERM,
     ZERO_TERM,
 #endif
-#ifdef ENABLE_IMAGELESS_TRACKER
     SHORT_TERM_IMAGELESS,
     ZERO_TERM_IMAGELESS
-#endif
 } GstGvaTrackingType;
 
 #define GST_GVA_TRACKING_TYPE (gst_gva_get_tracking_type())

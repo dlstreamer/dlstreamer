@@ -41,6 +41,7 @@ class ClassificationPostProcessor : public PostProcessor {
 
     void fillLayersInfoIfEmpty(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs);
     PostProcessor::ExitStatus pushClassificationResultToFrames(InferenceBackend::OutputBlob::Ptr &blob,
+                                                               unsigned int blob_id,
                                                                ClassificationLayerInfo &layer_info,
                                                                const std::string &layer_name,
                                                                std::vector<std::shared_ptr<InferenceFrame>> &frames);

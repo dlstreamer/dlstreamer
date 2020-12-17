@@ -88,9 +88,13 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
     while (
         (meta = gst_buffer_iterate_meta_filtered(buf_with_meta, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE))) {
         GstVideoRegionOfInterestMeta *original_roi_meta = (GstVideoRegionOfInterestMeta *)meta;
+
+        g_return_val_if_fail(gst_buffer_is_writable(buf), FALSE);
+
         GstVideoRegionOfInterestMeta *output_meta = gst_buffer_add_video_region_of_interest_meta(
             buf, g_quark_to_string(original_roi_meta->roi_type), original_roi_meta->x, original_roi_meta->y,
             original_roi_meta->w, original_roi_meta->h);
+
         for (GList *l = original_roi_meta->params; l; l = l->next) {
             GstStructure *s = GST_STRUCTURE(l->data);
             if (!gst_structure_has_name(s, "object_id")) {
@@ -101,6 +105,7 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
                     detection = s;
             }
         }
+
         if (src_pad_video_info->width != sink_pad_video_info->width ||
             src_pad_video_info->height != sink_pad_video_info->height) {
             // apply scale only when needed (if image size on src pad is different from image size on this sink pad)

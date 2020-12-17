@@ -164,7 +164,7 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
     VASurfaceID src_surface = VA_INVALID_SURFACE;
     Image &dst = va_api_dst.image;
 
-    uint64_t dma_fd;
+    uint64_t dma_fd = 0;
 
     if (src.type == MemoryType::VAAPI) {
         src_surface =

@@ -53,7 +53,7 @@ echo Running sample with the following parameters:
 echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
 
 PIPELINE="gst-launch-1.0 \
-$SOURCE_ELEMENT ! decodebin ! videoconvert ! video/x-raw,format=I420 ! \
+$SOURCE_ELEMENT ! decodebin ! \
 gvainference model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
 gvapython module=$PYTHON_SCRIPT1 ! \
 gvaclassify model=$CLASS_MODEL_PATH device=$DEVICE ! queue ! \

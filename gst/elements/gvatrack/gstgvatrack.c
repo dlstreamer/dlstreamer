@@ -9,7 +9,11 @@
 #include "tracker_c.h"
 
 #define ELEMENT_LONG_NAME "Object tracker (generates GstGvaObjectTrackerMeta, GstVideoRegionOfInterestMeta)"
-#define ELEMENT_DESCRIPTION "Object tracker (generates GstGvaObjectTrackerMeta, GstVideoRegionOfInterestMeta)"
+#define ELEMENT_DESCRIPTION                                                                                            \
+    "Performs object tracking using zero-term or short-term tracking algorithms. "                                     \
+    "Zero-term tracking assigns unique object IDs and requires object detection to run on every frame. "               \
+    "Short-term tracking allows to track objects between frames, thereby reducing the need to run "                    \
+    "object detection on each frame."
 
 #define UNUSED(x) (void)(x)
 
@@ -17,12 +21,7 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_track_debug_category);
 #define GST_CAT_DEFAULT gst_gva_track_debug_category
 
 #define DEFAULT_DEVICE "CPU"
-
-#ifdef ENABLE_IMAGELESS_TRACKER
 #define DEFAULT_TRACKING_TYPE SHORT_TERM_IMAGELESS
-#else
-#define DEFAULT_TRACKING_TYPE SHORT_TERM
-#endif
 
 enum {
     PROP_0,

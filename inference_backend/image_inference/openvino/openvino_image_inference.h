@@ -7,6 +7,7 @@
 #pragma once
 
 #include "inference_backend/image_inference.h"
+#include "inference_backend/input_image_layer_descriptor.h"
 #include "inference_backend/logger.h"
 #include "inference_backend/pre_proc.h"
 #include "model_builder.h"
@@ -43,16 +44,16 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     SubmitImage(const InferenceBackend::Image &image, IFrameBase::Ptr user_data,
                 const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) override;
 
-    virtual const std::string &GetModelName() const;
+    virtual const std::string &GetModelName() const override;
 
     virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
-                                        int &memory_type) const;
+                                        int &memory_type) const override;
 
-    virtual bool IsQueueFull();
+    virtual bool IsQueueFull() override;
 
-    virtual void Flush();
+    virtual void Flush() override;
 
-    virtual void Close();
+    virtual void Close() override;
 
   protected:
     bool initialized;
@@ -90,7 +91,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::unique_ptr<InferenceBackend::ImagePreprocessor> pre_processor;
 
     // Threading
-    std::mutex mutex_;
+    std::mutex requests_mutex_;
     std::atomic<unsigned int> requests_processing_;
     std::condition_variable request_processed_;
     std::mutex flush_mutex;
@@ -98,8 +99,11 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::queue<InferenceBackend::OutputBlob> output_blob_pool;
 
   private:
+    bool doNeedImagePreProcessing();
     void SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
-                               const InferenceBackend::Image &src_img);
+                               const InferenceBackend::Image &src_img,
+                               const InferenceBackend::InputImageLayerDesc::Ptr &pre_proc_info,
+                               const InferenceBackend::ImageTransformationParams::Ptr image_transform_info);
     void BypassImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img);
     void setCompletionCallback(std::shared_ptr<BatchRequest> &batch_request);

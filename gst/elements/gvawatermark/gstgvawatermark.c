@@ -17,8 +17,8 @@
 
 #define UNUSED(x) (void)(x)
 
-#define ELEMENT_LONG_NAME "Draw detection/classification/recognition results on top of video data"
-#define ELEMENT_DESCRIPTION "Draw detection/classification/recognition results on top of video data"
+#define ELEMENT_LONG_NAME "Labeler of detection/classification/recognition results"
+#define ELEMENT_DESCRIPTION "Overlays the metadata on the video frame to visualize the inference results."
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_watermark_debug_category);
 #define GST_CAT_DEFAULT gst_gva_watermark_debug_category
@@ -33,6 +33,7 @@ static gboolean gst_gva_watermark_start(GstBaseTransform *trans);
 static gboolean gst_gva_watermark_stop(GstBaseTransform *trans);
 static gboolean gst_gva_watermark_set_caps(GstBaseTransform *trans, GstCaps *incaps, GstCaps *outcaps);
 static GstFlowReturn gst_gva_watermark_transform_ip(GstBaseTransform *trans, GstBuffer *buf);
+static gboolean gst_gva_watermark_propose_allocation(GstBaseTransform *trans, GstQuery *decide_query, GstQuery *query);
 
 /* class initialization */
 
@@ -64,6 +65,7 @@ static void gst_gva_watermark_class_init(GstGvaWatermarkClass *klass) {
     base_transform_class->set_caps = GST_DEBUG_FUNCPTR(gst_gva_watermark_set_caps);
     base_transform_class->transform = NULL;
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gst_gva_watermark_transform_ip);
+    base_transform_class->propose_allocation = GST_DEBUG_FUNCPTR(gst_gva_watermark_propose_allocation);
 }
 
 static void gst_gva_watermark_init(GstGvaWatermark *gvawatermark) {
@@ -153,8 +155,18 @@ static GstFlowReturn gst_gva_watermark_transform_ip(GstBaseTransform *trans, Gst
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }
 
-    if (!draw_label(gvawatermark, buf))
+    if (!draw(gvawatermark, buf))
         return GST_FLOW_ERROR;
 
     return GST_FLOW_OK;
+}
+
+gboolean gst_gva_watermark_propose_allocation(GstBaseTransform *trans, GstQuery *decide_query, GstQuery *query) {
+    UNUSED(decide_query);
+    UNUSED(trans);
+    if (query) {
+        gst_query_add_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+        return TRUE;
+    }
+    return FALSE;
 }

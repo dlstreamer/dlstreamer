@@ -99,7 +99,8 @@ void append(GVA::VideoFrame &video_frame, const vas::ot::Object &tracked_object,
 
 } // namespace
 
-Tracker::Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type) : gva_track(gva_track) {
+Tracker::Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type)
+    : gva_track(gva_track), tracker_type(trackingType(tracking_type)) {
     if (tracking_type.empty() || gva_track == nullptr) {
         throw std::invalid_argument("Tracker::Tracker: nullptr arguments is not allowed");
     }
@@ -107,6 +108,13 @@ Tracker::Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type)
     vas::ot::ObjectTracker::Builder builder;
     builder.input_image_format = ConvertFormat(gva_track->info->finfo->format);
     builder.max_num_objects = DEFAULT_MAX_NUM_OBJECTS;
+
+    if (gva_track->info->finfo->format == GST_VIDEO_FORMAT_NV12 ||
+        gva_track->info->finfo->format == GST_VIDEO_FORMAT_I420) {
+        cv_empty_mat = cv::Mat(cv::Size(gva_track->info->width, gva_track->info->height * 1.5f), CV_8UC3);
+    } else {
+        cv_empty_mat = cv::Mat(cv::Size(gva_track->info->width, gva_track->info->height), CV_8UC3);
+    }
 
     // examples: VPU.1, CPU, VPU, etc.
     std::vector<std::string> full_device = Utils::splitString(gva_track->device, '.');
@@ -117,7 +125,7 @@ Tracker::Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type)
         builder.platform_config = config;
     }
 
-    object_tracker = builder.Build(trackingType(tracking_type));
+    object_tracker = builder.Build(tracker_type);
 }
 
 void Tracker::track(GstBuffer *buffer) {
@@ -127,9 +135,19 @@ void Tracker::track(GstBuffer *buffer) {
         GVA::VideoFrame video_frame(buffer, gva_track->info);
         std::vector<vas::ot::DetectedObject> detected_objects = extractDetectedObjects(video_frame, labels);
 
-        MappedMat cv_mat(buffer, gva_track->info, GST_MAP_READ);
         std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
-        const auto tracked_objects = object_tracker->Track(cv_mat.mat(), detected_objects);
+        std::vector<vas::ot::Object> tracked_objects;
+
+        // For imageless algorithms image is not important, so in that case static cv::Mat is passed thus avoiding
+        // redundant buffer map/unmap operations
+        if (tracker_type == vas::ot::TrackingType::ZERO_TERM_IMAGELESS ||
+            tracker_type == vas::ot::TrackingType::SHORT_TERM_IMAGELESS) {
+            tracked_objects = object_tracker->Track(cv_empty_mat, detected_objects);
+        } else {
+            MappedMat cv_mat(buffer, gva_track->info, GST_MAP_READ);
+            tracked_objects = object_tracker->Track(cv_mat.mat(), detected_objects);
+        }
+
         for (const auto &tracked_object : tracked_objects) {
             if (tracked_object.status == vas::ot::TrackingStatus::LOST)
                 continue;

@@ -11,11 +11,11 @@ set (TARGET_NAME "gstvideoanalyticsmeta")
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.14 REQUIRED)
+        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.16 REQUIRED)
 endif()
 
 file (GLOB MAIN_SRC

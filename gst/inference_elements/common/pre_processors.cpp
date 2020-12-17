@@ -9,16 +9,16 @@
 #include <string>
 #include <vector>
 
-#include <inference_backend/image_inference.h>
 #include <opencv2/imgproc.hpp>
 
+#include "pre_processor_info_parser.hpp"
 #include "pre_processors.h"
 #include "region_of_interest.h"
 #include "utils.h"
 
-namespace {
-
 using namespace InferenceBackend;
+
+namespace {
 
 InputPreprocessingFunction createImageInfoFunction(const GstStructure *params, const ImageInference::Ptr &inference) {
     double scale = 1.0;
@@ -144,7 +144,7 @@ InputPreprocessingFunction createFaceAlignmentFunction(GstStructure *params, Gst
     }
     // load reference points from JSON input_preproc description
     GValueArray *alignment_points = nullptr;
-    if (gst_structure_get_array(params, "alignment_points", &alignment_points)) {
+    if (params and gst_structure_get_array(params, "alignment_points", &alignment_points)) {
         for (size_t i = 0; i < alignment_points->n_values; i++) {
             reference_points.push_back(g_value_get_double(alignment_points->values + i));
         }
@@ -170,13 +170,18 @@ InputPreprocessingFunction getInputPreprocFunctrByLayerType(const std::string &f
                                                             const ImageInference::Ptr &inference,
                                                             GstStructure *preproc_params,
                                                             GstVideoRegionOfInterestMeta *roi) {
-    InputPreprocessingFunction result = createImageInputFunction(preproc_params, roi);
+    InputPreprocessingFunction result;
     if (format == "sequence_index")
         result = createSequenceIndexFunction();
     else if (format == "image_info")
         result = createImageInfoFunction(preproc_params, inference);
+    else
+        result = createImageInputFunction(preproc_params, roi);
+
     return result;
 }
+
+} // anonymous namespace
 
 std::map<std::string, InputLayerDesc::Ptr>
 GetInputPreprocessors(const std::shared_ptr<InferenceBackend::ImageInference> &inference,
@@ -189,11 +194,11 @@ GetInputPreprocessors(const std::shared_ptr<InferenceBackend::ImageInference> &i
         preprocessors[preproc->format]->name = preproc->layer_name;
         preprocessors[preproc->format]->preprocessor =
             getInputPreprocFunctrByLayerType(preproc->format, inference, preproc->params, roi);
-    }
 
+        preprocessors[preproc->format]->input_image_preroc_params =
+            (preproc->format == "image") ? PreProcParamsParser(preproc->params).parse() : nullptr;
+    }
     return preprocessors;
 }
-
-} // anonymous namespace
 
 InputPreprocessorsFactory GET_INPUT_PREPROCESSORS = GetInputPreprocessors;

@@ -10,7 +10,7 @@
 
 namespace {
 void addExtension(InferenceEngine::Core &core, const std::map<std::string, std::string> &base_config);
-InferenceEngine::Precision getIePrecision(InferenceBackend::Blob::Precision p);
+InferenceEngine::Precision getIePrecision(const std::string &str);
 InferenceEngine::InputsDataMap modelInputsInfo(InferenceEngine::ExecutableNetwork &executable_network);
 InferenceEngine::ColorFormat formatNameToIEColorFormat(const std::string &format);
 std::unique_ptr<InferenceBackend::ImagePreprocessor>
@@ -25,7 +25,13 @@ void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inp
 
     if (inputs_info.size() == 1) {
         auto info = inputs_info.begin();
-        info->second->setPrecision(InferenceEngine::Precision::U8);
+        GVA_INFO(std::string("Input image layer name: \"" + info->first + "\"").c_str());
+        const auto precision_it = layer_precision_config.find(info->first);
+        if (precision_it == layer_precision_config.cend()) {
+            info->second->setPrecision(InferenceEngine::Precision::U8);
+        } else {
+            info->second->setPrecision(getIePrecision(precision_it->second));
+        }
         image_input_name = info->first;
     } else {
         for (auto &input_info : inputs_info) {
@@ -36,8 +42,7 @@ void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inp
                                             input_info.first);
             if (type_it->second == InferenceBackend::KEY_image)
                 image_input_name = input_info.first;
-            auto precision = static_cast<InferenceBackend::Blob::Precision>(std::stoi(precision_it->second));
-            input_info.second->setPrecision(getIePrecision(precision));
+            input_info.second->setPrecision(getIePrecision(precision_it->second));
         }
     }
 }
@@ -62,6 +67,7 @@ CompiledBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetw
                                                         InferenceEngine::Core &core) {
     InferenceEngine::ExecutableNetwork executable_network =
         loader->import(network, model_path, core, base_config, inference_config);
+
     auto inputs_info = modelInputsInfo(executable_network);
     if (inputs_info.size() > 1)
         throw std::runtime_error("Not supported models with many inputs");
@@ -105,19 +111,14 @@ void addExtension(InferenceEngine::Core &core, const std::map<std::string, std::
     }
 }
 
-InferenceEngine::Precision getIePrecision(InferenceBackend::Blob::Precision p) {
-    InferenceEngine::Precision ie_precision;
-    switch (p) {
-    case InferenceBackend::Blob::Precision::FP32:
-        ie_precision = InferenceEngine::Precision::FP32;
-        break;
-    case InferenceBackend::Blob::Precision::U8:
-        ie_precision = InferenceEngine::Precision::U8;
-        break;
-    default:
-        throw std::invalid_argument("Unsupported precision");
+InferenceEngine::Precision getIePrecision(const std::string &str) {
+    InferenceEngine::Precision prec = InferenceEngine::Precision::FP32;
+    if (str == "U8") {
+        prec = InferenceEngine::Precision::U8;
+    } else if (str != "FP32") {
+        throw std::runtime_error("Unsupported input_layer precision: " + str);
     }
-    return ie_precision;
+    return prec;
 }
 
 InferenceEngine::InputsDataMap modelInputsInfo(InferenceEngine::ExecutableNetwork &executable_network) {

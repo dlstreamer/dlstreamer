@@ -9,12 +9,15 @@
 
 #include "glib.h"
 #include <gst/gst.h>
+#include <gst/gstbuffer.h>
 #include <gst/video/gstvideometa.h>
 
 G_BEGIN_DECLS
 
 gboolean get_object_id(GstVideoRegionOfInterestMeta *meta, int *id);
 void set_object_id(GstVideoRegionOfInterestMeta *meta, gint id);
+
+void gva_buffer_check_and_make_writable(GstBuffer **buffer, const char *called_function_name);
 
 G_END_DECLS
 

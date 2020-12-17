@@ -22,7 +22,8 @@ struct ModelLoader {
                                                       const std::map<std::string, std::string> &base_config,
                                                       const std::map<std::string, std::string> &inference_config) = 0;
 
-    static bool is_ir_model(const std::string &model_path);
+    static bool is_compile_model(const std::string &model_path);
+    static bool is_valid_model_path(const std::string &model_path);
 };
 
 struct IrModelLoader : ModelLoader {

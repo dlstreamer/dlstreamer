@@ -25,7 +25,7 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define UNUSED(x) (void)(x)
 
 #define ELEMENT_LONG_NAME "Generic metadata publisher"
-#define ELEMENT_DESCRIPTION "Generic metadata publisher"
+#define ELEMENT_DESCRIPTION "Publishes the JSON metadata to MQTT or Kafka message brokers or files."
 
 static GstStaticPadTemplate sink_factory =
     GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS("ANY"));
@@ -184,7 +184,7 @@ static void gst_gva_meta_publish_class_init(GstGvaMetaPublishClass *klass) {
     g_object_class_install_property(gobject_class, PROP_MQTTCLIENTID,
                                     g_param_spec_string("mqtt-client-id", "MQTT Client ID",
                                                         "[method= mqtt] Unique identifier for the MQTT "
-                                                        "client",
+                                                        "client. If not provided, one will be generated for you.",
                                                         DEFAULT_MQTTCLIENTID,
                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(

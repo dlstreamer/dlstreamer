@@ -18,6 +18,7 @@
 
 G_BEGIN_DECLS
 
+#define GST_TYPE_GVA_BASE_INFERENCE_REGION (gst_gva_base_inference_get_inf_region())
 #define GST_TYPE_GVA_BASE_INFERENCE (gva_base_inference_get_type())
 #define GVA_BASE_INFERENCE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVA_BASE_INFERENCE, GvaBaseInference))
 #define GVA_BASE_INFERENCE_CLASS(klass)                                                                                \
@@ -26,6 +27,9 @@ G_BEGIN_DECLS
     (G_TYPE_INSTANCE_GET_CLASS((obj), GST_TYPE_GVA_BASE_INFERENCE, GvaBaseInferenceClass))
 
 typedef void (*OnBaseInferenceInitializedFunction)(GvaBaseInference *base_inference);
+
+enum INFERENCE_TYPE { GST_GVA_DETECT_TYPE, GST_GVA_CLASSIFY_TYPE, GST_GVA_INFERENCE_TYPE };
+typedef enum { FULL_FRAME, ROI_LIST } InferenceRegionType;
 
 typedef struct _GvaBaseInference {
     GstBaseTransform base_transform;
@@ -51,9 +55,10 @@ typedef struct _GvaBaseInference {
     gchar *device_extensions;
 
     // other fields
+    enum INFERENCE_TYPE type;
     GstVideoInfo *info;
     CapsFeature caps_feature;
-    gboolean is_full_frame;
+    InferenceRegionType inference_region;
 
     InferenceImpl *inference;
 
@@ -74,6 +79,7 @@ typedef struct _GvaBaseInferenceClass {
 } GvaBaseInferenceClass;
 
 GType gva_base_inference_get_type(void);
+GType gst_gva_base_inference_get_inf_region(void);
 gboolean check_gva_base_inference_stopped(GvaBaseInference *base_inference);
 
 G_END_DECLS

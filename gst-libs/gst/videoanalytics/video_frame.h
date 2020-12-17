@@ -12,21 +12,24 @@
 
 #pragma once
 
+#include "region_of_interest.h"
+
+#include "metadata/gva_json_meta.h"
+#include "metadata/gva_tensor_meta.h"
+
 #include <algorithm>
 #include <assert.h>
 #include <functional>
-#include <gst/gstbuffer.h>
-#include <gst/video/gstvideometa.h>
-#include <gst/video/video.h>
 #include <memory>
-#include <opencv2/opencv.hpp>
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-#include "metadata/gva_json_meta.h"
-#include "metadata/gva_tensor_meta.h"
-#include "region_of_interest.h"
+#include <gst/gstbuffer.h>
+#include <gst/video/gstvideometa.h>
+#include <gst/video/video.h>
+
+#include <opencv2/opencv.hpp>
 
 namespace GVA {
 
@@ -205,6 +208,10 @@ class VideoFrame {
         double _y = y * info->height + 0.5;
         double _w = w * info->width + 0.5;
         double _h = h * info->height + 0.5;
+
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
             buffer, label.c_str(), double_to_uint(_x), double_to_uint(_y), double_to_uint(_w), double_to_uint(_h));
 
@@ -226,6 +233,10 @@ class VideoFrame {
      */
     Tensor add_tensor() {
         const GstMetaInfo *meta_info = gst_meta_get_info(GVA_TENSOR_META_IMPL_NAME);
+
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         GstGVATensorMeta *tensor_meta = (GstGVATensorMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
 
         return Tensor(tensor_meta->data);
@@ -237,6 +248,10 @@ class VideoFrame {
      */
     void add_message(const std::string &message) {
         const GstMetaInfo *meta_info = gst_meta_get_info(GVA_JSON_META_IMPL_NAME);
+
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         GstGVAJSONMeta *json_meta = (GstGVAJSONMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
         json_meta->message = g_strdup(message.c_str());
     }
@@ -246,6 +261,9 @@ class VideoFrame {
      * @param roi the RegionOfInterest to remove
      */
     void remove_region(const RegionOfInterest &roi) {
+        if (!gst_buffer_is_writable(buffer))
+            throw std::runtime_error("Buffer is not writable.");
+
         if (!gst_buffer_remove_meta(buffer, (GstMeta *)roi._meta())) {
             throw std::out_of_range("GVA::VideoFrame: RegionOfInterest doesn't belong to this frame");
         }
@@ -260,6 +278,9 @@ class VideoFrame {
         gpointer state = NULL;
         while ((meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state))) {
             if (meta->data == tensor._structure) {
+                if (!gst_buffer_is_writable(buffer))
+                    throw std::runtime_error("Buffer is not writable.");
+
                 if (gst_buffer_remove_meta(buffer, (GstMeta *)meta))
                     return;
             }

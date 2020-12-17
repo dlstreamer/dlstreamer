@@ -14,13 +14,31 @@ using namespace DetectionPlugin;
 using namespace Converters;
 
 YOLOV2Converter::YOLOV2Converter(size_t classes_number, std::vector<float> anchors, size_t cells_number_x,
-                                 size_t cells_number_y, double iou_threshold, size_t bbox_number_on_cell)
-    : YOLOConverter(anchors, iou_threshold),
-      output_shape_info(classes_number, cells_number_x, cells_number_y, bbox_number_on_cell) {
+                                 size_t cells_number_y, double iou_threshold, size_t bbox_number_on_cell,
+                                 bool do_cls_softmax, bool output_sigmoid_activation)
+    : YOLOConverter(anchors, iou_threshold, {classes_number, cells_number_x, cells_number_y, bbox_number_on_cell},
+                    do_cls_softmax, output_sigmoid_activation) {
 }
 
 size_t YOLOV2Converter::getIndex(size_t index, size_t offset) const {
     return index * output_shape_info.common_cells_number + offset;
+}
+
+float YOLOV2Converter::sigmoid(float x) {
+    return 1 / (1 + std::exp(-x));
+}
+
+std::vector<float> YOLOV2Converter::softmax(const float *arr, size_t common_offset, size_t size) {
+    std::vector<float> sftm_arr(size);
+    float sum = 0;
+    for (size_t i = 0; i < size; ++i) {
+        sftm_arr[i] = std::exp(arr[getIndex((OutputLayerShapeConfig::Index::FIRST_CLASS_PROB + i), common_offset)]);
+        sum += sftm_arr[i];
+    }
+    for (size_t i = 0; i < size; ++i) {
+        sftm_arr[i] /= sum;
+    }
+    return sftm_arr;
 }
 
 bool YOLOV2Converter::process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
@@ -69,6 +87,44 @@ bool YOLOV2Converter::process(const std::map<std::string, InferenceBackend::Outp
                     using Index = YOLOV2Converter::OutputLayerShapeConfig::Index;
 
                     float bbox_confidence = blob_data[getIndex(Index::CONFIDENCE, common_offset)];
+                    if (output_sigmoid_activation)
+                        bbox_confidence = sigmoid(bbox_confidence);
+                    if (bbox_confidence <= confidence_threshold)
+                        continue;
+
+                    std::pair<size_t, float> bbox_class = std::make_pair(0, 0.f);
+                    if (do_cls_softmax) {
+                        const auto cls_confs = softmax(blob_data, common_offset, output_shape_info.classes_number);
+
+                        for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number;
+                             ++bbox_class_id) {
+                            const float bbox_class_prob = cls_confs[bbox_class_id];
+
+                            if (bbox_class_prob > 1.f) {
+                                GST_WARNING("bbox_class_prob is weird %f", bbox_class_prob);
+                            }
+                            if (bbox_class_prob > bbox_class.second) {
+                                bbox_class.first = bbox_class_id;
+                                bbox_class.second = bbox_class_prob;
+                            }
+                        }
+                    } else {
+                        for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number;
+                             ++bbox_class_id) {
+                            const float bbox_class_prob =
+                                blob_data[getIndex((Index::FIRST_CLASS_PROB + bbox_class_id), common_offset)];
+
+                            if (bbox_class_prob > 1.f) {
+                                GST_WARNING("bbox_class_prob is weird %f", bbox_class_prob);
+                            }
+                            if (bbox_class_prob > bbox_class.second) {
+                                bbox_class.first = bbox_class_id;
+                                bbox_class.second = bbox_class_prob;
+                            }
+                        }
+                    }
+
+                    bbox_confidence *= bbox_class.second;
                     if (bbox_confidence <= confidence_threshold)
                         continue;
 
@@ -78,26 +134,12 @@ bool YOLOV2Converter::process(const std::map<std::string, InferenceBackend::Outp
                     const float raw_h = blob_data[getIndex(Index::H, common_offset)];
 
                     // scale back to image width/height
-                    const float bbox_x = (cell_index_x + raw_x) / output_shape_info.cells_number_x;
-                    const float bbox_y = (cell_index_y + raw_y) / output_shape_info.cells_number_y;
+                    const float bbox_x = (cell_index_x + (output_sigmoid_activation ? sigmoid(raw_x) : raw_x)) /
+                                         output_shape_info.cells_number_x;
+                    const float bbox_y = (cell_index_y + (output_sigmoid_activation ? sigmoid(raw_y) : raw_y)) /
+                                         output_shape_info.cells_number_y;
                     const float bbox_w = (std::exp(raw_w) * anchor_scale_w) / output_shape_info.cells_number_x;
                     const float bbox_h = (std::exp(raw_h) * anchor_scale_h) / output_shape_info.cells_number_y;
-
-                    std::pair<size_t, float> bbox_class = std::make_pair(0, 0.f);
-                    for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number; ++bbox_class_id) {
-                        const float bbox_class_prob =
-                            blob_data[getIndex((Index::FIRST_CLASS_PROB + bbox_class_id), common_offset)];
-                        if (bbox_class_prob > 1.f) {
-                            GST_WARNING("bbox_class_prob weird %f", bbox_class_prob);
-                        }
-                        if (bbox_class_prob > bbox_class.second) {
-                            bbox_class.first = bbox_class_id;
-                            bbox_class.second = bbox_class_prob;
-                        }
-                    }
-                    bbox_confidence *= bbox_class.second;
-                    if (bbox_confidence <= confidence_threshold)
-                        continue;
 
                     DetectedObject object(bbox_x, bbox_y, bbox_w, bbox_h, bbox_class.first, bbox_confidence);
                     objects.push_back(object);

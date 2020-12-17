@@ -20,7 +20,7 @@ endif()
 option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" OFF)
 
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 2)
+set(VERSION_MINOR 3)
 
 if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
     set(VERSION_PATCH 0)
@@ -122,11 +122,9 @@ endif()
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
     option(ENABLE_ITT "Enable ITT for tracing" OFF)
     option(DOWNLOAD_VAS_TRACKER "Download VAS tracker" OFF)
-    option(ENABLE_IMAGELESS_TRACKER "Enables imageless tracking" ON)
 else()
     option(ENABLE_ITT "Enable ITT for tracing" ON)
     option(DOWNLOAD_VAS_TRACKER "Download VAS tracker" ON)
-    option(ENABLE_IMAGELESS_TRACKER "Enables imageless tracking" OFF)
 endif()
 
 option(ENABLE_VAS_TRACKER "Enables vas tracker as part of gvatrack" ON)
@@ -146,7 +144,6 @@ option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
 option(USE_VPUSMM "Parameter to use VPUSMM" OFF)
 
-# Elements
 option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
 
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")

@@ -36,6 +36,8 @@ gboolean gst_gva_json_meta_transform(GstBuffer *dest_buf, GstMeta *src_meta, Gst
     UNUSED(type);
     UNUSED(data);
 
+    g_return_val_if_fail(gst_buffer_is_writable(dest_buf), FALSE);
+
     GstGVAJSONMeta *dst = GST_GVA_JSON_META_ADD(dest_buf);
     GstGVAJSONMeta *src = (GstGVAJSONMeta *)src_meta;
 
@@ -72,7 +74,7 @@ gchar *get_json_message(GstGVAJSONMeta *meta) {
     return meta->message;
 }
 
-void set_json_message(GstGVAJSONMeta *meta, gchar *message) {
+void set_json_message(GstGVAJSONMeta *meta, const gchar *message) {
     gst_gva_json_meta_free((GstMeta *)meta, NULL);
     meta->message = g_strdup(message);
 }

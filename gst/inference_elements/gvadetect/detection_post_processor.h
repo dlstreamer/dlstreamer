@@ -19,13 +19,20 @@ class Converter;
 
 using ConverterUniquePtr = std::unique_ptr<DetectionPlugin::Converters::Converter>;
 
+struct ModelInputInfo {
+    size_t width, height, batch_size;
+    int format, memory_type;
+};
+
 struct LayerInfo {
     LayerInfo();
+
     LayerInfo(ConverterUniquePtr converter, const GValueArray *labels, const GstStructure *model_proc_info);
     LayerInfo(ConverterUniquePtr converter, GValueArrayUniquePtr labels, GstStructureUniquePtr model_proc_info);
+
     ConverterUniquePtr converter;
     GValueArrayUniquePtr labels;
-    GstStructureUniquePtr model_proc_info;
+    GstStructureUniquePtr output_model_proc_info;
 };
 
 using LayersInfoMap = std::map<std::string, LayerInfo>;
