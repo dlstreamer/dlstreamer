@@ -21,7 +21,9 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_aggregate_debug);
  * OUTPUT: INPUT + extended GstVideoRegionOfInterestMeta
  */
 #define ELEMENT_LONG_NAME "Meta Aggregate"
-#define ELEMENT_DESCRIPTION "Meta Aggregate"
+#define ELEMENT_DESCRIPTION                                                                                            \
+    "Aggregates inference results from multiple pipeline branches. Data that is transferred further along the "        \
+    "pipeline is taken from the first sink pad of the gvametaaggreagate element."
 
 #define UNUSED(x) (void)(x)
 

@@ -38,6 +38,8 @@ Blob::Ptr WrapImageToBlob(const Image &image) {
     ITT_TASK(__FUNCTION__);
     try {
         Blob::Ptr blob;
+        std::vector<size_t> NHWC = {0, 2, 3, 1};
+        std::vector<size_t> dimOffsets = {0, 0, 0, 0};
         switch (image.format) {
         case FourCC::FOURCC_BGRA:
         case FourCC::FOURCC_BGRX:
@@ -64,8 +66,14 @@ Blob::Ptr WrapImageToBlob(const Image &image) {
         case FourCC::FOURCC_NV12: {
             const size_t imageWidth = (size_t)image.width;
             const size_t imageHeight = (size_t)image.height;
-            TensorDesc planeY(Precision::U8, {1, 1, imageHeight, imageWidth}, Layout::NHWC);
-            TensorDesc planeUV(Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, Layout::NHWC);
+
+            BlockingDesc memY({1, imageHeight, imageWidth, 1}, NHWC, 0, dimOffsets,
+                              {image.offsets[1] + image.stride[0] * imageHeight / 2, image.stride[0], 1, 1});
+            BlockingDesc memUV({1, imageHeight / 2, imageWidth / 2, 2}, NHWC, 0, dimOffsets,
+                               {image.offsets[1] + image.stride[0] * imageHeight / 2, image.stride[1], 2, 1});
+
+            TensorDesc planeY(Precision::U8, {1, 1, imageHeight, imageWidth}, memY);
+            TensorDesc planeUV(Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, memUV);
 
             ROI crop_roi_y({
                 0,
@@ -92,9 +100,16 @@ Blob::Ptr WrapImageToBlob(const Image &image) {
         case FourCC::FOURCC_I420: {
             const size_t image_width = static_cast<size_t>(image.width);
             const size_t image_height = static_cast<size_t>(image.height);
-            TensorDesc Y_plane_desc(Precision::U8, {1, 1, image_height, image_width}, Layout::NHWC);
-            TensorDesc U_plane_desc(Precision::U8, {1, 1, image_height / 2, image_width / 2}, Layout::NHWC);
-            TensorDesc V_plane_desc(Precision::U8, {1, 1, image_height / 2, image_width / 2}, Layout::NHWC);
+            BlockingDesc memY({1, image_height, image_width, 1}, NHWC, 0, dimOffsets,
+                              {image.offsets[1] + image_height * image.stride[0] / 2, image.stride[0], 1, 1});
+            BlockingDesc memU({1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets,
+                              {image.offsets[1] + image_height * image.stride[0] / 2, image.stride[1], 1, 1});
+            BlockingDesc memV({1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets,
+                              {image.offsets[1] + image_height * image.stride[0] / 2, image.stride[2], 1, 1});
+
+            TensorDesc Y_plane_desc(Precision::U8, {1, 1, image_height, image_width}, memY);
+            TensorDesc U_plane_desc(Precision::U8, {1, 1, image_height / 2, image_width / 2}, memU);
+            TensorDesc V_plane_desc(Precision::U8, {1, 1, image_height / 2, image_width / 2}, memV);
             if (!image.planes[0] or !image.planes[1] or !image.planes[2]) {
                 throw std::invalid_argument("Planes number for I420 image is less than 3");
             }
@@ -144,7 +159,7 @@ Blob::Ptr WrapImageToBlob(const Image &image, const RemoteContext::Ptr &remote_c
             if (!remote_context)
                 throw std::runtime_error("Incorrect context, can not create surface");
 
-            blob = gpu::make_shared_blob_nv12(image.width, image.height, remote_context, image.va_surface_id);
+            blob = gpu::make_shared_blob_nv12(image.height, image.width, remote_context, image.va_surface_id);
             break;
         }
         default:

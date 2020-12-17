@@ -161,7 +161,7 @@ void release_inference_instance(GvaBaseInference *base_inference) {
     }
 }
 
-GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffer *buf, GstVideoInfo *info) {
+GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffer *buf) {
     if (!base_inference || !base_inference->inference) {
         GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
                           ("empty inference instance"));
@@ -170,7 +170,7 @@ GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffe
 
     GstFlowReturn status;
     try {
-        status = ((InferenceImpl *)base_inference->inference)->TransformFrameIp(base_inference, buf, info);
+        status = ((InferenceImpl *)base_inference->inference)->TransformFrameIp(base_inference, buf);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
                           ("%s", Utils::createNestedErrorMsg(e).c_str()));

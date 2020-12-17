@@ -106,6 +106,52 @@ OpenVINOImageInference::~OpenVINOImageInference() {
     Close();
 }
 
+std::string getErrorMsg(InferenceEngine::StatusCode code) {
+    switch (code) {
+
+    case InferenceEngine::StatusCode::OK:
+        return std::string("OK");
+
+    case InferenceEngine::StatusCode::GENERAL_ERROR:
+        return std::string("GENERAL_ERROR");
+
+    case InferenceEngine::StatusCode::NOT_IMPLEMENTED:
+        return std::string("NOT_IMPLEMENTED");
+
+    case InferenceEngine::StatusCode::NETWORK_NOT_LOADED:
+        return std::string("NETWORK_NOT_LOADED");
+
+    case InferenceEngine::StatusCode::PARAMETER_MISMATCH:
+        return std::string("PARAMETER_MISMATCH");
+
+    case InferenceEngine::StatusCode::NOT_FOUND:
+        return std::string("NOT_FOUND");
+
+    case InferenceEngine::StatusCode::OUT_OF_BOUNDS:
+        return std::string("OUT_OF_BOUNDS");
+
+    case InferenceEngine::StatusCode::UNEXPECTED:
+        return std::string("UNEXPECTED");
+
+    case InferenceEngine::StatusCode::REQUEST_BUSY:
+        return std::string("REQUEST_BUSY");
+
+    case InferenceEngine::StatusCode::RESULT_NOT_READY:
+        return std::string("RESULT_NOT_READY");
+
+    case InferenceEngine::StatusCode::NOT_ALLOCATED:
+        return std::string("NOT_ALLOCATED");
+
+    case InferenceEngine::StatusCode::INFER_NOT_STARTED:
+        return std::string("INFER_NOT_STARTED");
+
+    case InferenceEngine::StatusCode::NETWORK_NOT_READ:
+        return std::string("NETWORK_NOT_READ");
+    }
+
+    return std::string("UNKNOWN_IE_STATUS_CODE");
+}
+
 void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest> &batch_request) {
     auto completion_callback = [this, batch_request](InferenceEngine::InferRequest, InferenceEngine::StatusCode code) {
         try {
@@ -114,7 +160,8 @@ void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest>
 
             if (code != InferenceEngine::StatusCode::OK) {
                 std::string msg = "Inference request completion callback failed with InferenceEngine::StatusCode: " +
-                                  std::to_string(code);
+                                  std::to_string(code) + "\n\t";
+                msg += getErrorMsg(code);
                 GVA_ERROR(msg.c_str());
                 this->handleError(batch_request->buffers);
             } else {
@@ -153,8 +200,8 @@ OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
                                                ErrorHandlingFunc error_handler, MemoryType memory_type)
     : initialized(), allocator(allocator), memory_type(memory_type),
       batch_size(std::stoi(config.at(KEY_BASE).at(KEY_BATCH_SIZE))), requests_processing_(0U) {
-    builder = ModelLoader::is_ir_model(model) ? std::unique_ptr<EntityBuilder>(new IrBuilder(config, model))
-                                              : std::unique_ptr<EntityBuilder>(new CompiledBuilder(config, model));
+    builder = ModelLoader::is_compile_model(model) ? std::unique_ptr<EntityBuilder>(new CompiledBuilder(config, model))
+                                                   : std::unique_ptr<EntityBuilder>(new IrBuilder(config, model));
     if (not builder)
         throw std::runtime_error("Failed to create DL model loader");
     network = builder->createNetwork(core);
@@ -172,8 +219,9 @@ OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
                                                MemoryType memory_type)
     : initialized(), display(display), memory_type(memory_type),
       batch_size(std::stoi(config.at(KEY_BASE).at(KEY_BATCH_SIZE))), requests_processing_(0U) {
-    builder = ModelLoader::is_ir_model(model) ? std::unique_ptr<EntityBuilder>(new IrBuilder(config, model, display))
-                                              : std::unique_ptr<EntityBuilder>(new CompiledBuilder(config, model));
+    builder = ModelLoader::is_compile_model(model)
+                  ? std::unique_ptr<EntityBuilder>(new CompiledBuilder(config, model))
+                  : std::unique_ptr<EntityBuilder>(new IrBuilder(config, model, display));
     if (not builder)
         throw std::runtime_error("Failed to create DL model loader");
     network = builder->createNetwork(core);
@@ -278,7 +326,8 @@ Image MapBlobBufferToImage(IE::Blob::Ptr blob, size_t batch_index) {
 } // namespace
 
 void OpenVINOImageInference::SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
-                                                   const Image &src_img) {
+                                                   const Image &src_img, const InputImageLayerDesc::Ptr &pre_proc_info,
+                                                   const ImageTransformationParams::Ptr image_transform_info) {
     ITT_TASK("SubmitImageProcessing");
     if (not request or not request->infer_request)
         throw std::invalid_argument("InferRequest is absent");
@@ -287,7 +336,7 @@ void OpenVINOImageInference::SubmitImageProcessing(const std::string &input_name
     Image dst_img = MapBlobBufferToImage(blob, batch_index);
     if (src_img.planes[0] != dst_img.planes[0]) { // only convert if different buffers
         try {
-            pre_processor->Convert(src_img, dst_img);
+            pre_processor->Convert(src_img, dst_img, pre_proc_info, image_transform_info);
         } catch (const std::exception &e) {
             std::throw_with_nested(std::runtime_error("Failed while software frame preprocessing"));
         }
@@ -317,14 +366,29 @@ void OpenVINOImageInference::BypassImageProcessing(const std::string &input_name
     request->infer_request->SetBlob(input_name, blob);
 }
 
+bool OpenVINOImageInference::doNeedImagePreProcessing() {
+    return pre_processor.get() != nullptr;
+}
+
 void OpenVINOImageInference::ApplyInputPreprocessors(
     std::shared_ptr<BatchRequest> &request, const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) {
     ITT_TASK(__FUNCTION__);
     for (const auto &preprocessor : input_preprocessors) {
+        if (preprocessor.second == nullptr)
+            continue;
+
         std::string layer_name = preprocessor.second->name;
         if (preprocessor.first == KEY_image) {
-            if (not pre_processor.get())
+            if (!doNeedImagePreProcessing()) {
+                if (preprocessor.second->input_image_preroc_params)
+                    if (preprocessor.second->input_image_preroc_params->isDefined())
+                        GVA_WARNING(
+                            "The \"pre-process-backend\" was chosen that does not involve a custom preprocessing "
+                            "algorithm. Check the description of the pre-processor in the model-proc file and the "
+                            "element "
+                            "\"pre-process-backend\" property.");
                 continue;
+            }
             if (inputs.size() == 1)
                 layer_name = image_layer;
         }
@@ -338,18 +402,46 @@ void OpenVINOImageInference::ApplyInputPreprocessors(
     }
 }
 
-void OpenVINOImageInference::SubmitImage(const Image &image, IFrameBase::Ptr user_data,
-                                         const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) {
+const InputImageLayerDesc::Ptr
+getImagePreProcInfo(const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
+    const auto image_it = input_preprocessors.find("image");
+    if (image_it != input_preprocessors.cend()) {
+        const auto description = image_it->second;
+        if (description) {
+            return description->input_image_preroc_params;
+        }
+    }
+
+    return nullptr;
+}
+
+const InferenceBackend::ImageTransformationParams::Ptr
+getImageTransformationParams(OpenVINOImageInference::IFrameBase::Ptr user_data) {
+    if (user_data)
+        return user_data->GetImageTransformationParams();
+    return nullptr;
+}
+
+void OpenVINOImageInference::SubmitImage(
+    const Image &image, IFrameBase::Ptr user_data,
+    const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
     GVA_DEBUG(__FUNCTION__);
     ITT_TASK(__FUNCTION__);
+
     if (not initialized) {
         Init();
     }
+
+    std::unique_lock<std::mutex> lk(requests_mutex_);
     ++requests_processing_;
     auto request = freeRequests.pop();
 
-    if (pre_processor.get()) {
-        SubmitImageProcessing(image_layer, request, image);
+    if (doNeedImagePreProcessing()) {
+        SubmitImageProcessing(
+            image_layer, request, image,
+            getImagePreProcInfo(input_preprocessors), // contain operations order for Custom Image PreProcessing
+            getImageTransformationParams(user_data)   // during CIPP will be filling of crop and aspect-ratio parameters
+        );
         // After running this function self-managed image memory appears, and the old image memory can be released
         user_data->SetImage(nullptr);
     } else {
@@ -411,7 +503,15 @@ void OpenVINOImageInference::GetModelImageInputInfo(size_t &width, size_t &heigh
 }
 
 void OpenVINOImageInference::Flush() {
-    std::unique_lock<std::mutex> lk(mutex_);
+    GVA_DEBUG(__FUNCTION__);
+    ITT_TASK(__FUNCTION__);
+
+    // because Flush can execute by several threads for one InferenceImpl instance
+    // it must be synchronous.
+    std::unique_lock<std::mutex> requests_lk(requests_mutex_);
+
+    std::unique_lock<std::mutex> flush_lk(flush_mutex);
+
     while (requests_processing_ != 0) {
         auto request = freeRequests.pop();
         if (request->buffers.size() > 0) {
@@ -419,7 +519,10 @@ void OpenVINOImageInference::Flush() {
         } else {
             freeRequests.push(request);
         }
-        request_processed_.wait_for(lk, std::chrono::seconds(1), [this] { return requests_processing_ == 0; });
+
+        // wait_for unlocks flush_mutex until we get notify
+        // waiting will be continued if requests_processing_ != 0
+        request_processed_.wait_for(flush_lk, std::chrono::seconds(1), [this] { return requests_processing_ == 0; });
     }
 }
 

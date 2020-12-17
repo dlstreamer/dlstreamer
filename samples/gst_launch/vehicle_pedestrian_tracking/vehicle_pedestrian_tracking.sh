@@ -17,7 +17,7 @@ MODEL_1=person-vehicle-bike-detection-crossroad-0078
 MODEL_2=person-attributes-recognition-crossroad-0230
 MODEL_3=vehicle-attributes-recognition-barrier-0039
 
-# Another available tracking type is zero-term.
+# Other tracking types available are short-term-imageless, zero-term, zero-term-imageless.
 # For more information on tracking types and their difference, please turn to
 # https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Object-tracking.
 TRACKING_TYPE="short-term"
@@ -68,7 +68,7 @@ PERSON_CLASSIFICATION_MODEL_PROC=$(PROC_PATH $MODEL_2)
 VEHICLE_CLASSIFICATION_MODEL_PROC=$(PROC_PATH $MODEL_3)
 
 PIPELINE="gst-launch-1.0 \
-  ${SOURCE_ELEMENT} ! decodebin ! videoconvert ! video/x-raw,format=I420 ! \
+  ${SOURCE_ELEMENT} ! decodebin ! \
   gvadetect model=$DETECTION_MODEL \
             model-proc=$DETECTION_MODEL_PROC \
             inference-interval=${DETECTION_INTERVAL} \

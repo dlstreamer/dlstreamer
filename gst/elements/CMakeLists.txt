@@ -10,11 +10,11 @@ set (TARGET_NAME "elements")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
-pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.14 REQUIRED)
+        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.16 REQUIRED)
 endif()
 
 file (GLOB MAIN_SRC
@@ -51,25 +51,6 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
     list (APPEND MAIN_HEADERS ${AUDIO_HEADERS})
 endif()
 
-if (${ENABLE_VAS_TRACKER})
-    file (GLOB TRACK_SRC
-        gvatrack/*.cpp
-        gvatrack/*.c
-    )
-    file (GLOB TRACK_HEADERS
-        gvatrack/*.h
-    )
-
-    file (GLOB VAS_SRC
-        gvatrack/vas/*.cpp
-    )
-    file (GLOB VAS_HEADERS
-        gvatrack/vas/*.h
-    )
-    list (APPEND MAIN_SRC ${VAS_SRC} ${TRACK_SRC})
-    list (APPEND MAIN_HEADERS ${VAS_HEADERS} ${TRACK_HEADERS})
-endif()
-
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
@@ -86,30 +67,6 @@ PRIVATE
     ${GSTVIDEO_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
 )
-
-if (${ENABLE_VAS_TRACKER})
-    target_include_directories(${TARGET_NAME}
-    PUBLIC
-        gvatrack
-    )
-
-    target_include_directories(${TARGET_NAME}
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/gvatrack/vas
-    )
-
-    if (NOT ${DOWNLOAD_VAS_TRACKER})
-        target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            vasot
-        )
-    else()
-        target_link_libraries(${TARGET_NAME}
-        PRIVATE
-            vas
-        )
-    endif()
-endif()
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
     target_include_directories(${TARGET_NAME}
@@ -162,3 +119,6 @@ else()
 endif()
 
 add_subdirectory(gvapython)
+if(${ENABLE_VAS_TRACKER})
+    add_subdirectory(gvatrack)
+endif()

@@ -10,7 +10,7 @@ This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for face detection based on OpenVINO Inference Engine
+* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for face detection based on OpenVINO™ Toolkit Inference Engine
 * [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) inserted into pipeline three times for face classification on three DL models (age-gender, emotion, landmark points)
 * [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for bounding boxes and labels visualization
 * `fpsdisplaysink` for rendering output video into screen
@@ -18,7 +18,7 @@ This sample builds GStreamer pipeline of the following elements
 
 ## Models
 
-The sample uses by default the following pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 *   __face-detection-adas-0001__ is primary detection network for finding faces
 *   __age-gender-recognition-retail-0013__ age and gender estimation on detected faces
 *   __emotions-recognition-retail-0003__ emotion estimation on detected faces

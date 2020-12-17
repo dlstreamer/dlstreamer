@@ -5,7 +5,7 @@ By default the sample will display pretty printed output to stdout. But you may 
 * For MQTT, install and launch MQTT broker along with an MQTT client listener subscribed to the topic (that emits to console).
 * For Kafka, install and launch Zookeeper and Kafka broker along with a Kafka client listener subscribed to the topic (that emits to console).
 * For FIFO file, create the fifo and tail results in console.
- 
+
 ## MQTT
 Mosquitto provides a docker image to quickly stand up a minimal MQTT broker and client listener.
 

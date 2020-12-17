@@ -38,12 +38,12 @@ The sample takes one to four command-line parameters (last three are optional):
 2. [DECODE_DEVICE] to specify device for video decode, could be
     * CPU (Default)
     * GPU
-3. [INFERENCE_DEVICE] to specify inference device, could be any device supported by OpenVINO
+3. [INFERENCE_DEVICE] to specify inference device, could be any device supported by OpenVINO™ Toolkit
     * CPU (Default)
     * GPU
     * HDDL
     * ...
-4. [CHANNELS_COUNT] number simultaneous channels to benchmark 
+4. [CHANNELS_COUNT] number simultaneous channels to benchmark
 
 ## Sample Output
 

@@ -37,7 +37,8 @@ enum FourCC {
     FOURCC_RGBX = fourcc<'R', 'G', 'B', 'X'>::code,
     FOURCC_RGB = fourcc<'R', 'G', 'B', ' '>::code,
     FOURCC_RGBP = fourcc<'R', 'G', 'B', 'P'>::code,
-    FOURCC_I420 = fourcc<'I', '4', '2', '0'>::code
+    FOURCC_I420 = fourcc<'I', '4', '2', '0'>::code,
+    FOURCC_YUV = fourcc<'Y', 'U', 'V', ' '>::code
 };
 
 template <typename T>

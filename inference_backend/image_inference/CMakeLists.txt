@@ -39,6 +39,6 @@ PUBLIC
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        IE::inference_engine
+        ${InferenceEngine_LIBRARIES}
         logger
 )

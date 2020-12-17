@@ -31,7 +31,7 @@ class InferenceImpl {
 
     InferenceImpl(GvaBaseInference *gva_base_inference);
 
-    GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer, GstVideoInfo *info);
+    GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer);
     void SinkEvent(GstEvent *event);
     void FlushInference();
     const std::vector<Model> &GetModels() const;
@@ -66,7 +66,7 @@ class InferenceImpl {
 
     struct OutputFrame {
         GstBuffer *buffer;
-        GstBuffer *writable_buffer;
+        GstBuffer **writable_buffer;
         uint64_t inference_count;
         GvaBaseInference *filter;
         std::vector<std::shared_ptr<InferenceFrame>> inference_rois;
@@ -80,12 +80,12 @@ class InferenceImpl {
     void PushFramesIfInferenceFailed(std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
     void InferenceCompletionCallback(std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,
                                      std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
-    Model CreateModel(GvaBaseInference *gva_base_inference, std::shared_ptr<InferenceBackend::Allocator> &allocator,
-                      const std::string &model_file, const std::string &model_proc_path);
+    void UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inference_roi);
+    Model CreateModel(std::map<std::string, std::map<std::string, std::string>> config, const std::string &model_file,
+                      const std::string &model_proc_path);
 
     GstFlowReturn SubmitImages(GvaBaseInference *gva_base_inference,
-                               const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstVideoInfo *info,
-                               GstBuffer *buffer);
+                               const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstBuffer *buffer);
     std::shared_ptr<InferenceResult> MakeInferenceResult(GvaBaseInference *gva_base_inference, Model &model,
                                                          GstVideoRegionOfInterestMeta *meta,
                                                          std::shared_ptr<InferenceBackend::Image> &image,

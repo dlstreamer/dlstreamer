@@ -14,6 +14,7 @@
 #include "gva_base_inference.h"
 #include "gva_utils.h"
 #include "inference_backend/logger.h"
+#include "inference_backend/safe_arithmetic.h"
 #include "region_of_interest.h"
 #include "video_frame.h"
 
@@ -54,18 +55,18 @@ void TensorToLabel(GVA::Tensor &classification_result, GValueArray *labels_raw) 
         // get buffer and its size from classification_result
         const std::vector<float> data = classification_result.data<float>();
         if (data.empty())
-            throw std::invalid_argument("Failed to get classification tensor raw data");
+            throw std::invalid_argument("Failed to get classification tensor raw data.");
 
         if (!bMax && !bCompound && !bIndex)
             bMax = true;
 
         if (labels_raw == nullptr) {
-            throw std::invalid_argument("Failed to get list of classification labels");
+            throw std::invalid_argument("Failed to get list of classification labels.");
         }
 
         if (!bIndex) {
             if (labels_raw->n_values > (bCompound ? 2 : 1) * data.size()) {
-                throw std::invalid_argument("Wrong number of classification labels");
+                throw std::invalid_argument("Wrong number of classification labels.");
             }
         }
         if (bMax) {
@@ -129,7 +130,7 @@ void TensorToLabel(GVA::Tensor &classification_result, GValueArray *labels_raw) 
             }
         }
     } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Failed to do tensor to label post-processing"));
+        std::throw_with_nested(std::runtime_error("Failed to do tensor to label post-processing."));
     }
 }
 
@@ -141,7 +142,7 @@ void TensorToText(GVA::Tensor &classification_result, GValueArray * /*labels*/) 
         // get buffer and its size from classification_result
         const std::vector<float> data = classification_result.data<float>();
         if (data.empty())
-            throw std::invalid_argument("Failed to get classification tensor raw data");
+            throw std::invalid_argument("Failed to get classification tensor raw data.");
 
         double scale = classification_result.get_double("tensor_to_text_scale", 1.0);
         int precision = classification_result.get_int("tensor_to_text_precision", 2);
@@ -154,7 +155,7 @@ void TensorToText(GVA::Tensor &classification_result, GValueArray * /*labels*/) 
         }
         classification_result.set_string("label", stream.str());
     } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Failed to do tensor to text post-processing"));
+        std::throw_with_nested(std::runtime_error("Failed to do tensor to text post-processing."));
     }
 }
 
@@ -165,7 +166,7 @@ std::string getConverterName(const GVA::Tensor &tensor_meta) {
     if (tensor_meta.has_field("converter")) {
         converter_name = tensor_meta.get_string("converter");
     } else {
-        GVA_DEBUG("No classification post-processing converter is set");
+        GVA_DEBUG("No classification post-processing converter is set.");
     }
 
     return converter_name;
@@ -188,9 +189,10 @@ ConverterFunctionType getConverter(GstStructure *model_proc_info) {
 
     auto converter_it = converters.find(converter_name);
     if (converter_it == converters.end()) { // Wrong converter set in model-proc file
-        std::string valid_converters = std::accumulate(
-            converters.begin(), converters.end(), std::string(""),
-            [](std::string acc, ConvertersMap::value_type &converter) { return std::move(acc) + converter.first; });
+        std::string valid_converters = std::accumulate(converters.begin(), converters.end(), std::string(""),
+                                                       [](std::string acc, ConvertersMap::value_type &converter) {
+                                                           return std::move(acc) + converter.first + std::string(" ");
+                                                       });
 
         throw std::invalid_argument(
             "Unknown post processing converter set: '" + converter_name +
@@ -199,26 +201,56 @@ ConverterFunctionType getConverter(GstStructure *model_proc_info) {
     return converter_it->second;
 }
 
-GstStructure *createResultStructure(OutputBlob::Ptr &blob, ClassificationLayerInfo &info, const std::string &model_name,
-                                    const std::string &layer_name, size_t batch_size, size_t frame_index) {
-    GstStructure *classification_result = nullptr;
-    if (info.model_proc_info)
-        classification_result = copy(info.model_proc_info.get(), gst_structure_copy);
-    else
-        throw std::runtime_error("Failed to create classification result structure: model-proc is null.");
+GstStructure *createROIResult(OutputBlob::Ptr &blob, ClassificationLayerInfo &info, const std::string &model_name,
+                              const std::string &layer_name, size_t batch_size, size_t frame_index) {
+    GstStructure *result = nullptr;
+    if (info.model_proc_info) {
+        result = copy(info.model_proc_info.get(), gst_structure_copy);
+    } else {
+        throw std::runtime_error("Failed to initialize classification result structure: model-proc is null.");
+    }
+    if (!result) {
+        throw std::runtime_error("Failed to initialize classification result tensor.");
+    }
 
-    if (!classification_result)
-        throw std::runtime_error("Failed to create classification result tensor");
+    CopyOutputBlobToGstStructure(blob, result, model_name.c_str(), layer_name.c_str(), batch_size, frame_index);
 
-    CopyOutputBlobToGstStructure(blob, classification_result, model_name.c_str(), layer_name.c_str(), batch_size,
-                                 frame_index);
-
-    GVA::Tensor wrapped_tensor(classification_result);
-
+    GVA::Tensor wrapped_tensor(result);
     if (info.converter) {
         info.converter(wrapped_tensor, info.labels.get());
     }
-    return classification_result;
+    return result;
+}
+
+GstGVATensorMeta *createFullFrameResult(GstBuffer *buffer, OutputBlob::Ptr &blob, ClassificationLayerInfo &info,
+                                        const std::string &model_name, const std::string &layer_name, size_t batch_size,
+                                        size_t frame_index) {
+    const GstMetaInfo *meta_info = gst_meta_get_info(GVA_TENSOR_META_IMPL_NAME);
+
+    gva_buffer_check_and_make_writable(&buffer, __PRETTY_FUNCTION__);
+
+    GstGVATensorMeta *result = (GstGVATensorMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
+    if (not result) {
+        throw std::runtime_error("Failed to add GstGVATensorMeta instance.");
+    }
+
+    result->data = nullptr;
+    if (info.model_proc_info) {
+        result->data = copy(info.model_proc_info.get(), gst_structure_copy);
+    } else {
+        throw std::runtime_error("Failed to initialize classification result structure: model-proc is null.");
+    }
+    if (!result->data) {
+        throw std::runtime_error("Failed to initialize classification result tensor.");
+    }
+
+    CopyOutputBlobToGstStructure(blob, result->data, model_name.c_str(), layer_name.c_str(), batch_size, frame_index);
+
+    GVA::Tensor wrapped_tensor(result->data);
+    if (info.converter) {
+        info.converter(wrapped_tensor, info.labels.get());
+    }
+    return result;
 }
 
 inline bool sameRegion(GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInterestMeta *right) {
@@ -229,7 +261,7 @@ inline bool sameRegion(GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInter
 inline GstVideoRegionOfInterestMeta *findDetectionMeta(InferenceFrame *frame) {
     GstBuffer *buffer = frame->buffer;
     if (not buffer)
-        throw std::invalid_argument("Inference frame's buffer is nullptr");
+        throw std::invalid_argument("Inference frame's buffer is nullptr.");
     auto frame_roi = &frame->roi;
     GstVideoRegionOfInterestMeta *meta = NULL;
     gpointer state = NULL;
@@ -238,7 +270,7 @@ inline GstVideoRegionOfInterestMeta *findDetectionMeta(InferenceFrame *frame) {
             return meta;
         }
     }
-    return nullptr;
+    return meta;
 }
 
 ClassificationLayersInfoMap createClassificationLayersInfoMap(const InferenceImpl::Model &model) {
@@ -285,7 +317,7 @@ ClassificationPostProcessor::ClassificationPostProcessor(const InferenceImpl *in
     if (models.size() == 0)
         return;
     if (models.size() > 1)
-        throw std::runtime_error("Multimodels is not supported");
+        throw std::runtime_error("Multimodels is not supported.");
     layers_info = createClassificationLayersInfoMap(models.front());
     model_name = models.front().name;
 }
@@ -301,26 +333,44 @@ void ClassificationPostProcessor::fillLayersInfoIfEmpty(
 }
 
 PostProcessor::ExitStatus ClassificationPostProcessor::pushClassificationResultToFrames(
-    OutputBlob::Ptr &blob, ClassificationLayerInfo &layer_info, const std::string &layer_name,
+    OutputBlob::Ptr &blob, unsigned int blob_id, ClassificationLayerInfo &layer_info, const std::string &layer_name,
     std::vector<std::shared_ptr<InferenceFrame>> &frames) {
     if (not blob)
         throw std::invalid_argument("Output blob is empty");
 
     for (size_t frame_index = 0; frame_index < frames.size(); frame_index++) {
-        GstVideoRegionOfInterestMeta *meta = findDetectionMeta(frames[frame_index].get());
-        if (meta) {
-            auto classification_result =
-                createResultStructure(blob, layer_info, model_name, layer_name, frames.size(), frame_index);
-            if (!classification_result)
-                return PostProcessor::ExitStatus::FAIL;
-
-            gst_video_region_of_interest_meta_add_param(meta, classification_result);
-            // store classifications to update classification history when pushing output buffers
-            frames[frame_index]->roi_classifications.push_back(classification_result);
+        InferenceFrame *current_frame = frames[frame_index].get();
+        if (current_frame->gva_base_inference->inference_region == ROI_LIST) {
+            /* find detection meta to attach classification results */
+            GstVideoRegionOfInterestMeta *meta = findDetectionMeta(current_frame);
+            if (!meta) {
+                GST_WARNING("No detection tensors were found for this buffer in case of roi-list classification.");
+                continue;
+            }
+            /* creates and initializes the classification results */
+            GstStructure *result =
+                createROIResult(blob, layer_info, model_name, layer_name, frames.size(), frame_index);
+            /* type - To identify classification tensors among others. */
+            gst_structure_set(result, "type", G_TYPE_STRING, "classification_result", NULL);
+            /* attach GstStructure with classification results to detection meta */
+            gst_video_region_of_interest_meta_add_param(meta, result);
+            /* store classifications to update classification history when pushing output buffers */
+            current_frame->roi_classifications.push_back(result);
+        } else if (current_frame->gva_base_inference->inference_region == FULL_FRAME) {
+            /* creates and initializes tensor meta with classification results, adds tensor meta to the buffer */
+            GstGVATensorMeta *result = createFullFrameResult(current_frame->buffer, blob, layer_info, model_name,
+                                                             layer_name, frames.size(), frame_index);
+            /* tensor_id - In different GStreamer versions metas are attached to the buffer in a different order. */
+            /* type - To identify classification tensors among others. */
+            /* element_id - To identify model_instance_id. */
+            gst_structure_set(result->data, "tensor_id", G_TYPE_INT, safe_convert<int>(blob_id), "type", G_TYPE_STRING,
+                              "classification_result", "element_id", G_TYPE_STRING,
+                              current_frame->gva_base_inference->model_instance_id, NULL);
         } else {
-            GST_WARNING("No detection tensors were found for this buffer");
+            GST_WARNING("Not supported inference-region parameter value, classification results skipped.");
         }
     }
+
     return PostProcessor::ExitStatus::SUCCESS;
 }
 
@@ -331,12 +381,13 @@ ClassificationPostProcessor::process(const std::map<std::string, InferenceBacken
     auto exec_status = PostProcessor::ExitStatus::FAIL;
     try {
         if (frames.empty())
-            throw std::invalid_argument("There are no inference frames");
+            throw std::invalid_argument("There are no inference frames.");
 
         // If model-proc has not been set, then layers_info will be initialized by default Converter for all layers
         // from output_blobs just on first frame.
         fillLayersInfoIfEmpty(output_blobs);
 
+        unsigned int blob_id = 0;
         if (layers_info.size() == 1 and layers_info.cbegin()->first == "ANY") {
             GVA_DEBUG("\"layer_name\" has been not specified. Converter will be applied to all output blobs.");
 
@@ -346,7 +397,8 @@ ClassificationPostProcessor::process(const std::map<std::string, InferenceBacken
                 const std::string &layer_name = blob_iter.first;
 
                 OutputBlob::Ptr blob = blob_iter.second;
-                exec_status = pushClassificationResultToFrames(blob, layer_info, layer_name, frames);
+                exec_status = pushClassificationResultToFrames(blob, blob_id, layer_info, layer_name, frames);
+                ++blob_id;
             }
         } else {
             for (auto &layer_info_it : layers_info) {
@@ -359,11 +411,12 @@ ClassificationPostProcessor::process(const std::map<std::string, InferenceBacken
                 }
 
                 OutputBlob::Ptr blob = blob_iter->second;
-                exec_status = pushClassificationResultToFrames(blob, layer_info, layer_name, frames);
+                exec_status = pushClassificationResultToFrames(blob, blob_id, layer_info, layer_name, frames);
+                ++blob_id;
             }
         }
     } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Failed to extract classification results"));
+        std::throw_with_nested(std::runtime_error("Failed to extract classification results."));
     }
     return exec_status;
 }

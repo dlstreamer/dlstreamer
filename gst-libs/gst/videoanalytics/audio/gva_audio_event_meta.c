@@ -132,6 +132,7 @@ GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta_id(GstBuffer *buffer, 
     GstGVAAudioEventMeta *event_meta;
 
     g_return_val_if_fail(GST_IS_BUFFER(buffer), NULL);
+    g_return_val_if_fail(gst_buffer_is_writable(buffer), NULL);
 
     event_meta = (GstGVAAudioEventMeta *)gst_buffer_add_meta(buffer, GST_GVA_AUDIO_EVENT_META_INFO, NULL);
     event_meta->event_type = event_type;

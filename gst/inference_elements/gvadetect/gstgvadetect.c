@@ -16,7 +16,10 @@
 #include <gst/video/video.h>
 
 #define ELEMENT_LONG_NAME "Object detection (generates GstVideoRegionOfInterestMeta)"
-#define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+#define ELEMENT_DESCRIPTION                                                                                            \
+    "Performs object detection using SSD-like "                                                                        \
+    "(including MobileNet-V1/V2 and ResNet), YoloV2/YoloV3/YoloV2-tiny/YoloV3-tiny "                                   \
+    "and FasterRCNN-like object detection models."
 
 enum {
     PROP_0,
@@ -99,6 +102,7 @@ void gst_gva_detect_init(GstGvaDetect *gvadetect) {
     GST_DEBUG_OBJECT(gvadetect, "gst_gva_detect_init");
     GST_DEBUG_OBJECT(gvadetect, "%s", GST_ELEMENT_NAME(GST_ELEMENT(gvadetect)));
 
+    gvadetect->base_inference.type = GST_GVA_DETECT_TYPE;
     gvadetect->threshold = DEFALUT_THRESHOLD;
 }
 

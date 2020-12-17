@@ -17,7 +17,6 @@ class MappedMat {
     GstBuffer *buffer;
     GstMapInfo map_info;
     cv::Mat cv_mat;
-
     MappedMat();
     MappedMat(const MappedMat &);
     MappedMat &operator=(const MappedMat &);

@@ -13,21 +13,33 @@
 #include <vector>
 
 #include "image.h"
+#include "input_image_layer_descriptor.h"
 
 namespace InferenceBackend {
 
 class OutputBlob;
 class Allocator;
 class InputLayerDesc;
+class InputImageLayerDesc;
+class ImageTransformationParams;
 
 class ImageInference {
   public:
     using Ptr = std::shared_ptr<ImageInference>;
 
     // Application can derive and put object instance into inference queue, see last parameter in Submit* functions
+
     struct IFrameBase {
+      protected:
+        ImageTransformationParams::Ptr image_trans_params = std::make_shared<ImageTransformationParams>();
+
+      public:
         using Ptr = std::shared_ptr<IFrameBase>;
         virtual void SetImage(const std::shared_ptr<Image> &image) = 0;
+        virtual ImageTransformationParams::Ptr GetImageTransformationParams() {
+            return image_trans_params;
+        }
+
         virtual ~IFrameBase() = default;
     };
 
@@ -81,11 +93,11 @@ class InputBlob : public virtual Blob {
     virtual ~InputBlob() = default;
 };
 
-// TODO InputLayerDesc
 struct InputLayerDesc {
     using Ptr = std::shared_ptr<InputLayerDesc>;
     std::string name;
     std::function<void(const InputBlob::Ptr &)> preprocessor;
+    InputImageLayerDesc::Ptr input_image_preroc_params = nullptr;
 };
 
 class Allocator {
@@ -116,5 +128,8 @@ __DECLARE_CONFIG_KEY(BATCH_SIZE);
 __DECLARE_CONFIG_KEY(RESHAPE_WIDTH);
 __DECLARE_CONFIG_KEY(RESHAPE_HEIGHT);
 __DECLARE_CONFIG_KEY(image);
+__DECLARE_CONFIG_KEY(CAPS_FEATURE);
+#undef __DECLARE_CONFIG_KEY
+#undef __CONFIG_KEY
 
 } // namespace InferenceBackend

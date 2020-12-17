@@ -13,8 +13,10 @@
 
 #define UNUSED(x) (void)(x)
 
-#define ELEMENT_LONG_NAME "Calls Python function on each frame and passes gi.repository.Gst.Buffer as parameter"
-#define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+#define ELEMENT_LONG_NAME "Python callback provider"
+#define ELEMENT_DESCRIPTION                                                                                            \
+    "Provides a callback to execute user-defined Python functions on every frame. "                                    \
+    "Can be used for metadata conversion, inference post-processing, and other tasks."
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_python_debug_category);
 #define GST_CAT_DEFAULT gst_gva_python_debug_category

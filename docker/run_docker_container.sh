@@ -8,7 +8,6 @@
 set -e
 
 VIDEO_EXAMPLES_PATH=""
-INTEL_MODELS_PATH=""
 MODELS_PATH=""
 IMAGE_NAME=""
 
@@ -17,15 +16,11 @@ do
 case $i in
     -h|--help)
     echo "usage: sudo ./run_docker_container.sh [--video-examples-path=<path>]"
-    echo "[--intel-models-path=<path>] [--models-path=<path>] [--image-name=<name>]"
+    echo "[--models-path=<path>] [--image-name=<name>]"
     exit 0
     ;;
     --video-examples-path=*)
     VIDEO_EXAMPLES_PATH="${i#*=}"
-    shift
-    ;;
-    --intel-models-path=*)
-    INTEL_MODELS_PATH="${i#*=}"
     shift
     ;;
     --models-path=*)
@@ -52,12 +47,9 @@ docker run -it --privileged --net=host \
     -e http_proxy=$http_proxy \
     -e https_proxy=$https_proxy \
     \
-    -v $INTEL_MODELS_PATH:/root/intel_models \
-    -v $MODELS_PATH:/root/models \
-    -e MODELS_PATH=/root/intel_models:/root/models \
+    -v $MODELS_PATH:/root/intel/dl_streamer/models \
     \
-    -v $VIDEO_EXAMPLES_PATH:/root/video-examples \
+    -v $VIDEO_EXAMPLES_PATH:/root/video-examples:ro \
     -e VIDEO_EXAMPLES_DIR=/root/video-examples \
     \
-    -w /root/gst-video-analytics/samples \
     $IMAGE_NAME

@@ -20,28 +20,38 @@ size_t getClassesNum(const GstStructure *s);
 size_t getCellsNumber(const GstStructure *s);
 double getIOUThreshold(const GstStructure *s);
 size_t getBboxNumberOnCell(const GstStructure *s);
+bool getDoClsSoftmax(const GstStructure *s);
+bool getOutputSigmoidActivation(const GstStructure *s);
 std::vector<float> getAnchors(const GstStructure *s);
-std::map<size_t, std::vector<size_t>> getMask(const GstStructure *s, size_t bbox_number_on_cell);
+std::map<size_t, std::vector<size_t>> getMask(const GstStructure *s, size_t bbox_number_on_cell, size_t cells_number);
 
 YOLOConverter *YOLOConverter::makeYOLOConverter(const std::string &converter_type,
-                                                const GstStructure *model_proc_info) {
-    auto classes_number = getClassesNum(model_proc_info);
-    auto anchors = getAnchors(model_proc_info);
-    auto iou_threshold = getIOUThreshold(model_proc_info);
-    auto bbox_number_on_cell = getBboxNumberOnCell(model_proc_info);
+                                                const GstStructure *output_model_proc_info,
+                                                const ModelInputInfo &input_info) {
+    const auto classes_number = getClassesNum(output_model_proc_info);
+    const auto anchors = getAnchors(output_model_proc_info);
+    const auto iou_threshold = getIOUThreshold(output_model_proc_info);
+    const auto cells_number = getCellsNumber(output_model_proc_info);
+    const auto do_cls_softmax = getDoClsSoftmax(output_model_proc_info);
+    const auto output_sigmoid_activation = getOutputSigmoidActivation(output_model_proc_info);
+    auto bbox_number_on_cell = getBboxNumberOnCell(output_model_proc_info);
 
     if (converter_type == "tensor_to_bbox_yolo_v2") {
-        auto cells_number = getCellsNumber(model_proc_info);
         if (!bbox_number_on_cell)
             bbox_number_on_cell = 5;
         return new YOLOV2Converter(classes_number, anchors, cells_number, cells_number, iou_threshold,
-                                   bbox_number_on_cell);
+                                   bbox_number_on_cell, do_cls_softmax, output_sigmoid_activation);
     }
     if (converter_type == "tensor_to_bbox_yolo_v3") {
         if (!bbox_number_on_cell)
             bbox_number_on_cell = 3;
-        auto masks = getMask(model_proc_info, bbox_number_on_cell);
-        return new YOLOV3Converter(classes_number, anchors, masks, iou_threshold, bbox_number_on_cell);
+        const auto masks = getMask(output_model_proc_info, bbox_number_on_cell, cells_number);
+        if (input_info.width / 32 != cells_number) {
+            GST_WARNING("The size of the input layer of the model does not match the specified number of cells. Verify "
+                        "your \"cells_number\" field in model_proc.");
+        }
+        return new YOLOV3Converter(classes_number, anchors, masks, cells_number, cells_number, iou_threshold,
+                                   bbox_number_on_cell, input_info.width, do_cls_softmax);
     }
     return nullptr;
 }
@@ -52,9 +62,10 @@ void YOLOConverter::storeObjects(std::vector<DetectedObject> &objects, const std
     runNms(objects);
 
     for (DetectedObject &object : objects) {
-        addRoi(frame->buffer, frame->info, object.x, object.y, object.w, object.h, object.class_id, object.confidence,
-               gst_structure_copy(detection_result), labels); // each ROI gets its own copy, which is then
-                                                              // owned by GstVideoRegionOfInterestMeta
+        addRoi(frame->buffer, frame->info, frame->image_transform_info, object.x, object.y, object.w, object.h,
+               object.class_id, object.confidence, gst_structure_copy(detection_result),
+               labels); // each ROI gets its own copy, which is then
+                        // owned by GstVideoRegionOfInterestMeta
     }
 }
 
@@ -107,12 +118,12 @@ std::vector<float> getAnchors(const GstStructure *s) {
     return anchors;
 }
 
-std::map<size_t, std::vector<size_t>> getMask(const GstStructure *s, size_t bbox_number_on_cell) {
+std::map<size_t, std::vector<size_t>> getMask(const GstStructure *s, size_t bbox_number_on_cell, size_t cells_number) {
 
     if (!gst_structure_has_field(s, "masks"))
         throw std::runtime_error("model proc does not have \"masks\" parameter.");
     GValueArray *arr = NULL;
-    size_t side = 13;
+    size_t side = cells_number;
     gst_structure_get_array(const_cast<GstStructure *>(s), "masks", &arr);
     std::vector<size_t> masks;
     if (arr) {
@@ -149,12 +160,11 @@ size_t getClassesNum(const GstStructure *s) {
 }
 
 size_t getCellsNumber(const GstStructure *s) {
-    int cells_number = 0;
+    int cells_number = 13;
     if (gst_structure_has_field(s, "cells_number")) {
         gst_structure_get_int(s, "cells_number", &cells_number);
-    } else {
-        throw std::runtime_error("model proc does not have \"cells_number\" parameter.");
     }
+
     return cells_number;
 }
 
@@ -172,8 +182,25 @@ double getIOUThreshold(const GstStructure *s) {
     double iou_threshold = 0.5;
     if (gst_structure_has_field(s, "iou_threshold")) {
         gst_structure_get_double(s, "iou_threshold", &iou_threshold);
-    } else {
-        iou_threshold = 0.5;
     }
+
     return iou_threshold;
+}
+
+bool getDoClsSoftmax(const GstStructure *s) {
+    gboolean do_cls_sftm = FALSE;
+    if (gst_structure_has_field(s, "do_cls_softmax")) {
+        gst_structure_get_boolean(s, "do_cls_softmax", &do_cls_sftm);
+    }
+
+    return do_cls_sftm;
+}
+
+bool getOutputSigmoidActivation(const GstStructure *s) {
+    gboolean do_coords_sgmd = FALSE;
+    if (gst_structure_has_field(s, "output_sigmoid_activation")) {
+        gst_structure_get_boolean(s, "output_sigmoid_activation", &do_coords_sgmd);
+    }
+
+    return do_coords_sgmd;
 }

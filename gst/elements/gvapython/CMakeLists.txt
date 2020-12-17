@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.1)
 set (TARGET_NAME "gvapython")
 
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
 find_package(PythonLibs 3.4)
 

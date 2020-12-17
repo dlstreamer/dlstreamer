@@ -17,7 +17,8 @@ using namespace Converters;
 
 namespace {
 
-ConverterUniquePtr createConverter(const GstStructure *model_proc_info = nullptr);
+ConverterUniquePtr createConverter(const GstStructure *output_model_proc_info = nullptr,
+                                   const ModelInputInfo input_info = ModelInputInfo());
 
 LayersInfoMap createLayersInfo(const InferenceImpl::Model &model);
 LayersInfoMap::iterator findFirstMatch(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
@@ -25,11 +26,12 @@ LayersInfoMap::iterator findFirstMatch(const std::map<std::string, OutputBlob::P
 LayersInfoMap::iterator findFirstMatchOrAppend(const std::map<std::string, OutputBlob::Ptr> &output_blobs,
                                                LayersInfoMap &layers_info, std::string &layer_name);
 
-ConverterUniquePtr createConverter(const GstStructure *model_proc_info) {
+ConverterUniquePtr createConverter(const GstStructure *output_model_proc_info, const ModelInputInfo input_info) {
     std::unique_ptr<Converter> converter;
-    converter = ConverterUniquePtr(Converter::create(model_proc_info));
+    converter = ConverterUniquePtr(Converter::create(output_model_proc_info, input_info));
     if (!converter) {
-        throw std::runtime_error("Could not initialize converter" + Converter::getConverterType(model_proc_info) +
+        throw std::runtime_error("Could not initialize converter" +
+                                 Converter::getConverterType(output_model_proc_info) +
                                  ". Please, check if 'converter' field in model-proc file is valid.");
     }
     return converter;
@@ -37,15 +39,19 @@ ConverterUniquePtr createConverter(const GstStructure *model_proc_info) {
 
 LayersInfoMap createLayersInfo(const InferenceImpl::Model &model) {
     LayersInfoMap layers_info;
+    ModelInputInfo input_info;
+    model.inference->GetModelImageInputInfo(input_info.width, input_info.height, input_info.batch_size,
+                                            input_info.format, input_info.memory_type);
+
     for (const auto &item : model.output_processor_info) {
         const std::string &layer_name = item.first;
-        GstStructure *model_proc_info = item.second;
+        GstStructure *output_model_proc_info = item.second;
 
-        auto converter = createConverter(model_proc_info);
+        auto converter = createConverter(output_model_proc_info, input_info);
         auto labels_it = model.labels.find(layer_name);
         GValueArray *labels = labels_it != model.labels.end() ? labels_it->second : nullptr;
 
-        layers_info.emplace(layer_name, LayerInfo(std::move(converter), labels, model_proc_info));
+        layers_info.emplace(layer_name, LayerInfo(std::move(converter), labels, output_model_proc_info));
     }
     return layers_info;
 }
@@ -85,18 +91,21 @@ LayersInfoMap::iterator findFirstMatchOrAppend(const std::map<std::string, Outpu
 
 LayerInfo::LayerInfo()
     : converter(createConverter()), labels(GValueArrayUniquePtr(nullptr, g_value_array_free)),
-      model_proc_info(gst_structure_new_empty("detection"), gst_structure_free) {
-    if (model_proc_info == nullptr)
+      output_model_proc_info(gst_structure_new_empty("detection"), gst_structure_free) {
+    if (output_model_proc_info == nullptr)
         throw std::runtime_error("Could not construct empty GstStructure");
 }
 
-LayerInfo::LayerInfo(ConverterUniquePtr converter, const GValueArray *labels, const GstStructure *model_proc_info)
+LayerInfo::LayerInfo(ConverterUniquePtr converter, const GValueArray *labels,
+                     const GstStructure *output_model_proc_info)
     : converter(std::move(converter)), labels(copy(labels, g_value_array_copy), g_value_array_free),
-      model_proc_info(copy(model_proc_info, gst_structure_copy), gst_structure_free) {
+      output_model_proc_info(copy(output_model_proc_info, gst_structure_copy), gst_structure_free) {
 }
 
-LayerInfo::LayerInfo(ConverterUniquePtr converter, GValueArrayUniquePtr labels, GstStructureUniquePtr model_proc_info)
-    : converter(std::move(converter)), labels(std::move(labels)), model_proc_info(std::move(model_proc_info)) {
+LayerInfo::LayerInfo(ConverterUniquePtr converter, GValueArrayUniquePtr labels,
+                     GstStructureUniquePtr output_model_proc_info)
+    : converter(std::move(converter)), labels(std::move(labels)),
+      output_model_proc_info(std::move(output_model_proc_info)) {
 }
 
 DetectionPostProcessor::DetectionPostProcessor(const InferenceImpl *inference_impl) {
@@ -121,8 +130,8 @@ PostProcessor::ExitStatus DetectionPostProcessor::process(const std::map<std::st
         std::string layer_name = "ANY";
         auto layer_info_it = findFirstMatchOrAppend(output_blobs, layers_info, layer_name);
 
-        auto detection_result =
-            GstStructureUniquePtr(gst_structure_copy(layer_info_it->second.model_proc_info.get()), gst_structure_free);
+        auto detection_result = GstStructureUniquePtr(
+            gst_structure_copy(layer_info_it->second.output_model_proc_info.get()), gst_structure_free);
         gst_structure_set_name(detection_result.get(), "detection");
         GValueArray *labels_raw = layer_info_it->second.labels.get();
         if (not detection_result.get())

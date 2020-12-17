@@ -10,6 +10,7 @@
 
 #include "common/input_model_preproc.h"
 #include "inference_backend/image_inference.h"
+#include "inference_backend/input_image_layer_descriptor.h"
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -26,6 +27,8 @@ struct InferenceFrame {
     GvaBaseInference *gva_base_inference;
     GstVideoInfo *info;
 
+    InferenceBackend::ImageTransformationParams::Ptr image_transform_info = nullptr;
+
     InferenceFrame() = default;
     InferenceFrame(GstBuffer *_buf, GstVideoRegionOfInterestMeta _roi, std::vector<GstStructure *> _roi_classifications,
                    GvaBaseInference *_gva_base_inference, GstVideoInfo *_info)
@@ -36,6 +39,7 @@ struct InferenceFrame {
         : buffer(inf.buffer), roi(inf.roi), roi_classifications(inf.roi_classifications),
           gva_base_inference(inf.gva_base_inference) {
         this->info = (inf.info) ? gst_video_info_copy(inf.info) : nullptr;
+        this->image_transform_info = inf.image_transform_info;
     }
     InferenceFrame &operator=(const InferenceFrame &rhs) {
         buffer = rhs.buffer;
@@ -48,6 +52,8 @@ struct InferenceFrame {
         }
         if (rhs.info)
             this->info = gst_video_info_copy(rhs.info);
+
+        image_transform_info = rhs.image_transform_info;
 
         return *this;
     }

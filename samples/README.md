@@ -24,7 +24,7 @@ Other samples (without C/C++ code) provide .sh script for constucting and execut
 
 ## DL Models
 
-DL Streamer samples use pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+DL Streamer samples use pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 
 Before running samples, run script `download_models.sh` once to download all models required for samples. The script located in `samples` top folder.
 

@@ -4,20 +4,29 @@ This sample demonstrates [gvapython](https://github.com/openvinotoolkit/dlstream
 
 ## How It Works
  In this sample the `gvapython` element inserted into pipeline twice.
- 
+
  First time it inserted after `gvainference` element running on object detection model, this demonstrates custom conversion of model output into list of bounding boxes. See file `ssd_object_detection.py` with conversion function coded in Python.
- 
+
  Second time it inserted after `gvaclassify` element running on object classification model, this demonstrates custom conversion model output into object attributes (age and gender in this example). See file `age_gender_classification.py` with conversion function coded in Python.
 
 ## Models
 
-The sample uses by default the following pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 *   __face-detection-adas-0001__ is primary detection network for finding faces
 *   __age-gender-recognition-retail-0013__ age and gender estimation on detected faces
 
 > **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 ## Running
+
+If Python requirements are not installed yet:
+
+```sh
+python3 -m pip install --upgrade pip
+python3 -m pip install -r ../../../../requirements.txt
+cd -
+```
+Run sample:
 
 ```sh
 ./face_detection_and_classification.sh [INPUT_VIDEO]

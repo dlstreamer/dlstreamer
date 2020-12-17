@@ -9,15 +9,32 @@
 #include "inference_backend/logger.h"
 
 #include <cmath>
+#include <sstream>
 
 using namespace DetectionPlugin;
 using namespace Converters;
 
 YOLOV3Converter::YOLOV3Converter(size_t classes_number, std::vector<float> anchors,
-                                 std::map<size_t, std::vector<size_t>> masks, double iou_threshold, size_t num,
-                                 size_t coords, float input_size)
-    : YOLOConverter(anchors, iou_threshold), classes_number(classes_number), masks(masks), coords(coords), num(num),
-      input_size(input_size) {
+                                 std::map<size_t, std::vector<size_t>> masks, size_t cells_number_x,
+                                 size_t cells_number_y, double iou_threshold, size_t bbox_number_on_cell,
+                                 size_t input_size, bool do_cls_softmax)
+    : YOLOConverter(anchors, iou_threshold, {classes_number, cells_number_x, cells_number_y, bbox_number_on_cell},
+                    do_cls_softmax, /*output_sigmoid_activation*/ false),
+      masks(masks), input_size(input_size) {
+}
+
+std::vector<float> YOLOV3Converter::softmax(const float *arr, size_t side, size_t common_offset, size_t size) {
+    std::vector<float> sftm_arr(size);
+    float sum = 0;
+    for (size_t i = 0; i < size; ++i) {
+        const size_t class_index = entryIndex(side, common_offset, 5 + i);
+        sftm_arr[i] = std::exp(arr[class_index]);
+        sum += sftm_arr[i];
+    }
+    for (size_t i = 0; i < size; ++i) {
+        sftm_arr[i] /= sum;
+    }
+    return sftm_arr;
 }
 
 bool YOLOV3Converter::process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
@@ -43,44 +60,101 @@ bool YOLOV3Converter::process(const std::map<std::string, InferenceBackend::Outp
             if (dims.size() != 4 or dims[2] != dims[3]) {
                 throw std::runtime_error("Invalid output blob dimensions");
             }
-            const int side = dims[2];
-            int anchor_offset = 0;
+
+            const size_t side = dims[2];
+            size_t anchor_offset = 0;
+            if (masks.find(side) == masks.cend()) {
+                std::ostringstream msg_stream;
+                msg_stream << "Mismatch between the size of the bounding box in the mask: " << masks.cbegin()->first
+                           << " - and the actual size of the bounding "
+                              "box: "
+                           << side << ".";
+
+                throw std::runtime_error(msg_stream.str());
+            }
+
+            /* we must check blob size only for layers which size we specify */
+            if (side == output_shape_info.cells_number_x) {
+                size_t blob_size = 1;
+                for (const auto &dim : dims)
+                    blob_size *= dim;
+                if (blob_size != output_shape_info.requied_blob_size)
+                    throw std::runtime_error("Size of the resulting output blob (" + std::to_string(blob_size) +
+                                             ") does not match the required (" +
+                                             std::to_string(output_shape_info.requied_blob_size) + ").");
+            }
+
             std::vector<size_t> mask = masks.at(side);
             anchor_offset = 2 * mask[0];
-            const float *output_blob = (const float *)blob->GetData();
-            if (not output_blob)
+            const float *blob_data = (const float *)blob->GetData();
+            if (not blob_data)
                 throw std::invalid_argument("Output blob data is nullptr");
 
-            const uint32_t side_square = side * side;
-            for (uint32_t i = 0; i < side_square; ++i) {
-                const int row = i / side;
-                const int col = i % side;
-                for (uint32_t n = 0; n < num; ++n) {
-                    const int obj_index = entryIndex(side, coords, classes_number, n * side_square + i, coords);
-                    const int box_index = entryIndex(side, coords, classes_number, n * side_square + i, 0);
+            const size_t side_square = side * side;
+            for (size_t i = 0; i < side_square; ++i) {
+                const size_t row = i / side;
+                const size_t col = i % side;
+                for (size_t bbox_cell_num = 0; bbox_cell_num < output_shape_info.bbox_number_on_cell; ++bbox_cell_num) {
+                    const size_t common_offset = bbox_cell_num * side_square + i;
+                    const size_t bbox_conf_index = entryIndex(side, common_offset, coords);
+                    const size_t bbox_index = entryIndex(side, common_offset, 0);
 
-                    const float scale = output_blob[obj_index];
-                    if (scale < confidence_threshold)
+                    const float bbox_conf = blob_data[bbox_conf_index];
+                    if (bbox_conf < confidence_threshold)
                         continue;
+
+                    std::pair<size_t, float> bbox_class = std::make_pair(0, 0.f);
+                    if (do_cls_softmax) {
+                        const auto cls_confs =
+                            softmax(blob_data, side, common_offset, output_shape_info.classes_number);
+
+                        for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number;
+                             ++bbox_class_id) {
+                            const float bbox_class_prob = cls_confs[bbox_class_id];
+
+                            if (bbox_class_prob > 1.f && bbox_class_prob < 0.f) {
+                                GST_WARNING("bbox_class_prob is weird %f", bbox_class_prob);
+                            }
+                            if (bbox_class_prob > bbox_class.second) {
+                                bbox_class.first = bbox_class_id;
+                                bbox_class.second = bbox_class_prob;
+                            }
+                        }
+                    } else {
+                        for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number;
+                             ++bbox_class_id) {
+                            const size_t class_index = entryIndex(side, common_offset, 5 + bbox_class_id);
+                            const float bbox_class_prob = blob_data[class_index];
+
+                            if (bbox_class_prob > 1.f && bbox_class_prob < 0.f) {
+                                GST_WARNING("bbox_class_prob is weird %f", bbox_class_prob);
+                            }
+                            if (bbox_class_prob > bbox_class.second) {
+                                bbox_class.first = bbox_class_id;
+                                bbox_class.second = bbox_class_prob;
+                            }
+                        }
+                    }
+
+                    const float confidence = bbox_conf * bbox_class.second;
+                    if (confidence < confidence_threshold)
+                        continue;
+
                     // TODO: check if index in array range
-                    const float x = (col + output_blob[box_index + 0 * side_square]) / side * input_size;
-                    const float y = (row + output_blob[box_index + 1 * side_square]) / side * input_size;
+                    const float x =
+                        static_cast<float>(col + blob_data[bbox_index + 0 * side_square]) / side * input_size;
+                    const float y =
+                        static_cast<float>(row + blob_data[bbox_index + 1 * side_square]) / side * input_size;
 
                     // TODO: check if index in array range
                     const float width =
-                        std::exp(output_blob[box_index + 2 * side_square]) * anchors[anchor_offset + 2 * n];
-                    const float height =
-                        std::exp(output_blob[box_index + 3 * side_square]) * anchors[anchor_offset + 2 * n + 1];
+                        std::exp(blob_data[bbox_index + 2 * side_square]) * anchors[anchor_offset + 2 * bbox_cell_num];
+                    const float height = std::exp(blob_data[bbox_index + 3 * side_square]) *
+                                         anchors[anchor_offset + 2 * bbox_cell_num + 1];
 
-                    for (uint32_t j = 0; j < classes_number; ++j) {
-                        const int class_index =
-                            entryIndex(side, coords, classes_number, n * side_square + i, coords + 1 + j);
-                        const float prob = scale * output_blob[class_index];
-                        if (prob < confidence_threshold)
-                            continue;
-                        DetectedObject obj(x, y, width, height, j, prob, 1 / input_size, 1 / input_size);
-                        objects.push_back(obj);
-                    }
+                    DetectedObject obj(x, y, width, height, bbox_class.first, confidence, 1.0f / input_size,
+                                       1.0f / input_size);
+                    objects.push_back(obj);
                 }
             }
         }
@@ -91,11 +165,11 @@ bool YOLOV3Converter::process(const std::map<std::string, InferenceBackend::Outp
     }
     return flag;
 }
-uint32_t YOLOV3Converter::entryIndex(uint32_t side, uint32_t lcoords, uint32_t lclasses, uint32_t location,
-                                     uint32_t entry) {
-    uint32_t side_square = side * side;
-    uint32_t n = location / side_square;
-    uint32_t loc = location % side_square;
+
+size_t YOLOV3Converter::entryIndex(size_t side, size_t location, size_t entry) {
+    size_t side_square = side * side;
+    size_t bbox_cell_num = location / side_square;
+    size_t loc = location % side_square;
     // side_square is the tensor dimension of the YoloV3 model. Overflow is not possible here.
-    return side_square * (n * (lcoords + lclasses + 1) + entry) + loc;
+    return side_square * (bbox_cell_num * (output_shape_info.classes_number + 5) + entry) + loc;
 }

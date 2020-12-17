@@ -17,7 +17,7 @@
 #include <gst/video/video.h>
 
 #define ELEMENT_LONG_NAME "Generic full-frame inference (generates GstGVATensorMeta)"
-#define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+#define ELEMENT_DESCRIPTION "Runs deep learning inference using any model with an RGB or BGR input."
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_inference_debug_category);
 #define GST_CAT_DEFAULT gst_gva_inference_debug_category
@@ -50,6 +50,8 @@ void gst_gva_inference_class_init(GstGvaInferenceClass *klass) {
 void gst_gva_inference_init(GstGvaInference *gvainference) {
     GST_DEBUG_OBJECT(gvainference, "gst_gva_inference_init");
     GST_DEBUG_OBJECT(gvainference, "%s", GST_ELEMENT_NAME(GST_ELEMENT(gvainference)));
+
+    gvainference->base_inference.type = GST_GVA_INFERENCE_TYPE;
 }
 
 static void gst_gva_inference_finilize(GObject *object) {

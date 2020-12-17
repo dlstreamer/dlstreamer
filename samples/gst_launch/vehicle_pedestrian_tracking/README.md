@@ -16,7 +16,7 @@ Overall this sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for person and vehicle detection based on OpenVINO™ Inference Engine
+* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for person and vehicle detection based on OpenVINO™ Toolkit Inference Engine
 * [gvatrack](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvatrack) for tracking objects
 * [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) inserted into pipeline twice for person and vehicle classification
 * [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for bounding boxes and labels visualization
@@ -25,7 +25,7 @@ Overall this sample builds GStreamer pipeline of the following elements
 
 ## Models
 
-The sample uses by default the following pre-trained models from OpenVINO™ [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 *   __person-vehicle-bike-detection-crossroad-0078__ is primary detection network for detecting persons, vehicles and bikes
 *   __person-attributes-recognition-crossroad-0230__ classifies person attributes
 *   __vehicle-attributes-recognition-barrier-0039__ classifies vehicle attributes

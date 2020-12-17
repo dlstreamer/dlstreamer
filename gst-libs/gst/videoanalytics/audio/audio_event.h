@@ -12,11 +12,14 @@
 
 #pragma once
 
-#include "gva_audio_event_meta.h"
 #include "tensor.h"
-#include <cassert>
+
+#include "gva_audio_event_meta.h"
+
 #include <gst/audio/gstaudiometa.h>
 #include <gst/gst.h>
+
+#include <cassert>
 #include <stdexcept>
 #include <string>
 #include <vector>

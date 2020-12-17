@@ -12,6 +12,5 @@
 #cmakedefine ENABLE_ITT
 #cmakedefine ENABLE_VAS_TRACKER
 #cmakedefine DOWNLOAD_VAS_TRACKER
-#cmakedefine ENABLE_IMAGELESS_TRACKER
 
 #endif

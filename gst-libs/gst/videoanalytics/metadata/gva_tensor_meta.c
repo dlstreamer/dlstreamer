@@ -44,6 +44,8 @@ gboolean gst_gva_tensor_meta_transform(GstBuffer *dest_buf, GstMeta *src_meta, G
     UNUSED(type);
     UNUSED(data);
 
+    g_return_val_if_fail(gst_buffer_is_writable(dest_buf), FALSE);
+
     GstGVATensorMeta *dst = GST_GVA_TENSOR_META_ADD(dest_buf);
     GstGVATensorMeta *src = (GstGVATensorMeta *)src_meta;
 

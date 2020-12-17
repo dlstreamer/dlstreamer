@@ -52,9 +52,12 @@ OpenVINOAudioInference::OpenVINOAudioInference(const char *model, char *device, 
     std::map<std::string, std::string> inference_config;
     base[KEY_DEVICE] = device;
 
-    auto loader = InferenceBackend::ModelLoader::is_ir_model(model)
-                      ? std::unique_ptr<InferenceBackend::ModelLoader>(new IrModelLoader())
-                      : std::unique_ptr<InferenceBackend::ModelLoader>(new CompiledModelLoader());
+    if (!InferenceBackend::ModelLoader::is_valid_model_path(model))
+        throw std::runtime_error("Invalid model path.");
+
+    auto loader = InferenceBackend::ModelLoader::is_compile_model(model)
+                      ? std::unique_ptr<InferenceBackend::ModelLoader>(new CompiledModelLoader())
+                      : std::unique_ptr<InferenceBackend::ModelLoader>(new IrModelLoader());
     Core core;
     CNNNetwork network = loader->load(core, model, base);
     ExecutableNetwork executable_network = loader->import(network, model, core, base, inference_config);

@@ -15,6 +15,7 @@ struct ModelInputProcessorInfo {
 
     std::string format;
     std::string layer_name;
+    std::string precision;
     GstStructure *params;
 
     ~ModelInputProcessorInfo() {

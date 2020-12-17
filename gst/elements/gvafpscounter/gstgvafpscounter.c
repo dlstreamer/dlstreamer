@@ -9,7 +9,7 @@
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 
-#include "fpscounter.h"
+#include "fpscounter_c.h"
 #include "gva_caps.h"
 
 #include "config.h"
@@ -17,8 +17,8 @@
 
 #define UNUSED(x) (void)(x)
 
-#define ELEMENT_LONG_NAME "Measure Frames Per Second across multiple streams with output to console"
-#define ELEMENT_DESCRIPTION ELEMENT_LONG_NAME
+#define ELEMENT_LONG_NAME "Frames Per Second counter"
+#define ELEMENT_DESCRIPTION "Measures frames per second across multiple streams in a single process."
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_fpscounter_debug_category);
 #define GST_CAT_DEFAULT gst_gva_fpscounter_debug_category
@@ -56,9 +56,9 @@ static void gst_gva_fpscounter_class_init(GstGvaFpscounterClass *klass) {
     /* Setting up pads and setting metadata should be moved to
        base_class_init if you intend to subclass this class. */
     gst_element_class_add_pad_template(
-        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string("ANY")));
+        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
     gst_element_class_add_pad_template(
-        element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string("ANY")));
+        element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, gst_caps_from_string(GVA_CAPS)));
 
     gst_element_class_set_static_metadata(element_class, ELEMENT_LONG_NAME, "Video", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");
@@ -129,8 +129,8 @@ void gst_gva_fpscounter_set_property(GObject *object, guint property_id, const G
 static gboolean gst_gva_fpscounter_start(GstBaseTransform *trans) {
     GstGvaFpscounter *gvafpscounter = GST_GVA_FPSCOUNTER(trans);
     GST_DEBUG_OBJECT(gvafpscounter, "start");
-    create_average_fps_counter(gvafpscounter->starting_frame);
-    create_iterative_fps_counter(gvafpscounter->interval);
+    fps_counter_create_average(gvafpscounter->starting_frame);
+    fps_counter_create_iterative(gvafpscounter->interval);
     return TRUE;
 }
 
