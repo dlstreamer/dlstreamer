@@ -28,7 +28,9 @@ G_BEGIN_DECLS
 typedef enum {
     GVA_PRECISION_UNSPECIFIED = 255, /**< default value */
     GVA_PRECISION_FP32 = 10,         /**< 32bit floating point value */
-    GVA_PRECISION_U8 = 40            /**< unsignned 8bit integer value */
+    GVA_PRECISION_U8 = 40,           /**< unsignned 8bit integer value */
+    GVA_PRECISION_I32 = 70,          /**< 32bit integer value */
+    GVA_PRECISION_U32 = 74           /**< 32bit unsigned integer value */
 } GVAPrecision;
 
 /**

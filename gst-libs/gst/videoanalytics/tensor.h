@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -48,7 +48,9 @@ class Tensor {
     enum class Precision {
         UNSPECIFIED = GVA_PRECISION_UNSPECIFIED, /**< default value */
         FP32 = GVA_PRECISION_FP32,               /**< 32bit floating point value */
-        U8 = GVA_PRECISION_U8                    /**< unsignned 8bit integer value */
+        U8 = GVA_PRECISION_U8,                   /**< unsignned 8bit integer value */
+        I32 = GVA_PRECISION_I32,                 /**< 32bit integer value */
+        U32 = GVA_PRECISION_U32,                 /**< 32bit unsigned integer value */
     };
 
     /**
@@ -230,6 +232,32 @@ class Tensor {
     }
 
     /**
+     * @brief Get unsigned int contained in value stored at field_name
+     * @param field_name field name
+     * @param default_value default value
+     * @return unsigned int value stored at field_name if field_name is found and contains an double, default_value
+     * otherwise
+     */
+    uint32_t get_uint(const std::string &field_name, uint32_t default_value = 0) const {
+        uint32_t val = default_value;
+        gst_structure_get_uint(_structure, field_name.c_str(), &val);
+        return val;
+    }
+
+    /**
+     * @brief Get unsigned int64 contained in value stored at field_name
+     * @param field_name field name
+     * @param default_value default value
+     * @return unsigned int64 value stored at field_name if field_name is found and contains an double, default_value
+     * otherwise
+     */
+    uint64_t get_uint64(const std::string &field_name, uint64_t default_value = 0) const {
+        uint64_t val = default_value;
+        gst_structure_get_uint64(_structure, field_name.c_str(), &val);
+        return val;
+    }
+
+    /**
      * @brief Set field_name with string value
      * @param field_name field name
      * @param value value to set
@@ -254,6 +282,24 @@ class Tensor {
      */
     void set_double(const std::string &field_name, double value) {
         gst_structure_set(_structure, field_name.c_str(), G_TYPE_DOUBLE, value, NULL);
+    }
+
+    /**
+     * @brief Set field_name with unsigned int value
+     * @param field_name field name
+     * @param value value to set
+     */
+    void set_uint(const std::string &field_name, uint32_t value) {
+        gst_structure_set(_structure, field_name.c_str(), G_TYPE_UINT, value, NULL);
+    }
+
+    /**
+     * @brief Set field_name with unsigned int64 value
+     * @param field_name field name
+     * @param value value to set
+     */
+    void set_uint64(const std::string &field_name, uint64_t value) {
+        gst_structure_set(_structure, field_name.c_str(), G_TYPE_UINT64, value, NULL);
     }
 
     /**
@@ -285,6 +331,10 @@ class Tensor {
             return "U8";
         case Precision::FP32:
             return "FP32";
+        case Precision::I32:
+            return "I32";
+        case Precision::U32:
+            return "U32";
         default:
             return "UNSPECIFIED";
         }
@@ -333,6 +383,21 @@ class Tensor {
         return name() == "detection";
     }
 
+    /**
+     * @brief Check if this Tensor is segmentation Tensor (contains instance segmentation results)
+     * @return True if tensor contains instance segmentation results, False otherwise
+     */
+    bool is_instance_segmentation() const {
+        return name() == "instance_segmentation";
+    }
+
+    /**
+     * @brief Check if this Tensor is semantic segmentation Tensor (contains segmentation results)
+     * @return True if tensor contains semantic segmentation results, False otherwise
+     */
+    bool is_semantic_segmentation() const {
+        return name() == "semantic_segmentation";
+    }
     /**
      * @brief Construct Tensor instance from GstStructure. Tensor does not own structure, so if you use this
      * consrtuctor, free structure after Tensor's lifetime, if needed

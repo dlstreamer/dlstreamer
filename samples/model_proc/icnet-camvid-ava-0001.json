@@ -1,0 +1,11 @@
+{
+  "json_schema_version": "2.0.0",
+  "input_preproc": [],
+  "output_postproc": [
+    {
+      "layer_name": "segmentation_output/Squeeze",
+      "converter": "semantic_default",
+      "show_zero_class": true
+    }
+  ]
+}

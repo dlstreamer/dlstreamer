@@ -17,7 +17,7 @@ class Converter {
     virtual bool process(const std::map<std::string, InferenceBackend::OutputBlob::Ptr> &output_blobs,
                          const std::vector<std::shared_ptr<InferenceFrame>> &frames, GstStructure *detection_result,
                          double confidence_threshold, GValueArray *labels) = 0;
-    void addRoi(GstBuffer *buffer, GstVideoInfo *info,
+    void addRoi(GstBuffer **buffer, GstVideoInfo *info,
                 const InferenceBackend::ImageTransformationParams::Ptr &pre_proc_info, double x, double y, double w,
                 double h, int label_id, double confidence, GstStructure *detection_tensor, GValueArray *labels);
     void clipNormalizedRect(double &x, double &y, double &w, double &h);

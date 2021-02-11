@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -71,7 +71,7 @@ class ImageInference {
 class Blob {
   public:
     enum class Layout { ANY = 0, NCHW = 1, NHWC = 2, NC = 193 };
-    enum class Precision { FP32 = 10, U8 = 40 };
+    enum class Precision { FP32 = 10, U8 = 40, I32 = 70, U32 = 74 };
     virtual ~Blob() = default;
     virtual const std::vector<size_t> &GetDims() const = 0;
     virtual Layout GetLayout() const = 0;

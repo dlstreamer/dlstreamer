@@ -1,24 +1,29 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "watermark.h"
-#include "config.h"
-#include "glib.h"
-#include "gva_buffer_map.h"
+
 #include "renderer/renderer_bgr.h"
 #include "renderer/renderer_i420.h"
 #include "renderer/renderer_nv12.h"
+
+#include "config.h"
+#include "gva_buffer_map.h"
 #include "utils.h"
 #include "video_frame.h"
 
-#include <exception>
+#include <opencv2/opencv.hpp>
+
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/video/video-color.h>
 #include <gst/video/video-info.h>
-#include <opencv2/opencv.hpp>
+
+#include "glib.h"
+
+#include <exception>
 
 using Color = cv::Scalar;
 
@@ -131,7 +136,6 @@ static void clip_rect(double &x, double &y, double &w, double &h, GstVideoInfo *
 }
 
 std::vector<std::shared_ptr<cv::Mat>> convertImageToMat(const InferenceBackend::Image &image) {
-
     std::vector<std::shared_ptr<cv::Mat>> image_planes;
     switch (image.format) {
     case InferenceBackend::FOURCC_BGRA:
@@ -181,6 +185,147 @@ void draw_landmarks(const std::vector<std::shared_ptr<cv::Mat>> &image_planes, c
     }
 }
 
+// TODO: rewrite for new interface
+template <typename T>
+void createSegmentationMask_T(cv::Mat &mat_colored, bool show_zero_class, const GVA::Tensor &tensor) {
+    using Pixel = cv::Vec3b;
+    const auto segm_mask = tensor.data<T>();
+    size_t width = mat_colored.cols;
+    mat_colored.forEach<Pixel>([&segm_mask, &width, &show_zero_class](Pixel &pixel, const int *position) -> void {
+        auto segm_class_index = segm_mask[position[0] * width + position[1]];
+        if (segm_class_index == 0 and !show_zero_class) {
+            pixel = {0, 0, 0};
+            return;
+        }
+
+        auto val = indexToColor(segm_class_index);
+        pixel[0] = val[0];
+        pixel[1] = val[1];
+        pixel[2] = val[2];
+    });
+}
+
+void createSegmentationMask(cv::Mat &mat_colored, bool show_zero_class, const GVA::Tensor &tensor) {
+    switch (tensor.precision()) {
+    case GVA::Tensor::Precision::I32:
+        createSegmentationMask_T<int32_t>(mat_colored, show_zero_class, tensor);
+        break;
+    case GVA::Tensor::Precision::U8:
+        createSegmentationMask_T<uint8_t>(mat_colored, show_zero_class, tensor);
+        break;
+    case GVA::Tensor::Precision::U32:
+        createSegmentationMask_T<uint32_t>(mat_colored, show_zero_class, tensor);
+        break;
+    default:
+        throw std::runtime_error("Segmentation tensor supprots only " +
+                                 std::to_string(static_cast<int>(GVA::Tensor::Precision::I32)) + ", " +
+                                 std::to_string(static_cast<int>(GVA::Tensor::Precision::U8)) + " and " +
+                                 std::to_string(static_cast<int>(GVA::Tensor::Precision::U32)) + " Precisions (got " +
+                                 std::to_string(static_cast<int>(tensor.precision())) + ")");
+    }
+}
+
+void draw_semantic_segmentation_mask(const std::vector<std::shared_ptr<cv::Mat>> &image_planes,
+                                     const GVA::Tensor &tensor, GVA::Rect<double> &rectangle) {
+    if (tensor.is_semantic_segmentation()) {
+        // TODO: implement support of YUV formats
+        if (image_planes.size() != 1) {
+            GST_WARNING("Segmentation results rendering supports only BGR/BGRx or similar color formats.");
+            return;
+        }
+
+        bool show_zero_class = tensor.get_int("show_zero_class", 0);
+        const auto &dims = tensor.dims();
+        if (dims.size() < 3)
+            throw std::runtime_error("Segmentation tensor dims size must be >= 3");
+
+        cv::Mat &image = *image_planes[0];
+        cv::Rect place_to_insert(rectangle.x, rectangle.y, rectangle.w, rectangle.h);
+        cv::Mat insertPos(image, place_to_insert);
+
+        size_t dims_size = dims.size();
+        size_t height = dims[dims_size - 2];
+        size_t width = dims[dims_size - 1];
+
+        cv::Size mask_size = insertPos.size();
+
+        auto mask_type = CV_8UC3;
+        cv::Mat mask_colored(cv::Size(width, height), mask_type, cv::Scalar(0, 0, 0));
+
+        createSegmentationMask(mask_colored, show_zero_class, tensor);
+
+        cv::Mat image_colored_mask(mask_size, mask_type);
+        cv::resize(mask_colored, image_colored_mask, mask_size);
+
+        if (insertPos.channels() == 4) {
+            cv::cvtColor(image_colored_mask, image_colored_mask, cv::COLOR_RGB2RGBA);
+        }
+
+        double alpha = 0.75;
+        double beta = 1 - alpha;
+        cv::addWeighted(insertPos, alpha, image_colored_mask, beta, 0.0, insertPos);
+    }
+}
+
+template <typename Pixel>
+void apply_instance_segmentation_mask(cv::Mat &mask, cv::Mat &insertPos, cv::Scalar &color, float threshold) {
+    mask.forEach<float>([&insertPos, &threshold, &color](float &pixel, const int *position) -> void {
+        if (pixel >= threshold) {
+            double alpha = 0.75;
+            double beta = 1 - alpha;
+
+            Pixel &value = insertPos.at<Pixel>(position[0], position[1]);
+
+            for (size_t i = 0; i < value.rows; i++) {
+                value[i] = alpha * value[i] + beta * color[i];
+            }
+        }
+    });
+}
+
+// TODO: rewrite for new interface
+void draw_instance_segmentation_mask(const std::vector<std::shared_ptr<cv::Mat>> &image_planes,
+                                     const GVA::Tensor &tensor, GVA::Rect<double> &rectangle) {
+    // instance_segmentation mask
+    if (tensor.is_instance_segmentation()) {
+        // TODO: implement support of YUV formats
+        if (image_planes.size() != 1) {
+            GST_WARNING("Segmentation results rendering supports only BGR/BGRx or similar color formats.");
+            return;
+        }
+
+        // TODO: get from meta
+        double threshold = 0.5;
+        const auto &instance_mask = tensor.data<float>();
+        if (instance_mask.empty())
+            throw std::runtime_error("Instance mask shouldn't be empty");
+
+        uint32_t mask_height = tensor.get_uint("mask_height");
+        uint32_t mask_width = tensor.get_uint("mask_width");
+        uint32_t class_id = tensor.get_uint("class_id");
+
+        cv::Scalar color = indexToColor(class_id);
+
+        cv::Rect place_to_insert(rectangle.x, rectangle.y, rectangle.w, rectangle.h);
+
+        cv::Mat &image = *image_planes[0];
+        cv::Mat insertPos(image, place_to_insert);
+
+        cv::Mat mask(mask_height, mask_width, CV_32FC1, (void *)instance_mask.data());
+        cv::resize(mask, mask, place_to_insert.size());
+
+        if (insertPos.channels() == 4) {
+            using Pixel = cv::Vec4b;
+            apply_instance_segmentation_mask<Pixel>(mask, insertPos, color, threshold);
+        } else if (insertPos.channels() == 3) {
+            using Pixel = cv::Vec3b;
+            apply_instance_segmentation_mask<Pixel>(mask, insertPos, color, threshold);
+        } else {
+            GST_ERROR("Segmentation results rendering supports only image with 3 or 4 channels.");
+        }
+    }
+}
+
 /**
  * Draws given tensors' info on image_planes.
  */
@@ -196,6 +341,9 @@ std::string draw_tensors(const std::vector<std::shared_ptr<cv::Mat>> &image_plan
         }
         /* landmarks rendering */
         draw_landmarks(image_planes, tensor, rectangle);
+
+        draw_instance_segmentation_mask(image_planes, tensor, rectangle);
+        draw_semantic_segmentation_mask(image_planes, tensor, rectangle);
     }
     return text;
 }
@@ -210,7 +358,6 @@ void draw_frame_ROIs(const std::vector<std::shared_ptr<cv::Mat>> &image_planes, 
     for (GVA::RegionOfInterest &roi : video_frame.regions()) {
         std::string text = "";
         size_t color_index = roi.label_id();
-
         auto rect = roi.normalized_rect();
         if (rect.w && rect.h) {
             rect.x *= info->width;

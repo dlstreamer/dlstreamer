@@ -62,7 +62,7 @@ void YOLOConverter::storeObjects(std::vector<DetectedObject> &objects, const std
     runNms(objects);
 
     for (DetectedObject &object : objects) {
-        addRoi(frame->buffer, frame->info, frame->image_transform_info, object.x, object.y, object.w, object.h,
+        addRoi(&frame->buffer, frame->info, frame->image_transform_info, object.x, object.y, object.w, object.h,
                object.class_id, object.confidence, gst_structure_copy(detection_result),
                labels); // each ROI gets its own copy, which is then
                         // owned by GstVideoRegionOfInterestMeta

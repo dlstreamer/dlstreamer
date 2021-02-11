@@ -49,7 +49,7 @@ VaApiImage::VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, 
 }
 
 VaApiImage::~VaApiImage() {
-    if (image.type == MemoryType::VAAPI && image.va_surface_id && image.va_surface_id != VA_INVALID_ID) {
+    if (image.type == MemoryType::VAAPI && image.va_surface_id != VA_INVALID_ID) {
         try {
             VA_CALL(vaDestroySurfaces(image.va_display, (uint32_t *)&image.va_surface_id, 1));
         } catch (const std::exception &e) {

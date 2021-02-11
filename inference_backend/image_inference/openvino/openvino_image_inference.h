@@ -34,8 +34,6 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
                            CallbackFunc callback, ErrorHandlingFunc error_handler,
                            InferenceBackend::MemoryType memory_type);
 
-    void CreateInferRequests();
-
     virtual ~OpenVINOImageInference();
 
     virtual void Init() override;
@@ -95,8 +93,6 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::atomic<unsigned int> requests_processing_;
     std::condition_variable request_processed_;
     std::mutex flush_mutex;
-
-    std::queue<InferenceBackend::OutputBlob> output_blob_pool;
 
   private:
     bool doNeedImagePreProcessing();

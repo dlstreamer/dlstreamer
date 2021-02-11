@@ -165,7 +165,7 @@ bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputB
                     y_max = y_center + new_h * 0.5;
                 }
 
-                addRoi(frames[image_id]->buffer, frames[image_id]->info, frames[image_id]->image_transform_info, x_min,
+                addRoi(&frames[image_id]->buffer, frames[image_id]->info, frames[image_id]->image_transform_info, x_min,
                        y_min, x_max - x_min, y_max - y_min, label_id, confidence, gst_structure_copy(detection_result),
                        labels); // each ROI gets its own copy, which is then
                                 // owned by GstVideoRegionOfInterestMeta

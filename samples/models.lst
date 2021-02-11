@@ -8,3 +8,9 @@ person-attributes-recognition-crossroad-0230
 vehicle-attributes-recognition-barrier-0039
 mobilenet-ssd
 head-pose-estimation-adas-0001
+road-segmentation-adas-0001
+icnet-camvid-ava-0001
+instance-segmentation-security-0083
+instance-segmentation-security-1025
+semantic-segmentation-adas-0001
+text-detection-0003

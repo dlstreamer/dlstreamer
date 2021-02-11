@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -35,7 +35,7 @@ void gva_buffer_check_and_make_writable(GstBuffer **buffer, const char *called_f
     if (!gst_buffer_is_writable(*buffer)) {
         GST_WARNING("%s: Buffer is not writable.", called_function_name);
         /* Waits for a bit to give a buffer time to become writable */
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
     }
     if (!gst_buffer_is_writable(*buffer)) {
         GST_WARNING("%s: Making a writable buffer requires buffer copy.", called_function_name);

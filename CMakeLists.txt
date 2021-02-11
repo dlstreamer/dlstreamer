@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -17,7 +17,7 @@ if (NOT CMAKE_BUILD_TYPE)
     message(STATUS "CMAKE_BUILD_TYPE is undefined. Set default build type ${CMAKE_BUILD_TYPE}.")
 endif()
 
-option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" OFF)
+option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON)
 
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 3)

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,6 +15,7 @@
 #include "gstgvametaaggregate.h"
 #include "gstgvametaconvert.h"
 #include "gstgvametapublish.h"
+#include "gstgvasegment.h"
 #include "gstgvawatermark.h"
 
 #include "gva_json_meta.h"
@@ -29,7 +30,8 @@ static gboolean plugin_init(GstPlugin *plugin) {
 
     if (!gst_element_register(plugin, "gvaclassify", GST_RANK_NONE, GST_TYPE_GVA_CLASSIFY))
         return FALSE;
-
+    if (!gst_element_register(plugin, "gvasegment", GST_RANK_NONE, GST_TYPE_GVA_SEGMENT))
+        return FALSE;
     if (!gst_element_register(plugin, "gvametaconvert", GST_RANK_NONE, GST_TYPE_GVA_META_CONVERT))
         return FALSE;
 

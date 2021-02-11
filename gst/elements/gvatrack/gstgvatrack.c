@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -58,6 +58,11 @@ void gst_gva_track_cleanup(GstGvaTrack *gva_track) {
 
     g_free(gva_track->device);
     gva_track->device = NULL;
+
+    if (gva_track->info) {
+        gst_video_info_free(gva_track->info);
+        gva_track->info = NULL;
+    }
 }
 
 static void gst_gva_track_class_init(GstGvaTrackClass *klass) {

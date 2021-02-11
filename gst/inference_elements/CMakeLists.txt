@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -24,6 +24,9 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvasegment/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvasegment/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvasegment/converters/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/*.cpp
@@ -35,6 +38,8 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvasegment/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvasegment/converters/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/*.h
 )
@@ -52,6 +57,7 @@ PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/common/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvasegment/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
     ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/
 PRIVATE

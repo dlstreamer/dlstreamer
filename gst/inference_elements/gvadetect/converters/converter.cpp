@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -98,7 +98,7 @@ void Converter::getActualCoordinates(int orig_image_width, int orig_image_height
     abs_h = safe_convert<uint32_t>(real_h * orig_image_height + 0.5);
 }
 
-void Converter::addRoi(GstBuffer *buffer, GstVideoInfo *info,
+void Converter::addRoi(GstBuffer **buffer, GstVideoInfo *info,
                        const InferenceBackend::ImageTransformationParams::Ptr &pre_proc_info, double x, double y,
                        double w, double h, int label_id, double confidence, GstStructure *detection_tensor,
                        GValueArray *labels) {
@@ -110,9 +110,9 @@ void Converter::addRoi(GstBuffer *buffer, GstVideoInfo *info,
     uint32_t _x, _y, _w, _h;
     getActualCoordinates(info->width, info->height, pre_proc_info, x, y, w, h, _x, _y, _w, _h);
 
-    gva_buffer_check_and_make_writable(&buffer, __PRETTY_FUNCTION__);
+    gva_buffer_check_and_make_writable(buffer, __PRETTY_FUNCTION__);
 
-    GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(buffer, label, _x, _y, _w, _h);
+    GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(*buffer, label, _x, _y, _w, _h);
     g_free(label);
     if (not meta)
         throw std::runtime_error("Failed to add GstVideoRegionOfInterestMeta to buffer");

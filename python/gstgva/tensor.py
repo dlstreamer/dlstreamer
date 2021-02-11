@@ -38,6 +38,8 @@ class Tensor:
         ANY = 0
         FP32 = 10
         U8 = 40
+        I32 = 70
+        U32 = 74
 
     ## @brief This enum describes model layer layout
     class LAYOUT(Enum):

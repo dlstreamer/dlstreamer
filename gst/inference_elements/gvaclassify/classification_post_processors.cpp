@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -222,14 +222,14 @@ GstStructure *createROIResult(OutputBlob::Ptr &blob, ClassificationLayerInfo &in
     return result;
 }
 
-GstGVATensorMeta *createFullFrameResult(GstBuffer *buffer, OutputBlob::Ptr &blob, ClassificationLayerInfo &info,
+GstGVATensorMeta *createFullFrameResult(GstBuffer **buffer, OutputBlob::Ptr &blob, ClassificationLayerInfo &info,
                                         const std::string &model_name, const std::string &layer_name, size_t batch_size,
                                         size_t frame_index) {
     const GstMetaInfo *meta_info = gst_meta_get_info(GVA_TENSOR_META_IMPL_NAME);
 
-    gva_buffer_check_and_make_writable(&buffer, __PRETTY_FUNCTION__);
+    gva_buffer_check_and_make_writable(buffer, __PRETTY_FUNCTION__);
 
-    GstGVATensorMeta *result = (GstGVATensorMeta *)gst_buffer_add_meta(buffer, meta_info, NULL);
+    GstGVATensorMeta *result = (GstGVATensorMeta *)gst_buffer_add_meta(*buffer, meta_info, NULL);
     if (not result) {
         throw std::runtime_error("Failed to add GstGVATensorMeta instance.");
     }
@@ -358,7 +358,7 @@ PostProcessor::ExitStatus ClassificationPostProcessor::pushClassificationResultT
             current_frame->roi_classifications.push_back(result);
         } else if (current_frame->gva_base_inference->inference_region == FULL_FRAME) {
             /* creates and initializes tensor meta with classification results, adds tensor meta to the buffer */
-            GstGVATensorMeta *result = createFullFrameResult(current_frame->buffer, blob, layer_info, model_name,
+            GstGVATensorMeta *result = createFullFrameResult(&current_frame->buffer, blob, layer_info, model_name,
                                                              layer_name, frames.size(), frame_index);
             /* tensor_id - In different GStreamer versions metas are attached to the buffer in a different order. */
             /* type - To identify classification tensors among others. */

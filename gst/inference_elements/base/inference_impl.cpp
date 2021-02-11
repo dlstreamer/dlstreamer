@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -737,13 +737,9 @@ void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inferenc
                 // already happened, but buffer wasn't pushed further by pipeline yet. We skip this buffer
                 // to find another, to which current inference callback really belongs
                 continue;
-            if (output_frame.writable_buffer and *(output_frame.writable_buffer)) {
+            if (!output_frame.writable_buffer || !*(output_frame.writable_buffer)) {
                 // check if we have writable version of this buffer (this function called multiple times
                 // on same buffer)
-                inference_roi->buffer = *(output_frame.writable_buffer);
-            } else {
-                gva_buffer_check_and_make_writable(&inference_roi->buffer, __PRETTY_FUNCTION__);
-
                 output_frame.writable_buffer = &inference_roi->buffer;
             }
         }

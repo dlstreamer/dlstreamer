@@ -1,0 +1,12 @@
+{
+  "json_schema_version": "2.0.0",
+  "input_preproc": [],
+  "output_postproc": [
+    {
+      "converter": "pixel_link",
+      "cls_threshold": 0.5,
+      "link_threshold": 0.5,
+      "show_zero_class": false
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "json_schema_version": "2.0.0",
+  "input_preproc": [],
+  "output_postproc": [
+    {
+      "layer_name": "4296.1",
+      "converter": "semantic_default",
+      "show_zero_class": true,
+      "classes": 20,
+      "labels": [
+        "road",
+        "sidewalk",
+        "building",
+        "wall",
+        "fence",
+        "pole",
+        "traffic light",
+        "traffic sign",
+        "vegetation",
+        "terrain",
+        "sky",
+        "person",
+        "rider",
+        "car",
+        "truck",
+        "bus",
+        "train",
+        "motorcycle",
+        "bicycle",
+        "ego-vehicle"
+      ]
+    }
+  ]
+}
