@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,11 @@
 
 #include <processor_types.h>
 
+#ifdef __cplusplus
+class InferenceImpl;
+#else  /* __cplusplus */
 typedef struct InferenceImpl InferenceImpl;
+#endif /* __cplusplus */
 
 #ifdef __cplusplus
 extern "C" {

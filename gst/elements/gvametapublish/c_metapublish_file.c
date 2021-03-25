@@ -1,11 +1,16 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 #include "c_metapublish_file.h"
 GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_publish_debug_category
+
+// TODO: think about it
+#ifdef _WIN32
+#define ftello _ftelli64
+#endif
 
 struct _MetapublishFile {
     GObject parent_instance;

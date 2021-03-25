@@ -77,9 +77,9 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
 endif()
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    ${GSTVIDEO_LDFLAGS}
-    ${GSTALLOC_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
+    ${GSTVIDEO_LIBRARIES}
+    ${GSTALLOC_LIBRARIES}
     ${OpenCV_LIBS}
     common
     image_inference
@@ -91,7 +91,7 @@ PRIVATE
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LDFLAGS})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
 endif()
 
 if(${ENABLE_VAAPI})

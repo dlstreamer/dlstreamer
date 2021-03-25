@@ -34,6 +34,10 @@ typedef enum {
     DMA_BUF_CAPS_FEATURE,
 } CapsFeature;
 
-__BEGIN_DECLS
+#ifdef __cplusplus
+extern "C" {
+#endif
 CapsFeature get_caps_feature(GstCaps *caps);
-__END_DECLS
+#ifdef __cplusplus
+}
+#endif

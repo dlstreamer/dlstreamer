@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -25,7 +25,9 @@ set_compile_flags(${TARGET_NAME})
 
 # FIXME: there are some debug information that are removed for release build type
 # FIXME: hence it marked as error
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-parameter)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-parameter)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PUBLIC

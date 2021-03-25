@@ -22,7 +22,9 @@ add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
 set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
 
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PRIVATE
@@ -32,7 +34,7 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
     common
     elements
     inference_elements

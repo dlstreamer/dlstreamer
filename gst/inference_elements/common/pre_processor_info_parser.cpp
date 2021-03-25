@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 #include "pre_processor_info_parser.hpp"
 
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 

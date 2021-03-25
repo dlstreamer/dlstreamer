@@ -44,7 +44,10 @@ set_compile_flags(${TARGET_NAME})
 
 # FIXME: there are some debug information that are removed for released build type
 # FIXME: hence it marked as error
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+endif()
+
 target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -62,9 +65,9 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    ${GSTVIDEO_LDFLAGS}
-    ${GSTALLOC_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
+    ${GSTVIDEO_LIBRARIES}
+    ${GSTALLOC_LIBRARIES}
     ${OpenCV_LIBS}
     common
     image_inference
