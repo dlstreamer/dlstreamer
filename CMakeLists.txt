@@ -107,16 +107,6 @@ if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize") # should be used with "-O2"
 endif()
 
-if (ENABLE_CODE_COVERAGE)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/CodeCoverage.cmake)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_COVERAGE}")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_COVERAGE}")
-    set(COVERAGE_GCOVR_EXCLUDES samples thirdparty tests)
-    set(COVERAGE_COMAND ${CMAKE_CURRENT_SOURCE_DIR}/scripts/code_coverage_command.sh)
-    set(COVERAGE_COMAND_ARGS ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_BINARY_DIR})
-    SETUP_TARGET_FOR_COVERAGE_GCOVR_HTML(NAME code_coverage EXECUTABLE ${COVERAGE_COMAND} ${COVERAGE_COMAND_ARGS})
-endif()
-
 
 ###############################################################################
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
