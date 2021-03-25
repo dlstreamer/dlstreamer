@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -12,6 +12,7 @@ find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
@@ -60,14 +61,14 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
+        ${GSTREAMER_LDFLAGS}
+        ${GSTVIDEO_LDFLAGS}
         ${OpenCV_LIBS}
-        ${GSTREAMER_LIBRARIES}
-        ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LDFLAGS})
 endif()
 
 configure_file(${CMAKE_SOURCE_DIR}/cmake/dl-streamer.pc.in ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc @ONLY)

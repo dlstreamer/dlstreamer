@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -37,19 +37,22 @@ target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=implicit-function-decla
 target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/gvaaudiodetect/
-    ${CMAKE_CURRENT_SOURCE_DIR}/base/
-    ${CMAKE_CURRENT_SOURCE_DIR}/openvino/
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../inference_backend/include/inference_backend/
+    ${CMAKE_SOURCE_DIR}/utils/
+    ${CMAKE_SOURCE_DIR}/inference_backend/include/inference_backend/
+    gvaaudiodetect
+    base
+    openvino
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}
+PUBLIC
+    utils
 PRIVATE
-    ${GSTREAMER_LIBRARIES}
-    ${GSTALLOC_LIBRARIES}
+    ${GSTREAMER_LDFLAGS}
+    ${GSTALLOC_LDFLAGS}
     common
     gstvideoanalyticsmeta
     inference_backend

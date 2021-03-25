@@ -29,13 +29,8 @@ class Tracker : public ITracker {
     cv::Mat cv_empty_mat;
 
   public:
-    Tracker(const GstGvaTrack *gva_track, const std::string &tracking_type);
+    Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_type);
     ~Tracker() = default;
-
-    static ITracker *CreateShortTerm(const GstGvaTrack *gva_track);
-    static ITracker *CreateZeroTerm(const GstGvaTrack *gva_track);
-    static ITracker *CreateShortTermImageless(const GstGvaTrack *gva_track);
-    static ITracker *CreateZeroTermImageless(const GstGvaTrack *gva_track);
 
     void track(GstBuffer *buffer) override;
 };

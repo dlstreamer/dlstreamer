@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -77,14 +77,13 @@ void ImageInferenceAsync::Init() {
 
 void ImageInferenceAsync::SubmitInference(VaApiImage *va_api_image, IFrameBase::Ptr user_data,
                                           const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) {
-    std::shared_ptr<Image> image = std::make_shared<Image>(va_api_image->Map());
-
-    auto deleter = [this, va_api_image](Image *) {
+    auto deleter = [this, va_api_image](Image *img) {
         va_api_image->Unmap();
         this->_va_image_pool->ReleaseBuffer(va_api_image);
+        delete img;
     };
-    std::shared_ptr<Image> wrapped = std::shared_ptr<Image>(image.get(), deleter);
-    user_data->SetImage(wrapped);
+    std::shared_ptr<Image> image = std::shared_ptr<Image>(new Image(va_api_image->Map()), deleter);
+    user_data->SetImage(image);
     _inference->SubmitImage(*image, std::move(user_data), input_preprocessors);
 }
 
@@ -143,7 +142,7 @@ void ImageInferenceAsync::Close() {
 }
 
 VaApiDisplay ImageInferenceAsync::GetVaDisplay() const {
-    return _va_context->Display();
+    return _va_context->DisplayRaw();
 }
 
 void ImageInferenceAsync::SetInference(const ImageInference::Ptr &inference) {

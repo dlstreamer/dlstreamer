@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,11 +11,11 @@
 #include <ittnotify.h>
 #include <string.h>
 
+#include "utils.h"
+
 #define ELEMENT_DESCRIPTION "Performance tracing utilizing Intel ITT interface"
 
 G_BEGIN_DECLS
-
-#define UNUSED(x) (void)(x)
 
 #define GST_TYPE_GVAITTTRACER (gst_gvaitttracer_get_type())
 #define GST_GVAITTTRACER(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVAITTTRACER, GstGvaITTTracer))

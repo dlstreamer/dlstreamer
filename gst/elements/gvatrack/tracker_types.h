@@ -11,12 +11,10 @@
 G_BEGIN_DECLS
 
 typedef enum {
-#ifdef DOWNLOAD_VAS_TRACKER
     SHORT_TERM,
     ZERO_TERM,
-#endif
     SHORT_TERM_IMAGELESS,
-    ZERO_TERM_IMAGELESS
+    ZERO_TERM_IMAGELESS,
 } GstGvaTrackingType;
 
 #define GST_GVA_TRACKING_TYPE (gst_gva_get_tracking_type())

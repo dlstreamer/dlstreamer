@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -79,10 +79,10 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     targetElem->nireq = masterElem->nireq;
     targetElem->cpu_streams = masterElem->cpu_streams;
     targetElem->gpu_streams = masterElem->gpu_streams;
-    targetElem->vpu_device_id = masterElem->vpu_device_id;
     COPY_GSTRING(targetElem->ie_config, masterElem->ie_config);
     COPY_GSTRING(targetElem->allocator_name, masterElem->allocator_name);
     COPY_GSTRING(targetElem->pre_proc_name, masterElem->pre_proc_name);
+    COPY_GSTRING(targetElem->object_class, masterElem->object_class);
     // no need to copy model_instance_id because it should match already.
 }
 
@@ -205,3 +205,39 @@ void flush_inference(GvaBaseInference *base_inference) {
                           ("%s", Utils::createNestedErrorMsg(e).c_str()));
     }
 }
+
+void update_inference_object_classes(GvaBaseInference *base_inference) {
+    if (!base_inference) {
+        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on object classes updating"),
+                          ("empty base_inference instance"));
+        return;
+    }
+    if (!base_inference->inference) {
+        GST_ELEMENT_INFO(base_inference, CORE, STATE_CHANGE, ("object classes update was not completed"),
+                         ("empty inference instance: retry will be performed once instance will be acquired"));
+        return;
+    }
+
+    try {
+        ((InferenceImpl *)base_inference->inference)->UpdateObjectClasses(base_inference);
+    } catch (const std::exception &e) {
+        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on object classes updating"),
+                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
+    }
+}
+
+bool is_roi_inference_needed(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
+                             GstVideoRegionOfInterestMeta *roi) {
+    InferenceImpl *inference = gva_base_inference->inference;
+    assert(inference);
+
+    // Check if object-class is the same as roi class label
+    if (not inference->FilterObjectClass(roi))
+        return false;
+
+    if (gva_base_inference->specific_roi_filter)
+        return gva_base_inference->specific_roi_filter(gva_base_inference, current_num_frame, buffer, roi);
+    return true;
+}
+
+FilterROIFunction IS_ROI_INFERENCE_NEEDED = is_roi_inference_needed;

@@ -1,30 +1,31 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "vaapi_converter.h"
+
 #include <stdexcept>
 #include <string>
 #include <unistd.h>
-#include <va/va.h>
-#include <va/va_drmcommon.h>
 
 #include "inference_backend/pre_proc.h"
 #include "inference_backend/safe_arithmetic.h"
-#include "vaapi_converter.h"
-#include "vaapi_images.h"
-#include "vaapi_utils.h"
+
+#include <va/va_drmcommon.h>
 
 using namespace InferenceBackend;
 
 namespace {
 
-VASurfaceID ConvertVASurfaceFromDifferentDisplay(VADisplay display, VASurfaceID surface, VADisplay display1,
-                                                 uint64_t &dma_fd_out, int rt_format = VA_RT_FORMAT_YUV420) {
+VASurfaceID ConvertVASurfaceFromDifferentDriverContext(VaDpyWrapper display1, VASurfaceID surface,
+                                                       VaDpyWrapper display2, int rt_format, uint64_t &dma_fd_out) {
+
     VADRMPRIMESurfaceDescriptor drm_descriptor = VADRMPRIMESurfaceDescriptor();
-    VA_CALL(vaExportSurfaceHandle(display1, surface, VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
-                                  VA_EXPORT_SURFACE_READ_ONLY, &drm_descriptor));
+    VA_CALL(display2.drvVtable().vaExportSurfaceHandle(display2.drvCtx(), surface,
+                                                       VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
+                                                       VA_EXPORT_SURFACE_READ_ONLY, &drm_descriptor));
 
     VASurfaceAttribExternalBuffers external = VASurfaceAttribExternalBuffers();
     external.width = drm_descriptor.width;
@@ -60,19 +61,13 @@ VASurfaceID ConvertVASurfaceFromDifferentDisplay(VADisplay display, VASurfaceID 
     attribs[1].value.type = VAGenericValueTypePointer;
     attribs[1].value.value.p = &external;
 
-    VAConfigAttrib format_attrib;
-    format_attrib.type = VAConfigAttribRTFormat;
-    VA_CALL(vaGetConfigAttributes(display, VAProfileNone, VAEntrypointVideoProc, &format_attrib, 1));
-    if (not(format_attrib.value & rt_format))
-        throw std::invalid_argument("Unsupported runtime format for surface.");
-
     VASurfaceID va_surface_id = VA_INVALID_SURFACE;
-    VA_CALL(vaCreateSurfaces(display, rt_format, drm_descriptor.width, drm_descriptor.height, &va_surface_id, 1,
-                             attribs, 2));
+    VA_CALL(display1.drvVtable().vaCreateSurfaces2(display1.drvCtx(), rt_format, drm_descriptor.width,
+                                                   drm_descriptor.height, &va_surface_id, 1, attribs, 2));
     return va_surface_id;
 }
 
-VASurfaceID ConvertDMABuf(VADisplay vpy, const Image &src, int rt_format = VA_RT_FORMAT_YUV420) {
+VASurfaceID ConvertDMABuf(VaDpyWrapper display, const Image &src, int rt_format) {
     if (src.type != MemoryType::DMA_BUFFER) {
         throw std::runtime_error("MemoryType=DMA_BUFFER expected");
     }
@@ -103,14 +98,9 @@ VASurfaceID ConvertDMABuf(VADisplay vpy, const Image &src, int rt_format = VA_RT
     attribs[1].value.type = VAGenericValueTypePointer;
     attribs[1].value.value.p = &external;
 
-    VAConfigAttrib format_attrib;
-    format_attrib.type = VAConfigAttribRTFormat;
-    VA_CALL(vaGetConfigAttributes(vpy, VAProfileNone, VAEntrypointVideoProc, &format_attrib, 1));
-    if (not(format_attrib.value & rt_format))
-        throw std::invalid_argument("Unsupported runtime format for surface.");
-
     VASurfaceID va_surface_id;
-    VA_CALL(vaCreateSurfaces(vpy, rt_format, src.width, src.height, &va_surface_id, 1, attribs, 2))
+    VA_CALL(display.drvVtable().vaCreateSurfaces2(display.drvCtx(), rt_format, src.width, src.height, &va_surface_id, 1,
+                                                  attribs, 2))
 
     return va_surface_id;
 }
@@ -157,7 +147,7 @@ VASurfaceID ConvertDMABuf(VADisplay vpy, const Image &src, int rt_format = VA_RT
 
 VaApiConverter::VaApiConverter(VaApiContext *context) : _context(context) {
     if (!context)
-        throw std::runtime_error("VaApiCintext is null. VaConverter requers not nullptr context.");
+        throw std::runtime_error("VaApiContext is null. VaConverter requers not nullptr context.");
 }
 
 void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
@@ -167,10 +157,11 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
     uint64_t dma_fd = 0;
 
     if (src.type == MemoryType::VAAPI) {
-        src_surface =
-            ConvertVASurfaceFromDifferentDisplay(_context->Display(), src.va_surface_id, src.va_display, dma_fd);
+        src_surface = ConvertVASurfaceFromDifferentDriverContext(_context->Display(), src.va_surface_id,
+                                                                 VaDpyWrapper::fromHandle(src.va_display),
+                                                                 _context->RTFormat(), dma_fd);
     } else if (src.type == MemoryType::DMA_BUFFER) {
-        src_surface = ConvertDMABuf(_context->Display(), src);
+        src_surface = ConvertDMABuf(_context->Display(), src, _context->RTFormat());
     } else {
         throw std::runtime_error("VaApiConverter::Convert: unsupported MemoryType");
     }
@@ -188,19 +179,21 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
 
     // pipeline_param.filter_flags = VA_FILTER_SCALING_HQ; // High-quality scaling method
 
+    auto context = _context->Display().drvCtx();
+    auto vtable = _context->Display().drvVtable();
     VABufferID pipeline_param_buf_id = VA_INVALID_ID;
-    VA_CALL(vaCreateBuffer(_context->Display(), _context->Id(), VAProcPipelineParameterBufferType,
-                           sizeof(pipeline_param), 1, &pipeline_param, &pipeline_param_buf_id));
+    VA_CALL(vtable.vaCreateBuffer(context, _context->Id(), VAProcPipelineParameterBufferType, sizeof(pipeline_param), 1,
+                                  &pipeline_param, &pipeline_param_buf_id));
 
-    VA_CALL(vaBeginPicture(_context->Display(), _context->Id(), dst_surface))
+    VA_CALL(vtable.vaBeginPicture(context, _context->Id(), dst_surface))
 
-    VA_CALL(vaRenderPicture(_context->Display(), _context->Id(), &pipeline_param_buf_id, 1))
+    VA_CALL(vtable.vaRenderPicture(context, _context->Id(), &pipeline_param_buf_id, 1))
 
-    VA_CALL(vaEndPicture(_context->Display(), _context->Id()))
+    VA_CALL(vtable.vaEndPicture(context, _context->Id()))
 
-    VA_CALL(vaDestroyBuffer(_context->Display(), pipeline_param_buf_id))
+    VA_CALL(vtable.vaDestroyBuffer(context, pipeline_param_buf_id))
 
-    VA_CALL(vaDestroySurfaces(_context->Display(), &src_surface, 1))
+    VA_CALL(vtable.vaDestroySurfaces(context, &src_surface, 1))
 
     if (src.type == MemoryType::VAAPI)
         if (close(dma_fd) == -1)

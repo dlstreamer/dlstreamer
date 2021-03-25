@@ -1,10 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "metaaggregate.h"
+#include "utils.h"
 #include <gst/gst.h>
 
 gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo *src_pad_video_info,
@@ -116,8 +117,6 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
     }
     return TRUE;
 }
-
-#define UNUSED(x) (void)(x)
 
 GstFlowReturn gst_gva_meta_aggregate_fill_queues(GstGvaMetaAggregate *gvametaaggregate,
                                                  GstClockTime output_start_running_time,

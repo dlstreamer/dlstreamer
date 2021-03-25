@@ -27,7 +27,7 @@ struct EntityBuilder {
         return createPreProcAndExecutableNetwork_impl(network, core);
     }
 
-    virtual std::string getNetworkName(InferenceEngine::CNNNetwork &network) {
+    virtual std::string getNetworkName(const InferenceBackend::NetworkReferenceWrapper &network) {
         return loader->name(network);
     }
 

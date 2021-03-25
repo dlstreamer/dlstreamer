@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -20,7 +20,7 @@ endif()
 option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" OFF)
 
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 3)
+set(VERSION_MINOR 4)
 
 if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
     set(VERSION_PATCH 0)
@@ -78,8 +78,8 @@ set (DLSTREAMER_LIBRARIES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 find_package(Threads REQUIRED)
 
 # Common compilation flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wuninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations  -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wuninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
 
 if(TREAT_WARNING_AS_ERROR)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
@@ -143,8 +143,19 @@ option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF)
 option(USE_VPUSMM "Parameter to use VPUSMM" OFF)
+option(USE_VPUMGR "Parameter to use VPUMGR" OFF)
+option(ENABLE_VPUX "Enables VPUX specific features" OFF)
+if(USE_VPUSMM)
+    message(WARNING "USE_VPUSMM parameter is deprecated. ENABLE_VPUX is force-enabled instead")
+    SET(ENABLE_VPUX ON CACHE BOOL "Enables VPUX specific features" FORCE)
+endif()
+if(USE_VPUMGR)
+    message(WARNING "USE_VPUMGR parameter is deprecated. ENABLE_VPUX is force-enabled instead")
+    SET(ENABLE_VPUX ON CACHE BOOL "Enables VPUX specific features" FORCE)
+endif()
 
-option(DISABLE_SAMPLES "Parameter to disable samples building" OFF)
+
+option(ENABLE_SAMPLES "Parameter to enable samples building" ON)
 
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 if(${ENABLE_PAHO_INSTALLATION})
@@ -171,6 +182,6 @@ add_subdirectory(inference_backend)
 add_subdirectory(thirdparty)
 add_subdirectory(utils)
 
-if(NOT ${DISABLE_SAMPLES})
+if(${ENABLE_SAMPLES})
     add_subdirectory(samples)
 endif()

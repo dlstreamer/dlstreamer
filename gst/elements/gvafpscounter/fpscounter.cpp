@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -30,7 +30,8 @@ bool IterativeFpsCounter::NewFrame(const std::string &element_name, FILE *output
     if (sec >= interval) {
         last_time = now;
         PrintFPS(output, sec);
-        num_frames.clear();
+        for (auto it = num_frames.begin(); it != num_frames.end(); it++)
+            it->second = 0;
         return true;
     }
     return false;

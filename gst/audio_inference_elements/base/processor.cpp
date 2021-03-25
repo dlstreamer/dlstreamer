@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,7 +10,14 @@
 #include "inference.h"
 #include "model_proc/model_proc_provider.h"
 
+#include <assert.h>
+#include <gst/allocators/allocators.h>
+#include <regex>
+#include <sstream>
+
 using namespace InferenceBackend;
+
+using GstMemoryUniquePtr = std::unique_ptr<GstMemory, decltype(&gst_memory_unref)>;
 
 std::map<uint, std::pair<std::string, float>> create_labels_map(GValueArray *arr,
                                                                 GvaAudioBaseInference *audio_base_inference) {
@@ -41,6 +48,7 @@ std::map<uint, std::pair<std::string, float>> create_labels_map(GValueArray *arr
     }
     return labelsNThresholds;
 }
+
 void load_model_proc(AudioInferenceOutput *infOutPut, GvaAudioBaseInference *audio_base_inference) {
 
     ModelProcProvider model_proc_provider;
@@ -96,6 +104,17 @@ GstFlowReturn infer_audio(GvaAudioBaseInference *audio_base_inference, GstBuffer
             GST_ELEMENT_ERROR(audio_base_inference, CORE, FAILED, ("Error: "), ("%s", "Invalid Audio buffer"));
             return GST_FLOW_ERROR;
         }
+#ifdef ENABLE_VPUX
+        auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buf, 0), gst_memory_unref);
+        if (not mem.get())
+            throw std::runtime_error("Failed to get GstBuffer memory");
+        if (gst_is_dmabuf_memory(mem.get())) {
+            int fd = gst_dmabuf_memory_get_fd(mem);
+            if (fd <= 0)
+                throw std::runtime_error("Failed to get file desc associated with GstBuffer memory");
+            audio_base_inference->dma_fd = fd;
+        }
+#endif
         int16_t *samples = (int16_t *)map.data;
         uint num_samples = map.size / sizeof(*samples);
         check_and_adjust_properties(num_samples, audio_base_inference);
@@ -109,9 +128,9 @@ GstFlowReturn infer_audio(GvaAudioBaseInference *audio_base_inference, GstBuffer
             std::vector<float> normalized_samples = pre_proc(&frame);
             auto normalized_samples_u8 = inf_handle->convertFloatToU8(normalized_samples);
             if (normalized_samples_u8.empty())
-                inf_handle->setInputBlob(normalized_samples.data());
+                inf_handle->setInputBlob(normalized_samples.data(), audio_base_inference->dma_fd);
             else
-                inf_handle->setInputBlob(normalized_samples_u8.data());
+                inf_handle->setInputBlob(normalized_samples_u8.data(), audio_base_inference->dma_fd);
             inf_handle->infer();
             AudioPostProcFunction post_proc = audio_base_inference->post_proc;
             post_proc(&frame, inf_handle->getInferenceOutput());
@@ -129,6 +148,7 @@ gboolean create_handles(GvaAudioBaseInference *audio_base_inference) {
         AudioInferenceOutput infOutput;
         load_model_proc(&infOutput, audio_base_inference);
         audio_base_inference->impl_handle = new AudioInferImpl(audio_base_inference);
+
         if (!audio_base_inference->impl_handle) {
             GST_ELEMENT_ERROR(audio_base_inference, CORE, FAILED, ("Could not initialize"),
                               ("%s", "Failed to allocate memory"));

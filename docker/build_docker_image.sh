@@ -15,10 +15,10 @@ if wget --spider "$openvino_url" 2>/dev/null; then
   if [[ -n ${openvino_ver} ]]; then
       echo "OpenVINO™ Toolkit version is $openvino_ver"
   else
-      echo "Cannot find OpenVINO™ Toolkit version from URL $openvino_url"  && exit 1
+      echo "Cannot find OpenVINO™ Toolkit version from URL: $openvino_url"  && exit 1
   fi
 else
-  echo "Cannot find OpenVINO™ Toolkit archive from URL $openvino_url" && exit 1
+  echo "Cannot find OpenVINO™ Toolkit archive from URL: $openvino_url" && exit 1
 fi
 
 BASEDIR="$(dirname "$(readlink -fm "$0")")"
