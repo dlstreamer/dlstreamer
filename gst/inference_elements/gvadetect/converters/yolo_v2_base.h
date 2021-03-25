@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,7 +14,6 @@ class YOLOV2Converter : public YOLOConverter {
   protected:
     size_t getIndex(size_t index, size_t offset) const;
     size_t getIndex(size_t index, size_t k, size_t i, size_t j) const;
-    float sigmoid(float x);
     std::vector<float> softmax(const float *arr, size_t common_offset, size_t size);
 
   public:

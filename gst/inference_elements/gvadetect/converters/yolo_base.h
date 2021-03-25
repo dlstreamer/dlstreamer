@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,8 @@
 #pragma once
 
 #include "converters/converter.h"
+
+#include <cmath>
 
 namespace DetectionPlugin {
 namespace Converters {
@@ -68,6 +70,10 @@ class YOLOConverter : public Converter {
     const OutputLayerShapeConfig output_shape_info;
     const bool do_cls_softmax;
     const bool output_sigmoid_activation;
+
+    inline float sigmoid(float x) {
+        return 1 / (1 + std::exp(-x));
+    }
 
     void runNms(std::vector<DetectedObject> &candidates);
     void storeObjects(std::vector<DetectedObject> &objects, const std::shared_ptr<InferenceFrame> frame,

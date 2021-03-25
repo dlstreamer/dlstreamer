@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 #include "gstgvaaudiodetect.h"
 #include "post_processors.h"
 #include "pre_processors.h"
+#include "utils.h"
 
 #define ELEMENT_LONG_NAME "Audio event detection based on input audio"
 #define ELEMENT_DESCRIPTION "Performs audio event detection using AclNet model."
@@ -25,7 +26,6 @@ GST_DEBUG_CATEGORY_STATIC(gva_audio_detect_debug_category);
 G_DEFINE_TYPE_WITH_CODE(GvaAudioDetect, gst_gva_audio_detect, GST_TYPE_GVA_AUDIO_BASE_INFERENCE,
                         GST_DEBUG_CATEGORY_INIT(gva_audio_detect_debug_category, "gvaaudiodetect", 0,
                                                 "debug category for gvaaudiodetect element"));
-#define UNUSED(x) (void)(x)
 
 static void gst_gva_audio_detect_finalize(GObject *object);
 

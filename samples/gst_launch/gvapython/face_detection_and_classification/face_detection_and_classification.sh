@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -9,10 +9,20 @@ set -e
 
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 
+DEVICE=${2:-CPU}
+
+if [[ $3 == "display" ]] || [[ -z $3 ]]; then
+  SINK_ELEMENT="gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
+elif [[ $3 == "fps" ]]; then
+  SINK_ELEMENT="gvafpscounter ! fakesink async=false "
+else
+  echo Error wrong value for SINK_ELEMENT parameter
+  echo Possible values: display - render, fps - show FPS only
+  exit
+fi
+
 MODEL1=face-detection-adas-0001
 MODEL2=age-gender-recognition-retail-0013
-
-DEVICE=CPU
 
 SCRIPTDIR="$(dirname "$(realpath "$0")")"
 PYTHON_SCRIPT1=$SCRIPTDIR/postproc_callbacks/ssd_object_detection.py
@@ -26,28 +36,8 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-GET_MODEL_PATH() {
-    model_name=$1
-    precision=${2:-"FP32"}
-    for models_dir in ${MODELS_PATH//:/ }; do
-        paths=$(find $models_dir -type f -name "*$model_name.xml" -print)
-        if [ ! -z "$paths" ];
-        then
-            considered_precision_paths=$(echo "$paths" | grep "/$precision/")
-            if [ ! -z "$considered_precision_paths" ];
-            then
-                echo $(echo "$considered_precision_paths" | head -n 1)
-                exit 0
-            fi
-        fi
-    done
-
-    echo -e "\e[31mModel $model_name file was not found. Please set MODELS_PATH\e[0m" 1>&2
-    exit 1
-}
-
-DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL1)
-CLASS_MODEL_PATH=$(GET_MODEL_PATH $MODEL2)
+DETECT_MODEL_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+CLASS_MODEL_PATH=${MODELS_PATH}/intel/age-gender-recognition-retail-0013/FP32/age-gender-recognition-retail-0013.xml
 
 echo Running sample with the following parameters:
 echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
@@ -58,7 +48,7 @@ gvainference model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
 gvapython module=$PYTHON_SCRIPT1 ! \
 gvaclassify model=$CLASS_MODEL_PATH device=$DEVICE ! queue ! \
 gvapython module=$PYTHON_SCRIPT2 ! \
-gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
+$SINK_ELEMENT"
 
 echo ${PIPELINE}
 PYTHONPATH=$PYTHONPATH:$(dirname "$0")/../../../../python \

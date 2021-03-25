@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -48,11 +48,11 @@ typedef struct _GvaBaseInference {
     gchar *model_instance_id;
     guint cpu_streams;
     guint gpu_streams;
-    guint vpu_device_id;
     gchar *ie_config;
     gchar *allocator_name;
     gchar *pre_proc_name;
     gchar *device_extensions;
+    gchar *object_class;
 
     // other fields
     enum INFERENCE_TYPE type;
@@ -62,7 +62,9 @@ typedef struct _GvaBaseInference {
 
     InferenceImpl *inference;
 
-    IsROIClassificationNeededFunction is_roi_classification_needed;
+    FilterROIFunction is_roi_inference_needed;
+    FilterROIFunction specific_roi_filter;
+
     PreProcFunction pre_proc;
     InputPreprocessorsFactory input_prerocessors_factory;
     PostProcessor *post_proc;

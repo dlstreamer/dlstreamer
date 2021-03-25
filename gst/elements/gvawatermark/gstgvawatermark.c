@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,9 +13,8 @@
 #include "watermark.h"
 
 #include "config.h"
+#include "utils.h"
 #include <stdio.h>
-
-#define UNUSED(x) (void)(x)
 
 #define ELEMENT_LONG_NAME "Labeler of detection/classification/recognition results"
 #define ELEMENT_DESCRIPTION "Overlays the metadata on the video frame to visualize the inference results."
@@ -153,6 +152,13 @@ static GstFlowReturn gst_gva_watermark_transform_ip(GstBaseTransform *trans, Gst
 
     if (!gst_pad_is_linked(GST_BASE_TRANSFORM_SRC_PAD(trans))) {
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
+    }
+
+    // TODO: remove when problem with refcounting in inference elements is resolved
+    if (!gst_buffer_is_writable(buf)) {
+        GST_ELEMENT_WARNING(gvawatermark, STREAM, FAILED, ("Can't draw because buffer is not writable. Skipped"),
+                            (NULL));
+        return GST_FLOW_OK;
     }
 
     if (!draw(gvawatermark, buf))

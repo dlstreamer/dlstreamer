@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -53,34 +53,12 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-GET_MODEL_PATH() {
-    model_name=$1
-    for models_dir in ${MODELS_PATH//:/ }; do
-        paths=$(find $models_dir -type f -name "*$model_name.xml" -print)
-        if [ ! -z "$paths" ];
-        then
-            considered_precision_paths=$(echo "$paths" | grep "/$PRECISION/")
-           if [ ! -z "$considered_precision_paths" ];
-            then
-                echo $(echo "$considered_precision_paths" | head -n 1)
-                exit 0
-            else
-                echo $(echo "$paths" | head -n 1)
-                exit 0
-            fi
-        fi
-    done
-
-    echo -e "\e[31mModel $model_name file was not found. Please set MODELS_PATH\e[0m" 1>&2
-    exit 1
-}
-
 PROC_PATH() {
     echo "$(dirname '$1')/model_proc/$2.json"
 }
 
-DETECT_MODEL_PATH=$(GET_MODEL_PATH $MODEL )
-CLASS_MODEL_PATH=$(GET_MODEL_PATH $MODEL2)
+DETECT_MODEL_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+CLASS_MODEL_PATH=${MODELS_PATH}/intel/age-gender-recognition-retail-0013/FP32/age-gender-recognition-retail-0013.xml
 echo "MODEL2: ${MODEL2}"
 MODEL2_PROC=$(PROC_PATH "./" "$MODEL2")
 echo "MODEL2_PROC: $MODEL2_PROC"

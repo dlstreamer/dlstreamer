@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,10 +8,9 @@
 
 #include "vaapi_context.h"
 #include "vaapi_images.h"
+#include "vaapi_utils.h"
 
 #include <memory>
-
-#include <va/va.h>
 
 namespace InferenceBackend {
 

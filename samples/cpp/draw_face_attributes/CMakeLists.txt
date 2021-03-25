@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -12,8 +12,8 @@ find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
-pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
+pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 # use pkg-config if sample builds as standalone. Otherwise vars DLSTREAMER_INCLUDE_DIRS/etc set by top level cmake
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
@@ -38,8 +38,8 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-        ${GSTVIDEO_LIBRARIES}
         ${OpenCV_LIBS}
         ${GLIB2_LIBRARIES}
-        ${GSTREAMER_LIBRARIES}
+        ${GSTREAMER_LDFLAGS}
+        ${GSTVIDEO_LDFLAGS}
     )

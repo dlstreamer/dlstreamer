@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -74,8 +74,8 @@ typedef std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> (*InputPrep
     const std::shared_ptr<InferenceBackend::ImageInference> &inference,
     const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info, GstVideoRegionOfInterestMeta *roi);
 typedef void (*PreProcFunction)(GstStructure *preproc, InferenceBackend::Image &image);
-typedef bool (*IsROIClassificationNeededFunction)(GvaBaseInference *gva_base_inference, guint64 current_num_frame,
-                                                  GstBuffer *buffer, GstVideoRegionOfInterestMeta *roi);
+typedef bool (*FilterROIFunction)(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
+                                  GstVideoRegionOfInterestMeta *roi);
 
 #include "../common/post_processor.h"
 using PostProcessorExitStatus = PostProcessor::ExitStatus;
@@ -87,6 +87,6 @@ typedef void *InputPreprocessorsFactory;
 typedef void *InputPreprocessingFunctionGetter;
 typedef struct PostProcessor PostProcessor;
 typedef struct PostProcessorExitStatus PostProcessorExitStatus;
-typedef void *IsROIClassificationNeededFunction;
+typedef void *FilterROIFunction;
 
 #endif // __cplusplus

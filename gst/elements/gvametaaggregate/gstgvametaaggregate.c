@@ -1,11 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gstgvametaaggregate.h"
 #include "metaaggregate.h"
+#include "utils.h"
 #include <gst/gstallocator.h>
 #include <string.h>
 
@@ -24,8 +25,6 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_aggregate_debug);
 #define ELEMENT_DESCRIPTION                                                                                            \
     "Aggregates inference results from multiple pipeline branches. Data that is transferred further along the "        \
     "pipeline is taken from the first sink pad of the gvametaaggreagate element."
-
-#define UNUSED(x) (void)(x)
 
 static GstStaticPadTemplate src_factory =
     GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS_ANY);

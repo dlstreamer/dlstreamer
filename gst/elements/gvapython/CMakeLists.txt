@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2020-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,6 +8,7 @@ cmake_minimum_required(VERSION 3.1)
 
 set (TARGET_NAME "gvapython")
 
+find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
@@ -41,8 +42,8 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
+    ${GSTREAMER_LDFLAGS}
     ${GLIB2_LIBRARIES}
-    ${GSTREAMER_LIBRARIES}
     ${PYTHON_LIBRARIES}
     ${PYGOBJECT_LIBRARIES}
     common

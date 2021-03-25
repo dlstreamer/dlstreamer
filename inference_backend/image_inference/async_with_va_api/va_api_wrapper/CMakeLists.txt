@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -14,29 +14,29 @@ pkg_search_module(VADRM va-drm libva-drm REQUIRED)
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        )
+)
 
 file (GLOB MAIN_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        )
+)
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${VA_INCLUDE_DIRS}
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        ${VA_INCLUDE_DIRS}
 PRIVATE
-    ${VADRM_INCLUDE_DIRS}
+        ${VADRM_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${VA_LIBRARIES}
         logger
         pre_proc
         opencv_pre_proc
+        ${VA_LIBRARIES}
 PRIVATE
         ${VADRM_LIBRARIES}
 )

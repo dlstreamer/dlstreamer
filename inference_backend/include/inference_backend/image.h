@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -46,30 +46,38 @@ struct Rectangle {
     static_assert(std::is_floating_point<T>::value or std::is_integral<T>::value,
                   "struct Rectangle can only be instantiated with numeric type types");
 
-    T x;
-    T y;
-    T width;
-    T height;
+    T x = 0;
+    T y = 0;
+    T width = 0;
+    T height = 0;
+
+    Rectangle() = default;
+    Rectangle(T x, T y, T width, T height) : x(x), y(y), width(width), height(height) {
+    }
 };
 
 struct Image {
-    MemoryType type;
+    MemoryType type = MemoryType::ANY;
     static const uint32_t MAX_PLANES_NUMBER = 4;
+
     union {
         uint8_t *planes[MAX_PLANES_NUMBER]; // if type==SYSTEM
-        int dma_fd;                         // if type==DMA_BUFFER
         struct {                            // if type==VAAPI
             uint32_t va_surface_id;
             void *va_display;
         };
     };
-    int format; // FourCC
-    uint32_t width;
-    uint32_t height;
-    uint32_t size;
-    uint32_t stride[MAX_PLANES_NUMBER];
-    uint32_t offsets[MAX_PLANES_NUMBER];
+    int dma_fd = -1; // if type==DMA_BUFFER or VPUX device is used
+
+    int format = 0; // FourCC
+    uint32_t width = 0;
+    uint32_t height = 0;
+    uint32_t size = 0;
+    uint32_t stride[MAX_PLANES_NUMBER] = {0, 0, 0, 0};
+    uint32_t offsets[MAX_PLANES_NUMBER] = {0, 0, 0, 0};
     Rectangle<uint32_t> rect;
+
+    Image() = default;
 };
 
 // Map DMA/VAAPI image into system memory

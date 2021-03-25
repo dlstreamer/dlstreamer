@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,12 +11,12 @@
 #include "gva_json_meta.h"
 #include "gva_tensor_meta.h"
 #include "gva_utils.h"
+#include "utils.h"
 #include "video_frame.h"
 #ifdef AUDIO
 #include "audioconverter.h"
 #endif
 
-#define UNUSED(x) (void)(x)
 #define GST_CAT_DEFAULT gst_gva_meta_convert_debug_category
 
 gboolean dump_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {

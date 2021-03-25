@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -118,7 +118,7 @@ class Tensor:
         if not self.is_detection():
             return self["label"]
         else:
-            raise RuntimeError("Detection GVA::Tensor cann't have label.")
+            raise RuntimeError("Detection GVA::Tensor can't have label.")
 
     ## @brief Get object id
     #  @return object id as an int, None if failed to get
@@ -166,19 +166,21 @@ class Tensor:
             return libgst.gst_structure_get_value(self.__structure,key)
         else:
             # try to get value as GValueArray (e.g., "dims" key)
-            value = list()
             gvalue_array = G_VALUE_ARRAY_POINTER()
             is_array = libgst.gst_structure_get_array(self.__structure, key, ctypes.byref(gvalue_array))
             if not is_array:
                 # Fallback return value
+                libgst.g_value_array_free(gvalue_array)
                 return libgst.gst_structure_get_value(self.__structure,key)
             else:
+                value = list()
                 for i in range(0, gvalue_array.contents.n_values):
                     g_value = libgobject.g_value_array_get_nth(gvalue_array, ctypes.c_uint(i))
                     try:
                         value.append(libgobject.g_value_get_uint(g_value))
                     except Exception:
                         raise TypeError("Tensor array can contain only uint values")
+                libgst.g_value_array_free(gvalue_array)
                 return value
 
     ## @brief Get number of fields contained in Tensor instance

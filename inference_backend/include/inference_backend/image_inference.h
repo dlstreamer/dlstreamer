@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -50,7 +50,8 @@ class ImageInference {
 
     static Ptr make_shared(MemoryType type, const std::string &model,
                            const std::map<std::string, std::map<std::string, std::string>> &config,
-                           Allocator *allocator, CallbackFunc callback, ErrorHandlingFunc error_handler);
+                           Allocator *allocator, CallbackFunc callback, ErrorHandlingFunc error_handler,
+                           const std::string &device_name);
 
     virtual void Init() = 0;
 

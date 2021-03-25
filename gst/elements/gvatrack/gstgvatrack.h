@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,6 +13,9 @@
 
 G_BEGIN_DECLS
 
+GST_DEBUG_CATEGORY_EXTERN(gst_gva_track_debug_category);
+#define GST_CAT_DEFAULT gst_gva_track_debug_category
+
 #define GST_TYPE_GVA_TRACK (gst_gva_track_get_type())
 #define GST_GVA_TRACK(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVA_TRACK, GstGvaTrack))
 #define GST_GVA_TRACK_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_GVA_TRACK, GstGvaTrackClass))
@@ -25,6 +28,7 @@ typedef struct _GstGvaTrack {
 
     gchar *device;
     GstGvaTrackingType tracking_type;
+    gchar *tracking_config;
 
     ITracker *tracker;
 } GstGvaTrack;

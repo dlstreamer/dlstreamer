@@ -42,12 +42,13 @@ GStreamer is an open source framework licensed under LGPL. See [license terms](h
 ## Getting Started
 * Start here: [Install Guide](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
 * [DL Streamer Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/GStreamer%20Video%20Analytics%20Tutorial)
-* Webinar:
+* Webinars:
     * Introduction to DL Streamer: [Ready, Steady, Stream: Introducing Intel® Distribution of OpenVINO™ toolkit Deep Learning Streamer](https://techdecoded.intel.io/essentials/ready-steady-stream-introducing-intel-distribution-of-openvino-toolkit-deep-learning-streamer/#gs.nuybc3)
     * Audio event detection synchronized with video based object detection using DL Streamer: [AI Beyond Computer Vision with the Intel® Distribution of OpenVINO™ toolkit](https://techdecoded.intel.io/essentials/ai-beyond-computer-vision-with-the-intel-distribution-of-openvino-toolkit)
 * YouTube Videos:
-    * [Full pipeline simulation using GStreamer](https://www.youtube.com/watch?v=fWhPV_IqDy0)
-    * [Full pipeline simulation using GStreamer (Samples)](https://www.youtube.com/watch?v=EqHznsUR1sE)
+    * [Introduction to video analytics pipeline using DL Streamer](https://www.youtube.com/watch?v=fWhPV_IqDy0)
+    * [DL Streamer video analytcs pipeline samples](https://www.youtube.com/watch?v=EqHznsUR1sE)
+    * [DL Streamer tracking element](https://youtu.be/z4Heorhg3tM)
 * Samples:
     * [command-line](samples/gst_launch), [C++](samples/cpp/draw_face_attributes) and [Python](samples/python/draw_face_attributes/) samples.
 
@@ -57,7 +58,7 @@ For additional documentation, please see [wiki](https://github.com/openvinotoolk
 Try DL Streamer with [Intel<sup>&reg;</sup> DevCloud](https://devcloud.intel.com/edge/get_started/devcloud/). You can build your pipeline, test and optimize for free. With an Intel<sup>®</sup> DevCloud account, you get 120 days of access to the latest Intel<sup>®</sup> hardware — CPUs, GPUs, FPGAs. No software downloads. No configuration steps. No installations. Check out [DL Stramer Tutorial on Intel<sup>&reg;</sup> DevCloud](https://devcloud.intel.com/edge/advanced/advanced_tutorials/).
 
 ## Other Useful Links
-* [Video Analytics Serving](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements): Video Analytics Serving is a python package and microservice for deploying optimized media analytics pipelines. It supports pipelines defined in DL Streamer and provides APIs to discover, start, stop, customize and monitor pipeline execution.
+* [Video Analytics Serving](https://github.com/intel/video-analytics-serving): Video Analytics Serving is a python package and microservice for deploying optimized media analytics pipelines. It supports pipelines defined in DL Streamer and provides APIs to discover, start, stop, customize and monitor pipeline execution.
 * The reference media analytics applications, provided by [Open Visual Cloud](https://01.org/openvisualcloud), that leverage DL Streamer elements:
     *  [Smart City - Traffic and Stadium Management](https://github.com/OpenVisualCloud/Smart-City-Sample)
     * [Intelligent Ad Insertion](https://github.com/OpenVisualCloud/Ad-Insertion-Sample)

@@ -1,6 +1,7 @@
 This file is the file specified in the associated license agreement. The third party programs file and the corresponding third party licenses are listed below.
 
 1.  Instrumentation and Tracing Technology (ITT) APIs: Copyright (c) 2017. The Regents of the University of California. All rights reserved.
+    NumPy: Copyright (c) 2005-2020, NumPy Developers. All rights reserved.
 
 The 3-clause BSD "New" or "Revised" License
 
@@ -48,6 +49,7 @@ POSSIBILITY OF SUCH DAMAGE.
 3.  Gst-template: Copyright (C) 1991 Free Software Foundation, Inc.
     JSON for modern C++: Copyright (c) 2013-2019 Niels Lohmann
     json-schema-validator: Copyright (c) 2016 Patrick Boettcher
+    opencv-python: Copyright (c) Olli-Pekka Heinisuo
 
 
 MIT License

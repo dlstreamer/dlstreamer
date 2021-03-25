@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,7 +12,7 @@
 extern "C" {
 #endif
 
-extern IsROIClassificationNeededFunction IS_ROI_CLASSIFICATION_NEEDED;
+extern FilterROIFunction IS_ROI_CLASSIFICATION_NEEDED;
 
 #ifdef __cplusplus
 }
