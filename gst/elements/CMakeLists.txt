@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -77,10 +77,10 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
 endif()
 target_link_libraries(${TARGET_NAME}
 PRIVATE
+    ${GSTREAMER_LDFLAGS}
+    ${GSTVIDEO_LDFLAGS}
+    ${GSTALLOC_LDFLAGS}
     ${OpenCV_LIBS}
-    ${GSTREAMER_LIBRARIES}
-    ${GSTVIDEO_LIBRARIES}
-    ${GSTALLOC_LIBRARIES}
     common
     image_inference
     image_inference_openvino
@@ -91,7 +91,7 @@ PRIVATE
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LDFLAGS})
 endif()
 
 if(${ENABLE_VAAPI})

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,8 +7,6 @@
 #include "converters/yolo_v2_base.h"
 
 #include "inference_backend/logger.h"
-
-#include <cmath>
 
 using namespace DetectionPlugin;
 using namespace Converters;
@@ -22,10 +20,6 @@ YOLOV2Converter::YOLOV2Converter(size_t classes_number, std::vector<float> ancho
 
 size_t YOLOV2Converter::getIndex(size_t index, size_t offset) const {
     return index * output_shape_info.common_cells_number + offset;
-}
-
-float YOLOV2Converter::sigmoid(float x) {
-    return 1 / (1 + std::exp(-x));
 }
 
 std::vector<float> YOLOV2Converter::softmax(const float *arr, size_t common_offset, size_t size) {

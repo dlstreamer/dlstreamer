@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,9 +17,9 @@ using namespace Converters;
 YOLOV3Converter::YOLOV3Converter(size_t classes_number, std::vector<float> anchors,
                                  std::map<size_t, std::vector<size_t>> masks, size_t cells_number_x,
                                  size_t cells_number_y, double iou_threshold, size_t bbox_number_on_cell,
-                                 size_t input_size, bool do_cls_softmax)
+                                 size_t input_size, bool do_cls_softmax, bool output_sigmoid_activation)
     : YOLOConverter(anchors, iou_threshold, {classes_number, cells_number_x, cells_number_y, bbox_number_on_cell},
-                    do_cls_softmax, /*output_sigmoid_activation*/ false),
+                    do_cls_softmax, output_sigmoid_activation),
       masks(masks), input_size(input_size) {
 }
 
@@ -99,7 +99,9 @@ bool YOLOV3Converter::process(const std::map<std::string, InferenceBackend::Outp
                     const size_t bbox_conf_index = entryIndex(side, common_offset, coords);
                     const size_t bbox_index = entryIndex(side, common_offset, 0);
 
-                    const float bbox_conf = blob_data[bbox_conf_index];
+                    float bbox_conf = blob_data[bbox_conf_index];
+                    if (output_sigmoid_activation)
+                        bbox_conf = sigmoid(bbox_conf);
                     if (bbox_conf < confidence_threshold)
                         continue;
 
@@ -141,16 +143,19 @@ bool YOLOV3Converter::process(const std::map<std::string, InferenceBackend::Outp
                         continue;
 
                     // TODO: check if index in array range
-                    const float x =
-                        static_cast<float>(col + blob_data[bbox_index + 0 * side_square]) / side * input_size;
-                    const float y =
-                        static_cast<float>(row + blob_data[bbox_index + 1 * side_square]) / side * input_size;
+                    const float raw_x = blob_data[bbox_index + 0 * side_square];
+                    const float raw_y = blob_data[bbox_index + 1 * side_square];
+                    const float raw_w = blob_data[bbox_index + 2 * side_square];
+                    const float raw_h = blob_data[bbox_index + 3 * side_square];
+
+                    const float x = static_cast<float>(col + (output_sigmoid_activation ? sigmoid(raw_x) : raw_x)) /
+                                    side * input_size;
+                    const float y = static_cast<float>(row + (output_sigmoid_activation ? sigmoid(raw_y) : raw_y)) /
+                                    side * input_size;
 
                     // TODO: check if index in array range
-                    const float width =
-                        std::exp(blob_data[bbox_index + 2 * side_square]) * anchors[anchor_offset + 2 * bbox_cell_num];
-                    const float height = std::exp(blob_data[bbox_index + 3 * side_square]) *
-                                         anchors[anchor_offset + 2 * bbox_cell_num + 1];
+                    const float width = std::exp(raw_w) * anchors[anchor_offset + 2 * bbox_cell_num];
+                    const float height = std::exp(raw_h) * anchors[anchor_offset + 2 * bbox_cell_num + 1];
 
                     DetectedObject obj(x, y, width, height, bbox_class.first, confidence, 1.0f / input_size,
                                        1.0f / input_size);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,26 +7,27 @@
 #include "gstgvatrack.h"
 #include "gva_caps.h"
 #include "tracker_c.h"
+#include "utils.h"
 
 #define ELEMENT_LONG_NAME "Object tracker (generates GstGvaObjectTrackerMeta, GstVideoRegionOfInterestMeta)"
 #define ELEMENT_DESCRIPTION                                                                                            \
-    "Performs object tracking using zero-term or short-term tracking algorithms. "                                     \
-    "Zero-term tracking assigns unique object IDs and requires object detection to run on every frame. "               \
-    "Short-term tracking allows to track objects between frames, thereby reducing the need to run "                    \
-    "object detection on each frame."
+    "Performs object tracking using zero-term, zero-term-imageless, short-term, or short-term-imageless tracking "     \
+    "algorithms. Zero-term tracking assigns unique object IDs and requires object detection to run on every frame. "   \
+    "Short-term tracking allows to track objects between frames, thereby reducing the need to run object detection "   \
+    "on each frame. Imageless tracking (zero-term-imageless and short-term-imageless) forms object associations "      \
+    "based on the movement and shape of objects, and it does not use image data."
 
-#define UNUSED(x) (void)(x)
-
-GST_DEBUG_CATEGORY_STATIC(gst_gva_track_debug_category);
-#define GST_CAT_DEFAULT gst_gva_track_debug_category
+GST_DEBUG_CATEGORY(gst_gva_track_debug_category);
 
 #define DEFAULT_DEVICE "CPU"
-#define DEFAULT_TRACKING_TYPE SHORT_TERM_IMAGELESS
+#define DEFAULT_TRACKING_TYPE SHORT_TERM
+#define DEFAULT_TRACKING_CONFIG NULL
 
 enum {
     PROP_0,
     PROP_DEVICE,
     PROP_TRACKING_TYPE,
+    PROP_TRACKING_CONFIG,
 };
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaTrack, gst_gva_track, GST_TYPE_BASE_TRANSFORM,
@@ -58,6 +59,11 @@ void gst_gva_track_cleanup(GstGvaTrack *gva_track) {
 
     g_free(gva_track->device);
     gva_track->device = NULL;
+
+    if (gva_track->info) {
+        gst_video_info_free(gva_track->info);
+        gva_track->info = NULL;
+    }
 }
 
 static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
@@ -98,6 +104,12 @@ static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
                                                         "Target device for tracking. Supported devices are CPU "
                                                         "(default) and VPU.<id>, where id is VPU slice id.",
                                                         DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(gobject_class, PROP_TRACKING_CONFIG,
+                                    g_param_spec_string("config", "Tracker specific configuration",
+                                                        "Comma separated list of KEY=VALUE parameters specific to "
+                                                        "platform/tracker. Please see user guide for more details",
+                                                        DEFAULT_TRACKING_CONFIG,
+                                                        G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static void gst_gva_track_init(GstGvaTrack *gva_track) {
@@ -110,6 +122,7 @@ static void gst_gva_track_init(GstGvaTrack *gva_track) {
 
     gva_track->tracking_type = DEFAULT_TRACKING_TYPE;
     gva_track->device = g_strdup(DEFAULT_DEVICE);
+    gva_track->tracking_config = g_strdup(DEFAULT_TRACKING_CONFIG);
 }
 
 static void gst_gva_track_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
@@ -123,6 +136,10 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
         break;
     case PROP_TRACKING_TYPE:
         gva_track->tracking_type = g_value_get_enum(value);
+        break;
+    case PROP_TRACKING_CONFIG:
+        g_free(gva_track->tracking_config);
+        gva_track->tracking_config = g_value_dup_string(value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -140,6 +157,9 @@ static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *v
         break;
     case PROP_TRACKING_TYPE:
         g_value_set_enum(value, gva_track->tracking_type);
+        break;
+    case PROP_TRACKING_CONFIG:
+        g_value_set_string(value, gva_track->tracking_config);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);

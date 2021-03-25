@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,9 +13,8 @@
 #include "gva_caps.h"
 
 #include "config.h"
+#include "utils.h"
 #include <stdio.h>
-
-#define UNUSED(x) (void)(x)
 
 #define ELEMENT_LONG_NAME "Frames Per Second counter"
 #define ELEMENT_DESCRIPTION "Measures frames per second across multiple streams in a single process."

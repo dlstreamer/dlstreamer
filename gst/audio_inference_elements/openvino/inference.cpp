@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,8 +8,15 @@
 #include "image_inference.h"
 #include "model_loader.h"
 #include "utils.h"
+
 #include <fstream>
 #include <limits.h>
+#include <regex>
+#include <string>
+
+#ifdef ENABLE_VPUX
+#include <vpux/kmb_params.hpp>
+#endif
 
 using namespace InferenceEngine;
 using namespace std;
@@ -61,11 +68,21 @@ OpenVINOAudioInference::OpenVINOAudioInference(const char *model, char *device, 
     Core core;
     CNNNetwork network = loader->load(core, model, base);
     ExecutableNetwork executable_network = loader->import(network, model, core, base, inference_config);
-    infOutput.model_name = loader->name(network);
+    InferenceBackend::NetworkReferenceWrapper network_ref(network, executable_network);
+    infOutput.model_name = loader->name(network_ref);
 
     input_name = executable_network.GetInputsInfo().begin()->first;
     inferRequest = executable_network.CreateInferRequest();
     tensor_desc = executable_network.GetInputsInfo().begin()->second->getTensorDesc();
+
+#ifdef ENABLE_VPUX
+    std::tie(has_vpu_device_id, vpu_device_name) = Utils::parseDeviceName(device_name);
+    if (!vpu_device_name.empty()) {
+        const std::string msg = "VPUX device defined as " + vpu_device_name;
+        GVA_INFO(msg.c_str());
+    }
+#endif
+    CreateRemoteContext();
 
     InferenceEngine::ConstOutputsDataMap outputs = executable_network.GetOutputsInfo();
     std::map<std::string, std::pair<OutputBlob::Ptr, int>> output_blobs;
@@ -102,23 +119,49 @@ std::vector<uint8_t> OpenVINOAudioInference::convertFloatToU8(std::vector<float>
     }
 }
 
-void OpenVINOAudioInference::setInputBlob(void *buffer_ptr) {
-
+void OpenVINOAudioInference::setInputBlob(void *buffer_ptr, int dma_fd) {
     if (!buffer_ptr)
         throw std::invalid_argument("Invalid Input buffer");
     InferenceEngine::Blob::Ptr blob;
-    switch (tensor_desc.getPrecision()) {
-    case InferenceEngine::Precision::U8:
-        blob = InferenceEngine::make_shared_blob<uint8_t>(tensor_desc, reinterpret_cast<uint8_t *>(buffer_ptr));
-        break;
-    case InferenceEngine::Precision::FP32:
-    case InferenceEngine::Precision::FP16:
-        blob = InferenceEngine::make_shared_blob<float>(tensor_desc, reinterpret_cast<float *>(buffer_ptr));
-        break;
-    default:
-        throw std::invalid_argument("Failed to create Blob: InferenceEngine::Precision " +
-                                    std::to_string(tensor_desc.getPrecision()) + " is not supported");
+
+#ifdef ENABLE_VPUX
+    if (!vpu_device_name.empty()) {
+        ParamMap params = {{InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), dma_fd},
+                           {InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), buffer_ptr}};
+        switch (tensor_desc.getPrecision()) {
+        case InferenceEngine::Precision::U8:
+        case InferenceEngine::Precision::FP16:
+        case InferenceEngine::Precision::FP32:
+            RemoteBlob::Ptr remote_blob = remote_context->CreateBlob(tensor_desc, params);
+            if (remote_blob == nullptr)
+                throw std::runtime_error("Failed to create remote blob for InferenceEngine::Precision " +
+                                         std::to_string(tensor_desc.getPrecision()));
+            blob = InferenceEngine::make_shared_blob(remote_blob);
+            break;
+        default:
+            throw std::invalid_argument("Failed to create Blob: InferenceEngine::Precision " +
+                                        std::to_string(tensor_desc.getPrecision()) + " is not supported");
+        }
+    } else {
+#else
+    UNUSED(dma_fd);
+#endif
+        switch (tensor_desc.getPrecision()) {
+        case InferenceEngine::Precision::U8:
+            blob = InferenceEngine::make_shared_blob<uint8_t>(tensor_desc, reinterpret_cast<uint8_t *>(buffer_ptr));
+            break;
+        case InferenceEngine::Precision::FP32:
+        case InferenceEngine::Precision::FP16:
+            blob = InferenceEngine::make_shared_blob<float>(tensor_desc, reinterpret_cast<float *>(buffer_ptr));
+            break;
+        default:
+            throw std::invalid_argument("Failed to create Blob: InferenceEngine::Precision " +
+                                        std::to_string(tensor_desc.getPrecision()) + " is not supported");
+        }
+#ifdef ENABLE_VPUX
     }
+#endif
+
     inferRequest.SetBlob(input_name, blob);
 }
 
@@ -128,4 +171,23 @@ AudioInferenceOutput *OpenVINOAudioInference::getInferenceOutput() {
 
 void OpenVINOAudioInference::infer() {
     inferRequest.Infer();
+}
+
+void OpenVINOAudioInference::CreateRemoteContext() {
+#ifdef ENABLE_VPUX
+    if (!vpu_device_name.empty()) {
+        const std::string base_device = "VPUX";
+        std::string device = vpu_device_name;
+        if (!has_vpu_device_id) {
+            // Retrieve ID of the first available device
+            std::vector<std::string> device_list = core.GetMetric(base_device, METRIC_KEY(AVAILABLE_DEVICES));
+            if (!device_list.empty())
+                device = device_list.at(0);
+            // else device is already set to VPU-0
+        }
+
+        const InferenceEngine::ParamMap params = {{InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), device}};
+        remote_context = core.CreateContext(base_device, params);
+    }
+#endif
 }

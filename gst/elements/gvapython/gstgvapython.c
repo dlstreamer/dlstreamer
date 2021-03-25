@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,8 +10,7 @@
 #include "gstgvapython.h"
 #include "gva_caps.h"
 #include "python_callback_c.h"
-
-#define UNUSED(x) (void)(x)
+#include "utils.h"
 
 #define ELEMENT_LONG_NAME "Python callback provider"
 #define ELEMENT_DESCRIPTION                                                                                            \

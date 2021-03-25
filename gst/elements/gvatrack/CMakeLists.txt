@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2020-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -11,7 +11,6 @@ set (TARGET_NAME "gvatrack")
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
-pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
 
 
 file (GLOB MAIN_SRC
@@ -23,7 +22,6 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/*.h
 )
-
 
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
 set_target_lib_version(${TARGET_NAME})
@@ -38,8 +36,8 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
+    ${GSTREAMER_LDFLAGS}
     ${GLIB2_LIBRARIES}
-    ${GSTREAMER_LIBRARIES}
     common
     utils
 )

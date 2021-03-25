@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -32,7 +32,7 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LIBRARIES}
+    ${GSTREAMER_LDFLAGS}
     common
     elements
     inference_elements

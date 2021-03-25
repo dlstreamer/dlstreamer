@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,8 +14,7 @@
 #include "converters.h"
 #include "gva_caps.h"
 #include "gva_json_meta.h"
-
-#define UNUSED(x) (void)(x)
+#include "utils.h"
 
 #define ELEMENT_LONG_NAME "Metadata converter"
 #define ELEMENT_DESCRIPTION "Converts the metadata structure to the JSON format."

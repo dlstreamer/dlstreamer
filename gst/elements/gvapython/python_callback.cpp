@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,57 +17,27 @@
 namespace {
 
 class PythonContextInitializer {
-    using PythonContext = std::pair<bool, PyGILState_STATE>;
-    PythonContext context;
-    PyObject *sys_path;
-
   public:
     PythonContextInitializer() {
-        context = initContext();
-        initPyGObject();
-
-        sys_path = PySys_GetObject("path");
-
-        // TODO: I'm not we need this
-        extendPath(gvapythonModulePath());
-    }
-    ~PythonContextInitializer() {
-        finalizeContext(context);
-    }
-
-    void extendPath(const std::string &module_path) {
-        if (!module_path.empty()) {
-            PyList_Append(sys_path, WRAPPER(PyUnicode_FromString(module_path.c_str())));
-        }
-    }
-
-  private:
-    PythonContext initContext() {
-        bool initialized = Py_IsInitialized();
-        PyGILState_STATE state = PyGILState_UNLOCKED;
-        if (initialized) {
+        state = PyGILState_UNLOCKED;
+        if (Py_IsInitialized()) {
             state = PyGILState_Ensure();
         } else {
             Py_Initialize();
         }
 
-        static wchar_t tmp[] = L"";
-        static wchar_t *empty_argv[] = {tmp};
-        PySys_SetArgv(1, empty_argv);
-
-        return std::make_pair(initialized, state);
+        sys_path = PySys_GetObject("path");
     }
-
-    void finalizeContext(PythonContext &context) {
-        if (context.first) {
-            PyGILState_Release(context.second);
+    ~PythonContextInitializer() {
+        if (Py_IsInitialized()) {
+            PyGILState_Release(state);
         } else {
             PyEval_SaveThread();
         }
     }
 
-    void initPyGObject() {
-        // load libpython.so and initilize pygobject
+    void initialize() {
+        /* load libpython.so and initilize pygobject */
         Dl_info libpython_info = Dl_info();
         dladdr((void *)Py_IsInitialized, &libpython_info);
         GModule *libpython = g_module_open(libpython_info.dli_fname, G_MODULE_BIND_LAZY);
@@ -77,19 +47,22 @@ class PythonContextInitializer {
         if (libpython) {
             g_module_close(libpython);
         }
+        /* init arguments passed to a python script*/
+        static wchar_t tmp[] = L"";
+        static wchar_t *empty_argv[] = {tmp};
+        PySys_SetArgv(1, empty_argv);
     }
 
-    std::string gvapythonModulePath() {
-        Dl_info dl_info = Dl_info();
-        dladdr((void *)create_python_callback, &dl_info);
-        const char *del = strrchr(dl_info.dli_fname, '/');
-        if (del) {
-            std::string dir(dl_info.dli_fname, del);
-            dir += "/python";
-            return dir;
+    void extendPath(const std::string &module_path) {
+        if (!module_path.empty()) {
+            /* PyList_Append increases the reference counter */
+            PyList_Append(sys_path, WRAPPER(PyUnicode_FromString(module_path.c_str())));
         }
-        return std::string();
     }
+
+  private:
+    PyGILState_STATE state;
+    PyObject *sys_path;
 };
 
 PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *args_string,
@@ -145,6 +118,7 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
         throw std::invalid_argument("module_path cannot be empty");
     }
     auto context_initializer = PythonContextInitializer();
+    context_initializer.initialize();
 
     // add user-specified callback module into Python path
     const char *filename = strrchr(module_path, '/');

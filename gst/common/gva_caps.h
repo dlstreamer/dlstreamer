@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,7 +21,7 @@
 #define VASURFACE_CAPS
 #endif
 
-#if (defined USE_VPUSMM || defined ENABLE_VAAPI)
+#if (defined ENABLE_VPUX || defined ENABLE_VAAPI)
 #define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, "{ NV12, RGBA, I420 }") "; "
 #else
 #define DMA_BUFFER_CAPS

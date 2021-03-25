@@ -1,20 +1,19 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "image_inference_async/image_inference_async.h"
 #include "openvino_image_inference.h"
-
-#define UNUSED(x) (void)(x)
+#include "utils.h"
 
 using namespace InferenceBackend;
 
 ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_type, const std::string &model,
                                                 const std::map<std::string, std::map<std::string, std::string>> &config,
                                                 Allocator *allocator, CallbackFunc callback,
-                                                ErrorHandlingFunc error_handler) {
+                                                ErrorHandlingFunc error_handler, const std::string &device_name) {
     MemoryType inference_memory_type;
     ImagePreprocessorType image_preprocessor_type = ImagePreprocessorType::INVALID;
     if (input_image_memory_type == MemoryType::VAAPI or input_image_memory_type == MemoryType::DMA_BUFFER) {
@@ -48,13 +47,13 @@ ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_ty
         if (image_preprocessor_type == ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
             void *display = image_inference_async->GetVaDisplay();
             auto infer = std::make_shared<OpenVINOImageInference>(model, config, display, callback, error_handler,
-                                                                  inference_memory_type);
+                                                                  inference_memory_type, device_name);
             image_inference_async->SetInference(infer);
             infer->Init();
             break;
         }
         auto infer = std::make_shared<OpenVINOImageInference>(model, config, allocator, callback, error_handler,
-                                                              inference_memory_type);
+                                                              inference_memory_type, device_name);
         image_inference_async->SetInference(infer);
         infer->Init();
         break;
@@ -65,7 +64,7 @@ ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_ty
 #endif
     case MemoryType::SYSTEM: {
         image_inference = std::make_shared<OpenVINOImageInference>(model, config, allocator, callback, error_handler,
-                                                                   input_image_memory_type);
+                                                                   input_image_memory_type, device_name);
         image_inference->Init();
         break;
     }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -27,6 +27,7 @@ typedef struct _GvaAudioBaseInference {
     gchar *model;
     gchar *model_proc;
     gchar *device;
+    int dma_fd; // used if VPUX remote blob enabled
 
     // other fields
     gboolean values_checked;

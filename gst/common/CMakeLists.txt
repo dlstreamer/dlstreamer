@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -39,15 +39,12 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${GSTREAMER_LIBRARIES}
-        ${GSTVIDEO_LIBRARIES}
+        ${GSTREAMER_LDFLAGS}
+        ${GSTVIDEO_LDFLAGS}
         ${GLIB2_LIBRARIES}
         logger
         gstvideoanalyticsmeta
         json-hpp
 PRIVATE
-        ${GSTALLOC_LIBRARIES}
+        ${GSTALLOC_LDFLAGS}
 )
-if (${USE_VPUSMM})
-        target_link_libraries(${TARGET_NAME} PUBLIC vpusmm)
-endif()

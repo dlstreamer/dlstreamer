@@ -37,21 +37,25 @@ The sample contains `model_proc` subfolder with .json files for each model with 
 ## Running
 
 ```sh
-./vehicle_pedestrian_tracking.sh [INPUT_VIDEO] [DETECTION_INTERVAL] [INFERENCE_PRECISION]
+./vehicle_pedestrian_tracking.sh [INPUT_VIDEO] [DETECTION_INTERVAL] [DEVICE] [SINK_ELEMENT]
 ```
 
-The sample takes three command-line parameters:
+The sample takes four command-line parameters:
 1. [INPUT_VIDEO] to specify input video.
 The input could be
     * video file path
     * web camera device (ex. /dev/video0)
-    * URL of RTSP camera (URL starts with `rtsp://`) or other streaming source (ex `http://`)
+    * URL of RTSP camera (URL starts with `rtsp://`) or other streaming source (ex `http://`)  
+If parameter is not specified, the sample by default streams video example from HTTPS link (utilizing `urisourcebin` element) so requires internet conection.
 2. [DETECTION_INTERVAL] to specify interval between inference requests. An interval of N performs inference on every Nth frame. Default value is 10
-3. [INFERENCE_PRECISION] to specify precision of the used models, it could be
-    * FP32 (Default)
-    * FP16
-    * INT8
-    * FP32-INT8
+3. [DEVICE] to specify device for detection and classification.  
+    Please refer to OpenVINO™ toolkit documentation for supported devices.  
+    https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_Supported_Devices.html  
+    You can find what devices are supported on your system by running following OpenVINO™ toolkit sample:  
+    https://docs.openvinotoolkit.org/latest/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html
+4. [SINK_ELEMENT] to choose between render mode and fps throughput mode:
+    * display - render (default)
+    * fps - FPS only
 
 ## Sample Output
 
