@@ -8,8 +8,8 @@ cmake_minimum_required (VERSION 3.1)
 
 project(VA_GStreamer_Plugins)
 
-if(NOT(UNIX))
-    message(FATAL_ERROR "Only UNIX supported")
+if(NOT(UNIX) AND NOT(WIN32))
+    message(FATAL_ERROR "Only UNIX and Windows supported")
 endif()
 
 if (NOT CMAKE_BUILD_TYPE)
@@ -77,18 +77,28 @@ set (DLSTREAMER_LIBRARIES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 find_package(Threads REQUIRED)
 
-# Common compilation flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations  -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wuninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
+if(WIN32)
+    add_compile_options("/permissive-" "/std:c++latest")
 
-if(TREAT_WARNING_AS_ERROR)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+    link_directories(${GSTREAMER_LIBRARY_DIRS})
+
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+elseif(UNIX)
+    # Common compilation flags
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations  -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wuninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
+
+    if(TREAT_WARNING_AS_ERROR)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+    endif()
+
+    # Additional compilation flags aplied to specific targets
+    set(C_FLAGS -Wall -Wextra)
+    set(CXX_FLAGS -Wall -Wextra)
 endif()
-
-# Additional compilation flags aplied to specific targets
-set(C_FLAGS -Wall -Wextra)
-set(CXX_FLAGS -Wall -Wextra)
 
 function (set_compile_flags TARGET)
     target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:C>:${C_FLAGS}> $<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>)
@@ -109,7 +119,7 @@ endif()
 
 
 ###############################################################################
-if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
+if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64" OR WIN32)
     option(ENABLE_ITT "Enable ITT for tracing" OFF)
     option(DOWNLOAD_VAS_TRACKER "Download VAS tracker" OFF)
 else()
@@ -117,7 +127,12 @@ else()
     option(DOWNLOAD_VAS_TRACKER "Download VAS tracker" ON)
 endif()
 
-option(ENABLE_VAS_TRACKER "Enables vas tracker as part of gvatrack" ON)
+if (UNIX)
+    option(ENABLE_VAS_TRACKER "Enables vas tracker as part of gvatrack" ON)
+else()
+    option(ENABLE_VAS_TRACKER "Enables vas tracker as part of gvatrack" OFF)
+endif()
+
 if (NOT ${ENABLE_VAS_TRACKER})
     message("ENABLE_VAS_TRACKER is set to OFF. gvatrack element won't be available")
 endif()
@@ -173,5 +188,9 @@ add_subdirectory(thirdparty)
 add_subdirectory(utils)
 
 if(${ENABLE_SAMPLES})
+if(WIN32)
+    add_subdirectory(win_samples)
+else()
     add_subdirectory(samples)
+endif()
 endif()

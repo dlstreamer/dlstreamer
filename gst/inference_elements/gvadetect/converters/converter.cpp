@@ -10,6 +10,10 @@
 #include "inference_backend/logger.h"
 #include "inference_backend/safe_arithmetic.h"
 
+#ifndef __PRETTY_FUNCTION__
+#define __PRETTY_FUNCTION__ __FUNCTION__
+#endif
+
 using namespace DetectionPlugin;
 using namespace Converters;
 

@@ -1,10 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "inference_backend/safe_arithmetic.h"
+#include <algorithm>
 #include <functional>
 
 #include "config.h"

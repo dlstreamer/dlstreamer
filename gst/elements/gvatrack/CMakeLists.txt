@@ -36,7 +36,7 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
     ${GLIB2_LIBRARIES}
     common
     utils

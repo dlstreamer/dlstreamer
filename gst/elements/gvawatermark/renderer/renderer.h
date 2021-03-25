@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,7 +11,9 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#ifdef __linux__
 #include <unistd.h>
+#endif
 #include <unordered_map>
 #include <vector>
 

@@ -61,14 +61,14 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${GSTREAMER_LDFLAGS}
-        ${GSTVIDEO_LDFLAGS}
+        ${GSTREAMER_LIBRARIES}
+        ${GSTVIDEO_LIBRARIES}
         ${OpenCV_LIBS}
         ${GLIB2_LIBRARIES}
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LDFLAGS})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
 endif()
 
 configure_file(${CMAKE_SOURCE_DIR}/cmake/dl-streamer.pc.in ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc @ONLY)

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,6 +17,18 @@
 #include <map>
 #include <string>
 #include <vector>
+
+#ifndef __linux__
+
+#ifndef uint
+#define uint unsigned int
+#endif // uint
+
+#ifndef ulong
+#define ulong unsigned long
+#endif // ulong
+
+#endif // __linux__
 
 struct _GvaAudioBaseInference;
 typedef struct _GvaAudioBaseInference GvaAudioBaseInference;
