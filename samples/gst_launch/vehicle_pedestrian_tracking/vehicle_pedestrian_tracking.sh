@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2020-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -9,9 +9,20 @@ set -e
 
 # input parameters
 FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/person-bicycle-car-detection.mp4}
+
 DETECTION_INTERVAL=${2:-10}
-INFERENCE_PRECISION=${3:-"FP32"}
-INFERENCE_DEVICE=CPU
+
+INFERENCE_DEVICE=${3:-CPU}
+
+if [[ $4 == "display" ]] || [[ -z $4 ]]; then
+  SINK_ELEMENT="gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
+elif [[ $4 == "fps" ]]; then
+  SINK_ELEMENT="gvafpscounter ! fakesink async=false "
+else
+  echo Error wrong value for SINK_ELEMENT parameter
+  echo Possible values: display - render, fps - show FPS only
+  exit
+fi
 
 MODEL_1=person-vehicle-bike-detection-crossroad-0078
 MODEL_2=person-attributes-recognition-crossroad-0230
@@ -32,36 +43,13 @@ else
   SOURCE_ELEMENT="filesrc location=${FILE}"
 fi
 
-GET_MODEL_PATH() {
-    model_name=$1
-    precision=${INFERENCE_PRECISION}
-    for models_dir in ${MODELS_PATH//:/ }; do
-        paths=$(find $models_dir -type f -name "*$model_name.xml" -print)
-        if [ ! -z "$paths" ];
-        then
-            considered_precision_paths=$(echo "$paths" | grep "/$precision/")
-           if [ ! -z "$considered_precision_paths" ];
-            then
-                echo $(echo "$considered_precision_paths" | head -n 1)
-                exit 0
-            else
-                echo $(echo "$paths" | head -n 1)
-                exit 0
-            fi
-        fi
-    done
-
-    echo -e "\e[31mModel $model_name file was not found. Please set MODELS_PATH\e[0m" 1>&2
-    exit 1
-}
-
 PROC_PATH() {
     echo $(dirname "$0")/model_proc/$1.json
 }
 
-DETECTION_MODEL=$(GET_MODEL_PATH $MODEL_1)
-PERSON_CLASSIFICATION_MODEL=$(GET_MODEL_PATH $MODEL_2)
-VEHICLE_CLASSIFICATION_MODEL=$(GET_MODEL_PATH $MODEL_3)
+DETECTION_MODEL=${MODELS_PATH}/intel/person-vehicle-bike-detection-crossroad-0078/FP32/person-vehicle-bike-detection-crossroad-0078.xml 
+PERSON_CLASSIFICATION_MODEL=${MODELS_PATH}/intel/person-attributes-recognition-crossroad-0230/FP32/person-attributes-recognition-crossroad-0230.xml
+VEHICLE_CLASSIFICATION_MODEL=${MODELS_PATH}/intel/vehicle-attributes-recognition-barrier-0039/FP32/vehicle-attributes-recognition-barrier-0039.xml
 
 DETECTION_MODEL_PROC=$(PROC_PATH $MODEL_1)
 PERSON_CLASSIFICATION_MODEL_PROC=$(PROC_PATH $MODEL_2)
@@ -87,7 +75,7 @@ PIPELINE="gst-launch-1.0 \
               reclassify-interval=${RECLASSIFY_INTERVAL} \
               device=${INFERENCE_DEVICE} object-class=vehicle ! \
   queue ! \
-  gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=true"
+  $SINK_ELEMENT"
 
 echo ${PIPELINE}
 ${PIPELINE}

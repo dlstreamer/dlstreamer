@@ -209,8 +209,8 @@ InferenceEngine::CNNNetwork IrModelLoader::load(InferenceEngine::Core &core, con
     return InferenceEngine::CNNNetwork();
 }
 
-std::string IrModelLoader::name(const InferenceEngine::CNNNetwork &network) {
-    return network.getName();
+std::string IrModelLoader::name(const NetworkReferenceWrapper &network) {
+    return network.getCNN().getName();
 }
 
 InferenceEngine::ExecutableNetwork IrModelLoader::import(InferenceEngine::CNNNetwork &network, const std::string &,
@@ -248,8 +248,8 @@ InferenceEngine::CNNNetwork CompiledModelLoader::load(InferenceEngine::Core &, c
     return InferenceEngine::CNNNetwork();
 }
 
-std::string CompiledModelLoader::name(const InferenceEngine::CNNNetwork &) {
-    return std::string();
+std::string CompiledModelLoader::name(const NetworkReferenceWrapper &network) {
+    return network.getExecutable().GetMetric(EXEC_NETWORK_METRIC_KEY(NETWORK_NAME));
 }
 
 InferenceEngine::ExecutableNetwork

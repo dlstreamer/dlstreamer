@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -51,7 +51,7 @@ YOLOConverter *YOLOConverter::makeYOLOConverter(const std::string &converter_typ
                         "your \"cells_number\" field in model_proc.");
         }
         return new YOLOV3Converter(classes_number, anchors, masks, cells_number, cells_number, iou_threshold,
-                                   bbox_number_on_cell, input_info.width, do_cls_softmax);
+                                   bbox_number_on_cell, input_info.width, do_cls_softmax, output_sigmoid_activation);
     }
     return nullptr;
 }
@@ -62,8 +62,8 @@ void YOLOConverter::storeObjects(std::vector<DetectedObject> &objects, const std
     runNms(objects);
 
     for (DetectedObject &object : objects) {
-        addRoi(&frame->buffer, frame->info, frame->image_transform_info, object.x, object.y, object.w, object.h,
-               object.class_id, object.confidence, gst_structure_copy(detection_result),
+        addRoi(frame, object.x, object.y, object.w, object.h, object.class_id, object.confidence,
+               gst_structure_copy(detection_result),
                labels); // each ROI gets its own copy, which is then
                         // owned by GstVideoRegionOfInterestMeta
     }

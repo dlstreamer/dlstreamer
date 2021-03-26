@@ -1,10 +1,14 @@
 /*******************************************************************************
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
+
+#include "vaapi_context.h"
+#include "vaapi_image_map.h"
+#include "vaapi_utils.h"
 
 #include "inference_backend/image.h"
 
@@ -12,9 +16,6 @@
 #include <future>
 #include <memory>
 #include <vector>
-
-#include "vaapi_context.h"
-#include "vaapi_image_map.h"
 
 namespace InferenceBackend {
 
@@ -27,7 +28,7 @@ struct VaApiImage {
 
     VaApiImage();
     VaApiImage(const VaApiImage &other) = delete;
-    VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, FourCC format, MemoryType memory_type);
+    VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, int format, MemoryType memory_type);
     ~VaApiImage();
 
     Image Map();

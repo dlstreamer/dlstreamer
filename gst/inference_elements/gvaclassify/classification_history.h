@@ -31,6 +31,7 @@ G_END_DECLS
 const size_t CLASSIFICATION_HISTORY_SIZE = 100;
 
 struct ClassificationHistory {
+  public:
     struct ROIClassificationHistory {
         uint64_t frame_of_last_update;
         std::map<std::string, GstStructureSharedPtr> layers_to_roi_params;
@@ -41,15 +42,19 @@ struct ClassificationHistory {
         }
     };
 
-    GstGvaClassify *gva_classify;
-    uint64_t current_num_frame;
-    LRUCache<int, ROIClassificationHistory> history;
-    std::mutex history_mutex;
-
     ClassificationHistory(GstGvaClassify *gva_classify);
 
     bool IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, uint64_t current_num_frame);
     void UpdateROIParams(int roi_id, const GstStructure *roi_param);
     void FillROIParams(GstBuffer *buffer);
+    LRUCache<int, ROIClassificationHistory> &GetHistory();
+
+  private:
+    void CheckExistingAndReaddObjectId(int roi_id);
+
+    GstGvaClassify *gva_classify;
+    uint64_t current_num_frame;
+    LRUCache<int, ROIClassificationHistory> history;
+    std::mutex history_mutex;
 };
 #endif

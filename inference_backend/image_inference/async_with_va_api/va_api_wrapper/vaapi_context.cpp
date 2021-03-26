@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,91 +10,57 @@
 
 #include <cassert>
 #include <tuple>
+#include <vector>
 
 #include <fcntl.h>
 #include <unistd.h>
-#include <va/va.h>
-#include <va/va_drm.h>
 
 using namespace InferenceBackend;
 
 namespace {
 
-static void message_callback_error(void *user_context, const char *message) {
-    (void)user_context;
+static void message_callback_error(void * /*user_ctx*/, const char *message) {
     GVA_ERROR(message);
 }
 
-static void message_callback_info(void *user_context, const char *message) {
-    (void)user_context;
+static void message_callback_info(void * /*user_ctx*/, const char *message) {
     GVA_INFO(message);
-}
-
-std::tuple<VADisplay, int> create_va_display_and_device_descriptor() {
-    int dri_file_descriptor = open("/dev/dri/renderD128", O_RDWR);
-    if (!dri_file_descriptor) {
-        throw std::runtime_error("Error opening /dev/dri/renderD128");
-    }
-
-    VADisplay display = vaGetDisplayDRM(dri_file_descriptor);
-    if (!display) {
-        throw std::runtime_error("Error opening VAAPI Display");
-    }
-
-    vaSetErrorCallback(display, message_callback_error, nullptr);
-    vaSetInfoCallback(display, message_callback_info, nullptr);
-    int major_version = 0, minor_version = 0;
-    VA_CALL(vaInitialize(display, &major_version, &minor_version));
-
-    return std::make_tuple(display, dri_file_descriptor);
-}
-
-std::tuple<VAConfigID, VAContextID> create_config_and_context(VADisplay display,
-                                                              int surface_rt_format = VA_RT_FORMAT_YUV420) {
-    if (!display) {
-        throw std::invalid_argument("VADisplay is nullptr. Cannot initialize VaApiContext without VADisplay.");
-    }
-    VAConfigAttrib attrib;
-    attrib.type = VAConfigAttribRTFormat;
-    VA_CALL(vaGetConfigAttributes(display, VAProfileNone, VAEntrypointVideoProc, &attrib, 1));
-    if (not(attrib.value & surface_rt_format))
-        throw std::invalid_argument("Unsupported runtime format for surface.");
-    VAConfigID config_id = 0;
-    VA_CALL(vaCreateConfig(display, VAProfileNone, VAEntrypointVideoProc, &attrib, 1, &config_id));
-    if (config_id == 0) {
-        throw std::invalid_argument("Could not create VA config. Cannot initialize VaApiContext without VA config.");
-    }
-    VAContextID context_id = 0;
-    VA_CALL(vaCreateContext(display, config_id, 0, 0, VA_PROGRESSIVE, nullptr, 0, &context_id));
-    if (context_id == 0) {
-        throw std::invalid_argument("Could not create VA context. Cannot initialize VaApiContext without VA context.");
-    }
-    return std::make_tuple(config_id, context_id);
 }
 
 } // namespace
 
-VaApiContext::VaApiContext(VADisplay va_display) : _va_display(va_display) {
-    if (!_va_display)
-        throw std::runtime_error("VADisplay is nullptr. Cannot initialize VaApiContext without VADisplay.");
-    std::tie(_va_config, _va_context_id) = create_config_and_context(_va_display);
+VaApiContext::VaApiContext(VADisplay va_display) : _display(va_display) {
+    create_config_and_contexts();
+    create_supported_pixel_formats();
+
+    assert(_va_config_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAConfigID.");
+    assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
 }
 
 VaApiContext::VaApiContext() {
-    std::tie(_va_display, _dri_file_descriptor) = create_va_display_and_device_descriptor();
+    create_va_display_and_device_descriptor();
+    set_callbacks_and_initialize_va_display();
     _own_va_display = true;
-    std::tie(_va_config, _va_context_id) = create_config_and_context(_va_display);
+
+    create_config_and_contexts();
+    create_supported_pixel_formats();
+
+    assert(_va_config_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAConfigID.");
+    assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
 }
 
 VaApiContext::~VaApiContext() {
+    auto vtable = _display.drvVtable();
+    auto ctx = _display.drvCtx();
+
     if (_va_context_id != VA_INVALID_ID) {
-        vaDestroyContext(_va_display, _va_context_id);
+        vtable.vaDestroyContext(ctx, _va_context_id);
     }
-    if (_va_config != VA_INVALID_ID) {
-        vaDestroyConfig(_va_display, _va_config);
+    if (_va_config_id != VA_INVALID_ID) {
+        vtable.vaDestroyConfig(ctx, _va_config_id);
     }
-    if (_va_display && _own_va_display) {
-        VAStatus status = vaTerminate(_va_display);
+    if (_display && _own_va_display) {
+        VAStatus status = VaApiLibBinder::get().Terminate(_display.raw());
         if (status != VA_STATUS_SUCCESS) {
             std::string error_message =
                 std::string("VA Display termination failed with code ") + std::to_string(status);
@@ -109,10 +75,123 @@ VaApiContext::~VaApiContext() {
     }
 }
 
-VAContextID VaApiContext::Id() {
+VAContextID VaApiContext::Id() const {
     return _va_context_id;
 }
 
-VADisplay VaApiContext::Display() {
-    return _va_display;
+VaDpyWrapper VaApiContext::Display() const {
+    return _display;
+}
+
+VADisplay VaApiContext::DisplayRaw() const {
+    return _display.raw();
+}
+
+int VaApiContext::RTFormat() const {
+    return _rt_format;
+}
+
+bool VaApiContext::IsPixelFormatSupported(int format) const {
+    return _supported_pixel_formats.count(format);
+}
+
+/**
+ * Creates VADisplay, sets the device descriptor and the VaDpyWrapper.
+ *
+ * @pre libva_drm_handle must be set to initialize VADisplay.
+ * @post _dri_file_descriptor is set.
+ * @post _display is set.
+ *
+ * @throw std::runtime_error if the initialization failed.
+ * @throw std::invalid_argument if display is null.
+ */
+void VaApiContext::create_va_display_and_device_descriptor() {
+    _dri_file_descriptor = open("/dev/dri/renderD128", O_RDWR);
+    if (!_dri_file_descriptor) {
+        throw std::runtime_error("Error opening /dev/dri/renderD128");
+    }
+
+    _display = VaDpyWrapper::fromHandle(VaApiLibBinder::get().GetDisplayDRM(_dri_file_descriptor));
+}
+
+/**
+ * Sets the internal VADisplay's error and info callbacks. Initializes the internal VADisplay.
+ *
+ * @pre _display must be set.
+ * @pre libva_handle must be set to initialize VADisplay.
+ * @pre message_callback_error, message_callback_info functions must reside in namespace to set callbacks.
+ *
+ * @throw std::runtime_error if the initialization failed.
+ * @throw std::invalid_argument if display is null.
+ */
+void VaApiContext::set_callbacks_and_initialize_va_display() {
+    assert(_display);
+
+    _display.dpyCtx()->error_callback = message_callback_error;
+    _display.dpyCtx()->error_callback_user_context = nullptr;
+
+    _display.dpyCtx()->info_callback = message_callback_info;
+    _display.dpyCtx()->info_callback_user_context = nullptr;
+
+    int major_version = 0, minor_version = 0;
+    VA_CALL(VaApiLibBinder::get().Initialize(_display.raw(), &major_version, &minor_version));
+}
+
+/**
+ * Creates config, va context, and sets the driver context using the internal VADisplay.
+ * Setting the VADriverContextP, VAConfigID, and VAContextID to the corresponding variables.
+ *
+ * @pre _display must be set and initialized.
+ * @post _va_config_id is set.
+ * @post _va_context_id is set.
+ *
+ * @throw std::invalid_argument if the VaDpyWrapper is not created, runtime format not supported, unable to get config
+ * attributes, unable to create config, or unable to create context.
+ */
+void VaApiContext::create_config_and_contexts() {
+    assert(_display);
+
+    auto ctx = _display.drvCtx();
+    auto vtable = _display.drvVtable();
+
+    VAConfigAttrib format_attrib;
+    format_attrib.type = VAConfigAttribRTFormat;
+    VA_CALL(vtable.vaGetConfigAttributes(ctx, VAProfileNone, VAEntrypointVideoProc, &format_attrib, 1));
+    if (not(format_attrib.value & _rt_format))
+        throw std::invalid_argument("Could not create context. Runtime format is not supported.");
+
+    VAConfigAttrib attrib;
+    attrib.type = VAConfigAttribRTFormat;
+    attrib.value = _rt_format;
+
+    VA_CALL(vtable.vaCreateConfig(ctx, VAProfileNone, VAEntrypointVideoProc, &attrib, 1, &_va_config_id));
+    if (_va_config_id == 0) {
+        throw std::invalid_argument("Could not create VA config. Cannot initialize VaApiContext without VA config.");
+    }
+    VA_CALL(vtable.vaCreateContext(ctx, _va_config_id, 0, 0, VA_PROGRESSIVE, nullptr, 0, &_va_context_id));
+    if (_va_context_id == 0) {
+        throw std::invalid_argument("Could not create VA context. Cannot initialize VaApiContext without VA context.");
+    }
+}
+
+/**
+ * Creates a set of formats supported by image.
+ *
+ * @pre _display must be set and initialized.
+ * @post _supported_pixel_formats is set.
+ *
+ * @throw std::runtime_error if vaQueryImageFormats return non success code
+ */
+void VaApiContext::create_supported_pixel_formats() {
+    assert(_display);
+
+    auto ctx = _display.drvCtx();
+    auto vtable = _display.drvVtable();
+
+    std::vector<VAImageFormat> image_formats(ctx->max_image_formats);
+    int size = 0;
+    VA_CALL(vtable.vaQueryImageFormats(ctx, image_formats.data(), &size));
+
+    for (int i = 0; i < size; i++)
+        _supported_pixel_formats.insert(image_formats[i].fourcc);
 }

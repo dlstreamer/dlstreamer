@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2019 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -12,16 +12,16 @@ set(VAS_THIRDPARTY_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(EXTRACT_OS_NAME "grep '^NAME=\".*\"' /etc/os-release | sed '1 s/^NAME=\"\\(.*\\)\"$/\\1/'")
 
-set(BASE_URL "https://downloadmirror.intel.com/29997/eng")
+set(BASE_URL "https://downloadmirror.intel.com/30258/eng")
 
 execute_process(
     COMMAND bash -c ${EXTRACT_OS_NAME}
     OUTPUT_VARIABLE DIS)
 if("${DIS}" MATCHES "Ubuntu")
-    set(ARCHIVE_NAME "vasot.2021.2.ubuntu.opencv.4.5.1.tar.xz")
+    set(ARCHIVE_NAME "vasot.2021.3.ubuntu18.opencv.4.5.2.tar.xz")
     set(LIBVASOT_ARCHIVE_URL "${BASE_URL}/${ARCHIVE_NAME}")
 else()
-    set(ARCHIVE_NAME "vasot.2021.2.centos.opencv.4.5.1.tar.xz")
+    set(ARCHIVE_NAME "vasot.2021.3.centos7.opencv.4.5.2.tar.xz")
     set(LIBVASOT_ARCHIVE_URL "${BASE_URL}/${ARCHIVE_NAME}")
 endif()
 

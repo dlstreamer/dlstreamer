@@ -1,10 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gva_audio_base_inference.h"
+#include "utils.h"
 #include <sys/stat.h>
 
 #define DEFAULT_MODEL NULL
@@ -12,8 +13,7 @@
 #define DEFAULT_SLIDING_WINDOW 1
 #define DEFAULT_THRESHOLD 0.5
 #define DEFAULT_DEVICE "CPU"
-
-#define UNUSED(x) (void)(x)
+#define DEFAULT_DMA_FD 0
 
 enum { PROP_0, PROP_MODEL, PROP_MODEL_PROC, PROP_SLIDING_WINDOW, PROP_THRESHOLD, PROP_DEVICE };
 
@@ -40,6 +40,7 @@ static void gva_audio_base_inference_init(GvaAudioBaseInference *audio_base_infe
     audio_base_inference->threshold = DEFAULT_THRESHOLD;
     audio_base_inference->device = g_strdup(DEFAULT_DEVICE);
     audio_base_inference->values_checked = FALSE;
+    audio_base_inference->dma_fd = DEFAULT_DMA_FD;
 }
 
 static void gva_audio_base_inference_class_init(GvaAudioBaseInferenceClass *klass) {

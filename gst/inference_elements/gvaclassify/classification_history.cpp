@@ -7,6 +7,7 @@
 #include "classification_history.h"
 #include "gva_utils.h"
 #include "inference_backend/logger.h"
+#include "inference_impl.h"
 #include "utils.h"
 #include <video_frame.h>
 
@@ -54,10 +55,16 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
 void ClassificationHistory::UpdateROIParams(int roi_id, const GstStructure *roi_param) {
     try {
         std::lock_guard<std::mutex> guard(history_mutex);
+
         const gchar *layer_c = gst_structure_get_name(roi_param);
         if (not layer_c)
             throw std::runtime_error("Can't get name of region of interest param structure");
         std::string layer(layer_c);
+
+        // To prevent attempts to access removed objects,
+        // we should readd lost objects to history if needed
+        CheckExistingAndReaddObjectId(roi_id);
+
         history.get(roi_id).layers_to_roi_params[layer] =
             GstStructureSharedPtr(gst_structure_copy(roi_param), gst_structure_free);
     } catch (const std::exception &e) {
@@ -73,7 +80,10 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
             gint id = region.object_id();
             if (!id)
                 continue;
-            if (history.count(id)) {
+            InferenceImpl *inference = gva_classify->base_inference.inference;
+            assert(inference && "Empty inference instance");
+            bool is_appropriate_object_class = inference->FilterObjectClass(region.label());
+            if (history.count(id) && is_appropriate_object_class) {
                 const auto &roi_history = history.get(id);
                 int frames_ago = this->current_num_frame - roi_history.frame_of_last_update;
                 for (const auto &layer_to_roi_param : roi_history.layers_to_roi_params) {
@@ -95,6 +105,21 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
     } catch (const std::exception &e) {
         std::string err = "Failed to fill detection tensor parameters from history:\n" + Utils::createNestedErrorMsg(e);
         GVA_ERROR(err.c_str());
+    }
+}
+
+LRUCache<int, ClassificationHistory::ROIClassificationHistory> &ClassificationHistory::GetHistory() {
+    return history;
+}
+
+void ClassificationHistory::CheckExistingAndReaddObjectId(int roi_id) {
+    if (history.count(roi_id) == 0) {
+        GVA_WARNING("Classification history size limit is exceeded. "
+                    "Additional reclassification within reclassify-interval is required.");
+        GvaBaseInference *base_inference = GVA_BASE_INFERENCE(gva_classify);
+        current_num_frame = base_inference->frame_num;
+        history.put(roi_id);
+        history.get(roi_id).frame_of_last_update = current_num_frame;
     }
 }
 

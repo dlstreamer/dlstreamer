@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -27,12 +27,13 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     OpenVINOImageInference(const std::string &model,
                            const std::map<std::string, std::map<std::string, std::string>> &config,
                            InferenceBackend::Allocator *allocator, CallbackFunc callback,
-                           ErrorHandlingFunc error_handler, InferenceBackend::MemoryType memory_type);
+                           ErrorHandlingFunc error_handler, InferenceBackend::MemoryType memory_type,
+                           const std::string &device_name);
 
     OpenVINOImageInference(const std::string &model,
                            const std::map<std::string, std::map<std::string, std::string>> &config, void *display,
                            CallbackFunc callback, ErrorHandlingFunc error_handler,
-                           InferenceBackend::MemoryType memory_type);
+                           InferenceBackend::MemoryType memory_type, const std::string &device_name);
 
     virtual ~OpenVINOImageInference();
 
@@ -94,7 +95,13 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::condition_variable request_processed_;
     std::mutex flush_mutex;
 
+    // For VPUX devices
+    // TODO: Re-implement these variables usage (with OOP)
+    bool has_vpu_device_id = false;
+    std::string vpu_device_name;
+
   private:
+    InferenceEngine::RemoteContext::Ptr CreateRemoteContext();
     bool doNeedImagePreProcessing();
     void SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img,

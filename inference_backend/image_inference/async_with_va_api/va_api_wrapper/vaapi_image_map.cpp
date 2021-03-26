@@ -1,11 +1,10 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "vaapi_image_map.h"
-#include "vaapi_utils.h"
 
 #include "inference_backend/logger.h"
 
@@ -35,12 +34,14 @@ VaApiImageMap_SytemMemory::~VaApiImageMap_SytemMemory() {
 
 Image VaApiImageMap_SytemMemory::Map(const Image &image) {
 
-    va_display = image.va_display;
+    /* Throws in case of invalid VADisplay */
+    auto dpy = VaDpyWrapper::fromHandle(image.va_display);
+    va_display = dpy.raw();
 
-    VA_CALL(vaDeriveImage(va_display, image.va_surface_id, &va_image))
+    VA_CALL(dpy.drvVtable().vaDeriveImage(dpy.drvCtx(), image.va_surface_id, &va_image))
 
     void *surface_p = nullptr;
-    VA_CALL(vaMapBuffer(va_display, va_image.buf, &surface_p))
+    VA_CALL(dpy.drvVtable().vaMapBuffer(dpy.drvCtx(), va_image.buf, &surface_p));
 
     Image image_sys = Image();
     image_sys.type = MemoryType::SYSTEM;
@@ -58,8 +59,9 @@ Image VaApiImageMap_SytemMemory::Map(const Image &image) {
 void VaApiImageMap_SytemMemory::Unmap() {
     if (va_display) {
         try {
-            VA_CALL(vaUnmapBuffer(va_display, va_image.buf))
-            VA_CALL(vaDestroyImage(va_display, va_image.image_id))
+            auto dpy = VaDpyWrapper::fromHandle(va_display);
+            VA_CALL(dpy.drvVtable().vaUnmapBuffer(dpy.drvCtx(), va_image.buf));
+            VA_CALL(dpy.drvVtable().vaDestroyImage(dpy.drvCtx(), va_image.image_id));
         } catch (const std::exception &e) {
             std::string error_message =
                 std::string("VA buffer unmapping (destroying) failed with exception: ") + e.what();

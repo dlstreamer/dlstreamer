@@ -1,55 +1,18 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "converters/ssd.h"
-
 #include "gstgvadetect.h"
+
 #include "gva_utils.h"
 #include "inference_backend/logger.h"
 #include "video_frame.h"
 
 using namespace DetectionPlugin;
 using namespace Converters;
-
-/**
- * Compares to metas of type GstVideoRegionOfInterestMeta by roi_type and coordinates.
- *
- * @param[in] left - pointer to first GstVideoRegionOfInterestMeta operand.
- * @param[in] right - pointer to second GstVideoRegionOfInterestMeta operand.
- *
- * @return true if given metas are equal, false otherwise.
- */
-inline bool sameRegion(GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInterestMeta *right) {
-    return left->roi_type == right->roi_type && left->x == right->x && left->y == right->y && left->w == right->w &&
-           left->h == right->h;
-}
-
-/**
- * Iterating through GstBuffer's metas and searching for meta that matching frame's ROI.
- *
- * @param[in] frame - pointer to InferenceFrame containing pointers to buffer and ROI.
- *
- * @return GstVideoRegionOfInterestMeta - meta of GstBuffer, or nullptr.
- *
- * @throw std::invalid_argument when GstBuffer is nullptr.
- */
-inline GstVideoRegionOfInterestMeta *findDetectionMeta(InferenceFrame *frame) {
-    GstBuffer *buffer = frame->buffer;
-    if (not buffer)
-        throw std::invalid_argument("Inference frame's buffer is nullptr");
-    auto frame_roi = &frame->roi;
-    GstVideoRegionOfInterestMeta *meta = NULL;
-    gpointer state = NULL;
-    while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
-        if (sameRegion(meta, frame_roi)) {
-            return meta;
-        }
-    }
-    return meta;
-}
 
 /**
  * Applies inference results to the buffer. Extracting data from each resulting blob,
@@ -122,26 +85,15 @@ bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputB
                     continue;
                 }
 
-                gdouble x_min = data[i * object_size + 3];
-                gdouble y_min = data[i * object_size + 4];
-                gdouble x_max = data[i * object_size + 5];
-                gdouble y_max = data[i * object_size + 6];
-                /* In case of gvadetect with inference-region=roi-list we get coordinates relative to ROI.
-                 * We need to convert them to coordinates relative to the full frame. */
-                if (frames[image_id]->gva_base_inference->inference_region == ROI_LIST) {
-                    GstVideoRegionOfInterestMeta *meta = findDetectionMeta(frames[image_id].get());
-                    if (meta) {
-                        x_min = (meta->x + meta->w * data[i * object_size + 3]) / frames[image_id]->info->width;
-                        y_min = (meta->y + meta->h * data[i * object_size + 4]) / frames[image_id]->info->height;
-                        x_max = (meta->x + meta->w * data[i * object_size + 5]) / frames[image_id]->info->width;
-                        y_max = (meta->y + meta->h * data[i * object_size + 6]) / frames[image_id]->info->height;
-                    }
-                }
+                gfloat bbox_x = data[i * object_size + 3];
+                gfloat bbox_y = data[i * object_size + 4];
+                gfloat bbox_w = data[i * object_size + 5] - bbox_x;
+                gfloat bbox_h = data[i * object_size + 6] - bbox_y;
 
                 // This post processing happens not in main gstreamer thread (but in separate one). Thus, we can run
-                // into a problem where buffer's gva_base_inference is already cleaned up (all frames are pushed from
-                // decoder), so we can't use gva_base_inference's GstVideoInfo to get width and height. In this case we
-                // use w and h of InferenceFrame to make VideoFrame box adding logic work correctly
+                // into a problem where buffer's gva_base_inference is already cleaned up (all frames are pushed
+                // from decoder), so we can't use gva_base_inference's GstVideoInfo to get width and height. In this
+                // case we use w and h of InferenceFrame to make VideoFrame box adding logic work correctly
                 if (frames[image_id]->gva_base_inference->info) {
                     video_info = *frames[image_id]->gva_base_inference->info;
                 } else {
@@ -155,18 +107,13 @@ bool SSDConverter::process(const std::map<std::string, InferenceBackend::OutputB
                 // TODO: check if we can simplify below code further
                 // apply roi_scale if set
                 if (roi_scale > 0 && roi_scale != 1) {
-                    gdouble x_center = (x_max + x_min) * 0.5;
-                    gdouble y_center = (y_max + y_min) * 0.5;
-                    gdouble new_w = (x_max - x_min) * roi_scale;
-                    gdouble new_h = (y_max - y_min) * roi_scale;
-                    x_min = x_center - new_w * 0.5;
-                    x_max = x_center + new_w * 0.5;
-                    y_min = y_center - new_h * 0.5;
-                    y_max = y_center + new_h * 0.5;
+                    bbox_x = bbox_x + bbox_w / 2 * (1 - roi_scale);
+                    bbox_y = bbox_y + bbox_h / 2 * (1 - roi_scale);
+                    bbox_w = bbox_w * roi_scale;
+                    bbox_h = bbox_h * roi_scale;
                 }
-
-                addRoi(&frames[image_id]->buffer, frames[image_id]->info, frames[image_id]->image_transform_info, x_min,
-                       y_min, x_max - x_min, y_max - y_min, label_id, confidence, gst_structure_copy(detection_result),
+                addRoi(frames[image_id], bbox_x, bbox_y, bbox_w, bbox_h, label_id, confidence,
+                       gst_structure_copy(detection_result),
                        labels); // each ROI gets its own copy, which is then
                                 // owned by GstVideoRegionOfInterestMeta
             }

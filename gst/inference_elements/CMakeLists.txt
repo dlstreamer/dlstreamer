@@ -68,10 +68,10 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
+    ${GSTREAMER_LDFLAGS}
+    ${GSTVIDEO_LDFLAGS}
+    ${GSTALLOC_LDFLAGS}
     ${OpenCV_LIBS}
-    ${GSTREAMER_LIBRARIES}
-    ${GSTVIDEO_LIBRARIES}
-    ${GSTALLOC_LIBRARIES}
     common
     image_inference
     image_inference_openvino

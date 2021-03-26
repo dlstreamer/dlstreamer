@@ -10,8 +10,6 @@
 #include "inference_backend/logger.h"
 #include "inference_backend/safe_arithmetic.h"
 
-#include "gva_utils.h"
-
 using namespace DetectionPlugin;
 using namespace Converters;
 
@@ -24,7 +22,7 @@ void Converter::getLabelByLabelId(GValueArray *labels, int label_id, gchar **out
     }
 }
 
-void Converter::clipNormalizedRect(double &x, double &y, double &w, double &h) {
+void Converter::clipNormalizedRect(float &x, float &y, float &w, float &h) {
     if (!((x >= 0) && (y >= 0) && (w >= 0) && (h >= 0) && (x + w <= 1) && (y + h <= 1))) {
         GST_DEBUG("ROI coordinates x=[%.5f, %.5f], y=[%.5f, %.5f] are out of range [0,1] and will be clipped", x, x + w,
                   y, y + h);
@@ -38,7 +36,7 @@ void Converter::clipNormalizedRect(double &x, double &y, double &w, double &h) {
 
 void Converter::getActualCoordinates(int orig_image_width, int orig_image_height,
                                      const InferenceBackend::ImageTransformationParams::Ptr &pre_proc_info,
-                                     double &real_x, double &real_y, double &real_w, double &real_h, uint32_t &abs_x,
+                                     float &real_x, float &real_y, float &real_w, float &real_h, uint32_t &abs_x,
                                      uint32_t &abs_y, uint32_t &abs_w, uint32_t &abs_h) {
     if (pre_proc_info) {
         if (pre_proc_info->WasTransformation()) {
@@ -73,10 +71,10 @@ void Converter::getActualCoordinates(int orig_image_width, int orig_image_height
                 abs_w = abs_max_x - abs_x;
                 abs_h = abs_max_y - abs_y;
 
-                real_x = static_cast<double>(abs_x) / orig_image_width;
-                real_y = static_cast<double>(abs_y) / orig_image_height;
-                real_w = static_cast<double>(abs_w) / orig_image_width;
-                real_h = static_cast<double>(abs_h) / orig_image_height;
+                real_x = static_cast<float>(abs_x) / orig_image_width;
+                real_y = static_cast<float>(abs_y) / orig_image_height;
+                real_w = static_cast<float>(abs_w) / orig_image_width;
+                real_h = static_cast<float>(abs_h) / orig_image_height;
                 clipNormalizedRect(real_x, real_y, real_w, real_h);
             } else {
                 abs_x = input_img_abs_min_x;
@@ -98,21 +96,72 @@ void Converter::getActualCoordinates(int orig_image_width, int orig_image_height
     abs_h = safe_convert<uint32_t>(real_h * orig_image_height + 0.5);
 }
 
-void Converter::addRoi(GstBuffer **buffer, GstVideoInfo *info,
-                       const InferenceBackend::ImageTransformationParams::Ptr &pre_proc_info, double x, double y,
-                       double w, double h, int label_id, double confidence, GstStructure *detection_tensor,
-                       GValueArray *labels) {
+/**
+ * Compares to metas of type GstVideoRegionOfInterestMeta by roi_type and coordinates.
+ *
+ * @param[in] left - pointer to first GstVideoRegionOfInterestMeta operand.
+ * @param[in] right - pointer to second GstVideoRegionOfInterestMeta operand.
+ *
+ * @return true if given metas are equal, false otherwise.
+ */
+bool sameRegion(GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInterestMeta *right) {
+    return left->roi_type == right->roi_type && left->x == right->x && left->y == right->y && left->w == right->w &&
+           left->h == right->h;
+}
+
+/**
+ * Iterating through GstBuffer's metas and searching for meta that matching frame's ROI.
+ *
+ * @param[in] frame - pointer to InferenceFrame containing pointers to buffer and ROI.
+ *
+ * @return GstVideoRegionOfInterestMeta - meta of GstBuffer, or nullptr.
+ *
+ * @throw std::invalid_argument when GstBuffer is nullptr.
+ */
+GstVideoRegionOfInterestMeta *findDetectionMeta(InferenceFrame *frame) {
+    GstBuffer *buffer = frame->buffer;
+    if (not buffer)
+        throw std::invalid_argument("Inference frame's buffer is nullptr");
+    auto frame_roi = &frame->roi;
+    GstVideoRegionOfInterestMeta *meta = NULL;
+    gpointer state = NULL;
+    while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
+        if (sameRegion(meta, frame_roi)) {
+            return meta;
+        }
+    }
+    return meta;
+}
+void updateCoordinatesToFullFrame(gfloat &x, gfloat &y, gfloat &w, gfloat &h, InferenceFrame *frame) {
+    /* In case of gvadetect with inference-region=roi-list we get coordinates relative to ROI.
+     * We need to convert them to coordinates relative to the full frame. */
+    if (frame->gva_base_inference->inference_region == ROI_LIST) {
+        GstVideoRegionOfInterestMeta *meta = findDetectionMeta(frame);
+        if (meta) {
+            x = (meta->x + meta->w * x) / frame->info->width;
+            y = (meta->y + meta->h * y) / frame->info->height;
+            w = (meta->w * w) / frame->info->width;
+            h = (meta->h * h) / frame->info->height;
+        }
+    }
+}
+
+void Converter::addRoi(const std::shared_ptr<InferenceFrame> frame, float x, float y, float w, float h, int label_id,
+                       double confidence, GstStructure *detection_tensor, GValueArray *labels) {
+
     clipNormalizedRect(x, y, w, h);
 
     gchar *label = nullptr;
     getLabelByLabelId(labels, label_id, &label);
 
     uint32_t _x, _y, _w, _h;
-    getActualCoordinates(info->width, info->height, pre_proc_info, x, y, w, h, _x, _y, _w, _h);
+    getActualCoordinates(frame->info->width, frame->info->height, frame->image_transform_info, x, y, w, h, _x, _y, _w,
+                         _h);
+    updateCoordinatesToFullFrame(x, y, w, h, frame.get());
+    gva_buffer_check_and_make_writable(&frame->buffer, __PRETTY_FUNCTION__);
 
-    gva_buffer_check_and_make_writable(buffer, __PRETTY_FUNCTION__);
-
-    GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(*buffer, label, _x, _y, _w, _h);
+    GstVideoRegionOfInterestMeta *meta =
+        gst_buffer_add_video_region_of_interest_meta(frame->buffer, label, _x, _y, _w, _h);
     g_free(label);
     if (not meta)
         throw std::runtime_error("Failed to add GstVideoRegionOfInterestMeta to buffer");

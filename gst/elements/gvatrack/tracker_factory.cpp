@@ -16,17 +16,24 @@ std::map<GstGvaTrackingType, TrackerFactory::TrackerCreator> TrackerFactory::reg
 bool TrackerFactory::registered_all = TrackerFactory::RegisterAll();
 
 bool TrackerFactory::RegisterAll() {
+    using namespace std::placeholders;
+    using namespace vas::ot;
+
     bool result = true;
 
-#if defined(ENABLE_VAS_TRACKER)
-#if defined(DOWNLOAD_VAS_TRACKER)
-    result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM, VasWrapper::Tracker::CreateShortTerm);
-    result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM, VasWrapper::Tracker::CreateZeroTerm);
-#endif
+#ifdef ENABLE_VAS_TRACKER
+    auto create_vas_tracker = [](const GstGvaTrack *gva_track, TrackingType tracking_type) -> ITracker * {
+        return new VasWrapper::Tracker(gva_track, tracking_type);
+    };
+
+    result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM,
+                                       std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_KCFVAR));
+    result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM,
+                                       std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_COLOR_HISTOGRAM));
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM_IMAGELESS,
-                                       VasWrapper::Tracker::CreateShortTermImageless);
-    result &=
-        TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS, VasWrapper::Tracker::CreateZeroTermImageless);
+                                       std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_IMAGELESS));
+    result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS,
+                                       std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_IMAGELESS));
 #endif
 
     return result;

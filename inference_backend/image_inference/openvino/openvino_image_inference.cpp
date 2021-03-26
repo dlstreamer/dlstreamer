@@ -14,11 +14,17 @@
 #include "utils.h"
 #include "wrap_image.h"
 
+#ifdef ENABLE_VPUX
+#include <ie_remote_context.hpp>
+#include <vpux/kmb_params.hpp>
+#endif
+
 #include <chrono>
 #include <functional>
 #include <ie_compound_blob.h>
 #include <ie_core.hpp>
 #include <inference_engine.hpp>
+#include <regex>
 #include <stdio.h>
 #include <thread>
 
@@ -147,9 +153,13 @@ std::string getErrorMsg(InferenceEngine::StatusCode code) {
 
     case InferenceEngine::StatusCode::NETWORK_NOT_READ:
         return std::string("NETWORK_NOT_READ");
-    }
 
-    return std::string("UNKNOWN_IE_STATUS_CODE");
+    case InferenceEngine::StatusCode::INFER_CANCELLED:
+        return std::string("INFER_CANCELLED");
+
+    default:
+        return std::string("UNKNOWN_IE_STATUS_CODE");
+    }
 }
 
 void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest> &batch_request) {
@@ -197,7 +207,8 @@ void OpenVINOImageInference::setBlobsToInferenceRequest(
 OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
                                                const std::map<std::string, std::map<std::string, std::string>> &config,
                                                Allocator *allocator, CallbackFunc callback,
-                                               ErrorHandlingFunc error_handler, MemoryType memory_type)
+                                               ErrorHandlingFunc error_handler, MemoryType memory_type,
+                                               const std::string &device_name)
     : initialized(), allocator(allocator), memory_type(memory_type),
       batch_size(std::stoi(config.at(KEY_BASE).at(KEY_BATCH_SIZE))), requests_processing_(0U) {
     builder = ModelLoader::is_compile_model(model) ? std::unique_ptr<EntityBuilder>(new CompiledBuilder(config, model))
@@ -205,18 +216,26 @@ OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
     if (not builder)
         throw std::runtime_error("Failed to create DL model loader");
     network = builder->createNetwork(core);
-    model_name = builder->getNetworkName(network);
     this->callback = callback;
     this->handleError = error_handler;
     const std::map<std::string, std::string> &base_config = config.at(KEY_BASE);
     nireq = std::stoi(base_config.at(KEY_NIREQ));
     this->display = nullptr;
+#ifdef ENABLE_VPUX
+    std::tie(this->has_vpu_device_id, this->vpu_device_name) = Utils::parseDeviceName(device_name);
+    if (!this->vpu_device_name.empty()) {
+        const std::string msg = "VPUX device defined as " + this->vpu_device_name;
+        GVA_INFO(msg.c_str());
+    }
+#else
+    UNUSED(device_name);
+#endif
 }
 
 OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
                                                const std::map<std::string, std::map<std::string, std::string>> &config,
                                                void *display, CallbackFunc callback, ErrorHandlingFunc error_handler,
-                                               MemoryType memory_type)
+                                               MemoryType memory_type, const std::string &device_name)
     : initialized(), display(display), memory_type(memory_type),
       batch_size(std::stoi(config.at(KEY_BASE).at(KEY_BATCH_SIZE))), requests_processing_(0U) {
     builder = ModelLoader::is_compile_model(model)
@@ -225,12 +244,20 @@ OpenVINOImageInference::OpenVINOImageInference(const std::string &model,
     if (not builder)
         throw std::runtime_error("Failed to create DL model loader");
     network = builder->createNetwork(core);
-    model_name = builder->getNetworkName(network);
     this->callback = callback;
     this->handleError = error_handler;
     const std::map<std::string, std::string> &base_config = config.at(KEY_BASE);
     nireq = std::stoi(base_config.at(KEY_NIREQ));
     this->allocator = nullptr;
+#ifdef ENABLE_VPUX
+    std::tie(this->has_vpu_device_id, this->vpu_device_name) = Utils::parseDeviceName(device_name);
+    if (!this->vpu_device_name.empty()) {
+        const std::string msg = "VPUX device defined as " + this->vpu_device_name;
+        GVA_INFO(msg.c_str());
+    }
+#else
+    UNUSED(device_name);
+#endif
 }
 
 void OpenVINOImageInference::Init() {
@@ -238,6 +265,9 @@ void OpenVINOImageInference::Init() {
         InferenceEngine::ExecutableNetwork executable_network;
         std::tie(pre_processor, executable_network, image_layer) =
             builder->createPreProcAndExecutableNetwork(network, core);
+
+        NetworkReferenceWrapper network_ref(network, executable_network);
+        model_name = builder->getNetworkName(network_ref);
 
         inputs = executable_network.GetInputsInfo();
         outputs = executable_network.GetOutputsInfo();
@@ -253,11 +283,16 @@ void OpenVINOImageInference::Init() {
             nireq = optimalNireq(executable_network);
         }
 
+        InferenceEngine::RemoteContext::Ptr remote_context = CreateRemoteContext();
         for (int i = 0; i < nireq; i++) {
             std::shared_ptr<BatchRequest> batch_request = std::make_shared<BatchRequest>();
             batch_request->infer_request = executable_network.CreateInferRequestPtr();
-            if (memory_type == MemoryType::DMA_BUFFER or memory_type == MemoryType::VAAPI)
-                batch_request->ie_remote_context = executable_network.GetContext();
+            if (!vpu_device_name.empty()) {
+                batch_request->ie_remote_context = remote_context;
+            } else {
+                if (memory_type == MemoryType::DMA_BUFFER or memory_type == MemoryType::VAAPI)
+                    batch_request->ie_remote_context = executable_network.GetContext();
+            }
             setCompletionCallback(batch_request);
             if (allocator) {
                 setBlobsToInferenceRequest(layers, batch_request, allocator);
@@ -269,6 +304,26 @@ void OpenVINOImageInference::Init() {
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to construct OpenVINOImageInference"));
     }
+}
+
+InferenceEngine::RemoteContext::Ptr OpenVINOImageInference::CreateRemoteContext() {
+    InferenceEngine::RemoteContext::Ptr remote_context;
+#ifdef ENABLE_VPUX
+    if (!vpu_device_name.empty()) {
+        const std::string base_device = "VPUX";
+        std::string device = vpu_device_name;
+        if (!has_vpu_device_id) {
+            // Retrieve ID of the first available device
+            std::vector<std::string> device_list = core.GetMetric(base_device, METRIC_KEY(AVAILABLE_DEVICES));
+            if (!device_list.empty())
+                device = device_list.at(0);
+            // else device is already set to VPU-0
+        }
+        const InferenceEngine::ParamMap params = {{InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), device}};
+        remote_context = core.CreateContext(base_device, params);
+    }
+#endif
+    return remote_context;
 }
 
 bool OpenVINOImageInference::IsQueueFull() {
@@ -351,7 +406,10 @@ void OpenVINOImageInference::BypassImageProcessing(const std::string &input_name
     InferenceEngine::Blob::Ptr blob;
     switch (memory_type) {
     case MemoryType::SYSTEM:
-        blob = WrapImageToBlob(src_img);
+        if (vpu_device_name.empty())
+            blob = WrapImageToBlob(src_img, WrapImageStrategy::General());
+        else
+            blob = WrapImageToBlob(src_img, WrapImageStrategy::VPUX(request->ie_remote_context));
         break;
 #ifdef ENABLE_VAAPI
     case MemoryType::DMA_BUFFER:

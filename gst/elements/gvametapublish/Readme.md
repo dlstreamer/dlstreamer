@@ -1,4 +1,4 @@
-**GVAMETAPUBLISH**
+# GVAMETAPUBLISH
 
 A GStreamer element to publish JSON data to a designated file, or a chosen message broker:
 
@@ -19,11 +19,6 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
 
 2. Run [metapublish](https://github.com/openvinotoolkit/dlstreamer_gst/blob/master/samples/gst_launch/metapublish/metapublish.sh) sample to test
 
-    vehicle_detection_publish_file_json.sh
-    vehicle_detection_publish_file_json_lines.sh
-    vehicle_detection_publish_mqtt.sh
-    vehicle_detection_publish_kafka.sh
-
 3. Create your own pipeline and add gvametapublish element with the following parameters:
 
     ```bash
@@ -35,7 +30,7 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
         gvametapublish method=file filepath="/root/video-examples/detections_2019.json" file-format=json-lines
         ```
 
-    2. To publish data to mqtt broker:
+    - To publish data to mqtt broker:
 
         ```bash
         gvametapublish method=mqtt address=127.0.0.1:1883 mqtt-client-id=clientIdValue topic=topicName timeout=timeoutValue
@@ -43,6 +38,8 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
 
     - To publish data to kafka broker:
 
-    gvametapublish method=kafka address=127.0.0.1:9092 topic=topicName
+        ```bash
+        gvametapublish method=kafka address=127.0.0.1:9092 topic=topicName
+        ```
 
 Note: \*method is a required property of gvametapublish element.

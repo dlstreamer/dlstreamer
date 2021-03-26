@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020 Intel Corporation
+# Copyright (C) 2020-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -22,7 +22,7 @@ AUIDO_MODEL_NAME=aclnet
 
 AUIDO_MODEL_ONNX_DESTINATION=${AUDIO_MODELS_PATH}/"aclnet_des_53".onnx
 mkdir -p ${AUDIO_MODELS_PATH} 
-wget --tries=1 --timeout=90 $AUIDO_ONNX_MODEL_SOURCE --output-document=$AUIDO_MODEL_ONNX_DESTINATION
+curl --connect-timeout 90 $AUIDO_ONNX_MODEL_SOURCE --output $AUIDO_MODEL_ONNX_DESTINATION
 
 if [ ! -d "$MO_DIR" ]
 then

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,6 +8,7 @@
 
 #include "common/pre_processors.h"
 #include "config.h"
+#include "utils.h"
 
 #define DEFAULT_MODEL NULL
 #define DEFAULT_MODEL_INSTANCE_ID NULL
@@ -16,6 +17,7 @@
 #define DEFAULT_DEVICE_EXTENSIONS ""
 #define DEFAULT_PRE_PROC ""
 #define DEFAULT_INFERENCE_REGION FULL_FRAME
+#define DEFAULT_OBJECT_CLASS NULL
 
 #define DEFAULT_MIN_THRESHOLD 0.
 #define DEFAULT_MAX_THRESHOLD 1.
@@ -54,11 +56,7 @@
 #define DEFAULT_MIN_GPU_THROUGHPUT_STREAMS 0
 #define DEFAULT_MAX_GPU_THROUGHPUT_STREAMS UINT_MAX
 
-#define DEFAULT_VPU_DEVICE_ID 0
-
 #define DEFAULT_ALLOCATOR_NAME NULL
-
-#define UNUSED(x) (void)(x)
 
 G_DEFINE_TYPE(GvaBaseInference, gva_base_inference, GST_TYPE_BASE_TRANSFORM);
 
@@ -80,7 +78,8 @@ enum {
     PROP_GPU_THROUGHPUT_STREAMS,
     PROP_IE_CONFIG,
     PROP_DEVICE_EXTENSIONS,
-    PROP_INFERENCE_REGION
+    PROP_INFERENCE_REGION,
+    PROP_OBJECT_CLASS
 };
 
 GType gst_gva_base_inference_get_inf_region(void) {
@@ -256,6 +255,11 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
                           "Identifier responsible for the region on which inference will be performed",
                           GST_TYPE_GVA_BASE_INFERENCE_REGION, DEFAULT_INFERENCE_REGION,
                           G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(
+        gobject_class, PROP_OBJECT_CLASS,
+        g_param_spec_string("object-class", "ObjectClass",
+                            "Filter for Region of Interest class label on this element input", DEFAULT_OBJECT_CLASS,
+                            (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
@@ -305,6 +309,11 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
 
     base_inference->num_skipped_frames = UINT_MAX - 1; // always run inference on first frame
     base_inference->frame_num = DEFAULT_FIRST_FRAME_NUM;
+
+    if (base_inference->object_class) {
+        g_free(base_inference->object_class);
+        base_inference->object_class = NULL;
+    }
 }
 
 void gva_base_inference_init(GvaBaseInference *base_inference) {
@@ -330,7 +339,6 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     // TODO: make one property for streams
     base_inference->cpu_streams = DEFAULT_CPU_THROUGHPUT_STREAMS;
     base_inference->gpu_streams = DEFAULT_GPU_THROUGHPUT_STREAMS;
-    base_inference->vpu_device_id = DEFAULT_VPU_DEVICE_ID;
     base_inference->ie_config = g_strdup("");
     base_inference->allocator_name = g_strdup(DEFAULT_ALLOCATOR_NAME);
     base_inference->device_extensions = g_strdup(DEFAULT_DEVICE_EXTENSIONS);
@@ -339,12 +347,16 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->info = NULL;
     base_inference->inference_region = DEFAULT_INFERENCE_REGION;
     base_inference->inference = NULL;
-    base_inference->is_roi_classification_needed = NULL;
+
+    base_inference->is_roi_inference_needed = IS_ROI_INFERENCE_NEEDED;
+    base_inference->specific_roi_filter = NULL;
+
     base_inference->pre_proc = NULL;
     base_inference->input_prerocessors_factory = GET_INPUT_PREPROCESSORS;
     base_inference->post_proc = NULL;
 
     base_inference->frame_num = DEFAULT_FIRST_FRAME_NUM;
+    base_inference->object_class = DEFAULT_OBJECT_CLASS;
 }
 
 GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstStateChange transition) {
@@ -467,6 +479,13 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_INFERENCE_REGION:
         base_inference->inference_region = g_value_get_enum(value);
         break;
+    case PROP_OBJECT_CLASS:
+        g_free(base_inference->object_class);
+        base_inference->object_class = g_value_dup_string(value);
+        // It is necessary to update the vector of object classes
+        // after possible change of this property
+        update_inference_object_classes(base_inference);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -530,6 +549,9 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_INFERENCE_REGION:
         g_value_set_enum(value, base_inference->inference_region);
         break;
+    case PROP_OBJECT_CLASS:
+        g_value_set_string(value, base_inference->object_class);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -575,6 +597,9 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
         GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_GET_CLASS(base_inference);
         if (base_inference_class->on_initialized)
             base_inference_class->on_initialized(base_inference);
+        // We need to set the vector of object classes
+        // after InferenceImpl instance acquirement
+        update_inference_object_classes(base_inference);
     }
 
     return base_inference->inference != NULL;
@@ -598,6 +623,13 @@ gboolean gva_base_inference_check_properties_correctness(GvaBaseInference *base_
     if (base_inference->model_proc != NULL && !g_file_test(base_inference->model_proc, G_FILE_TEST_EXISTS)) {
         GST_ELEMENT_ERROR(base_inference, RESOURCE, NOT_FOUND, ("'model-proc' does not exist"),
                           ("path %s set in 'model-proc' does not exist", base_inference->model_proc));
+        return FALSE;
+    }
+
+    if (base_inference->inference_region == FULL_FRAME && base_inference->object_class &&
+        !g_str_equal(base_inference->object_class, "")) {
+        GST_ERROR_OBJECT(base_inference, ("You cannot use 'object-class' property if you set 'full-frame' for "
+                                          "'inference-region' property."));
         return FALSE;
     }
 

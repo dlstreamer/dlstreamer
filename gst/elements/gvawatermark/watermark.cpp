@@ -427,7 +427,7 @@ gboolean draw(GstGvaWatermark *gvawatermark, GstBuffer *buffer) {
         gva_buffer_map(buffer, image, mapContext, &gvawatermark->info, InferenceBackend::MemoryType::SYSTEM,
                        GST_MAP_READWRITE);
         auto mapContextPtr = std::unique_ptr<BufferMapContext, std::function<void(BufferMapContext *)>>(
-            &mapContext, [&](BufferMapContext *mapContext) { gva_buffer_unmap(buffer, image, *mapContext); });
+            &mapContext, [&](BufferMapContext *mapContext) { gva_buffer_unmap(*mapContext); });
 
         std::vector<std::shared_ptr<cv::Mat>> image_planes = convertImageToMat(image);
         GVA::VideoFrame video_frame(buffer, &gvawatermark->info);

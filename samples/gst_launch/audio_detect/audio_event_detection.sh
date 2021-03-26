@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -29,28 +29,6 @@ else
 fi
 
 
-GET_MODEL_PATH() {
-    model_name=$1
-    for models_dir in ${AUDIO_MODELS_PATH//:/ }; do
-        paths=$(find $models_dir -type f -name "*$model_name.xml" -print)
-        if [ ! -z "$paths" ];
-        then
-            considered_precision_paths=$(echo "$paths" | grep "/$PRECISION/")
-           if [ ! -z "$considered_precision_paths" ];
-            then
-                echo $(echo "$considered_precision_paths" | head -n 1)
-                exit 0
-            else
-                echo $(echo "$paths" | head -n 1)
-                exit 0
-            fi
-        fi
-    done
-
-    echo -e "\e[31mModel $model_name file was not found. Please set AUDIO_MODELS_PATH\e[0m" 1>&2
-    exit 1
-}
-
 PROC_PATH() {
     AUDIO_MODEL_PROC_PATH=$(dirname "$0")/model_proc/$1.json
     if [ ! -f "$AUDIO_MODEL_PROC_PATH" ]
@@ -61,7 +39,7 @@ PROC_PATH() {
     echo $AUDIO_MODEL_PROC_PATH
 }
 
-MODEL_PATH=$(GET_MODEL_PATH $MODEL)
+MODEL_PATH=${MODELS_PATH}/audio_models/aclnet/FP32/aclnet.xml
 
 MODEL_PROC_PATH=$(PROC_PATH $MODEL)
 

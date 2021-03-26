@@ -23,7 +23,7 @@ Modify `MODEL=` line in the script to benchmark pipeline on another model.
 
 You can download video file example by command
 ```sh
-wget https://github.com/intel-iot-devkit/sample-videos/raw/master/bolt-detection.mp4
+curl https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4\" --output /path/to/your/video/head-pose-face-detection-female-and-male.mp4
 ```
 or use any other media/video file.
 

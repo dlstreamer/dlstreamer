@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,6 +14,8 @@
 #endif /* KAFKA_INC */
 #include "gva_caps.h"
 #include "gva_json_meta.h"
+#include "utils.h"
+
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -21,8 +23,6 @@
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_publish_debug_category
-
-#define UNUSED(x) (void)(x)
 
 #define ELEMENT_LONG_NAME "Generic metadata publisher"
 #define ELEMENT_DESCRIPTION "Publishes the JSON metadata to MQTT or Kafka message brokers or files."

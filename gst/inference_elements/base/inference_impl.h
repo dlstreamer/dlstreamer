@@ -10,7 +10,6 @@
 #include "gstgvaclassify.h"
 #include "gva_base_inference.h"
 
-#include "feature_toggling/ifeature_toggler.h"
 #include "inference_backend/image_inference.h"
 
 #include <gst/video/video.h>
@@ -36,6 +35,10 @@ class InferenceImpl {
     void FlushInference();
     const std::vector<Model> &GetModels() const;
 
+    void UpdateObjectClasses(GvaBaseInference *gva_base_inference);
+    bool FilterObjectClass(GstVideoRegionOfInterestMeta *roi) const;
+    bool FilterObjectClass(const std::string &object_class) const;
+
     ~InferenceImpl();
 
   private:
@@ -53,16 +56,14 @@ class InferenceImpl {
         INFERENCE_EXECUTED = 1,
         INFERENCE_SKIPPED_PER_PROPERTY = 2, // frame skipped due to inference-interval set to value greater than 1
         INFERENCE_SKIPPED_NO_BLOCK = 3,     // frame skipped due to no-block policy
-        INFERENCE_SKIPPED_ROI = 4           // roi skipped because is_roi_classification_needed() returned false
+        INFERENCE_SKIPPED_ROI = 4           // roi skipped because is_roi_inference_needed() returned false
     };
+
+    std::vector<std::string> object_classes;
 
     mutable std::mutex _mutex;
     std::vector<Model> models;
     std::shared_ptr<InferenceBackend::Allocator> allocator;
-    std::unique_ptr<FeatureToggling::Base::IFeatureToggler> feature_toggler;
-
-    // for VPUX devices
-    unsigned int vpu_device_id;
 
     struct OutputFrame {
         GstBuffer *buffer;
@@ -81,7 +82,7 @@ class InferenceImpl {
     void InferenceCompletionCallback(std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,
                                      std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
     void UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inference_roi);
-    Model CreateModel(std::map<std::string, std::map<std::string, std::string>> config, const std::string &model_file,
+    Model CreateModel(GvaBaseInference *gva_base_inference, const std::string &model_file,
                       const std::string &model_proc_path);
 
     GstFlowReturn SubmitImages(GvaBaseInference *gva_base_inference,
