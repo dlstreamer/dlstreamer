@@ -1,10 +1,16 @@
-# gstreamer-vaapi-patch
+# gstreamer-vaapi-patches
 
-LGPL-licensed patch for gstreamer-vaapi plugins to allow other MIT-licences plugins to extract VASurfaceID and VADisplay from GstBuffer created by VAAPI plugins. This patch is meant to enable VA-API preprocessor of inference elements.
+There are two LGPL-licensed patches for gstreamer-vaapi plugins:
 
-## How to use this patch
+* vasurface_qdata.patch \
+Patch allows other MIT-licences plugins to extract VASurfaceID and VADisplay from GstBuffer created by VAAPI plugins. Which is meant to enable VA-API preprocessor of inference elements.
 
-To build gstreamer-vaapi with this patch you have to proceed following steps:
+* video-format-mapping.patch \
+Patch to improve the mapping between VA and GST formats. The new map will be generated dynamically, based on the query result of ab image format in VA driver. Also consider the ambiguity of RGB color format in LSB mode.
+
+## How to use these patches
+
+To build gstreamer-vaapi with these patches you have to proceed following steps:
 
 1. Install *meson* and *ninja*. We need them to configure and build gstreamer-vaapi project
 
@@ -24,10 +30,11 @@ mkdir -p $HOME/mygst-vaapi
 cd $HOME/mygst-vaapi
 ```
 
-4. Download patch (usually, you can take last version of file from `master`-branch of DL Streamer's repository)
+4. Download patches (usually, you can take last version of file from `master`-branch of DL Streamer's repository)
 
 ```sh
 wget https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/vasurface_qdata.patch
+wget https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/video-format-mapping.patch
 ```
 
 5. Download appropriate version of gstreamer-vaapi's sources (e.g. 1.16.2)
@@ -48,13 +55,14 @@ tar xf gstreamer-vaapi-1.16.2.tar.xz
 cd gstreamer-vaapi-1.16.2
 ```
 
-8. Apply patch
+8. Apply patches
 
 ```sh
 patch -p1 < ../vasurface_qdata.patch
+patch -p1 < ../video-format-mapping.patch
 ```
 
-9. Configure for building gstreamer-vaapi with applied patch (disable examples, docs and test because we don't need them)
+9. Configure for building gstreamer-vaapi with applied patches (disable examples, docs and test because we don't need them)
 
 ```sh
 meson \
