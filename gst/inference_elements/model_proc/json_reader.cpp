@@ -70,7 +70,7 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value) {
             g_value_init(&gvalue, GST_TYPE_STRUCTURE);
             json obj = (json)value;
             GstStructure *s = gst_structure_new_empty("jsonobject");
-            for (json::const_iterator it = obj.begin(); it != obj.end(); ++it) {
+            for (auto it = obj.begin(); it != obj.end(); ++it) {
                 std::string key = it.key();
                 auto value = it.value();
                 GValue gvalue = JsonReader::convertToGValue(value);
