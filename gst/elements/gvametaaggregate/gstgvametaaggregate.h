@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,6 +9,8 @@
 
 #include <gst/base/gstaggregator.h>
 #include <gst/video/video.h>
+
+#include <gva_caps.h>
 
 G_BEGIN_DECLS
 
@@ -39,6 +41,7 @@ typedef struct _GstGvaMetaAggregatePadClass GstGvaMetaAggregatePadClass;
 struct _GstGvaMetaAggregatePad {
     GstAggregatorPad parent;
     GstVideoInfo info;
+    CapsFeature caps_feature;
     GstBuffer *buffer;
     GstClockTime start_time;
     GstClockTime end_time;

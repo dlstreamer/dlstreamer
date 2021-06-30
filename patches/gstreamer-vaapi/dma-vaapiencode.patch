@@ -1,0 +1,399 @@
+diff --git a/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h b/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
+index 445201de..a0a7a11f 100644
+--- a/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
++++ b/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
+@@ -66,8 +66,14 @@ struct _GstVaapiBufferProxy {
+   GDestroyNotify        destroy_func;
+   gpointer              destroy_data;
+   guint                 type;
+-  VABufferID            va_buf;
+-  VABufferInfo          va_info;
++  union {
++    struct {
++      VABufferID            va_buf;
++      VABufferInfo          va_info;
++    };
++    /* Used for DRM_PRIME_2 */
++    VADRMPRIMESurfaceDescriptor va_descriptor;
++  };
+ };
+ 
+ G_GNUC_INTERNAL
+diff --git a/gst-libs/gst/vaapi/gstvaapidisplay.h b/gst-libs/gst/vaapi/gstvaapidisplay.h
+index 07ecc82f..aa5f3c65 100644
+--- a/gst-libs/gst/vaapi/gstvaapidisplay.h
++++ b/gst-libs/gst/vaapi/gstvaapidisplay.h
+@@ -26,6 +26,7 @@
+ #define GST_VAAPI_DISPLAY_H
+ 
+ #include <va/va.h>
++#include <va/va_drmcommon.h>
+ #include <gst/gst.h>
+ #include <gst/vaapi/gstvaapitypes.h>
+ #include <gst/vaapi/gstvaapiprofile.h>
+diff --git a/gst-libs/gst/vaapi/gstvaapifilter.c b/gst-libs/gst/vaapi/gstvaapifilter.c
+index e3be777a..e3f8ef26 100644
+--- a/gst-libs/gst/vaapi/gstvaapifilter.c
++++ b/gst-libs/gst/vaapi/gstvaapifilter.c
+@@ -1857,6 +1857,10 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
+ /**
+  * gst_vaapi_filter_get_formats:
+  * @filter: a #GstVaapiFilter
++ * @min_width: the min width can be supported.
++ * @min_height: the min height can be supported.
++ * @max_width: the max width can be supported.
++ * @max_width: the max width can be supported.
+  *
+  * Determines the set of supported source or target formats for video
+  * processing.  The caller owns an extra reference to the resulting
+@@ -1866,12 +1870,31 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
+  * Return value: the set of supported target formats for video processing.
+  */
+ GArray *
+-gst_vaapi_filter_get_formats (GstVaapiFilter * filter)
++gst_vaapi_filter_get_formats (GstVaapiFilter * filter, gint * min_width,
++    gint * min_height, gint * max_width, gint * max_height)
+ {
++  GstVaapiConfigSurfaceAttributes *attribs;
++
+   g_return_val_if_fail (filter != NULL, NULL);
+ 
+   if (!ensure_attributes (filter))
+     return NULL;
++
++  attribs = filter->attribs;
++
++  if (attribs->min_width >= attribs->max_width ||
++      attribs->min_height >= attribs->max_height)
++    return NULL;
++
++  if (min_width)
++    *min_width = attribs->min_width;
++  if (min_height)
++    *min_height = attribs->min_height;
++  if (max_width)
++    *max_width = attribs->max_width;
++  if (max_height)
++    *max_height = attribs->max_height;
++
+   if (filter->attribs->formats)
+     return g_array_ref (filter->attribs->formats);
+   return NULL;
+diff --git a/gst-libs/gst/vaapi/gstvaapifilter.h b/gst-libs/gst/vaapi/gstvaapifilter.h
+index fcc968f0..e236b7d4 100644
+--- a/gst-libs/gst/vaapi/gstvaapifilter.h
++++ b/gst-libs/gst/vaapi/gstvaapifilter.h
+@@ -211,7 +211,8 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
+     GstVaapiSurface * src_surface, GstVaapiSurface * dst_surface, guint flags);
+ 
+ GArray *
+-gst_vaapi_filter_get_formats (GstVaapiFilter * filter);
++gst_vaapi_filter_get_formats (GstVaapiFilter * filter, gint * min_width,
++    gint * min_height, gint * max_width, gint * max_height);
+ 
+ gboolean
+ gst_vaapi_filter_set_format (GstVaapiFilter * filter, GstVideoFormat format);
+diff --git a/gst/vaapi/gstvaapidecode.c b/gst/vaapi/gstvaapidecode.c
+index 329c0e65..6ced27bb 100644
+--- a/gst/vaapi/gstvaapidecode.c
++++ b/gst/vaapi/gstvaapidecode.c
+@@ -269,16 +269,16 @@ gst_vaapidecode_ensure_allowed_srcpad_caps (GstVaapiDecode * decode)
+   gst_caps_set_features_simple (va_caps,
+       gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_VAAPI_SURFACE));
+ 
+-  if (GST_VAAPI_PLUGIN_BASE_SRC_PAD_CAN_DMABUF (decode)
+-      && gst_vaapi_mem_type_supports (mem_types,
+-          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF)) {
++  if (gst_vaapi_mem_type_supports (mem_types,
++          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF) ||
++      gst_vaapi_mem_type_supports (mem_types,
++          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF2)) {
+     dma_caps = gst_caps_copy (base_caps);
+     gst_caps_set_features_simple (dma_caps,
+         gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_DMABUF));
+   }
+ #if (USE_GLX || USE_EGL)
+-  if (!GST_VAAPI_PLUGIN_BASE_SRC_PAD_CAN_DMABUF (decode)
+-      && gst_vaapi_display_has_opengl (GST_VAAPI_PLUGIN_BASE_DISPLAY (decode))) {
++  if (gst_vaapi_display_has_opengl (GST_VAAPI_PLUGIN_BASE_DISPLAY (decode))) {
+     gltexup_caps = gst_caps_from_string (GST_VAAPI_MAKE_GLTEXUPLOAD_CAPS);
+     if (gltexup_caps) {
+       gst_vaapi_caps_set_width_and_height_range (base_caps, min_width,
+@@ -553,8 +553,6 @@ is_src_allocator_dmabuf (GstVaapiDecode * decode)
+ {
+   GstVaapiPluginBase *const plugin = GST_VAAPI_PLUGIN_BASE (decode);
+ 
+-  if (!GST_VAAPI_PLUGIN_BASE_SRC_PAD_CAN_DMABUF (plugin))
+-    return FALSE;
+   return
+       gst_vaapi_is_dmabuf_allocator (GST_VAAPI_PLUGIN_BASE_SRC_PAD_ALLOCATOR
+       (plugin));
+diff --git a/gst/vaapi/gstvaapipluginbase.c b/gst/vaapi/gstvaapipluginbase.c
+index 72b28b86..ca0ecb99 100644
+--- a/gst/vaapi/gstvaapipluginbase.c
++++ b/gst/vaapi/gstvaapipluginbase.c
+@@ -1017,7 +1017,6 @@ gst_vaapi_plugin_base_decide_allocation (GstVaapiPluginBase * plugin,
+       if (gst_structure_get (params, "gst.gl.GstGLContext", GST_TYPE_GL_CONTEXT,
+               &gl_context, NULL) && gl_context) {
+         gst_vaapi_plugin_base_set_gl_context (plugin, gl_context);
+-        gst_vaapi_plugin_base_set_srcpad_can_dmabuf (plugin, gl_context);
+         gst_object_unref (gl_context);
+       }
+     }
+@@ -1517,31 +1516,6 @@ gst_vaapi_plugin_base_get_allowed_sinkpad_raw_caps (GstVaapiPluginBase * plugin)
+   return plugin->allowed_raw_caps;
+ }
+ 
+-/**
+- * gst_vaapi_plugin_base_set_srcpad_can_dmabuf:
+- * @plugin: a #GstVaapiPluginBase
+- * @object: the GL context from gst-gl
+- *
+- * This function will determine if @object supports dmabuf
+- * importing on the base plugin static srcpad.
+- *
+- * Please note that the context @object should come from downstream.
+- **/
+-void
+-gst_vaapi_plugin_base_set_srcpad_can_dmabuf (GstVaapiPluginBase * plugin,
+-    GstObject * object)
+-{
+-#if USE_EGL && USE_GST_GL_HELPERS
+-  GstVaapiPadPrivate *srcpriv = GST_VAAPI_PAD_PRIVATE (plugin->srcpad);
+-  GstGLContext *const gl_context = GST_GL_CONTEXT (object);
+-
+-  srcpriv->can_dmabuf =
+-      (!(gst_gl_context_get_gl_api (gl_context) & GST_GL_API_GLES1)
+-      && gst_gl_context_check_feature (gl_context,
+-          "EGL_EXT_image_dma_buf_import"));
+-#endif
+-}
+-
+ static void
+ _init_performance_debug (void)
+ {
+diff --git a/gst/vaapi/gstvaapipluginbase.h b/gst/vaapi/gstvaapipluginbase.h
+index 94aa296f..9182ed46 100644
+--- a/gst/vaapi/gstvaapipluginbase.h
++++ b/gst/vaapi/gstvaapipluginbase.h
+@@ -89,8 +89,6 @@ typedef struct _GstVaapiPadPrivate GstVaapiPadPrivate;
+   (GST_VAAPI_PLUGIN_BASE_SRC_PAD_PRIVATE(plugin)->caps)
+ #define GST_VAAPI_PLUGIN_BASE_SRC_PAD_INFO(plugin) \
+   (&GST_VAAPI_PLUGIN_BASE_SRC_PAD_PRIVATE(plugin)->info)
+-#define GST_VAAPI_PLUGIN_BASE_SRC_PAD_CAN_DMABUF(plugin) \
+-  (GST_VAAPI_PLUGIN_BASE_SRC_PAD_PRIVATE(plugin)->can_dmabuf)
+ #define GST_VAAPI_PLUGIN_BASE_SRC_PAD_BUFFER_POOL(plugin) \
+   (GST_VAAPI_PLUGIN_BASE_SRC_PAD_PRIVATE(plugin)->buffer_pool)
+ #define GST_VAAPI_PLUGIN_BASE_SRC_PAD_ALLOCATOR(plugin) \
+@@ -132,8 +130,6 @@ struct _GstVaapiPadPrivate
+   guint buffer_size;
+   gboolean caps_is_raw;
+ 
+-  gboolean can_dmabuf;
+-
+   GstAllocator *other_allocator;
+   GstAllocationParams other_allocator_params;
+ };
+@@ -301,11 +297,6 @@ G_GNUC_INTERNAL
+ GstCaps *
+ gst_vaapi_plugin_base_get_allowed_sinkpad_raw_caps (GstVaapiPluginBase * plugin);
+ 
+-G_GNUC_INTERNAL
+-void
+-gst_vaapi_plugin_base_set_srcpad_can_dmabuf (GstVaapiPluginBase * plugin,
+-    GstObject * object);
+-
+ G_GNUC_INTERNAL
+ gboolean
+ gst_vaapi_plugin_copy_va_buffer (GstVaapiPluginBase * plugin,
+diff --git a/gst/vaapi/gstvaapipluginutil.c b/gst/vaapi/gstvaapipluginutil.c
+index b98f305f..3e7d9c50 100644
+--- a/gst/vaapi/gstvaapipluginutil.c
++++ b/gst/vaapi/gstvaapipluginutil.c
+@@ -348,9 +348,7 @@ gst_vaapi_find_gl_context (GstElement * element)
+ 
+   gst_vaapi_find_gl_local_context (element, &plugin->gl_context);
+ 
+-  if (plugin->gl_context) {
+-    gst_vaapi_plugin_base_set_srcpad_can_dmabuf (plugin, plugin->gl_context);
+-  } else {
++  if (!plugin->gl_context) {
+     GstObject *gl_context;
+ 
+     gl_context = gst_vaapi_plugin_base_create_gl_context (plugin);
+@@ -1123,7 +1121,9 @@ gst_vaapi_build_caps_from_formats (GArray * formats, gint min_width,
+       gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_VAAPI_SURFACE));
+ 
+   if (gst_vaapi_mem_type_supports (mem_types,
+-          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF)) {
++          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF) ||
++      gst_vaapi_mem_type_supports (mem_types,
++          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF2)) {
+     dma_caps = gst_caps_copy (raw_caps);
+     gst_caps_set_features_simple (dma_caps,
+         gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_DMABUF));
+diff --git a/gst/vaapi/gstvaapipluginutil.h b/gst/vaapi/gstvaapipluginutil.h
+index 236ccd3a..9eb52342 100644
+--- a/gst/vaapi/gstvaapipluginutil.h
++++ b/gst/vaapi/gstvaapipluginutil.h
+@@ -117,7 +117,7 @@ gst_vaapi_caps_feature_contains (const GstCaps * caps,
+ 
+ #define GST_VAAPI_MAKE_DMABUF_CAPS                                      \
+     GST_VIDEO_CAPS_MAKE_WITH_FEATURES(                                  \
+-        GST_CAPS_FEATURE_MEMORY_DMABUF, "{ I420, YV12, RGBA }")
++        GST_CAPS_FEATURE_MEMORY_DMABUF, GST_VAAPI_FORMATS_ALL)
+ 
+ G_GNUC_INTERNAL
+ gboolean
+diff --git a/gst/vaapi/gstvaapipostproc.c b/gst/vaapi/gstvaapipostproc.c
+index 5f7d9cd8..e51f89e8 100644
+--- a/gst/vaapi/gstvaapipostproc.c
++++ b/gst/vaapi/gstvaapipostproc.c
+@@ -38,6 +38,7 @@
+ #include <gst/video/video.h>
+ 
+ #include <gst/vaapi/gstvaapivalue.h>
++#include <gst/vaapi/gstvaapiprofilecaps.h>
+ 
+ #include "gstvaapipostproc.h"
+ #include "gstvaapipostprocutil.h"
+@@ -62,7 +63,9 @@ static const char gst_vaapipostproc_sink_caps_str[] =
+   GST_VAAPI_MAKE_SURFACE_CAPS ", "
+   GST_CAPS_INTERLACED_MODES "; "
+   GST_VIDEO_CAPS_MAKE (GST_VAAPI_FORMATS_ALL) ", "
+-   GST_CAPS_INTERLACED_MODES;
++  GST_CAPS_INTERLACED_MODES "; "
++  GST_VIDEO_CAPS_MAKE_WITH_FEATURES (GST_CAPS_FEATURE_MEMORY_DMABUF, GST_VAAPI_FORMATS_ALL) ", "
++  GST_CAPS_INTERLACED_MODES;
+ /* *INDENT-ON* */
+ 
+ /* *INDENT-OFF* */
+@@ -74,7 +77,7 @@ static const char gst_vaapipostproc_src_caps_str[] =
+ #endif
+   GST_VIDEO_CAPS_MAKE (GST_VAAPI_FORMATS_ALL) ", "
+   GST_CAPS_INTERLACED_MODES "; "
+-  GST_VAAPI_MAKE_DMABUF_CAPS;
++  GST_VIDEO_CAPS_MAKE_WITH_FEATURES (GST_CAPS_FEATURE_MEMORY_DMABUF, GST_VAAPI_FORMATS_ALL);
+ /* *INDENT-ON* */
+ 
+ /* *INDENT-OFF* */
+@@ -287,7 +290,8 @@ gst_vaapipostproc_ensure_filter_caps (GstVaapiPostproc * postproc)
+   }
+ 
+   if (!postproc->filter_formats) {
+-    postproc->filter_formats = gst_vaapi_filter_get_formats (postproc->filter);
++    postproc->filter_formats = gst_vaapi_filter_get_formats (postproc->filter,
++        NULL, NULL, NULL, NULL);
+     if (!postproc->filter_formats)
+       return FALSE;
+   }
+@@ -1292,50 +1296,51 @@ gst_vaapipostproc_update_src_caps (GstVaapiPostproc * postproc, GstCaps * caps,
+ static gboolean
+ ensure_allowed_sinkpad_caps (GstVaapiPostproc * postproc)
+ {
+-  GstCaps *out_caps, *raw_caps;
+-  guint i, num_structures;
+-
+-  if (postproc->allowed_sinkpad_caps)
+-    return TRUE;
+-
+-  if (!GST_VAAPI_PLUGIN_BASE_DISPLAY (postproc))
+-    return FALSE;
++  GstCaps *out_caps = NULL;
++  guint mem_types;
++  gint min_width, min_height, max_width, max_height;
++  GArray *mem_formats = NULL;
++  gboolean ret = TRUE;
+ 
+-  /* Create VA caps */
+-  out_caps = gst_caps_from_string (GST_VAAPI_MAKE_SURFACE_CAPS ", "
+-      GST_CAPS_INTERLACED_MODES);
+-  if (!out_caps) {
+-    GST_WARNING_OBJECT (postproc, "failed to create VA sink caps");
+-    return FALSE;
++  if (postproc->allowed_sinkpad_caps) {
++    ret = TRUE;
++    goto out;
+   }
+ 
+-  raw_caps = gst_vaapi_plugin_base_get_allowed_sinkpad_raw_caps
+-      (GST_VAAPI_PLUGIN_BASE (postproc));
+-  if (!raw_caps) {
+-    gst_caps_unref (out_caps);
+-    GST_WARNING_OBJECT (postproc, "failed to create YUV sink caps");
+-    return FALSE;
++  if (!GST_VAAPI_PLUGIN_BASE_DISPLAY (postproc)) {
++    ret = FALSE;
++    goto out;
+   }
+ 
+-  out_caps = gst_caps_make_writable (out_caps);
+-  gst_caps_append (out_caps, gst_caps_copy (raw_caps));
+-
+-  num_structures = gst_caps_get_size (out_caps);
+-  for (i = 0; i < num_structures; i++) {
+-    GstStructure *structure;
++  if (!gst_vaapipostproc_ensure_filter_caps (postproc)) {
++    ret = FALSE;
++    goto out;
++  }
+ 
+-    structure = gst_caps_get_structure (out_caps, i);
+-    if (!structure)
+-      continue;
++  mem_types = gst_vaapi_filter_get_memory_types (postproc->filter);
++  mem_formats = gst_vaapi_filter_get_formats (postproc->filter, &min_width,
++      &min_height, &max_width, &max_height);
+ 
+-    if (postproc->filter)
+-      gst_vaapi_filter_append_caps (postproc->filter, structure);
++  out_caps = gst_vaapi_build_caps_from_formats (mem_formats, min_width,
++      min_height, max_width, max_height, mem_types);
++  if (!out_caps) {
++    GST_WARNING_OBJECT (postproc, "failed to create VA sink caps");
++    ret = FALSE;
++    goto out;
+   }
+ 
+   postproc->allowed_sinkpad_caps = out_caps;
++  out_caps = NULL;
++  GST_INFO_OBJECT (postproc, "postproc sink allowed caps is %" GST_PTR_FORMAT,
++      postproc->allowed_sinkpad_caps);
+ 
+-  /* XXX: append VA/VPP filters */
+-  return TRUE;
++out:
++  if (out_caps)
++    gst_caps_unref (out_caps);
++  if (mem_formats)
++    g_array_unref (mem_formats);
++
++  return ret;
+ }
+ 
+ /* Fixup output caps so that to reflect the supported set of pixel formats */
+@@ -1380,9 +1385,7 @@ expand_allowed_srcpad_caps (GstVaapiPostproc * postproc, GstCaps * caps)
+   }
+   g_value_unset (&value);
+ 
+-  if ((GST_VAAPI_PLUGIN_BASE_SRC_PAD_CAN_DMABUF (postproc)
+-          || !gst_vaapi_display_has_opengl (GST_VAAPI_PLUGIN_BASE_DISPLAY
+-              (postproc)))
++  if (!gst_vaapi_display_has_opengl (GST_VAAPI_PLUGIN_BASE_DISPLAY (postproc))
+       && gl_upload_meta_idx > -1) {
+     gst_caps_remove_structure (caps, gl_upload_meta_idx);
+   }
+diff --git a/tests/internal/test-filter.c b/tests/internal/test-filter.c
+index 650af220..dbe47c10 100644
+--- a/tests/internal/test-filter.c
++++ b/tests/internal/test-filter.c
+@@ -188,7 +188,8 @@ dump_operations (GstVaapiFilter * filter)
+ static void
+ dump_formats (GstVaapiFilter * filter)
+ {
+-  GArray *const formats = gst_vaapi_filter_get_formats (filter);
++  GArray *const formats = gst_vaapi_filter_get_formats (filter,
++      NULL, NULL, NULL, NULL);
+   guint i;
+ 
+   if (!formats)

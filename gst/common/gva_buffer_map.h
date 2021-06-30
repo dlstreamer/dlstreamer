@@ -3,6 +3,7 @@
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
+#pragma once
 
 #include "config.h"
 #include "inference_backend/image.h"
@@ -17,3 +18,6 @@ void gva_buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMap
                     InferenceBackend::MemoryType memoryType, GstMapFlags mapFlags);
 
 void gva_buffer_unmap(BufferMapContext &mapContext);
+
+int gst_format_to_fourcc(int format);
+void fill_image_with_video_info(GstVideoInfo *info, InferenceBackend::Image &image);

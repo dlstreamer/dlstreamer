@@ -8,7 +8,7 @@ cmake_minimum_required (VERSION 3.1)
 
 set (TARGET_NAME "elements")
 
-find_package(OpenCV REQUIRED core imgproc)
+find_package(OpenCV REQUIRED core imgproc gapi)
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
@@ -22,22 +22,24 @@ file (GLOB MAIN_SRC
     gvametaconvert/*.c
     gvametapublish/*.cpp
     gvametapublish/*.c
-    gvawatermark/*.cpp
-    gvawatermark/renderer/*.cpp
-    gvawatermark/*.c
     gvafpscounter/*.cpp
     gvafpscounter/*.c
     gvametaaggregate/*.cpp
     gvametaaggregate/*.c
+    gvawatermark/*.cpp
+    gvawatermark/renderer/*.cpp
+    gvawatermark/renderer/cpu/*.cpp
+    gvawatermark/*.c
 )
 
 file (GLOB MAIN_HEADERS
     gvametaconvert/*.h
     gvametapublish/*.h
-    gvawatermark/*.h
-    gvawatermark/renderer/*.h
     gvafpscounter/*.h
     gvametaaggregate/*.h
+    gvawatermark/*.h
+    gvawatermark/renderer/*.h
+    gvawatermark/renderer/cpu/*.h
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
@@ -60,6 +62,7 @@ PUBLIC
     gvametaconvert
     gvametapublish
     gvawatermark
+    gvawatermark/renderer
     gvafpscounter
     gvametaaggregate
 PRIVATE
@@ -82,6 +85,7 @@ PRIVATE
     ${GSTALLOC_LDFLAGS}
     ${OpenCV_LIBS}
     common
+    gvacommon
     image_inference
     image_inference_openvino
     logger
@@ -121,4 +125,10 @@ endif()
 add_subdirectory(gvapython)
 if(${ENABLE_VAS_TRACKER})
     add_subdirectory(gvatrack)
+endif()
+execute_process(COMMAND which dpcpp RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
+if(status EQUAL 0)
+    add_subdirectory(gvawatermark/renderer/gpu/)
+else()
+    message("GPU target device will not be available in watermark element. Ensure oneAPI DPC++ Compiler is installed.")
 endif()

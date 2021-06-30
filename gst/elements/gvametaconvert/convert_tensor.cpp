@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -46,20 +46,31 @@ json convert_tensor(const GVA::Tensor &s_tensor) {
     if (s_tensor.has_field("label_id")) {
         jobject.push_back(json::object_t::value_type("label_id", s_tensor.get_int("label_id")));
     }
+    if (s_tensor.has_field("dims")) {
+        json dims_array;
+
+        const auto dims = s_tensor.dims();
+        for (const auto &dim : dims)
+            dims_array += dim;
+
+        jobject.push_back(json::object_t::value_type("dims", dims_array));
+    }
+
     json data_array;
     if (s_tensor.precision() == GVA::Tensor::Precision::U8) {
         const std::vector<uint8_t> data = s_tensor.data<uint8_t>();
-        for (guint i = 0; i < data.size(); i++) {
-            data_array += data[i];
+        for (const auto &val : data) {
+            data_array += val;
         }
     } else {
         const std::vector<float> data = s_tensor.data<float>();
-        for (guint i = 0; i < data.size(); i++) {
-            data_array += data[i];
+        for (const auto &val : data) {
+            data_array += val;
         }
     }
     if (!data_array.is_null()) {
         jobject.push_back(json::object_t::value_type("data", data_array));
     }
+
     return jobject;
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 
 #include <gst/gst.h>
 
+#include <functional>
 #include <memory>
 
 using GValueArrayUniquePtr = std::unique_ptr<GValueArray, std::function<void(GValueArray *)>>;

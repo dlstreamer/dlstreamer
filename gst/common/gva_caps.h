@@ -9,6 +9,7 @@
 #include "config.h"
 
 #include <gst/gstcaps.h>
+#include <gst/video/video.h>
 
 #define DMABUF_FEATURE_STR "memory:DMABuf"
 #define VASURFACE_FEATURE_STR "memory:VASurface"
@@ -21,8 +22,10 @@
 #define VASURFACE_CAPS
 #endif
 
-#if (defined ENABLE_VPUX || defined ENABLE_VAAPI)
+#ifdef ENABLE_VPUX
 #define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, "{ NV12, RGBA, I420 }") "; "
+#elif defined ENABLE_VAAPI
+#define DMA_BUFFER_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, "{ RGBA, I420 }") "; "
 #else
 #define DMA_BUFFER_CAPS
 #endif

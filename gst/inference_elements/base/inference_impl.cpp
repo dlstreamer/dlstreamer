@@ -4,27 +4,6 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "inference_impl.h"
-
-#include "config.h"
-
-#include "common/pre_processor_info_parser.hpp"
-#include "common/pre_processors.h"
-#include "gst_allocator_wrapper.h"
-#include "gva_buffer_map.h"
-#include "gva_caps.h"
-#include "gva_utils.h"
-#include "inference_backend/logger.h"
-#include "inference_backend/pre_proc.h"
-#include "inference_backend/safe_arithmetic.h"
-#include "logger_functions.h"
-#include "model_proc/model_proc_provider.h"
-#include "region_of_interest.h"
-#include "utils.h"
-#include "video_frame.h"
-
-#include <gst/allocators/allocators.h>
-
 #include <assert.h>
 #include <cmath>
 #include <cstring>
@@ -36,9 +15,34 @@
 #include <string>
 #include <vector>
 
+#include <ie_plugin_config.hpp>
+
+#include "common/pre_processor_info_parser.hpp"
+#include "common/pre_processors.h"
+#include "config.h"
+#include "core_singleton.h"
+#include "gst_allocator_wrapper.h"
+#include "gva_buffer_map.h"
+#include "gva_caps.h"
+#include "gva_utils.h"
+#include "inference_backend/logger.h"
+#include "inference_backend/pre_proc.h"
+#include "inference_backend/safe_arithmetic.h"
+#include "inference_impl.h"
+#include "logger_functions.h"
+#include "model_proc/model_proc_provider.h"
+#include "region_of_interest.h"
+#include "utils.h"
+#include "video_frame.h"
+
+#include <gst/allocators/allocators.h>
+
+#ifdef ENABLE_VAAPI
+#include "vaapi_utils.h"
+#endif
+
 using namespace std::placeholders;
 using namespace InferenceBackend;
-using InferenceConfig = std::map<std::string, std::map<std::string, std::string>>;
 
 namespace {
 
@@ -74,40 +78,37 @@ inline std::string GstVideoFormatToString(GstVideoFormat formatType) {
     }
 }
 
-void ParseExtension(const char *extension_string, std::map<std::string, std::string> &base_config) {
-    // gva_base_inference->device_extensions is device1=extension1,device2=extension2 like string
-    std::map<std::string, std::string> extensions = Utils::stringToMap(extension_string);
-    static std::map<std::string, std::string> supported_extensions = {
-        {"CPU", KEY_CPU_EXTENSION}, {"GPU", KEY_GPU_EXTENSION}, {"VPU", KEY_VPU_EXTENSION}};
+ImagePreprocessorType ImagePreprocessorTypeFromString(const std::string &image_preprocessor_name) {
+    constexpr std::pair<const char *, ImagePreprocessorType> preprocessor_types[]{
+        {"", ImagePreprocessorType::AUTO},
+        {"ie", ImagePreprocessorType::IE},
+        {"vaapi", ImagePreprocessorType::VAAPI_SYSTEM},
+        {"vaapi-surface-sharing", ImagePreprocessorType::VAAPI_SURFACE_SHARING},
+        {"opencv", ImagePreprocessorType::OPENCV}};
 
-    for (auto it = extensions.begin(); it != extensions.end(); ++it) {
-        auto it_ = supported_extensions.find(it->first);
-        if (it_ != supported_extensions.end()) {
-            base_config[it_->second] = it->second;
-        } else {
-            throw std::runtime_error("Does not support extension for device " + it->first);
-        }
+    for (auto &elem : preprocessor_types) {
+        if (image_preprocessor_name == elem.first)
+            return elem.second;
     }
+
+    throw std::runtime_error("Invalid pre-process-backend property value provided: " + image_preprocessor_name +
+                             ". Check element's description for supported property values.");
 }
 
-ImagePreprocessorType GetImagePreprocessorType(const std::string &image_preprocessor_name) {
-    ImagePreprocessorType type = ImagePreprocessorType::INVALID;
-    if (image_preprocessor_name == "vaapi")
-        type = ImagePreprocessorType::VAAPI_SYSTEM;
-    if (image_preprocessor_name == "vaapi-surface-sharing")
-        type = ImagePreprocessorType::VAAPI_SURFACE_SHARING;
-    if (image_preprocessor_name == "opencv")
-        type = ImagePreprocessorType::OPENCV;
-    if (image_preprocessor_name == "ie")
-        type = ImagePreprocessorType::IE;
-    return type;
+uint32_t GetOptimalBatchSize(const char *device) {
+    uint32_t batch_size = 1;
+    // if the device has the format GPU.x we assume that these are discrete graphics and choose larger batch
+    if (device and std::string(device).find("GPU.") != std::string::npos)
+        batch_size = 64;
+    return batch_size;
 }
 
-InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference) {
+InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference, const std::string &model_file) {
     InferenceConfig config;
     std::map<std::string, std::string> base;
     std::map<std::string, std::string> inference = Utils::stringToMap(gva_base_inference->ie_config);
 
+    base[KEY_MODEL] = model_file;
     base[KEY_NIREQ] = std::to_string(gva_base_inference->nireq);
     if (gva_base_inference->device != nullptr) {
         std::string device = gva_base_inference->device;
@@ -119,7 +120,7 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
                                                             : std::to_string(gva_base_inference->cpu_streams);
             }
         }
-        if (device == "GPU") {
+        if (device.find("GPU") != std::string::npos) {
             if (inference.find(KEY_GPU_THROUGHPUT_STREAMS) == inference.end()) {
                 inference[KEY_GPU_THROUGHPUT_STREAMS] = (gva_base_inference->gpu_streams == 0)
                                                             ? "GPU_THROUGHPUT_AUTO"
@@ -127,15 +128,19 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
             }
         }
     }
+
+    // gva_base_inference->device_extensions is "device1=extension1,device2=extension2"-like string
+    base[KEY_DEVICE_EXTENSIONS] = gva_base_inference->device_extensions;
     base[KEY_PRE_PROCESSOR_TYPE] =
-        std::to_string(static_cast<int>(GetImagePreprocessorType(gva_base_inference->pre_proc_name)));
+        std::to_string(static_cast<int>(ImagePreprocessorTypeFromString(gva_base_inference->pre_proc_type)));
     base[KEY_IMAGE_FORMAT] =
         GstVideoFormatToString(static_cast<GstVideoFormat>(gva_base_inference->info->finfo->format));
-    base[KEY_BATCH_SIZE] = std::to_string(gva_base_inference->batch_size);
+
+    const uint32_t batch = gva_base_inference->batch_size;
+    base[KEY_BATCH_SIZE] = std::to_string(batch);
     base[KEY_RESHAPE] = std::to_string(gva_base_inference->reshape);
     if (gva_base_inference->reshape) {
-        if ((gva_base_inference->reshape_width) || (gva_base_inference->reshape_height) ||
-            (gva_base_inference->batch_size > 1)) {
+        if ((gva_base_inference->reshape_width) || (gva_base_inference->reshape_height) || (batch > 1)) {
             base[KEY_RESHAPE_WIDTH] = std::to_string(gva_base_inference->reshape_width);
             base[KEY_RESHAPE_HEIGHT] = std::to_string(gva_base_inference->reshape_height);
         } else {
@@ -145,15 +150,13 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
     }
     base[KEY_CAPS_FEATURE] = std::to_string(static_cast<int>(gva_base_inference->caps_feature));
 
-    ParseExtension(gva_base_inference->device_extensions, base);
-
     config[KEY_BASE] = base;
     config[KEY_INFERENCE] = inference;
 
     return config;
 }
 
-bool IsCustomPreproccessingDefined(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
+bool DoesModelProcDefinePreProcessing(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
     for (const auto &it : model_input_processor_info) {
         if (it != nullptr) {
             if (it->format == "image") {
@@ -168,61 +171,42 @@ bool IsCustomPreproccessingDefined(const std::vector<ModelInputProcessorInfo::Pt
     return false;
 }
 
-// Returns default suitable preprocessor according to provided config and model proc
-ImagePreprocessorType
-GetDefaultPreprocessor(InferenceConfig &config,
-                       const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
-    ImagePreprocessorType preproc_type = ImagePreprocessorType::INVALID;
+// Returns default suitable preprocessor according to caps and custom preprocessing options
+ImagePreprocessorType ChoosePreferredImagePreproc(CapsFeature caps, bool does_model_proc_define_pre_proc) {
+    if (does_model_proc_define_pre_proc)
+        return ImagePreprocessorType::OPENCV;
 
-    CapsFeature caps = static_cast<CapsFeature>(std::stoi(config[KEY_BASE][KEY_CAPS_FEATURE]));
     switch (caps) {
     case SYSTEM_MEMORY_CAPS_FEATURE:
-        preproc_type = ImagePreprocessorType::IE;
-        break;
+        return ImagePreprocessorType::IE;
     case VA_SURFACE_CAPS_FEATURE:
-        preproc_type = ImagePreprocessorType::VAAPI_SYSTEM;
-        break;
+        return ImagePreprocessorType::VAAPI_SYSTEM;
     case DMA_BUF_CAPS_FEATURE:
 #ifdef ENABLE_VPUX
-        preproc_type = ImagePreprocessorType::IE;
+        return ImagePreprocessorType::IE;
 #else
-        preproc_type = ImagePreprocessorType::VAAPI_SYSTEM;
+        return ImagePreprocessorType::VAAPI_SYSTEM;
 #endif
-        break;
     default:
-        std::throw_with_nested(std::runtime_error("Invalid caps have been detected during preprocessor creation!"));
+        throw std::runtime_error("Unsupported caps have been detected for image preprocessor!");
     }
-
-    if (IsCustomPreproccessingDefined(model_input_processor_info)) {
-        preproc_type = ImagePreprocessorType::OPENCV;
-    }
-
-    return preproc_type;
-}
-
-bool NeedToSetDefault(ImagePreprocessorType input_preproc, ImagePreprocessorType default_preproc) {
-    if (input_preproc == ImagePreprocessorType::INVALID) {
-        return true;
-    }
-
-    if (default_preproc == ImagePreprocessorType::OPENCV) {
-        if (input_preproc != default_preproc) {
-            std::throw_with_nested(
-                std::runtime_error("Only OpenCV can be chosen as customizable input preprocessor according to its "
-                                   "description provided in specified model proc."));
-        }
-    }
-    return false;
 }
 
 void SetPreprocessor(InferenceConfig &config,
                      const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
-    ImagePreprocessorType default_preproc_type = GetDefaultPreprocessor(config, model_input_processor_info);
-    ImagePreprocessorType input_preproc_type =
-        static_cast<ImagePreprocessorType>(std::stoi(config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE]));
+    const auto caps = static_cast<CapsFeature>(std::stoi(config[KEY_BASE][KEY_CAPS_FEATURE]));
 
-    if (NeedToSetDefault(input_preproc_type, default_preproc_type)) {
-        config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(default_preproc_type));
+    const auto preferred =
+        ChoosePreferredImagePreproc(caps, DoesModelProcDefinePreProcessing(model_input_processor_info));
+    const auto current = static_cast<ImagePreprocessorType>(std::stoi(config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE]));
+
+    if (current == ImagePreprocessorType::AUTO) {
+        config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(preferred));
+    } else if (preferred == ImagePreprocessorType::OPENCV && current != preferred) {
+        throw std::runtime_error(
+            "Only OpenCV can be chosen as customizable input preprocessor according to its "
+            "description provided in specified model proc. If you want to use another pre-processing, please remove "
+            "inappropriate parameters for desired pre-process-backend.");
     }
 }
 
@@ -363,6 +347,20 @@ MemoryType GetMemoryType(MemoryType input_image_memory_type, ImagePreprocessorTy
     return type;
 }
 
+VaApiDisplayPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
+#ifdef ENABLE_VAAPI
+    uint32_t rel_dev_index = 0;
+    const std::string device(gva_base_inference->device);
+    if (device.find("GPU") != device.npos)
+        rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
+    auto display = vaApiCreateVaDisplay(rel_dev_index);
+    return display;
+#else
+    (void)gva_base_inference;
+    return nullptr;
+#endif
+}
+
 } // namespace
 
 InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_inference, const std::string &model_file,
@@ -372,29 +370,53 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
 
     Model model;
     if (!model_proc_path.empty()) {
+        const constexpr size_t MAX_MODEL_PROC_SIZE = 10 * 1024 * 1024; // 10 Mb
+        if (!Utils::CheckFileSize(model_proc_path, MAX_MODEL_PROC_SIZE))
+            throw std::invalid_argument("\'model-proc\' file " + model_proc_path +
+                                        "' size exceeds the allowable size (10 MB).");
+
         ModelProcProvider model_proc_provider;
         model_proc_provider.readJsonFile(model_proc_path);
         model.input_processor_info = model_proc_provider.parseInputPreproc();
         model.output_processor_info = model_proc_provider.parseOutputPostproc();
         // TODO: move code below into model_proc_provider
         for (auto proc : model.output_processor_info) {
-            GValueArray *labels = nullptr;
-            gst_structure_get_array(proc.second, "labels", &labels);
+            GValueArray *labels_raw = nullptr;
+            gst_structure_get_array(proc.second, "labels", &labels_raw);
             gst_structure_remove_field(proc.second, "labels");
+
+            std::vector<std::string> labels;
+            if (labels_raw and labels_raw->n_values) {
+                labels.reserve(labels_raw->n_values);
+                for (uint32_t i = 0; i < labels_raw->n_values; ++i) {
+                    const gchar *label = g_value_get_string(labels_raw->values + i);
+                    labels.emplace_back(label);
+                }
+                g_value_array_free(labels_raw);
+            }
             model.labels[proc.first] = labels;
         }
     }
 
-    InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference);
+    if (gva_base_inference->batch_size == 0)
+        gva_base_inference->batch_size = GetOptimalBatchSize(gva_base_inference->device);
+
+    UpdateModelReshapeInfo(gva_base_inference);
+    InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference, model_file);
     UpdateConfigWithLayerInfo(model.input_processor_info, model.output_processor_info, ie_config);
     SetPreprocessor(ie_config, model.input_processor_info);
     memory_type =
         GetMemoryType(GetMemoryType(static_cast<CapsFeature>(std::stoi(ie_config[KEY_BASE][KEY_CAPS_FEATURE]))),
                       static_cast<ImagePreprocessorType>(std::stoi(ie_config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE])));
+
+    VaApiDisplayPtr va_dpy;
+    if (memory_type == MemoryType::VAAPI || memory_type == MemoryType::DMA_BUFFER) {
+        va_dpy = createVaDisplay(gva_base_inference);
+    }
+
     auto image_inference = ImageInference::make_shared(
-        memory_type, model_file, ie_config, allocator.get(),
-        std::bind(&InferenceImpl::InferenceCompletionCallback, this, _1, _2),
-        std::bind(&InferenceImpl::PushFramesIfInferenceFailed, this, _1), gva_base_inference->device);
+        memory_type, ie_config, allocator.get(), std::bind(&InferenceImpl::InferenceCompletionCallback, this, _1, _2),
+        std::bind(&InferenceImpl::PushFramesIfInferenceFailed, this, _1), std::move(va_dpy));
     if (not image_inference)
         throw std::runtime_error("Failed to create inference instance");
     model.inference = image_inference;
@@ -408,30 +430,25 @@ InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) {
     if (!gva_base_inference->model) {
         throw std::runtime_error("Model not specified");
     }
-    std::vector<std::string> model_files = Utils::splitString(gva_base_inference->model);
-    std::vector<std::string> model_procs;
+    std::string model_file(gva_base_inference->model);
+
+    std::string model_proc{};
     if (gva_base_inference->model_proc) {
-        model_procs = Utils::splitString(gva_base_inference->model_proc);
+        model_proc = gva_base_inference->model_proc;
     }
 
     allocator = CreateAllocator(gva_base_inference->allocator_name);
 
-    for (size_t i = 0; i < model_files.size(); i++) {
-        GST_WARNING_OBJECT(gva_base_inference, "Loading model: device=%s, path=%s", gva_base_inference->device,
-                           model_files[i].c_str());
-        GST_WARNING_OBJECT(gva_base_inference, "Initial settings batch_size=%d, nireq=%d",
-                           gva_base_inference->batch_size, gva_base_inference->nireq);
-        set_log_function(GST_logger);
-        std::string model_proc = i < model_procs.size() ? model_procs[i] : std::string();
-        Model model = CreateModel(gva_base_inference, model_files[i], model_proc);
-        this->models.push_back(std::move(model));
-    }
+    GST_WARNING_OBJECT(gva_base_inference, "Loading model: device=%s, path=%s", gva_base_inference->device,
+                       model_file.c_str());
+    GST_WARNING_OBJECT(gva_base_inference, "Initial settings batch_size=%d, nireq=%d", gva_base_inference->batch_size,
+                       gva_base_inference->nireq);
+    set_log_function(GST_logger);
+    this->model = CreateModel(gva_base_inference, model_file, model_proc);
 }
 
 void InferenceImpl::FlushInference() {
-    for (Model &model : models) {
-        model.inference->Flush();
-    }
+    model.inference->Flush();
 }
 
 void InferenceImpl::UpdateObjectClasses(GvaBaseInference *gva_base_inference) {
@@ -439,6 +456,27 @@ void InferenceImpl::UpdateObjectClasses(GvaBaseInference *gva_base_inference) {
         object_classes = Utils::splitString(gva_base_inference->object_class, ',');
     else
         object_classes.clear();
+}
+
+void InferenceImpl::UpdateModelReshapeInfo(GvaBaseInference *gva_base_inference) {
+    try {
+        if (gva_base_inference->reshape)
+            return;
+
+        if (gva_base_inference->reshape_width || gva_base_inference->reshape_height) {
+            GVA_WARNING("reshape switched to TRUE because reshape_width or reshape_height more than 0");
+            gva_base_inference->reshape = true;
+            return;
+        }
+
+        if (gva_base_inference->batch_size > 1) {
+            GVA_WARNING("reshape switched to TRUE because batch-size more than 1");
+            gva_base_inference->reshape = true;
+            return;
+        }
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Failed to update reshape"));
+    }
 }
 
 bool InferenceImpl::FilterObjectClass(GstVideoRegionOfInterestMeta *roi) const {
@@ -458,15 +496,8 @@ bool InferenceImpl::FilterObjectClass(const std::string &object_class) const {
 }
 
 InferenceImpl::~InferenceImpl() {
-    for (Model &model : models) {
-        for (auto proc : model.output_processor_info)
-            gst_structure_free(proc.second);
-        for (auto labels : model.labels) {
-            if (labels.second)
-                g_value_array_free(labels.second);
-        }
-    }
-    models.clear();
+    for (auto proc : model.output_processor_info)
+        gst_structure_free(proc.second);
 }
 
 void InferenceImpl::PushOutput() {
@@ -537,16 +568,14 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
         std::shared_ptr<InferenceBackend::Image> image = CreateImage(
             buffer, gva_base_inference->info, memory_type, GstMapFlags(GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF));
 
-        for (InferenceImpl::Model &model : models) {
-            for (const auto meta : metas) {
-                ApplyImageBoundaries(image, meta, gva_base_inference->inference_region);
-                auto result = MakeInferenceResult(gva_base_inference, model, meta, image, buffer);
-                std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> input_preprocessors;
-                if (not model.input_processor_info.empty() and gva_base_inference->input_prerocessors_factory)
-                    input_preprocessors = gva_base_inference->input_prerocessors_factory(
-                        model.inference, model.input_processor_info, meta);
-                model.inference->SubmitImage(*image, result, input_preprocessors);
-            }
+        for (const auto meta : metas) {
+            ApplyImageBoundaries(image, meta, gva_base_inference->inference_region);
+            auto result = MakeInferenceResult(gva_base_inference, model, meta, image, buffer);
+            std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> input_preprocessors;
+            if (not model.input_processor_info.empty() and gva_base_inference->input_prerocessors_factory)
+                input_preprocessors =
+                    gva_base_inference->input_prerocessors_factory(model.inference, model.input_processor_info, meta);
+            model.inference->SubmitImage(*image, result, input_preprocessors);
         }
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to submit images to inference"));
@@ -556,8 +585,8 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
     return GST_BASE_TRANSFORM_FLOW_DROPPED;
 }
 
-const std::vector<InferenceImpl::Model> &InferenceImpl::GetModels() const {
-    return models;
+const InferenceImpl::Model &InferenceImpl::GetModel() const {
+    return model;
 }
 
 GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inference, GstBuffer *buffer) {
@@ -574,11 +603,8 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             status = INFERENCE_SKIPPED_PER_PROPERTY;
         }
         if (gva_base_inference->no_block) {
-            for (auto model : models) {
-                if (model.inference->IsQueueFull()) {
-                    status = INFERENCE_SKIPPED_NO_BLOCK;
-                    break;
-                }
+            if (model.inference->IsQueueFull()) {
+                status = INFERENCE_SKIPPED_NO_BLOCK;
             }
         }
         if (status == INFERENCE_EXECUTED) {
@@ -621,7 +647,7 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     }
 
     // count number ROIs to run inference on
-    size_t inference_count = (status == INFERENCE_EXECUTED) ? metas.size() * models.size() : 0;
+    size_t inference_count = (status == INFERENCE_EXECUTED) ? metas.size() : 0;
     gva_base_inference->frame_num++;
     if (gva_base_inference->frame_num == G_MAXUINT64) {
         GST_WARNING_OBJECT(gva_base_inference,
@@ -657,9 +683,7 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
 
 void InferenceImpl::SinkEvent(GstEvent *event) {
     if (event->type == GST_EVENT_EOS) {
-        for (Model &model : models) {
-            model.inference->Flush();
-        }
+        model.inference->Flush();
     }
 }
 

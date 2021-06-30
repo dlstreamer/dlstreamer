@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,6 +9,10 @@
 #include "gstgvatrack.h"
 #include "itracker.h"
 #include "vas/ot.h"
+
+#ifdef ENABLE_VAAPI
+#include "vaapi_converter.h"
+#endif
 
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -27,6 +31,13 @@ class Tracker : public ITracker {
     std::unordered_map<int, std::string> labels;
     vas::ot::TrackingType tracker_type;
     cv::Mat cv_empty_mat;
+    std::unique_ptr<vas::ot::ObjectTracker::Builder> builder;
+#ifdef ENABLE_VAAPI
+    std::unique_ptr<InferenceBackend::VaApiContext> vaapi_context;
+    std::unique_ptr<InferenceBackend::VaApiConverter> vaapi_converter;
+    std::vector<vas::ot::Object> trackGPU(GstBuffer *buffer,
+                                          const std::vector<vas::ot::DetectedObject> &detected_objects);
+#endif
 
   public:
     Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_type);

@@ -15,6 +15,9 @@
 #include "image.h"
 #include "input_image_layer_descriptor.h"
 
+// FWD
+using VaApiDisplayPtr = std::shared_ptr<void>;
+
 namespace InferenceBackend {
 
 class OutputBlob;
@@ -22,6 +25,8 @@ class Allocator;
 class InputLayerDesc;
 class InputImageLayerDesc;
 class ImageTransformationParams;
+
+using InferenceConfig = std::map<std::string, std::map<std::string, std::string>>;
 
 class ImageInference {
   public:
@@ -48,19 +53,21 @@ class ImageInference {
         CallbackFunc;
     typedef std::function<void(std::vector<IFrameBase::Ptr> frames)> ErrorHandlingFunc;
 
-    static Ptr make_shared(MemoryType type, const std::string &model,
-                           const std::map<std::string, std::map<std::string, std::string>> &config,
-                           Allocator *allocator, CallbackFunc callback, ErrorHandlingFunc error_handler,
-                           const std::string &device_name);
-
-    virtual void Init() = 0;
+    static Ptr make_shared(MemoryType type, const InferenceConfig &config, Allocator *allocator, CallbackFunc callback,
+                           ErrorHandlingFunc error_handler, VaApiDisplayPtr va_display);
 
     virtual void SubmitImage(const Image &image, IFrameBase::Ptr user_data,
                              const std::map<std::string, std::shared_ptr<InputLayerDesc>> &input_preprocessors) = 0;
 
     virtual const std::string &GetModelName() const = 0;
+    virtual size_t GetNireq() const = 0;
     virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                         int &memory_type) const = 0;
+
+    // TODO: return map<InputLayerDesc>
+    virtual std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const = 0;
+    // TODO: return map<OutputLayerDesc>
+    virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const = 0;
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -75,6 +82,17 @@ class Blob {
     enum class Precision { FP32 = 10, U8 = 40 };
     virtual ~Blob() = default;
     virtual const std::vector<size_t> &GetDims() const = 0;
+    size_t GetSize() const {
+        const auto &dims = GetDims();
+        if (dims.empty())
+            return 0;
+
+        size_t size = 1;
+        for (const auto &one_dim_size : dims)
+            size *= one_dim_size;
+
+        return size;
+    }
     virtual Layout GetLayout() const = 0;
     virtual Precision GetPrecision() const = 0;
 };
@@ -94,12 +112,15 @@ class InputBlob : public virtual Blob {
     virtual ~InputBlob() = default;
 };
 
+// TODO: implement LayerDesc
 struct InputLayerDesc {
     using Ptr = std::shared_ptr<InputLayerDesc>;
     std::string name;
     std::function<void(const InputBlob::Ptr &)> preprocessor;
     InputImageLayerDesc::Ptr input_image_preroc_params = nullptr;
 };
+
+// TODO: implement OutputLayerDesc
 
 class Allocator {
   public:
@@ -115,10 +136,9 @@ __DECLARE_CONFIG_KEY(INFERENCE);
 __DECLARE_CONFIG_KEY(LAYER_PRECISION);
 __DECLARE_CONFIG_KEY(FORMAT);
 __DECLARE_CONFIG_KEY(DEVICE);
+__DECLARE_CONFIG_KEY(MODEL); // Path to model
 __DECLARE_CONFIG_KEY(NIREQ);
-__DECLARE_CONFIG_KEY(CPU_EXTENSION);          // library with implementation of custom layers
-__DECLARE_CONFIG_KEY(GPU_EXTENSION);          // path xml configuration file
-__DECLARE_CONFIG_KEY(VPU_EXTENSION);          // path xml configuration file
+__DECLARE_CONFIG_KEY(DEVICE_EXTENSIONS);
 __DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS); // number inference requests running in parallel
 __DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
 __DECLARE_CONFIG_KEY(VPU_DEVICE_ID);

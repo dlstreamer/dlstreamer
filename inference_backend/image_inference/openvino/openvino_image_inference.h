@@ -22,22 +22,17 @@
 #include "safe_queue.h"
 
 struct EntityBuilder;
+namespace WrapImageStrategy {
+struct General;
+}
+
 class OpenVINOImageInference : public InferenceBackend::ImageInference {
   public:
-    OpenVINOImageInference(const std::string &model,
-                           const std::map<std::string, std::map<std::string, std::string>> &config,
-                           InferenceBackend::Allocator *allocator, CallbackFunc callback,
-                           ErrorHandlingFunc error_handler, InferenceBackend::MemoryType memory_type,
-                           const std::string &device_name);
-
-    OpenVINOImageInference(const std::string &model,
-                           const std::map<std::string, std::map<std::string, std::string>> &config, void *display,
-                           CallbackFunc callback, ErrorHandlingFunc error_handler,
-                           InferenceBackend::MemoryType memory_type, const std::string &device_name);
+    OpenVINOImageInference(const InferenceBackend::InferenceConfig &config, InferenceBackend::Allocator *allocator,
+                           void *display, CallbackFunc callback, ErrorHandlingFunc error_handler,
+                           InferenceBackend::MemoryType memory_type);
 
     virtual ~OpenVINOImageInference();
-
-    virtual void Init() override;
 
     virtual void
     SubmitImage(const InferenceBackend::Image &image, IFrameBase::Ptr user_data,
@@ -45,8 +40,13 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
     virtual const std::string &GetModelName() const override;
 
+    virtual size_t GetNireq() const override;
+
     virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                         int &memory_type) const override;
+
+    virtual std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const override;
+    virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const override;
 
     virtual bool IsQueueFull() override;
 
@@ -55,13 +55,11 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     virtual void Close() override;
 
   protected:
-    bool initialized;
-
     struct BatchRequest {
         InferenceEngine::InferRequest::Ptr infer_request;
         std::vector<IFrameBase::Ptr> buffers;
         std::vector<InferenceBackend::Allocator::AllocContext *> alloc_context;
-        InferenceEngine::RemoteContext::Ptr ie_remote_context;
+        std::vector<InferenceEngine::Blob::Ptr> blob;
     };
 
     // InferenceBackend::Image GetNextImageBuffer(std::shared_ptr<BatchRequest> request);
@@ -75,7 +73,6 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     ErrorHandlingFunc handleError;
 
     // Inference Engine
-    InferenceEngine::Core core;
     InferenceEngine::ConstInputsDataMap inputs;
     InferenceEngine::ConstOutputsDataMap outputs;
     std::string model_name;
@@ -88,6 +85,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::unique_ptr<EntityBuilder> builder;
     InferenceEngine::CNNNetwork network;
     std::unique_ptr<InferenceBackend::ImagePreprocessor> pre_processor;
+    std::unique_ptr<WrapImageStrategy::General> wrap_strategy;
 
     // Threading
     std::mutex requests_mutex_;
@@ -95,20 +93,15 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::condition_variable request_processed_;
     std::mutex flush_mutex;
 
-    // For VPUX devices
-    // TODO: Re-implement these variables usage (with OOP)
-    bool has_vpu_device_id = false;
-    std::string vpu_device_name;
-
   private:
-    InferenceEngine::RemoteContext::Ptr CreateRemoteContext();
+    InferenceEngine::RemoteContext::Ptr CreateRemoteContext(const std::string &device);
     bool doNeedImagePreProcessing();
     void SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img,
                                const InferenceBackend::InputImageLayerDesc::Ptr &pre_proc_info,
                                const InferenceBackend::ImageTransformationParams::Ptr image_transform_info);
     void BypassImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
-                               const InferenceBackend::Image &src_img);
+                               const InferenceBackend::Image &src_img, size_t batch_size);
     void setCompletionCallback(std::shared_ptr<BatchRequest> &batch_request);
     void
     ApplyInputPreprocessors(std::shared_ptr<BatchRequest> &request,
@@ -116,4 +109,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     void setBlobsToInferenceRequest(const std::map<std::string, InferenceEngine::TensorDesc> &layers,
                                     std::shared_ptr<BatchRequest> &batch_request,
                                     InferenceBackend::Allocator *allocator);
+    std::unique_ptr<WrapImageStrategy::General>
+    CreateWrapImageStrategy(InferenceBackend::MemoryType memory_type, const std::string &device,
+                            const InferenceEngine::RemoteContext::Ptr &remote_context);
 };

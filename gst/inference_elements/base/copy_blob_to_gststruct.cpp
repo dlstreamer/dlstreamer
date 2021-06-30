@@ -1,13 +1,15 @@
 /*******************************************************************************
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "copy_blob_to_gststruct.h"
+
 #include "inference_backend/safe_arithmetic.h"
-#include <cmath>
 #include <inference_backend/logger.h>
+
+#include <cmath>
 
 using namespace std;
 
@@ -74,8 +76,8 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
                                   const char *model_name, const char *layer_name, int32_t batch_size,
                                   int32_t batch_index) {
     try {
-        const uint8_t *data = (const uint8_t *)blob->GetData();
-        if (data == NULL)
+        const uint8_t *data = reinterpret_cast<const uint8_t *>(blob->GetData());
+        if (data == nullptr)
             throw std::invalid_argument("Failed to get blob data");
 
         int size = GetUnbatchedSizeInBytes(blob, batch_size);

@@ -14,6 +14,7 @@ add_subdirectory(common)
 add_subdirectory(elements)
 add_subdirectory(inference_elements)
 add_subdirectory(registrator)
+add_subdirectory(preview_elements)
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
     add_subdirectory(audio_inference_elements)

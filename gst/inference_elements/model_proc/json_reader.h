@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,18 +26,5 @@ class JsonReader {
     void validate();
     const json &content() const;
 
-    static GValue convertToGValue(const nlohmann::json::reference value);
-    template <typename T>
-    static T getValueDefaultIfNotFound(const nlohmann::basic_json<> &json_obj, const std::string &key, T default_value);
+    static GValue convertToGValue(const nlohmann::json::reference value, const char *key = "jsonobject");
 };
-
-template <typename T>
-T JsonReader::getValueDefaultIfNotFound(const nlohmann::basic_json<> &json_obj, const std::string &key,
-                                        T default_value) {
-    T result = default_value;
-    auto iter = json_obj.find(key);
-    if (iter != json_obj.end())
-        result = iter.value();
-
-    return result;
-}

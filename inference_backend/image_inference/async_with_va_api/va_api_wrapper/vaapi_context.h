@@ -19,7 +19,8 @@ namespace InferenceBackend {
 class VaApiContext {
   public:
     explicit VaApiContext(VADisplay va_display);
-    VaApiContext();
+    explicit VaApiContext(VaApiDisplayPtr va_display_ptr);
+    explicit VaApiContext(const std::string &device = "GPU");
 
     ~VaApiContext();
 
@@ -31,19 +32,17 @@ class VaApiContext {
     bool IsPixelFormatSupported(int format) const;
 
   private:
+    std::shared_ptr<void> _display_storage;
     VaDpyWrapper _display;
     VAConfigID _va_config_id = VA_INVALID_ID;
     VAContextID _va_context_id = VA_INVALID_ID;
     int _dri_file_descriptor = 0;
     int _rt_format = VA_RT_FORMAT_YUV420;
     std::set<int> _supported_pixel_formats;
-    bool _own_va_display = false;
 
     /* private helper methods */
-    void create_va_display_and_device_descriptor();
     void create_config_and_contexts();
     void create_supported_pixel_formats();
-    void set_callbacks_and_initialize_va_display();
 };
 
 } // namespace InferenceBackend

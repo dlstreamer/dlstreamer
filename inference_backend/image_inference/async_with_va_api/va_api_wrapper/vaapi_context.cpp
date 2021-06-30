@@ -7,27 +7,15 @@
 #include "vaapi_context.h"
 
 #include "inference_backend/logger.h"
+#include "utils.h"
 
 #include <cassert>
-#include <tuple>
 #include <vector>
 
 #include <fcntl.h>
 #include <unistd.h>
 
 using namespace InferenceBackend;
-
-namespace {
-
-static void message_callback_error(void * /*user_ctx*/, const char *message) {
-    GVA_ERROR(message);
-}
-
-static void message_callback_info(void * /*user_ctx*/, const char *message) {
-    GVA_INFO(message);
-}
-
-} // namespace
 
 VaApiContext::VaApiContext(VADisplay va_display) : _display(va_display) {
     create_config_and_contexts();
@@ -37,10 +25,19 @@ VaApiContext::VaApiContext(VADisplay va_display) : _display(va_display) {
     assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
 }
 
-VaApiContext::VaApiContext() {
-    create_va_display_and_device_descriptor();
-    set_callbacks_and_initialize_va_display();
-    _own_va_display = true;
+VaApiContext::VaApiContext(VaApiDisplayPtr va_display_ptr)
+    : _display_storage(va_display_ptr), _display(va_display_ptr.get()) {
+
+    create_config_and_contexts();
+    create_supported_pixel_formats();
+
+    assert(_va_config_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAConfigID.");
+    assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
+}
+
+VaApiContext::VaApiContext(const std::string &device) {
+    _display_storage = vaApiCreateVaDisplay(Utils::getRelativeGpuDeviceIndex(device));
+    _display = VaDpyWrapper::fromHandle(_display_storage.get());
 
     create_config_and_contexts();
     create_supported_pixel_formats();
@@ -56,22 +53,9 @@ VaApiContext::~VaApiContext() {
     if (_va_context_id != VA_INVALID_ID) {
         vtable.vaDestroyContext(ctx, _va_context_id);
     }
+
     if (_va_config_id != VA_INVALID_ID) {
         vtable.vaDestroyConfig(ctx, _va_config_id);
-    }
-    if (_display && _own_va_display) {
-        VAStatus status = VaApiLibBinder::get().Terminate(_display.raw());
-        if (status != VA_STATUS_SUCCESS) {
-            std::string error_message =
-                std::string("VA Display termination failed with code ") + std::to_string(status);
-            GVA_WARNING(error_message.c_str())
-        }
-        int status_code = close(_dri_file_descriptor);
-        if (status_code != 0) {
-            std::string error_message =
-                std::string("DRI file descriptor closing failed with code ") + std::to_string(status_code);
-            GVA_WARNING(error_message.c_str())
-        }
     }
 }
 
@@ -93,48 +77,6 @@ int VaApiContext::RTFormat() const {
 
 bool VaApiContext::IsPixelFormatSupported(int format) const {
     return _supported_pixel_formats.count(format);
-}
-
-/**
- * Creates VADisplay, sets the device descriptor and the VaDpyWrapper.
- *
- * @pre libva_drm_handle must be set to initialize VADisplay.
- * @post _dri_file_descriptor is set.
- * @post _display is set.
- *
- * @throw std::runtime_error if the initialization failed.
- * @throw std::invalid_argument if display is null.
- */
-void VaApiContext::create_va_display_and_device_descriptor() {
-    _dri_file_descriptor = open("/dev/dri/renderD128", O_RDWR);
-    if (!_dri_file_descriptor) {
-        throw std::runtime_error("Error opening /dev/dri/renderD128");
-    }
-
-    _display = VaDpyWrapper::fromHandle(VaApiLibBinder::get().GetDisplayDRM(_dri_file_descriptor));
-}
-
-/**
- * Sets the internal VADisplay's error and info callbacks. Initializes the internal VADisplay.
- *
- * @pre _display must be set.
- * @pre libva_handle must be set to initialize VADisplay.
- * @pre message_callback_error, message_callback_info functions must reside in namespace to set callbacks.
- *
- * @throw std::runtime_error if the initialization failed.
- * @throw std::invalid_argument if display is null.
- */
-void VaApiContext::set_callbacks_and_initialize_va_display() {
-    assert(_display);
-
-    _display.dpyCtx()->error_callback = message_callback_error;
-    _display.dpyCtx()->error_callback_user_context = nullptr;
-
-    _display.dpyCtx()->info_callback = message_callback_info;
-    _display.dpyCtx()->info_callback_user_context = nullptr;
-
-    int major_version = 0, minor_version = 0;
-    VA_CALL(VaApiLibBinder::get().Initialize(_display.raw(), &major_version, &minor_version));
 }
 
 /**

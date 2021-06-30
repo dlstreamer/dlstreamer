@@ -27,6 +27,7 @@ MODEL2=age-gender-recognition-retail-0013
 SCRIPTDIR="$(dirname "$(realpath "$0")")"
 PYTHON_SCRIPT1=$SCRIPTDIR/postproc_callbacks/ssd_object_detection.py
 PYTHON_SCRIPT2=$SCRIPTDIR/postproc_callbacks/age_gender_classification.py
+PYTHON_SCRIPT3=$SCRIPTDIR/postproc_callbacks/age_logger.py
 
 if [[ $INPUT == "/dev/video"* ]]; then
   SOURCE_ELEMENT="v4l2src device=${INPUT}"
@@ -46,8 +47,9 @@ PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! decodebin ! \
 gvainference model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
 gvapython module=$PYTHON_SCRIPT1 ! \
-gvaclassify model=$CLASS_MODEL_PATH device=$DEVICE ! queue ! \
+gvainference inference-region=roi-list model=$CLASS_MODEL_PATH device=$DEVICE ! queue ! \
 gvapython module=$PYTHON_SCRIPT2 ! \
+gvapython module=$PYTHON_SCRIPT3 class=AgeLogger function=log_age kwarg={\\\"log_file_path\\\":\\\"/tmp/age_log.txt\\\"} ! \
 $SINK_ELEMENT"
 
 echo ${PIPELINE}

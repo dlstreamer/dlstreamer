@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -82,9 +82,9 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                 int label_id;
                 if (gst_structure_get(s, "x_min", G_TYPE_DOUBLE, &xminval, "x_max", G_TYPE_DOUBLE, &xmaxval, "y_min",
                                       G_TYPE_DOUBLE, &yminval, "y_max", G_TYPE_DOUBLE, &ymaxval, NULL)) {
-                    json detection = {
-                        {"bounding_box",
-                         {{"x_min", xminval}, {"x_max", xmaxval}, {"y_min", yminval}, {"y_max", ymaxval}}}};
+                    json detection = json::object(
+                        {{"bounding_box",
+                          {{"x_min", xminval}, {"x_max", xmaxval}, {"y_min", yminval}, {"y_max", ymaxval}}}});
 
                     if (gst_structure_get(s, "confidence", G_TYPE_DOUBLE, &confidence, NULL)) {
                         detection.push_back({"confidence", confidence});
@@ -106,11 +106,22 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                 char *model_name;
                 if (gst_structure_get(s, "label", G_TYPE_STRING, &label, "model_name", G_TYPE_STRING, &model_name,
                                       NULL)) {
+                    double confidence;
+                    int label_id;
                     const gchar *attribute_name = gst_structure_has_field(s, "attribute_name")
                                                       ? gst_structure_get_string(s, "attribute_name")
                                                       : s_name;
-                    jobject.push_back(json::object_t::value_type(
-                        attribute_name, {{"label", label}, {"model", {{"name", model_name}}}}));
+                    json classification = json::object({{"label", label}, {"model", {{"name", model_name}}}});
+
+                    if (gst_structure_get(s, "confidence", G_TYPE_DOUBLE, &confidence, NULL)) {
+                        classification.push_back({"confidence", confidence});
+                    }
+
+                    if (gst_structure_get(s, "label_id", G_TYPE_INT, &label_id, NULL)) {
+                        classification.push_back({"label_id", label_id});
+                    }
+
+                    jobject.push_back(json::object_t::value_type(attribute_name, classification));
                     g_free(label);
                     g_free(model_name);
                 }
@@ -171,8 +182,17 @@ json convert_frame_classification(GstGvaMetaConvert *converter, GstBuffer *buffe
             std::string model_name = tensor.model_name();
             std::string attribute_name =
                 tensor.has_field("attribute_name") ? tensor.get_string("attribute_name") : tensor.name();
-            jobject.push_back(
-                json::object_t::value_type(attribute_name, {{"label", label}, {"model", {{"name", model_name}}}}));
+
+            json classification = json::object({{"label", label}, {"model", {{"name", model_name}}}});
+
+            if (tensor.has_field("confidence")) {
+                classification.push_back(json::object_t::value_type("confidence", tensor.confidence()));
+            }
+            if (tensor.has_field("label_id")) {
+                classification.push_back(json::object_t::value_type("label_id", tensor.get_int("label_id")));
+            }
+
+            jobject.push_back(json::object_t::value_type(attribute_name, classification));
         }
         if (converter->add_tensor_data) {
             jobject["tensors"].push_back(convert_tensor(tensor));

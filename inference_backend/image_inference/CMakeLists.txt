@@ -15,8 +15,7 @@ if(${ENABLE_VAAPI})
 endif()
 
 find_package(PkgConfig REQUIRED)
-
-find_package(InferenceEngine 2.1.0 REQUIRED)
+find_IE_package()
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp

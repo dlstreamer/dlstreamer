@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -35,7 +35,7 @@ const json &JsonReader::content() const {
     return file_contents;
 }
 
-GValue JsonReader::convertToGValue(const nlohmann::json::reference value) {
+GValue JsonReader::convertToGValue(const nlohmann::json::reference value, const char *key) {
     GValue gvalue = G_VALUE_INIT;
     try {
         switch (value.type()) {
@@ -69,11 +69,11 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value) {
         case nlohmann::json::value_t::object: {
             g_value_init(&gvalue, GST_TYPE_STRUCTURE);
             json obj = (json)value;
-            GstStructure *s = gst_structure_new_empty("jsonobject");
+            GstStructure *s = gst_structure_new_empty(key);
             for (json::const_iterator it = obj.begin(); it != obj.end(); ++it) {
-                std::string key = it.key();
+                const std::string &key = it.key();
                 auto value = it.value();
-                GValue gvalue = JsonReader::convertToGValue(value);
+                GValue gvalue = JsonReader::convertToGValue(value, key.c_str());
                 gst_structure_set_value(s, key.data(), &gvalue);
             }
             gst_value_set_structure(&gvalue, s);

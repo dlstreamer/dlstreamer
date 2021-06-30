@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -32,6 +32,7 @@ std::map<std::string, GstStructure *> ModelProcParser::parseOutputPostproc(const
 std::tuple<std::string, GstStructure *> ModelProcParser::parseProcessingItem(const nlohmann::basic_json<> &proc_item) {
     const std::string def_layer_name = "ANY";
     std::string layer_name(def_layer_name);
+    /* TODO: replace with GstStructureUniquePtr */
     GstStructure *s = gst_structure_new_empty(layer_name.data());
     assert(s != nullptr);
 

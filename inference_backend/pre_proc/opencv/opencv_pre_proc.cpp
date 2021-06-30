@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -49,63 +49,83 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
             throw std::runtime_error("Pre-processor info for custom image pre-processing is null.");
 
         cv::Mat result_img(orig_image.size(), orig_image.type());
+
         if (pre_proc_info->doNeedColorSpaceConversion(src_color_format)) {
             ColorSpaceConvert(orig_image, result_img, src_color_format, pre_proc_info->getTargetColorSpace());
         } else {
             orig_image.copyTo(result_img);
         }
-        if (pre_proc_info->doNeedResize() and result_img.size() != dst_size) {
+
+        cv::Size resized_size = dst_size;
+        if (pre_proc_info->doNeedPadding()) {
+            const auto &padding = pre_proc_info->getPadding();
+            resized_size.width -= padding.stride_x * 2;
+            resized_size.height -= padding.stride_y * 2;
+        }
+
+        if (pre_proc_info->doNeedResize() and result_img.size() != resized_size) {
             switch (pre_proc_info->getResizeType()) {
             case InputImageLayerDesc::Resize::NO_ASPECT_RATIO:
-                Resize(result_img, dst_size);
+                Resize(result_img, resized_size);
                 break;
             case InputImageLayerDesc::Resize::ASPECT_RATIO:
                 if (pre_proc_info->doNeedCrop()) { // resize to bigger size, because after we using Crop to dst size -
                                                    // standart practic
                     // scale_parameter: 1 + 1//scale_parameter
-                    ResizeAspectRatio(result_img, dst_size, image_transform_info, 8);
+                    ResizeAspectRatio(result_img, resized_size, image_transform_info, 8);
                 } else {
-                    ResizeAspectRatio(result_img, dst_size, image_transform_info);
+                    ResizeAspectRatio(result_img, resized_size, image_transform_info);
                 }
                 break;
             default:
                 break;
             }
         }
-        if (pre_proc_info->doNeedCrop() and result_img.size() != dst_size) {
+        if (pre_proc_info->doNeedCrop() and result_img.size() != resized_size) {
             cv::Rect crop_roi;
             switch (pre_proc_info->getCropType()) {
             case InputImageLayerDesc::Crop::CENTRAL:
-                crop_roi = cv::Rect((result_img.size().width - dst_size.width) / 2,
-                                    (result_img.size().height - dst_size.height) / 2, dst_size.width, dst_size.height);
+                crop_roi = cv::Rect((result_img.size().width - resized_size.width) / 2,
+                                    (result_img.size().height - resized_size.height) / 2, resized_size.width,
+                                    resized_size.height);
                 break;
             case InputImageLayerDesc::Crop::TOP_LEFT:
-                crop_roi = cv::Rect(0, 0, dst_size.width, dst_size.height);
+                crop_roi = cv::Rect(0, 0, resized_size.width, resized_size.height);
                 break;
             case InputImageLayerDesc::Crop::TOP_RIGHT:
-                crop_roi = cv::Rect(result_img.size().width - dst_size.width, 0, dst_size.width, dst_size.height);
+                crop_roi =
+                    cv::Rect(result_img.size().width - resized_size.width, 0, resized_size.width, resized_size.height);
                 break;
             case InputImageLayerDesc::Crop::BOTTOM_LEFT:
-                crop_roi = cv::Rect(0, result_img.size().height - dst_size.height, dst_size.width, dst_size.height);
+                crop_roi = cv::Rect(0, result_img.size().height - resized_size.height, resized_size.width,
+                                    resized_size.height);
                 break;
             case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
-                crop_roi = cv::Rect(result_img.size().width - dst_size.width,
-                                    result_img.size().height - dst_size.height, dst_size.width, dst_size.height);
+                crop_roi =
+                    cv::Rect(result_img.size().width - resized_size.width,
+                             result_img.size().height - resized_size.height, resized_size.width, resized_size.height);
                 break;
             default:
                 break;
             }
             Crop(result_img, crop_roi, image_transform_info);
         }
+
         if (pre_proc_info->doNeedRangeNormalization()) {
-            const auto range_norm = pre_proc_info->getRangeNormalization();
+            const auto &range_norm = pre_proc_info->getRangeNormalization();
             const double std = 255.0 / (range_norm.max - range_norm.min);
             const double mean = 0 - range_norm.min;
             Normalization(result_img, mean, std);
         }
         if (pre_proc_info->doNeedDistribNormalization()) {
-            const auto distrib_norm = pre_proc_info->getDistribNormalization();
+            const auto &distrib_norm = pre_proc_info->getDistribNormalization();
             Normalization(result_img, distrib_norm.mean, distrib_norm.std);
+        }
+
+        if (pre_proc_info->doNeedPadding()) {
+            const auto &padding = pre_proc_info->getPadding();
+            AddPadding(result_img, dst_size, padding.stride_x, padding.stride_y, padding.fill_value,
+                       image_transform_info);
         }
 
         return result_img;

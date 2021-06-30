@@ -7,7 +7,6 @@
 #include "gstgvaclassify.h"
 
 #include "classification_history.h"
-#include "classification_post_processors_c.h"
 #include "pre_processors.h"
 
 #include "config.h"
@@ -45,7 +44,6 @@ static void gst_gva_classify_finalize(GObject *);
 static void gst_gva_classify_cleanup(GstGvaClassify *);
 static gboolean gst_gva_classify_check_properties_correctness(GstGvaClassify *gvaclassify);
 static gboolean gst_gva_classify_start(GstBaseTransform *trans);
-static void on_base_inference_initialized(GvaBaseInference *base_inference);
 
 void gst_gva_classify_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
     GstGvaClassify *gvaclassify = (GstGvaClassify *)(object);
@@ -109,9 +107,6 @@ void gst_gva_classify_class_init(GstGvaClassifyClass *gvaclassify_class) {
     gobject_class->get_property = gst_gva_classify_get_property;
     gobject_class->finalize = gst_gva_classify_finalize;
 
-    GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_CLASS(gvaclassify_class);
-    base_inference_class->on_initialized = on_base_inference_initialized;
-
     GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS(gvaclassify_class);
     base_transform_class->start = GST_DEBUG_FUNCPTR(gst_gva_classify_start);
 
@@ -159,11 +154,6 @@ void gst_gva_classify_cleanup(GstGvaClassify *gvaclassify) {
         release_classification_history(gvaclassify->classification_history);
         gvaclassify->classification_history = NULL;
     }
-
-    if (gvaclassify->base_inference.post_proc) {
-        releaseClassificationPostProcessor(gvaclassify->base_inference.post_proc);
-        gvaclassify->base_inference.post_proc = NULL;
-    }
 }
 
 void gst_gva_classify_finalize(GObject *object) {
@@ -205,12 +195,4 @@ gboolean gst_gva_classify_start(GstBaseTransform *trans) {
         return FALSE;
 
     return GST_BASE_TRANSFORM_CLASS(gst_gva_classify_parent_class)->start(trans);
-}
-
-void on_base_inference_initialized(GvaBaseInference *base_inference) {
-    GstGvaClassify *gvaclassify = GST_GVA_CLASSIFY(base_inference);
-
-    GST_DEBUG_OBJECT(gvaclassify, "on_base_inference_initialized");
-
-    base_inference->post_proc = createClassificationPostProcessor(base_inference->inference);
 }

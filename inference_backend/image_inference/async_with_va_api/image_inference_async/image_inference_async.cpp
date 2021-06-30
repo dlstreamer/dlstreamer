@@ -54,6 +54,7 @@ VaApiImagePool::ImageInfo get_pool_image_info(const ImageInference::Ptr &inferen
     inference->GetModelImageInputInfo(width, height, batch_size, format, memory_type);
     VaApiImagePool::ImageInfo info = {.width = (uint32_t)width,
                                       .height = (uint32_t)height,
+                                      .batch = (uint32_t)batch_size,
                                       .format = (FourCC)format,
                                       .memory_type = (MemoryType)memory_type};
     return info;
@@ -61,18 +62,23 @@ VaApiImagePool::ImageInfo get_pool_image_info(const ImageInference::Ptr &inferen
 
 } // namespace
 
-ImageInferenceAsync::ImageInferenceAsync(int image_pool_size, MemoryType image_memory_type)
-    : _thread_pool(image_pool_size), _VA_IMAGE_POOL_SIZE(image_pool_size) {
-    _va_context = std::unique_ptr<VaApiContext>(new VaApiContext());
-    _va_converter = std::unique_ptr<VaApiConverter>(new VaApiConverter(_va_context.get()));
-    (void)image_memory_type;
-}
+ImageInferenceAsync::ImageInferenceAsync(uint32_t thread_pool_size, VaApiDisplayPtr va_display,
+                                         ImageInference::Ptr inference)
+    : _inference(inference), _thread_pool(thread_pool_size) {
+    if (!_inference)
+        throw std::invalid_argument("Ivalid inference object!");
 
-void ImageInferenceAsync::Init() {
-    if (not _inference) {
-        throw std::runtime_error("Inference not set");
-    }
-    _inference->Init();
+    _va_context = std::unique_ptr<VaApiContext>(new VaApiContext(va_display));
+    _va_converter = std::unique_ptr<VaApiConverter>(new VaApiConverter(_va_context.get()));
+
+    auto inference_image_info = get_pool_image_info(_inference);
+    size_t image_pool_size = inference_image_info.batch * _inference->GetNireq();
+    if (image_pool_size < thread_pool_size)
+        image_pool_size = thread_pool_size;
+    _va_image_pool = create_va_api_image_pool(inference_image_info, image_pool_size, _va_context.get());
+
+    std::string msg = "Vpp image pool size: " + std::to_string(image_pool_size);
+    GVA_INFO(msg.c_str());
 }
 
 void ImageInferenceAsync::SubmitInference(VaApiImage *va_api_image, IFrameBase::Ptr user_data,
@@ -89,15 +95,6 @@ void ImageInferenceAsync::SubmitInference(VaApiImage *va_api_image, IFrameBase::
 
 void ImageInferenceAsync::SubmitImage(const Image &src_image, IFrameBase::Ptr user_data,
                                       const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) {
-    if (not _inference) {
-        throw std::runtime_error("Image inference is not set");
-    }
-
-    auto inference_image_info = get_pool_image_info(_inference);
-    if (!_va_image_pool) {
-        _va_image_pool = create_va_api_image_pool(inference_image_info, _VA_IMAGE_POOL_SIZE, _va_context.get());
-    }
-
     VaApiImage *dst_image = _va_image_pool->AcquireBuffer();
     _va_converter->Convert(src_image, *dst_image);
 
@@ -107,24 +104,35 @@ void ImageInferenceAsync::SubmitImage(const Image &src_image, IFrameBase::Ptr us
 }
 
 const std::string &ImageInferenceAsync::GetModelName() const {
-    if (not _inference) {
-        throw std::runtime_error("Inference not set");
-    }
     return _inference->GetModelName();
+}
+
+size_t ImageInferenceAsync::GetNireq() const {
+    return _inference->GetNireq();
 }
 
 void ImageInferenceAsync::GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                                  int &memory_type) const {
-    if (not _inference) {
-        throw std::runtime_error("Inference not set");
-    }
     _inference->GetModelImageInputInfo(width, height, batch_size, format, memory_type);
 }
 
-bool ImageInferenceAsync::IsQueueFull() {
+std::map<std::string, std::vector<size_t>> ImageInferenceAsync::GetModelInputsInfo() const {
     if (not _inference) {
         throw std::runtime_error("Inference not set");
     }
+
+    return _inference->GetModelInputsInfo();
+}
+
+std::map<std::string, std::vector<size_t>> ImageInferenceAsync::GetModelOutputsInfo() const {
+    if (not _inference) {
+        throw std::runtime_error("Inference not set");
+    }
+
+    return _inference->GetModelOutputsInfo();
+}
+
+bool ImageInferenceAsync::IsQueueFull() {
     return _inference->IsQueueFull();
 }
 
@@ -139,17 +147,6 @@ void ImageInferenceAsync::Flush() {
 
 void ImageInferenceAsync::Close() {
     _inference->Close();
-}
-
-VaApiDisplay ImageInferenceAsync::GetVaDisplay() const {
-    return _va_context->DisplayRaw();
-}
-
-void ImageInferenceAsync::SetInference(const ImageInference::Ptr &inference) {
-    if (!inference) {
-        throw std::runtime_error("Cannot initialize ImageInferenceAsync with empty (nullptr) inference");
-    }
-    _inference = inference;
 }
 
 ImageInferenceAsync::~ImageInferenceAsync() = default;

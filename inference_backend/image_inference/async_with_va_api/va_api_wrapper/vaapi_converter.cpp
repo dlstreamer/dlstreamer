@@ -13,19 +13,51 @@
 #include "inference_backend/pre_proc.h"
 #include "inference_backend/safe_arithmetic.h"
 
+#include <drm/drm_fourcc.h>
 #include <va/va_drmcommon.h>
 
 using namespace InferenceBackend;
 
 namespace {
 
-VASurfaceID ConvertVASurfaceFromDifferentDriverContext(VaDpyWrapper display1, VASurfaceID surface,
-                                                       VaDpyWrapper display2, int rt_format, uint64_t &dma_fd_out) {
-
+// Use of this function has a higher priority, but there is a bug in the driver that does not yet allow it to be used
+/*VASurfaceID ConvertVASurfaceFromDifferentDriverContext2(VaDpyWrapper display1, VASurfaceID surface1,
+                                                        VaDpyWrapper display2, int rt_format, uint64_t &drm_fd_out) {
     VADRMPRIMESurfaceDescriptor drm_descriptor = VADRMPRIMESurfaceDescriptor();
-    VA_CALL(display2.drvVtable().vaExportSurfaceHandle(display2.drvCtx(), surface,
+    VA_CALL(display1.drvVtable().vaSyncSurface(display1.drvCtx(), surface1));
+    VA_CALL(display1.drvVtable().vaExportSurfaceHandle(display1.drvCtx(), surface1,
                                                        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
                                                        VA_EXPORT_SURFACE_READ_ONLY, &drm_descriptor));
+
+    if (drm_descriptor.num_objects != 1)
+        throw std::invalid_argument("Unexpected objects number");
+    auto object = drm_descriptor.objects[0];
+    drm_fd_out = object.fd;
+    VASurfaceAttrib attribs[2] = {};
+    attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
+    attribs[0].type = VASurfaceAttribMemoryType;
+    attribs[0].value.type = VAGenericValueTypeInteger;
+    attribs[0].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2;
+
+    attribs[1].flags = VA_SURFACE_ATTRIB_SETTABLE;
+    attribs[1].type = VASurfaceAttribExternalBufferDescriptor;
+    attribs[1].value.type = VAGenericValueTypePointer;
+    attribs[1].value.value.p = &drm_descriptor;
+
+    VASurfaceID surface2 = VA_INVALID_SURFACE;
+    VA_CALL(display2.drvVtable().vaCreateSurfaces2(display2.drvCtx(), rt_format, drm_descriptor.width,
+                                                   drm_descriptor.height, &surface2, 1, attribs, 2));
+    return surface2;
+}*/
+
+VASurfaceID ConvertVASurfaceFromDifferentDriverContext(VaDpyWrapper src_display, VASurfaceID src_surface,
+                                                       VaDpyWrapper dst_display, int rt_format, uint64_t &drm_fd_out) {
+
+    VADRMPRIMESurfaceDescriptor drm_descriptor = VADRMPRIMESurfaceDescriptor();
+    VA_CALL(src_display.drvVtable().vaSyncSurface(src_display.drvCtx(), src_surface));
+    VA_CALL(src_display.drvVtable().vaExportSurfaceHandle(src_display.drvCtx(), src_surface,
+                                                          VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2,
+                                                          VA_EXPORT_SURFACE_READ_ONLY, &drm_descriptor));
 
     VASurfaceAttribExternalBuffers external = VASurfaceAttribExternalBuffers();
     external.width = drm_descriptor.width;
@@ -36,19 +68,21 @@ VASurfaceID ConvertVASurfaceFromDifferentDriverContext(VaDpyWrapper display1, VA
         throw std::invalid_argument("Unexpected objects number");
     auto object = drm_descriptor.objects[0];
     external.num_buffers = 1;
-    uint64_t dma_fd = object.fd;
-    dma_fd_out = dma_fd;
-    external.buffers = &dma_fd;
+    uint64_t drm_fd = object.fd;
+    drm_fd_out = drm_fd;
+    external.buffers = &drm_fd;
     external.data_size = object.size;
+    external.flags = object.drm_format_modifier == DRM_FORMAT_MOD_LINEAR ? 0 : VA_SURFACE_EXTBUF_DESC_ENABLE_TILING;
 
-    external.num_planes = drm_descriptor.num_layers;
-    for (uint32_t i = 0; i < external.num_planes; i++) {
-        auto layer = drm_descriptor.layers[i];
-        if (layer.num_planes != 1)
-            throw std::invalid_argument("Unexpected planes number");
-        external.pitches[i] = layer.pitch[0];
-        external.offsets[i] = layer.offset[0];
+    uint32_t k = 0;
+    for (uint32_t i = 0; i < drm_descriptor.num_layers; i++) {
+        for (uint32_t j = 0; j < drm_descriptor.layers[i].num_planes; j++) {
+            external.pitches[k] = drm_descriptor.layers[i].pitch[j];
+            external.offsets[k] = drm_descriptor.layers[i].offset[j];
+            ++k;
+        }
     }
+    external.num_planes = k;
 
     VASurfaceAttrib attribs[2] = {};
     attribs[0].flags = VA_SURFACE_ATTRIB_SETTABLE;
@@ -61,10 +95,10 @@ VASurfaceID ConvertVASurfaceFromDifferentDriverContext(VaDpyWrapper display1, VA
     attribs[1].value.type = VAGenericValueTypePointer;
     attribs[1].value.value.p = &external;
 
-    VASurfaceID va_surface_id = VA_INVALID_SURFACE;
-    VA_CALL(display1.drvVtable().vaCreateSurfaces2(display1.drvCtx(), rt_format, drm_descriptor.width,
-                                                   drm_descriptor.height, &va_surface_id, 1, attribs, 2));
-    return va_surface_id;
+    VASurfaceID dst_surface = VA_INVALID_SURFACE;
+    VA_CALL(dst_display.drvVtable().vaCreateSurfaces2(dst_display.drvCtx(), rt_format, drm_descriptor.width,
+                                                      drm_descriptor.height, &dst_surface, 1, attribs, 2));
+    return dst_surface;
 }
 
 VASurfaceID ConvertDMABuf(VaDpyWrapper display, const Image &src, int rt_format) {
@@ -154,12 +188,12 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
     VASurfaceID src_surface = VA_INVALID_SURFACE;
     Image &dst = va_api_dst.image;
 
-    uint64_t dma_fd = 0;
+    uint64_t fd = 0;
 
     if (src.type == MemoryType::VAAPI) {
-        src_surface = ConvertVASurfaceFromDifferentDriverContext(_context->Display(), src.va_surface_id,
-                                                                 VaDpyWrapper::fromHandle(src.va_display),
-                                                                 _context->RTFormat(), dma_fd);
+        src_surface = ConvertVASurfaceFromDifferentDriverContext(
+            VaDpyWrapper::fromHandle(src.va_display), src.va_surface_id, _context->Display(), _context->RTFormat(), fd);
+
     } else if (src.type == MemoryType::DMA_BUFFER) {
         src_surface = ConvertDMABuf(_context->Display(), src, _context->RTFormat());
     } else {
@@ -185,17 +219,17 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
     VA_CALL(vtable.vaCreateBuffer(context, _context->Id(), VAProcPipelineParameterBufferType, sizeof(pipeline_param), 1,
                                   &pipeline_param, &pipeline_param_buf_id));
 
-    VA_CALL(vtable.vaBeginPicture(context, _context->Id(), dst_surface))
+    VA_CALL(vtable.vaBeginPicture(context, _context->Id(), dst_surface));
 
-    VA_CALL(vtable.vaRenderPicture(context, _context->Id(), &pipeline_param_buf_id, 1))
+    VA_CALL(vtable.vaRenderPicture(context, _context->Id(), &pipeline_param_buf_id, 1));
 
-    VA_CALL(vtable.vaEndPicture(context, _context->Id()))
+    VA_CALL(vtable.vaEndPicture(context, _context->Id()));
 
-    VA_CALL(vtable.vaDestroyBuffer(context, pipeline_param_buf_id))
+    VA_CALL(vtable.vaDestroyBuffer(context, pipeline_param_buf_id));
 
-    VA_CALL(vtable.vaDestroySurfaces(context, &src_surface, 1))
+    VA_CALL(vtable.vaDestroySurfaces(context, &src_surface, 1));
 
     if (src.type == MemoryType::VAAPI)
-        if (close(dma_fd) == -1)
+        if (close(fd) == -1)
             throw std::runtime_error("VaApiConverter::Convert: close fd failed");
 }

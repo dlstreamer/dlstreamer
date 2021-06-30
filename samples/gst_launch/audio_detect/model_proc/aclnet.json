@@ -3,7 +3,7 @@
 	"input_preproc": [],
 	"output_postproc": [
 		{
-			"layer_name": "203",
+			"layer_name": "output",
 			"converter": "audio_labels",
 			"labels": [
 				{

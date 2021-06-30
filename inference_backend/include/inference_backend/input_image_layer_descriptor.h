@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -56,6 +56,33 @@ class InputImageLayerDesc {
         }
     };
 
+    struct Padding {
+      private:
+        bool defined = false;
+
+      public:
+        const size_t stride_x = 0;
+        const size_t stride_y = 0;
+        const std::vector<double> fill_value = {0, 0, 0};
+
+        Padding() = default;
+        Padding(size_t stride) : defined(stride), stride_x(stride), stride_y(stride) {
+        }
+        Padding(size_t stride, const std::vector<double> &fill_value)
+            : defined(stride), stride_x(stride), stride_y(stride), fill_value(fill_value) {
+        }
+        Padding(size_t stride_x, size_t stride_y)
+            : defined(stride_x || stride_y), stride_x(stride_x), stride_y(stride_y) {
+        }
+        Padding(size_t stride_x, size_t stride_y, const std::vector<double> &fill_value)
+            : defined(stride_x || stride_y), stride_x(stride_x), stride_y(stride_y), fill_value(fill_value) {
+        }
+
+        bool isDefined() const {
+            return defined;
+        }
+    };
+
     InputImageLayerDesc() = default;
     InputImageLayerDesc(Resize resize, Crop crop, ColorSpace color_space)
         : resize(resize), crop(crop), color_space(color_space) {
@@ -88,38 +115,43 @@ class InputImageLayerDesc {
                         const DistribNormalization &distrib_norm)
         : resize(resize), crop(crop), color_space(color_space), range_norm(range_norm), distrib_norm(distrib_norm) {
     }
+    InputImageLayerDesc(Resize resize, Crop crop, ColorSpace color_space, const RangeNormalization &range_norm,
+                        const DistribNormalization &distrib_norm, const Padding &padding)
+        : resize(resize), crop(crop), color_space(color_space), range_norm(range_norm), distrib_norm(distrib_norm),
+          padding(padding) {
+    }
 
-    bool isTransformationToBlobSizeDefined() {
+    bool isTransformationToBlobSizeDefined() const {
         if (resize != Resize::NO or crop != Crop::NO)
             return true;
         return false;
     }
-    bool isDefined() {
+    bool isDefined() const {
         if (isTransformationToBlobSizeDefined() or color_space != ColorSpace::NO or range_norm.isDefined() or
             distrib_norm.isDefined())
             return true;
         return false;
     }
-    bool doNeedResize() {
+    bool doNeedResize() const {
         return resize != Resize::NO;
     }
-    Resize getResizeType() {
+    Resize getResizeType() const {
         return resize;
     }
-    bool doNeedCrop() {
+    bool doNeedCrop() const {
         if (crop == Crop::NO or resize == Resize::NO_ASPECT_RATIO)
             return false;
         return true;
     }
-    Crop getCropType() {
+    Crop getCropType() const {
         return crop;
     }
-    bool doNeedColorSpaceConversion(ColorSpace src_color_space) {
+    bool doNeedColorSpaceConversion(ColorSpace src_color_space) const {
         if (color_space == src_color_space or color_space == ColorSpace::NO)
             return false;
         return true;
     }
-    bool doNeedColorSpaceConversion(int src_color_space) {
+    bool doNeedColorSpaceConversion(int src_color_space) const {
         if (color_space != ColorSpace::NO) {
             if (src_color_space == FOURCC_BGR and color_space == ColorSpace::BGR)
                 return false;
@@ -132,20 +164,26 @@ class InputImageLayerDesc {
         }
         return true;
     }
-    ColorSpace getTargetColorSpace() {
+    ColorSpace getTargetColorSpace() const {
         return color_space;
     }
-    bool doNeedRangeNormalization() {
+    bool doNeedRangeNormalization() const {
         return range_norm.isDefined();
     }
-    const RangeNormalization &getRangeNormalization() {
+    const RangeNormalization &getRangeNormalization() const {
         return range_norm;
     }
-    bool doNeedDistribNormalization() {
+    bool doNeedDistribNormalization() const {
         return distrib_norm.isDefined();
     }
-    const DistribNormalization &getDistribNormalization() {
+    const DistribNormalization &getDistribNormalization() const {
         return distrib_norm;
+    }
+    bool doNeedPadding() const {
+        return padding.isDefined();
+    }
+    const Padding &getPadding() const {
+        return padding;
     }
 
   private:
@@ -154,6 +192,7 @@ class InputImageLayerDesc {
     const ColorSpace color_space;
     const RangeNormalization range_norm;
     const DistribNormalization distrib_norm;
+    const Padding padding;
 
     void setDefaultToBlobSizeTransformationIsItNeed() {
         if (isDefined() and not isTransformationToBlobSizeDefined()) {
@@ -166,6 +205,7 @@ class ImageTransformationParams {
   protected:
     bool was_crop = false;
     bool was_aspect_ratio_resize = false;
+    bool was_padding = false;
 
   public:
     using Ptr = std::shared_ptr<ImageTransformationParams>;
@@ -187,20 +227,29 @@ class ImageTransformationParams {
         cropped_frame_size_x = _cropped_frame_size_x;
         cropped_frame_size_y = _cropped_frame_size_y;
     }
-    bool WasCrop() {
+    bool WasCrop() const {
         return was_crop;
     }
 
     void AspectRatioResizeHasDone(size_t _resize_padding_size_x, size_t _resize_padding_size_y, double _resize_scale_x,
                                   double _resize_scale_y) {
         was_aspect_ratio_resize = true;
-        resize_padding_size_x = _resize_padding_size_x;
-        resize_padding_size_y = _resize_padding_size_y;
-        resize_scale_x = _resize_scale_x;
-        resize_scale_y = _resize_scale_y;
+        resize_padding_size_x += _resize_padding_size_x;
+        resize_padding_size_y += _resize_padding_size_y;
+        resize_scale_x *= _resize_scale_x;
+        resize_scale_y *= _resize_scale_y;
     }
-    bool WasAspectRatioResize() {
+    bool WasAspectRatioResize() const {
         return was_aspect_ratio_resize;
+    }
+
+    void PaddingHasDone(size_t _padding_size_x, size_t _padding_size_y) {
+        was_padding = true;
+        resize_padding_size_x += _padding_size_x;
+        resize_padding_size_y += _padding_size_y;
+    }
+    bool WasPadding() const {
+        return was_padding;
     }
 };
 } // namespace InferenceBackend

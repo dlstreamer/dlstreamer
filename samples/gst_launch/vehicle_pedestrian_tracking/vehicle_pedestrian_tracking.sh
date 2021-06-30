@@ -12,7 +12,19 @@ FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/person-bi
 
 DETECTION_INTERVAL=${2:-10}
 
-INFERENCE_DEVICE=${3:-CPU}
+DEVICE=${3:-CPU}
+
+TRACKING_TYPE=${5:-short-term}
+
+if [[ $DEVICE == "GPU" ]]; then
+  DECODER="decodebin ! video/x-raw\(memory:VASurface\),format=NV12"
+elif [[ $DEVICE == "CPU" ]]; then
+  DECODER="decodebin ! video/x-raw"
+else
+  echo Error: wrong value for DEVICE parameter
+  echo Possible values: CPU, GPU
+  exit
+fi
 
 if [[ $4 == "display" ]] || [[ -z $4 ]]; then
   SINK_ELEMENT="gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
@@ -27,11 +39,6 @@ fi
 MODEL_1=person-vehicle-bike-detection-crossroad-0078
 MODEL_2=person-attributes-recognition-crossroad-0230
 MODEL_3=vehicle-attributes-recognition-barrier-0039
-
-# Other tracking types available are short-term-imageless, zero-term, zero-term-imageless.
-# For more information on tracking types and their difference, please turn to
-# https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Object-tracking.
-TRACKING_TYPE="short-term"
 
 RECLASSIFY_INTERVAL=10
 
@@ -56,26 +63,26 @@ PERSON_CLASSIFICATION_MODEL_PROC=$(PROC_PATH $MODEL_2)
 VEHICLE_CLASSIFICATION_MODEL_PROC=$(PROC_PATH $MODEL_3)
 
 PIPELINE="gst-launch-1.0 \
-  ${SOURCE_ELEMENT} ! decodebin ! \
+  ${SOURCE_ELEMENT} ! $DECODER ! queue ! \
   gvadetect model=$DETECTION_MODEL \
             model-proc=$DETECTION_MODEL_PROC \
             inference-interval=${DETECTION_INTERVAL} \
             threshold=0.6 \
-            device=${INFERENCE_DEVICE} ! \
+            device=${DEVICE} ! \
   queue ! \
   gvatrack tracking-type=${TRACKING_TYPE} ! \
   queue ! \
   gvaclassify model=$PERSON_CLASSIFICATION_MODEL \
               model-proc=$PERSON_CLASSIFICATION_MODEL_PROC \
               reclassify-interval=${RECLASSIFY_INTERVAL} \
-              device=${INFERENCE_DEVICE} object-class=person ! \
+              device=${DEVICE} object-class=person ! \
   queue ! \
   gvaclassify model=$VEHICLE_CLASSIFICATION_MODEL \
               model-proc=$VEHICLE_CLASSIFICATION_MODEL_PROC \
               reclassify-interval=${RECLASSIFY_INTERVAL} \
-              device=${INFERENCE_DEVICE} object-class=vehicle ! \
+              device=${DEVICE} object-class=vehicle ! \
   queue ! \
   $SINK_ELEMENT"
 
 echo ${PIPELINE}
-${PIPELINE}
+eval ${PIPELINE}

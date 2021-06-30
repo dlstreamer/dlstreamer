@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,8 +7,8 @@
 #ifndef _GST_GVA_WATERMARK_H_
 #define _GST_GVA_WATERMARK_H_
 
-#include <gst/base/gstbasetransform.h>
-#include <gst/video/video.h>
+#include <gst/gst.h>
+#include <gst/gstbin.h>
 
 G_BEGIN_DECLS
 
@@ -22,12 +22,18 @@ typedef struct _GstGvaWatermark GstGvaWatermark;
 typedef struct _GstGvaWatermarkClass GstGvaWatermarkClass;
 
 struct _GstGvaWatermark {
-    GstBaseTransform base_gvawatermark;
-    GstVideoInfo info;
+    GstBin base_gvawatermark;
+    GstElement *watermarkimpl;
+    GstElement *vaapipostproc;
+    GstPad *sinkpad;
+    GstPad *srcpad;
+    gchar *device;
+
+    GstElement *current_sink;
 };
 
 struct _GstGvaWatermarkClass {
-    GstBaseTransformClass base_gvawatermark_class;
+    GstBinClass base_gvawatermark_class;
 };
 
 GType gst_gva_watermark_get_type(void);

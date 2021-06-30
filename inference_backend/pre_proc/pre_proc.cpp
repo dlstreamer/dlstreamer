@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,11 +18,9 @@ ImagePreprocessor *ImagePreprocessor::Create(ImagePreprocessorType type) {
     case ImagePreprocessorType::OPENCV:
         p = CreatePreProcOpenCV();
         break;
-#ifdef ENABLE_VAAPI
     case ImagePreprocessorType::VAAPI_SYSTEM:
         p = CreatePreProcOpenCV();
         break;
-#endif
     }
     if (p == nullptr)
         throw std::runtime_error("Failed to allocate Image preprocessor");

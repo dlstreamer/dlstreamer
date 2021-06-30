@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,7 +17,7 @@
 
 class ModelProcParser {
   protected:
-    std::tuple<std::string, GstStructure *> parseProcessingItem(const nlohmann::basic_json<> &);
+    virtual std::tuple<std::string, GstStructure *> parseProcessingItem(const nlohmann::basic_json<> &);
 
   public:
     virtual std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc(const nlohmann::json &input_preproc) = 0;

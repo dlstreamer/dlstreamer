@@ -10,16 +10,21 @@
 #include <fstream>
 #include <regex>
 #include <sstream>
+#include <sys/stat.h>
 #include <tuple>
 
 namespace Utils {
 
-std::string createNestedErrorMsg(const std::exception &e, int level, std::string &&msg) {
-    msg += std::string(level, '\t') + e.what() + "\n";
+std::string createNestedErrorMsg(const std::exception &e, std::string &&msg, int level) {
+    if (not msg.empty())
+        ++level;
+
+    msg += "\n" + std::string(level, '\t') + e.what();
+
     try {
         std::rethrow_if_nested(e);
     } catch (const std::exception &e) {
-        msg = createNestedErrorMsg(e, ++level, std::move(msg));
+        msg = createNestedErrorMsg(e, std::move(msg), level);
     }
     return msg;
 }
@@ -51,6 +56,23 @@ bool fileExists(const std::string &path) {
     return std::ifstream(path).good();
 }
 
+off_t GetFileSize(const std::string &file_path) {
+    static_assert(IsLinux(), "Not implemented for windows.");
+
+    struct stat stat_buffer;
+    int got_stat = stat(file_path.c_str(), &stat_buffer);
+    if (got_stat != 0) // error while reading file information
+        throw std::invalid_argument("Error while reading file '" + file_path + "' information.");
+
+    return stat_buffer.st_size;
+}
+
+bool CheckFileSize(const std::string &path, size_t size_threshold) {
+    off_t file_size = GetFileSize(path);
+
+    return file_size <= size_threshold;
+}
+
 std::tuple<bool, std::string> parseDeviceName(const std::string &device_name) {
     bool has_vpu_device_id = false;
     std::string vpu_device_name;
@@ -76,6 +98,23 @@ std::tuple<bool, std::string> parseDeviceName(const std::string &device_name) {
         }
     }
     return std::make_tuple(has_vpu_device_id, vpu_device_name);
+}
+
+uint32_t getRelativeGpuDeviceIndex(const std::string &device) {
+    if (device.find("GPU") == std::string::npos)
+        throw std::invalid_argument("Invalid GPU device name: " + device);
+
+    const std::vector<std::string> tokens = Utils::splitString(device, '.');
+    if (tokens.size() <= 1)
+        return 0;
+
+    for (auto ch : tokens[1]) {
+        if (!std::isdigit(ch)) {
+            throw std::invalid_argument("Invalid GPU device name: " + device);
+        }
+    }
+
+    return std::stoul(tokens[1]);
 }
 
 bool strToBool(const std::string &s) {

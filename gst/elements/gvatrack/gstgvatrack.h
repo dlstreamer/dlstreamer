@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "gva_caps.h"
 #include "tracker_c.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -25,6 +26,7 @@ GST_DEBUG_CATEGORY_EXTERN(gst_gva_track_debug_category);
 typedef struct _GstGvaTrack {
     GstBaseTransform base_transform;
     GstVideoInfo *info;
+    CapsFeature caps_feature;
 
     gchar *device;
     GstGvaTrackingType tracking_type;

@@ -35,9 +35,9 @@ GStreamer is an open source framework licensed under LGPL. See [license terms](h
 * On platforms with Intel Gen graphics, see the gstreamer-vaapi for [hardware accelerated video decode and encode requirements](https://github.com/GStreamer/gstreamer-vaapi)
 
 ### Software
-* Intel<sup>®</sup> Distribution of OpenVINO<sup>&#8482;</sup> Toolkit Release 2021.1 (Inference Engine 2.1.0) or above
-* Linux* system with kernel 4.15 or above
-* GStreamer* framework 1.16 or above
+* Intel<sup>®</sup> Distribution of OpenVINO<sup>&#8482;</sup> Toolkit Release 2021.4
+* GStreamer* framework 1.16.2 or above (recommended version is 1.18.4)
+* Operating system: Ubuntu 18.04, Ubuntu 20.04, CentOS 7
 
 ## Getting Started
 * Start here: [Install Guide](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)

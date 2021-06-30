@@ -1,16 +1,17 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
+
 #include "image.h"
 #include "input_image_layer_descriptor.h"
 
 namespace InferenceBackend {
 
-enum class ImagePreprocessorType { INVALID, OPENCV, IE, VAAPI_SYSTEM, VAAPI_SURFACE_SHARING };
+enum class ImagePreprocessorType : int { AUTO = 0, OPENCV, IE, VAAPI_SYSTEM, VAAPI_SURFACE_SHARING };
 class ImagePreprocessor {
   public:
     static ImagePreprocessor *Create(ImagePreprocessorType type);

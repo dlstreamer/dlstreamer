@@ -17,8 +17,10 @@
 #endif
 
 #ifdef ENABLE_VAAPI
-#include <gpu/gpu_context_api_va.hpp>
+#include <gpu/gpu_params.hpp>
 #endif
+
+#include <assert.h>
 
 using namespace InferenceBackend;
 using namespace InferenceEngine;
@@ -31,9 +33,6 @@ InferenceEngine::Blob::Ptr General::MakeSharedBlob(const InferenceBackend::Image
     return InferenceEngine::make_shared_blob<uint8_t>(tensor_desc, image.planes[plane_num]);
 }
 
-VPUX::VPUX(const InferenceEngine::RemoteContext::Ptr &remote_context) : remote_context(remote_context) {
-}
-
 InferenceEngine::Blob::Ptr VPUX::MakeSharedBlob(const InferenceBackend::Image &image,
                                                 const InferenceEngine::TensorDesc &tensor_desc,
                                                 size_t plane_num) const {
@@ -42,13 +41,35 @@ InferenceEngine::Blob::Ptr VPUX::MakeSharedBlob(const InferenceBackend::Image &i
     InferenceEngine::ParamMap params = {
         {InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), image.dma_fd},
         {InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), reinterpret_cast<void *>(image.planes[plane_num])}};
-    blob = remote_context->CreateBlob(tensor_desc, params);
+    blob = _remote_context->CreateBlob(tensor_desc, params);
 #else
     UNUSED(image);
     UNUSED(tensor_desc);
     UNUSED(plane_num);
-    assert("Trying to use WrapImageStrategy::VPUX when VPUX support was not enabled during build.");
+    assert(false && "Trying to use WrapImageStrategy::VPUX when VPUX support was not enabled during build.");
 #endif
+    return blob;
+}
+
+Blob::Ptr GPU::MakeSharedBlob(const Image &image, const TensorDesc &tensor_desc, size_t plane_num) const {
+    if (image.format != FourCC::FOURCC_NV12)
+        throw std::invalid_argument("Unsupported image type (GPU)");
+
+    Blob::Ptr blob;
+#ifdef ENABLE_VAAPI
+    assert(_remote_context && "Ivalid remote context, can't create surface");
+    const uint32_t VASURFACE_INVALID_ID = 0xffffffff;
+    if (image.va_surface_id == VASURFACE_INVALID_ID)
+        throw std::runtime_error("Incorrect VA surface");
+
+    ParamMap blob_params{{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
+                         {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), image.va_surface_id},
+                         {GPU_PARAM_KEY(VA_PLANE), static_cast<uint32_t>(plane_num)}};
+    blob = std::dynamic_pointer_cast<Blob>(_remote_context->CreateBlob(tensor_desc, blob_params));
+#else
+    assert(false && "Trying to use WrapImageStrategy::GPU when VAAPI support was not enabled during build.");
+#endif
+
     return blob;
 }
 
@@ -123,6 +144,17 @@ Blob::Ptr NV12ImageToBlob(const Image &image, const WrapImageStrategy::General &
     return nv12Blob;
 }
 
+Blob::Ptr NV12ImageVaapiToBlob(const Image &image, const WrapImageStrategy::General &strategy) {
+    // despite of layout, blob dimensions always follow in N,C,H,W order
+    TensorDesc y_desc(Precision::U8, {1, 1, image.height, image.width}, Layout::NHWC);
+    TensorDesc uv_desc(Precision::U8, {1, 2, image.height / 2, image.width / 2}, Layout::NHWC);
+    Blob::Ptr blob_y = strategy.MakeSharedBlob(image, y_desc, 0 /*first plane*/);
+    Blob::Ptr blob_uv = strategy.MakeSharedBlob(image, uv_desc, 1 /*second plane*/);
+    if (!blob_y || !blob_uv)
+        throw std::runtime_error("Failed to create blob for Y or UV plane");
+    return InferenceEngine::make_shared_blob<NV12Blob>(blob_y, blob_uv);
+}
+
 Blob::Ptr I420ImageToBlob(const Image &image, const WrapImageStrategy::General &strategy) {
     std::vector<size_t> NHWC = {0, 2, 3, 1};
     std::vector<size_t> dimOffsets = {0, 0, 0, 0};
@@ -179,7 +211,10 @@ Blob::Ptr WrapImageToBlob(const Image &image, const WrapImageStrategy::General &
             return BGRImageToBlob(image, strategy);
 
         case FourCC::FOURCC_NV12:
-            return NV12ImageToBlob(image, strategy);
+            if (image.type == MemoryType::VAAPI)
+                return NV12ImageVaapiToBlob(image, strategy);
+            else
+                return NV12ImageToBlob(image, strategy);
 
         case FourCC::FOURCC_I420:
             return I420ImageToBlob(image, strategy);
@@ -191,29 +226,3 @@ Blob::Ptr WrapImageToBlob(const Image &image, const WrapImageStrategy::General &
         std::throw_with_nested(std::runtime_error("Failed to wrap image to InferenceEngine blob"));
     }
 }
-
-#ifdef ENABLE_VAAPI
-Blob::Ptr WrapImageToBlob(const Image &image, const RemoteContext::Ptr &remote_context) {
-    GVA_DEBUG(__FUNCTION__);
-    ITT_TASK(__FUNCTION__);
-    try {
-        Blob::Ptr blob = nullptr;
-        switch (image.format) {
-        case FourCC::FOURCC_NV12: {
-            if (image.va_surface_id == 0xffffffff)
-                throw std::runtime_error("Incorrect va surface");
-            if (!remote_context)
-                throw std::runtime_error("Incorrect context, can not create surface");
-
-            blob = gpu::make_shared_blob_nv12(image.height, image.width, remote_context, image.va_surface_id);
-            break;
-        }
-        default:
-            throw std::invalid_argument("Unsupported image type");
-        }
-        return blob;
-    } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Failed to wrap image to InferenceEngine blob"));
-    }
-}
-#endif

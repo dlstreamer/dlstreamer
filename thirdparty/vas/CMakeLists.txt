@@ -12,16 +12,16 @@ set(VAS_THIRDPARTY_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 
 set(EXTRACT_OS_NAME "grep '^NAME=\".*\"' /etc/os-release | sed '1 s/^NAME=\"\\(.*\\)\"$/\\1/'")
 
-set(BASE_URL "https://downloadmirror.intel.com/30258/eng")
+set(BASE_URL "https://downloadmirror.intel.com/30538/eng")
 
 execute_process(
     COMMAND bash -c ${EXTRACT_OS_NAME}
     OUTPUT_VARIABLE DIS)
 if("${DIS}" MATCHES "Ubuntu")
-    set(ARCHIVE_NAME "vasot.2021.3.ubuntu18.opencv.4.5.2.tar.xz")
+    set(ARCHIVE_NAME "vasot.2021.4.ubuntu18.dpcpp.opencv.4.5.3.tar.xz")
     set(LIBVASOT_ARCHIVE_URL "${BASE_URL}/${ARCHIVE_NAME}")
 else()
-    set(ARCHIVE_NAME "vasot.2021.3.centos7.opencv.4.5.2.tar.xz")
+    set(ARCHIVE_NAME "vasot.2021.4.centos7.dpcpp.opencv.4.5.3.tar.xz")
     set(LIBVASOT_ARCHIVE_URL "${BASE_URL}/${ARCHIVE_NAME}")
 endif()
 

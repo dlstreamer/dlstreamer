@@ -18,6 +18,10 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/common/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/converters/to_roi/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/converters/to_tensor/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/converters/to_tensor/human_pose_extractor/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/common/*.c
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.c
@@ -32,6 +36,10 @@ file (GLOB MAIN_SRC
 file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/common/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/converters/to_roi/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/converters/to_tensor/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/post_processor/converters/to_tensor/human_pose_extractor/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.h

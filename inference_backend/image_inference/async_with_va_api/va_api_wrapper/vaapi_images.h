@@ -46,6 +46,7 @@ class VaApiImagePool {
     struct ImageInfo {
         uint32_t width;
         uint32_t height;
+        uint32_t batch;
         FourCC format;
         MemoryType memory_type;
     };

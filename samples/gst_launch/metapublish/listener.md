@@ -9,13 +9,13 @@ By default the sample will display pretty printed output to stdout. But you may 
 ## MQTT
 Mosquitto provides a docker image to quickly stand up a minimal MQTT broker and client listener.
 
+Create a listen_mqtt.sh script that looks similar to this:
 ```
 #!/bin/bash
 #listen_mqtt.sh
 
 # Launch minimal MQTT broker
-docker run -d --rm --name dlstreamer_mqtt -p 1883:1883 -p 9001:9001 eclipse-mosquitto
-
+docker run -d --rm --name dlstreamer_mqtt -p 1883:1883 -p 9001:9001 eclipse-mosquitto:1.6
 echo "Listening for MQTT messages on 'dlstreamer' topic..."
 # Launch client listener, subscribing to default topic
 # Emit output to console

@@ -16,7 +16,7 @@
 using namespace InferenceBackend;
 using GstMemoryUniquePtr = std::unique_ptr<GstMemory, decltype(&gst_memory_unref)>;
 
-inline int gstFormatToFourCC(int format) {
+int gst_format_to_fourcc(int format) {
     switch (format) {
     case GST_VIDEO_FORMAT_NV12:
         GST_DEBUG("GST_VIDEO_FORMAT_NV12");
@@ -42,6 +42,24 @@ inline int gstFormatToFourCC(int format) {
     return 0;
 }
 
+void fill_image_with_video_info(GstVideoInfo *info, InferenceBackend::Image &image) {
+    if (not info)
+        throw std::invalid_argument("GstVideoInfo is absent during GstBuffer mapping");
+
+    guint n_planes = GST_VIDEO_INFO_N_PLANES(info);
+    if (n_planes == 0 or n_planes > InferenceBackend::Image::MAX_PLANES_NUMBER)
+        throw std::logic_error("Unsupported number of image planes: " + std::to_string(n_planes));
+
+    image.format = gst_format_to_fourcc(GST_VIDEO_INFO_FORMAT(info));
+    image.width = static_cast<uint32_t>(GST_VIDEO_INFO_WIDTH(info));
+    image.height = static_cast<uint32_t>(GST_VIDEO_INFO_HEIGHT(info));
+    image.size = GST_VIDEO_INFO_SIZE(info);
+    for (guint i = 0; i < n_planes; ++i) {
+        image.stride[i] = GST_VIDEO_INFO_PLANE_STRIDE(info, i);
+        image.offsets[i] = GST_VIDEO_INFO_PLANE_OFFSET(info, i);
+    }
+}
+
 void gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_context, GstVideoInfo *info,
                     MemoryType memory_type, GstMapFlags map_flags) {
     ITT_TASK(__FUNCTION__);
@@ -55,7 +73,7 @@ void gva_buffer_map(GstBuffer *buffer, Image &image, BufferMapContext &map_conte
         if (n_planes == 0 or n_planes > Image::MAX_PLANES_NUMBER)
             throw std::logic_error("Image planes number " + std::to_string(n_planes) + " isn't supported");
 
-        image.format = gstFormatToFourCC(GST_VIDEO_INFO_FORMAT(info));
+        image.format = gst_format_to_fourcc(GST_VIDEO_INFO_FORMAT(info));
         image.width = static_cast<uint32_t>(GST_VIDEO_INFO_WIDTH(info));
         image.height = static_cast<uint32_t>(GST_VIDEO_INFO_HEIGHT(info));
         image.size = GST_VIDEO_INFO_SIZE(info);
