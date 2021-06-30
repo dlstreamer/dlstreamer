@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -32,13 +32,12 @@ struct NetworkReferenceWrapper {
 struct ModelLoader {
     virtual ~ModelLoader() = default;
 
-    virtual InferenceEngine::CNNNetwork load(InferenceEngine::Core &core, const std::string &model_xml,
+    virtual InferenceEngine::CNNNetwork load(const std::string &model_xml,
                                              const std::map<std::string, std::string> &base_config) = 0;
 
     virtual std::string name(const NetworkReferenceWrapper &network) = 0;
 
     virtual InferenceEngine::ExecutableNetwork import(InferenceEngine::CNNNetwork &network, const std::string &model,
-                                                      InferenceEngine::Core &core,
                                                       const std::map<std::string, std::string> &base_config,
                                                       const std::map<std::string, std::string> &inference_config) = 0;
 
@@ -47,30 +46,38 @@ struct ModelLoader {
 };
 
 struct IrModelLoader : ModelLoader {
-    void *_display;
-    IrModelLoader(void *display = nullptr) : _display(display){};
-    InferenceEngine::CNNNetwork load(InferenceEngine::Core &core, const std::string &model_xml,
+    IrModelLoader() = default;
+    IrModelLoader(InferenceEngine::RemoteContext::Ptr remote_ctx) : _remote_ctx(remote_ctx) {
+    }
+    InferenceEngine::CNNNetwork load(const std::string &model_xml,
                                      const std::map<std::string, std::string> &base_config) override;
 
     std::string name(const NetworkReferenceWrapper &network) override;
 
     InferenceEngine::ExecutableNetwork import(InferenceEngine::CNNNetwork &network, const std::string &,
-                                              InferenceEngine::Core &core,
                                               const std::map<std::string, std::string> &base_config,
                                               const std::map<std::string, std::string> &inference_config) override;
+
+  protected:
+    InferenceEngine::RemoteContext::Ptr _remote_ctx;
 };
 
 struct CompiledModelLoader : ModelLoader {
+    CompiledModelLoader() = default;
+    CompiledModelLoader(InferenceEngine::RemoteContext::Ptr remote_ctx) : _remote_ctx(remote_ctx) {
+    }
 
-    InferenceEngine::CNNNetwork load(InferenceEngine::Core &core, const std::string &model_xml,
+    InferenceEngine::CNNNetwork load(const std::string &model_xml,
                                      const std::map<std::string, std::string> &base_config) override;
 
     std::string name(const NetworkReferenceWrapper &network) override;
 
     InferenceEngine::ExecutableNetwork import(InferenceEngine::CNNNetwork &, const std::string &model,
-                                              InferenceEngine::Core &core,
                                               const std::map<std::string, std::string> &base_config,
                                               const std::map<std::string, std::string> &inference_config) override;
+
+  protected:
+    InferenceEngine::RemoteContext::Ptr _remote_ctx;
 };
 
 } // namespace InferenceBackend

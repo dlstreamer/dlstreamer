@@ -36,7 +36,9 @@ PUBLIC
         logger
         pre_proc
         opencv_pre_proc
+        utils
         ${VA_LIBRARIES}
 PRIVATE
         ${VADRM_LIBRARIES}
+        utils
 )

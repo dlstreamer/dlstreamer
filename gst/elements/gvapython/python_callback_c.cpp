@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -44,7 +44,8 @@ class PythonError {
 void log_python_error(GstGvaPython *gvapython, gboolean is_fatal) {
     PyObject *ptype, *pvalue, *ptraceback;
     PyErr_Fetch(&ptype, &pvalue, &ptraceback);
-    static PythonError pythonError;
+    // Can't be static because should be detroyed while Python context is initialized
+    PythonError pythonError;
     pythonError.log_python_error(ptype, pvalue, ptraceback, gvapython, is_fatal);
     PyErr_Restore(ptype, pvalue, ptraceback);
 }
@@ -132,6 +133,16 @@ PythonCallback *create_python_callback(const char *module_path, const char *clas
         GST_ERROR("module_path, function_name must not be NULL");
         return nullptr;
     }
+
+    auto context_initializer = PythonContextInitializer();
+    context_initializer.initialize();
+    // add user-specified callback module into Python path
+    const char *filename = strrchr(module_path, '/');
+    if (filename) {
+        std::string dir(module_path, filename);
+        context_initializer.extendPath(dir);
+    }
+
     try {
         return new PythonCallback(module_path, class_name, function_name, args_string, keyword_args_string);
     } catch (const std::exception &e) {
@@ -145,6 +156,7 @@ gboolean set_python_callback_caps(struct PythonCallback *python_callback, GstCap
         GST_ERROR("python_callback is not initialized");
         return FALSE;
     }
+    auto context_initializer = PythonContextInitializer();
     try {
         python_callback->SetCaps(caps);
         return TRUE;
@@ -160,6 +172,7 @@ GstFlowReturn invoke_python_callback(GstGvaPython *gvapython, GstBuffer *buffer)
         GST_ELEMENT_ERROR(gvapython, RESOURCE, NOT_FOUND, ("Python_callback is not initialized."), (NULL));
         return GST_FLOW_ERROR;
     }
+    auto context_initializer = PythonContextInitializer();
     try {
         if (gvapython->python_callback->CallPython(buffer)) {
             return GST_FLOW_OK;
@@ -174,6 +187,7 @@ GstFlowReturn invoke_python_callback(GstGvaPython *gvapython, GstBuffer *buffer)
 }
 
 void delete_python_callback(struct PythonCallback *python_callback) {
+    auto context_initializer = PythonContextInitializer();
     try {
         delete python_callback;
     } catch (const std::exception &e) {

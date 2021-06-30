@@ -1,11 +1,14 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "pre_processor_info_parser.hpp"
 
+#include "inference_backend/safe_arithmetic.h"
+
+#include <cassert>
 #include <map>
 #include <string>
 #include <vector>
@@ -44,8 +47,10 @@ InferenceBackend::InputImageLayerDesc::Ptr PreProcParamsParser::parse() const {
     const auto range_norm = getRangeNormalization();
     const auto distrib_norm = getDistribNormalization();
 
+    const auto padding = getPadding();
+
     return std::make_shared<InferenceBackend::InputImageLayerDesc>(
-        InferenceBackend::InputImageLayerDesc(resize, crop, color_space, range_norm, distrib_norm));
+        InferenceBackend::InputImageLayerDesc(resize, crop, color_space, range_norm, distrib_norm, padding));
 }
 
 PreProcResize PreProcParamsParser::getResize() const {
@@ -166,4 +171,60 @@ PreProcDistribNormalization PreProcParamsParser::getDistribNormalization() const
         std::throw_with_nested(e);
     }
     return PreProcDistribNormalization();
+}
+
+PreProcPadding PreProcParamsParser::getPadding() const {
+    try {
+        if (not gst_structure_has_field(params, "padding"))
+            return PreProcPadding{};
+
+        const GValue *value = gst_structure_get_value(params, "padding");
+        assert(value != nullptr && "padding Gvalue from model-proc is nullptr.");
+
+        const GstStructure *padding_s = gst_value_get_structure(value);
+        assert(padding_s != nullptr && "GstStructure padding field from gvalue is nullptr.");
+
+        if (gst_structure_has_field(padding_s, "stride") and
+            (gst_structure_has_field(padding_s, "stride_x") or gst_structure_has_field(padding_s, "stride_y")))
+            throw std::runtime_error("Padding structure has exta information about stride.");
+
+        size_t stride_x = 0;
+        size_t stride_y = 0;
+        std::vector<double> fill_value(3, 0);
+        int val = -1;
+
+        if (gst_structure_has_field(padding_s, "fill_value")) {
+            GValueArray *arr = nullptr;
+            gst_structure_get_array(const_cast<GstStructure *>(padding_s), "fill_value", &arr);
+            if (!arr or !arr->n_values)
+                throw std::runtime_error("\"fill_value\" array is null.");
+
+            fill_value = GValueArrayToVector(arr);
+            deleteGValueArr(arr);
+        }
+
+        if (gst_structure_has_field(padding_s, "stride")) {
+            gst_structure_get_int(padding_s, "stride", &val);
+            size_t stride = safe_convert<size_t>(val);
+            stride_x = stride;
+            stride_y = stride;
+        } else {
+            if (gst_structure_has_field(padding_s, "stride_x")) {
+                gst_structure_get_int(padding_s, "stride_x", &val);
+                stride_x = safe_convert<size_t>(val);
+            }
+
+            if (gst_structure_has_field(padding_s, "stride_y")) {
+                gst_structure_get_int(padding_s, "stride_y", &val);
+                stride_y = safe_convert<size_t>(val);
+            }
+        }
+
+        return PreProcPadding(stride_x, stride_y, fill_value);
+
+    } catch (const std::exception &e) {
+        std::throw_with_nested(std::runtime_error("Error during \"padding\" structure parse."));
+    }
+
+    return PreProcPadding{};
 }

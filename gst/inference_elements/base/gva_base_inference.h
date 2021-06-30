@@ -28,7 +28,7 @@ G_BEGIN_DECLS
 
 typedef void (*OnBaseInferenceInitializedFunction)(GvaBaseInference *base_inference);
 
-enum INFERENCE_TYPE { GST_GVA_DETECT_TYPE, GST_GVA_CLASSIFY_TYPE, GST_GVA_INFERENCE_TYPE };
+typedef enum { GST_GVA_DETECT_TYPE, GST_GVA_CLASSIFY_TYPE, GST_GVA_INFERENCE_TYPE } InferenceType;
 typedef enum { FULL_FRAME, ROI_LIST } InferenceRegionType;
 
 typedef struct _GvaBaseInference {
@@ -50,12 +50,12 @@ typedef struct _GvaBaseInference {
     guint gpu_streams;
     gchar *ie_config;
     gchar *allocator_name;
-    gchar *pre_proc_name;
+    gchar *pre_proc_type;
     gchar *device_extensions;
     gchar *object_class;
 
     // other fields
-    enum INFERENCE_TYPE type;
+    InferenceType type;
     GstVideoInfo *info;
     CapsFeature caps_feature;
     InferenceRegionType inference_region;

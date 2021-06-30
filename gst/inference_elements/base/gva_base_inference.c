@@ -6,6 +6,7 @@
 
 #include "gva_base_inference.h"
 
+#include "common/post_processor/post_processor_c.h"
 #include "common/pre_processors.h"
 #include "config.h"
 #include "utils.h"
@@ -15,7 +16,7 @@
 #define DEFAULT_MODEL_PROC NULL
 #define DEFAULT_DEVICE "CPU"
 #define DEFAULT_DEVICE_EXTENSIONS ""
-#define DEFAULT_PRE_PROC ""
+#define DEFAULT_PRE_PROC "" // empty = autoselection
 #define DEFAULT_INFERENCE_REGION FULL_FRAME
 #define DEFAULT_OBJECT_CLASS NULL
 
@@ -30,9 +31,9 @@
 
 #define DEFAULT_RESHAPE FALSE
 
-#define DEFAULT_MIN_BATCH_SIZE 1
+#define DEFAULT_MIN_BATCH_SIZE 0
 #define DEFAULT_MAX_BATCH_SIZE 1024
-#define DEFAULT_BATCH_SIZE 1
+#define DEFAULT_BATCH_SIZE 0
 
 #define DEFAULT_MIN_RESHAPE_WIDTH 0
 #define DEFAULT_MAX_RESHAPE_WIDTH UINT_MAX
@@ -106,6 +107,8 @@ static gboolean gva_base_inference_stop(GstBaseTransform *trans);
 static gboolean gva_base_inference_sink_event(GstBaseTransform *trans, GstEvent *event);
 static gboolean gva_base_inference_propose_allocation(GstBaseTransform *trans, GstQuery *decide_query, GstQuery *query);
 
+static void on_base_inference_initialized(GvaBaseInference *base_inference);
+
 static GstFlowReturn gva_base_inference_transform_ip(GstBaseTransform *trans, GstBuffer *buf);
 static void gva_base_inference_cleanup(GvaBaseInference *base_inference);
 static GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstStateChange transition);
@@ -130,6 +133,8 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gva_base_inference_transform_ip);
     base_transform_class->propose_allocation = GST_DEBUG_FUNCPTR(gva_base_inference_propose_allocation);
     element_class->change_state = GST_DEBUG_FUNCPTR(gva_base_inference_change_state);
+
+    klass->on_initialized = on_base_inference_initialized;
 
     g_object_class_install_property(gobject_class, PROP_MODEL,
                                     g_param_spec_string("model", "Model", "Path to inference model network file",
@@ -164,13 +169,15 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
             "Target device for inference. Please see OpenVINO™ Toolkit documentation for list of supported devices.",
             DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property(gobject_class, PROP_BATCH_SIZE,
-                                    g_param_spec_uint("batch-size", "Batch size",
-                                                      "Number of frames batched together for a single inference. "
-                                                      "Not all models support batching. Use model optimizer to ensure "
-                                                      "that the model has batching support.",
-                                                      DEFAULT_MIN_BATCH_SIZE, DEFAULT_MAX_BATCH_SIZE,
-                                                      DEFAULT_BATCH_SIZE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(
+        gobject_class, PROP_BATCH_SIZE,
+        g_param_spec_uint("batch-size", "Batch size",
+                          "Number of frames batched together for a single inference. If the batch-size is 0, then it "
+                          "will be set by default to be optimal for the device."
+                          "Not all models support batching. Use model optimizer to ensure "
+                          "that the model has batching support.",
+                          DEFAULT_MIN_BATCH_SIZE, DEFAULT_MAX_BATCH_SIZE, DEFAULT_BATCH_SIZE,
+                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_INFERENCE_INTERVAL,
@@ -285,17 +292,14 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     g_free(base_inference->model_instance_id);
     base_inference->model_instance_id = NULL;
 
-    g_free(base_inference->pre_proc_name);
-    base_inference->pre_proc_name = NULL;
+    g_free(base_inference->pre_proc_type);
+    base_inference->pre_proc_type = NULL;
 
     g_free(base_inference->ie_config);
     base_inference->ie_config = NULL;
 
     g_free(base_inference->allocator_name);
     base_inference->allocator_name = NULL;
-
-    g_free(base_inference->pre_proc_name);
-    base_inference->pre_proc_name = NULL;
 
     g_free(base_inference->device_extensions);
     base_inference->device_extensions = NULL;
@@ -313,6 +317,11 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     if (base_inference->object_class) {
         g_free(base_inference->object_class);
         base_inference->object_class = NULL;
+    }
+
+    if (base_inference->post_proc) {
+        releasePostProcessor(base_inference->post_proc);
+        base_inference->post_proc = NULL;
     }
 }
 
@@ -335,7 +344,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->no_block = DEFAULT_NO_BLOCK;
     base_inference->nireq = DEFAULT_NIREQ;
     base_inference->model_instance_id = g_strdup(DEFAULT_MODEL_INSTANCE_ID);
-    base_inference->pre_proc_name = g_strdup(DEFAULT_PRE_PROC);
+    base_inference->pre_proc_type = g_strdup(DEFAULT_PRE_PROC);
     // TODO: make one property for streams
     base_inference->cpu_streams = DEFAULT_CPU_THROUGHPUT_STREAMS;
     base_inference->gpu_streams = DEFAULT_GPU_THROUGHPUT_STREAMS;
@@ -435,18 +444,12 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         break;
     case PROP_BATCH_SIZE:
         base_inference->batch_size = g_value_get_uint(value);
-        if (base_inference->batch_size != DEFAULT_BATCH_SIZE)
-            base_inference->reshape = TRUE;
         break;
     case PROP_RESHAPE_WIDTH:
         base_inference->reshape_width = g_value_get_uint(value);
-        if (base_inference->reshape_width != DEFAULT_RESHAPE_WIDTH)
-            base_inference->reshape = TRUE;
         break;
     case PROP_RESHAPE_HEIGHT:
         base_inference->reshape_height = g_value_get_uint(value);
-        if (base_inference->reshape_height != DEFAULT_RESHAPE_HEIGHT)
-            base_inference->reshape = TRUE;
         break;
     case PROP_NO_BLOCK:
         base_inference->no_block = g_value_get_boolean(value);
@@ -459,8 +462,8 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         base_inference->model_instance_id = g_value_dup_string(value);
         break;
     case PROP_PRE_PROC_BACKEND:
-        g_free(base_inference->pre_proc_name);
-        base_inference->pre_proc_name = g_value_dup_string(value);
+        g_free(base_inference->pre_proc_type);
+        base_inference->pre_proc_type = g_value_dup_string(value);
         break;
     case PROP_CPU_THROUGHPUT_STREAMS:
         base_inference->cpu_streams = g_value_get_uint(value);
@@ -532,7 +535,7 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         g_value_set_string(value, base_inference->model_instance_id);
         break;
     case PROP_PRE_PROC_BACKEND:
-        g_value_set_string(value, base_inference->pre_proc_name);
+        g_value_set_string(value, base_inference->pre_proc_type);
         break;
     case PROP_CPU_THROUGHPUT_STREAMS:
         g_value_set_uint(value, base_inference->cpu_streams);
@@ -592,17 +595,34 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     gst_video_info_from_caps(base_inference->info, incaps);
 
     base_inference->caps_feature = get_caps_feature(incaps);
+
     if (base_inference->inference == NULL) {
         base_inference->inference = acquire_inference_instance(base_inference);
+
+        if (base_inference->inference == NULL) {
+            GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT,
+                              ("base_inference based element initialization has been failed."), ("inference is NULL."));
+            return FALSE;
+        }
+
         GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_GET_CLASS(base_inference);
-        if (base_inference_class->on_initialized)
+        if (base_inference_class->on_initialized) {
             base_inference_class->on_initialized(base_inference);
+
+            if (base_inference->post_proc == NULL) {
+                GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT,
+                                  ("base_inference based element initialization has been failed."),
+                                  ("post-processing is NULL."));
+                return FALSE;
+            }
+        }
+
         // We need to set the vector of object classes
         // after InferenceImpl instance acquirement
         update_inference_object_classes(base_inference);
     }
 
-    return base_inference->inference != NULL;
+    return TRUE;
 }
 
 gboolean gva_base_inference_check_properties_correctness(GvaBaseInference *base_inference) {
@@ -634,6 +654,12 @@ gboolean gva_base_inference_check_properties_correctness(GvaBaseInference *base_
     }
 
     return TRUE;
+}
+
+static void on_base_inference_initialized(GvaBaseInference *base_inference) {
+    GST_DEBUG_OBJECT(base_inference, "on_base_inference_initialized");
+
+    base_inference->post_proc = createPostProcessor(base_inference->inference, base_inference);
 }
 
 gboolean gva_base_inference_start(GstBaseTransform *trans) {

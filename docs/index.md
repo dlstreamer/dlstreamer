@@ -242,7 +242,7 @@ _args.add_argument("-i", "--input", help="Required. Path to input video file",
 _args.add_argument("-d", "--detection_model", help="Required. Path to an .xml file with object detection model",
                    required=True, type=str)
 ```
-Next, function `process_frame` defines post-processing. As we said above, this code is for SSD-like models, so please feel freee to replace it with your own post-processing implementation that suffices your custom model. Meanwhile, let's take a look at usage of GVA API in this piece.
+Next, function `process_frame` defines post-processing. As we said above, this code is for SSD-like models, so please feel free to replace it with your own post-processing implementation that suffices your custom model. Meanwhile, let's take a look at usage of GVA API in this piece.
 
 Tons of image information regarding current video frame can be obtain with gstgva.video_frame.VideoFrame.video_info. You can get image width, height, channels format and much more:
 ```python

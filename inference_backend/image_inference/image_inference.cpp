@@ -10,67 +10,69 @@
 
 using namespace InferenceBackend;
 
-ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_type, const std::string &model,
-                                                const std::map<std::string, std::map<std::string, std::string>> &config,
-                                                Allocator *allocator, CallbackFunc callback,
-                                                ErrorHandlingFunc error_handler, const std::string &device_name) {
-    MemoryType inference_memory_type;
-    ImagePreprocessorType image_preprocessor_type = ImagePreprocessorType::INVALID;
-    if (input_image_memory_type == MemoryType::VAAPI or input_image_memory_type == MemoryType::DMA_BUFFER) {
-        const std::map<std::string, std::string> &base = config.at(KEY_BASE);
-        auto it = base.find(KEY_PRE_PROCESSOR_TYPE);
-        if (it != base.end()) {
-            image_preprocessor_type = static_cast<ImagePreprocessorType>(std::stoi(it->second));
-            switch (image_preprocessor_type) {
-            case ImagePreprocessorType::VAAPI_SYSTEM:
-                inference_memory_type = MemoryType::SYSTEM;
-                break;
-            case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
-                inference_memory_type = MemoryType::VAAPI;
-                break;
-            default:
-                throw std::runtime_error(
-                    "Incorrect pre-process-backend, should be equal vaapi or vaapi-surface-sharing");
-            }
-        }
-    }
+namespace {
 
-    ImageInference::Ptr image_inference;
+ImagePreprocessorType getPreProcType(const std::map<std::string, std::string> &base_config) {
+    auto it = base_config.find(KEY_PRE_PROCESSOR_TYPE);
+    if (it == base_config.end())
+        throw std::runtime_error("Image pre-processor type is not set");
+    return static_cast<ImagePreprocessorType>(std::stoi(it->second));
+}
+
+} // namespace
+
+ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_type, const InferenceConfig &config,
+                                                Allocator *allocator, CallbackFunc callback,
+                                                ErrorHandlingFunc error_handler, VaApiDisplayPtr va_display) {
+    bool async_mode = false;
+    // Resulted memory type that will be used for inference
+    MemoryType memory_type_to_use = MemoryType::ANY;
+
     switch (input_image_memory_type) {
-#if defined(ENABLE_VAAPI)
+    case MemoryType::SYSTEM:
+        // Nothing special for system memory.
+        memory_type_to_use = input_image_memory_type;
+        break;
+
     case MemoryType::DMA_BUFFER:
     case MemoryType::VAAPI: {
-        std::shared_ptr<ImageInferenceAsync> image_inference_async;
-        const int image_pool_size = 5;
-        image_inference = image_inference_async =
-            std::make_shared<ImageInferenceAsync>(image_pool_size, input_image_memory_type);
-        if (image_preprocessor_type == ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
-            void *display = image_inference_async->GetVaDisplay();
-            auto infer = std::make_shared<OpenVINOImageInference>(model, config, display, callback, error_handler,
-                                                                  inference_memory_type, device_name);
-            image_inference_async->SetInference(infer);
-            infer->Init();
+        async_mode = true;
+
+        // The display must present.
+        if (!va_display)
+            throw std::invalid_argument("VA display is invalid");
+
+        ImagePreprocessorType preproc_type = getPreProcType(config.at(KEY_BASE));
+        switch (preproc_type) {
+        case ImagePreprocessorType::VAAPI_SYSTEM:
+            memory_type_to_use = MemoryType::SYSTEM;
+            // For OV instance VADisplay is not needed in this case.
             break;
+        case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
+            memory_type_to_use = MemoryType::VAAPI;
+            break;
+        default:
+            throw std::runtime_error("Incorrect pre-process-backend, should be equal vaapi or vaapi-surface-sharing");
         }
-        auto infer = std::make_shared<OpenVINOImageInference>(model, config, allocator, callback, error_handler,
-                                                              inference_memory_type, device_name);
-        image_inference_async->SetInference(infer);
-        infer->Init();
         break;
     }
-#else
-        UNUSED(inference_memory_type);
-        UNUSED(image_preprocessor_type);
-#endif
-    case MemoryType::SYSTEM: {
-        image_inference = std::make_shared<OpenVINOImageInference>(model, config, allocator, callback, error_handler,
-                                                                   input_image_memory_type, device_name);
-        image_inference->Init();
-        break;
-    }
+
     default:
         throw std::invalid_argument("Unsupported memory type");
     }
 
-    return image_inference;
+    auto ov_inference = std::make_shared<OpenVINOImageInference>(config, allocator, va_display.get(), callback,
+                                                                 error_handler, memory_type_to_use);
+
+    ImageInference::Ptr result_inference;
+    if (async_mode) {
+#ifdef ENABLE_VAAPI
+        constexpr uint32_t THREAD_POOL_SIZE = 5;
+        result_inference = std::make_shared<ImageInferenceAsync>(THREAD_POOL_SIZE, va_display, std::move(ov_inference));
+#endif
+    } else {
+        result_inference = std::move(ov_inference);
+    }
+
+    return result_inference;
 }

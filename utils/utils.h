@@ -17,7 +17,10 @@
 
 namespace Utils {
 
-std::string createNestedErrorMsg(const std::exception &e, int level = 0, std::string &&msg = "");
+const std::string dpcppInstructionMsg = "Seems DPC++ dependency is not installed. Please follow installation guide: "
+                                        "https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DPCPP-Install-Guide";
+
+std::string createNestedErrorMsg(const std::exception &e, std::string &&msg = "", int level = 0);
 std::vector<std::string> splitString(const std::string &input, char delimiter = ',');
 /**
  * Converts string in format `key1=val1,key2=val2,...` to key/value pairs.
@@ -30,7 +33,25 @@ std::vector<std::string> splitString(const std::string &input, char delimiter = 
  */
 std::map<std::string, std::string> stringToMap(const std::string &s, char rec_delim = ',', char kv_delim = '=');
 bool fileExists(const std::string &path);
+constexpr bool IsLinux() {
+#ifdef __linux__
+    return true;
+#else
+    return false;
+#endif
+}
+off_t GetFileSize(const std::string &file_path);
+bool CheckFileSize(const std::string &path, size_t size_threshold);
 std::tuple<bool, std::string> parseDeviceName(const std::string &device_name);
+
+/**
+ * Parses GPU device name and returns relative GPU index from it.
+ *
+ * @param[in] device GPU device name in forms: GPU, GPU.0, etc.
+ *
+ * @return relative GPU index.
+ */
+uint32_t getRelativeGpuDeviceIndex(const std::string &device);
 
 /**
  * Converts string to boolean value.

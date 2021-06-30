@@ -20,7 +20,7 @@ endif()
 option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" OFF)
 
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 4)
+set(VERSION_MINOR 5)
 
 if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
     set(VERSION_PATCH 0)
@@ -42,6 +42,14 @@ add_definitions(-DPACKAGE="gst-video-analytics")
 add_definitions(-DPACKAGE_NAME="GStreamer Video Analytics elements")
 add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/openvinotoolkit/dlstreamer_gst")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
+
+macro(find_IE_package)
+    set(IE_MIN_VERSION "2021.4.0")
+    find_package(InferenceEngine REQUIRED)
+    if (${InferenceEngine_VERSION} VERSION_LESS ${IE_MIN_VERSION})
+        message(FATAL_ERROR "InferenceEngine version should be >= ${IE_MIN_VERSION}. Found: ${InferenceEngine_VERSION}")
+    endif()
+endmacro(find_IE_package)
 
 macro(set_target_lib_version TARGET)
     set_target_properties(
@@ -106,7 +114,6 @@ if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")
     # TODO: test if it increases x86 performance as well and rm check for aarch64
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -ftree-vectorize") # should be used with "-O2"
 endif()
-
 
 ###############################################################################
 if (${CMAKE_SYSTEM_PROCESSOR} STREQUAL "aarch64")

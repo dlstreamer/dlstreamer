@@ -28,7 +28,7 @@ class OpenVINOAudioInference {
     AudioInferenceOutput *getInferenceOutput();
 
   private:
-    void CreateRemoteContext();
+    void CreateRemoteContext(const std::string &device);
 
     InferenceEngine::InferRequest inferRequest;
     InferenceEngine::RemoteContext::Ptr remote_context;
@@ -36,9 +36,4 @@ class OpenVINOAudioInference {
     InferenceEngine::TensorDesc tensor_desc;
     std::string input_name;
     AudioInferenceOutput infOut;
-
-    // For VPUX devices
-    // TODO: Re-implement these variables usage (with OOP)
-    bool has_vpu_device_id = false;
-    std::string vpu_device_name;
 };

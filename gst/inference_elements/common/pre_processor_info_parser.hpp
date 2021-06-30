@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,6 +15,7 @@ using PreProcCrop = InferenceBackend::InputImageLayerDesc::Crop;
 using PreProcColorSpace = InferenceBackend::InputImageLayerDesc::ColorSpace;
 using PreProcRangeNormalization = InferenceBackend::InputImageLayerDesc::RangeNormalization;
 using PreProcDistribNormalization = InferenceBackend::InputImageLayerDesc::DistribNormalization;
+using PreProcPadding = InferenceBackend::InputImageLayerDesc::Padding;
 
 class PreProcParamsParser {
   private:
@@ -27,6 +28,7 @@ class PreProcParamsParser {
     PreProcColorSpace getColorSpace() const;
     PreProcRangeNormalization getRangeNormalization() const;
     PreProcDistribNormalization getDistribNormalization() const;
+    PreProcPadding getPadding() const;
 
   public:
     PreProcParamsParser(const GstStructure *params);

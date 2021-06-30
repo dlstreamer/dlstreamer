@@ -361,7 +361,11 @@ static gboolean gst_gva_meta_convert_set_caps(GstBaseTransform *trans, GstCaps *
         gst_audio_info_from_caps(gvametaconvert->audio_info, incaps);
     }
 #endif
-    else {
+    else if (g_strrstr(name, "application")) {
+        if (!gvametaconvert->info) {
+            gvametaconvert->info = gst_video_info_new();
+        }
+    } else {
         GST_ERROR_OBJECT(gvametaconvert, "Invalid input caps");
         return FALSE;
     }

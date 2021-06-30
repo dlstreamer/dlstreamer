@@ -6,5 +6,8 @@ facial-landmarks-35-adas-0002
 person-vehicle-bike-detection-crossroad-0078
 person-attributes-recognition-crossroad-0230
 vehicle-attributes-recognition-barrier-0039
-mobilenet-ssd
 head-pose-estimation-adas-0001
+human-pose-estimation-0001
+aclnet
+action-recognition-0001-encoder
+action-recognition-0001-decoder

@@ -23,25 +23,40 @@ class General {
                                                       size_t plane_num) const;
 };
 
-class VPUX : public General {
+class Remote : public General {
   public:
-    VPUX(const InferenceEngine::RemoteContext::Ptr &remote_context);
-    virtual ~VPUX() = default;
-
-    virtual InferenceEngine::Blob::Ptr MakeSharedBlob(const InferenceBackend::Image &image,
-                                                      const InferenceEngine::TensorDesc &tensor_desc,
-                                                      size_t plane_num) const override;
+    Remote(InferenceEngine::RemoteContext::Ptr remote_context) : _remote_context(remote_context) {
+        if (!_remote_context)
+            throw std::invalid_argument("Invalid remote context provided");
+    }
+    ~Remote() = default;
 
   protected:
-    const InferenceEngine::RemoteContext::Ptr &remote_context;
+    InferenceEngine::RemoteContext::Ptr _remote_context;
+};
+
+class VPUX : public Remote {
+  public:
+    VPUX(InferenceEngine::RemoteContext::Ptr remote_context) : Remote(remote_context) {
+    }
+    ~VPUX() = default;
+
+    InferenceEngine::Blob::Ptr MakeSharedBlob(const InferenceBackend::Image &image,
+                                              const InferenceEngine::TensorDesc &tensor_desc,
+                                              size_t plane_num) const override;
+};
+
+class GPU : public Remote {
+  public:
+    GPU(InferenceEngine::RemoteContext::Ptr remote_context) : Remote(remote_context) {
+    }
+    ~GPU() = default;
+
+    InferenceEngine::Blob::Ptr MakeSharedBlob(const InferenceBackend::Image &image, const InferenceEngine::TensorDesc &,
+                                              size_t) const override;
 };
 
 } // namespace WrapImageStrategy
 
 InferenceEngine::Blob::Ptr WrapImageToBlob(const InferenceBackend::Image &image,
                                            const WrapImageStrategy::General &strategy);
-
-#ifdef ENABLE_VAAPI
-InferenceEngine::Blob::Ptr WrapImageToBlob(const InferenceBackend::Image &image,
-                                           const InferenceEngine::RemoteContext::Ptr &remote_context);
-#endif

@@ -15,7 +15,7 @@ fi
 
 if [ ! -d "$AUDIO_MODELS_PATH" ]
 then
-  echo -e "\e[31mERROR: Invalid model directory $AUDIO_MODELS_PATH , execute download_audio_models.sh to download models\e[0m" 1>&2
+  echo -e "\e[31mERROR: Invalid model directory $AUDIO_MODELS_PATH , execute `samples/download_models.sh` to download models\e[0m" 1>&2
   exit 1
 fi
 
@@ -39,7 +39,7 @@ PROC_PATH() {
     echo $AUDIO_MODEL_PROC_PATH
 }
 
-MODEL_PATH=${MODELS_PATH}/audio_models/aclnet/FP32/aclnet.xml
+MODEL_PATH=${MODELS_PATH}/public/aclnet/FP32/aclnet.xml
 
 MODEL_PROC_PATH=$(PROC_PATH $MODEL)
 

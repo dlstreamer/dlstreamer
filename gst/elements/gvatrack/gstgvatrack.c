@@ -5,7 +5,6 @@
  ******************************************************************************/
 
 #include "gstgvatrack.h"
-#include "gva_caps.h"
 #include "tracker_c.h"
 #include "utils.h"
 
@@ -19,9 +18,12 @@
 
 GST_DEBUG_CATEGORY(gst_gva_track_debug_category);
 
-#define DEFAULT_DEVICE "CPU"
+#define DEFAULT_DEVICE ""
 #define DEFAULT_TRACKING_TYPE SHORT_TERM
 #define DEFAULT_TRACKING_CONFIG NULL
+
+#define DEVICE_CPU "CPU"
+#define DEVICE_GPU "GPU"
 
 enum {
     PROP_0,
@@ -101,8 +103,9 @@ static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
                           GST_GVA_TRACKING_TYPE, DEFAULT_TRACKING_TYPE, kDefaultGParamFlags));
     g_object_class_install_property(gobject_class, PROP_DEVICE,
                                     g_param_spec_string("device", "Device",
-                                                        "Target device for tracking. Supported devices are CPU "
-                                                        "(default) and VPU.<id>, where id is VPU slice id.",
+                                                        "Target device for tracking. Supported devices are CPU, "
+                                                        "GPU.<id>, where id is GPU device id "
+                                                        "and VPU.<id>, where id is VPU slice id.",
                                                         DEFAULT_DEVICE, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
     g_object_class_install_property(gobject_class, PROP_TRACKING_CONFIG,
                                     g_param_spec_string("config", "Tracker specific configuration",
@@ -132,7 +135,7 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
     switch (prop_id) {
     case PROP_DEVICE:
         g_free(gva_track->device);
-        gva_track->device = g_value_dup_string(value);
+        gva_track->device = g_ascii_strup(g_value_dup_string(value), -1);
         break;
     case PROP_TRACKING_TYPE:
         gva_track->tracking_type = g_value_get_enum(value);
@@ -195,6 +198,37 @@ static GstStateChangeReturn gst_gva_track_change_state(GstElement *element, GstS
     return ret;
 }
 
+static gboolean _check_device_correctness(GstGvaTrack *gva_track) {
+    return strcmp(gva_track->device, DEVICE_GPU) == 0 && gva_track->caps_feature != VA_SURFACE_CAPS_FEATURE &&
+           gva_track->caps_feature != DMA_BUF_CAPS_FEATURE;
+}
+
+static void _try_to_create_default_gpu_tracker(GstGvaTrack *gva_track) {
+    // Set default device if it wasn't specified by user
+    if (gva_track->device != NULL && gva_track->device[0] != '\0')
+        return;
+    gboolean tryGPU = gva_track->tracking_type == ZERO_TERM && (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE ||
+                                                                gva_track->caps_feature == DMA_BUF_CAPS_FEATURE);
+    tryGPU = FALSE; // disable default loading of libvasot_gpu, will be removed
+    if (tryGPU) {
+        gva_track->device = g_strdup(DEVICE_GPU);
+
+        GError *error = NULL;
+        gva_track->tracker = acquire_tracker_instance(gva_track, &error);
+        if (error) {
+            GST_ELEMENT_INFO(gva_track, LIBRARY, INIT, ("can't init tracker to run on GPU"), ("%s", error->message));
+            release_tracker_instance(gva_track->tracker);
+            gva_track->tracker = NULL;
+            g_error_free(error);
+        } else {
+            GST_ELEMENT_INFO(gva_track, LIBRARY, INIT, ("initialized GPU tracker instance"), NULL);
+        }
+    }
+
+    if (gva_track->tracker == NULL)
+        gva_track->device = g_strdup(DEVICE_CPU);
+}
+
 static gboolean gst_gva_track_set_caps(GstBaseTransform *trans, GstCaps *incaps, GstCaps *outcaps) {
     UNUSED(outcaps);
 
@@ -209,6 +243,16 @@ static gboolean gst_gva_track_set_caps(GstBaseTransform *trans, GstCaps *incaps,
         release_tracker_instance(gva_track->tracker);
         gva_track->tracker = NULL;
     }
+    gva_track->caps_feature = get_caps_feature(incaps);
+
+    _try_to_create_default_gpu_tracker(gva_track);
+
+    if (_check_device_correctness(gva_track)) {
+        GST_ELEMENT_ERROR(gva_track, LIBRARY, INIT, ("tracker intitialization failed"),
+                          ("memory type should be VASurface or DMABuf for running on GPU"));
+        return FALSE;
+    }
+
     if (gva_track->tracker == NULL) {
         GError *error = NULL;
         gva_track->tracker = acquire_tracker_instance(gva_track, &error);
@@ -216,6 +260,8 @@ static gboolean gst_gva_track_set_caps(GstBaseTransform *trans, GstCaps *incaps,
             GST_ELEMENT_ERROR(gva_track, LIBRARY, INIT, ("tracker intitialization failed"), ("%s", error->message));
             g_error_free(error);
             return FALSE;
+        } else {
+            GST_ELEMENT_INFO(gva_track, LIBRARY, INIT, ("initialized %s tracker instance", gva_track->device), NULL);
         }
     }
 

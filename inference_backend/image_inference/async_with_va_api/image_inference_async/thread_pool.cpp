@@ -1,11 +1,16 @@
 /*******************************************************************************
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "thread_pool.h"
+
 #include "config.h"
+#include "inference_backend/logger.h"
+#include "utils.h"
+
+#include <string>
 
 #ifdef ENABLE_ITT
 #include "ittnotify.h"
@@ -40,24 +45,39 @@ ThreadPool::~ThreadPool() {
 std::future<void> ThreadPool::schedule(const std::function<void()> &callable) {
     std::shared_ptr<std::promise<void>> p = std::make_shared<std::promise<void>>();
     std::future<void> future = p->get_future();
+
     _tasks.push([callable, p]() {
         callable();
         p->set_value();
     });
+
     _condition_variable.notify_one();
     return future;
 }
 
 void ThreadPool::_task_runner() {
     ITT_THREAD_NAME();
-    while (!_terminate) {
-        std::unique_lock<std::mutex> lock(_mutex);
-        _condition_variable.wait_for(lock, std::chrono::seconds(1),
-                                     [this]() -> bool { return !_tasks.empty() || _terminate; });
-        if (!_tasks.empty()) {
-            auto task = _tasks.front();
-            _tasks.pop();
-            task();
+    try {
+        while (!_terminate) {
+            std::function<void()> task;
+
+            // Pop a task
+            {
+                std::unique_lock<std::mutex> lock(_mutex);
+                _condition_variable.wait_for(lock, std::chrono::seconds(1),
+                                             [this]() -> bool { return !_tasks.empty() || _terminate; });
+                if (!_tasks.empty()) {
+                    task = _tasks.front();
+                    _tasks.pop();
+                }
+            }
+
+            if (task)
+                task();
         }
+    } catch (const std::exception &e) {
+        const std::string msg =
+            Utils::createNestedErrorMsg(e, std::string("Error was happened during in another thread:"));
+        GVA_ERROR(msg.c_str())
     }
 }

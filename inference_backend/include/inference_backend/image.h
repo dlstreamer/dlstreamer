@@ -19,12 +19,7 @@ struct fourcc {
 
 namespace InferenceBackend {
 
-enum class MemoryType {
-    ANY = 0,
-    SYSTEM = 1,
-    DMA_BUFFER = 2,
-    VAAPI = 3,
-};
+enum class MemoryType { ANY = 0, SYSTEM = 1, DMA_BUFFER = 2, VAAPI = 3, USM_DEVICE_POINTER = 4 };
 
 enum FourCC {
     FOURCC_RGBP_F32 = 0x07282024,
@@ -70,6 +65,7 @@ struct Image {
     int dma_fd = -1; // if type==DMA_BUFFER or VPUX device is used
 
     int format = 0; // FourCC
+    uint64_t drm_format_modifier = 0;
     uint32_t width = 0;
     uint32_t height = 0;
     uint32_t size = 0;

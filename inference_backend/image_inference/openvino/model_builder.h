@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,14 +17,14 @@ struct EntityBuilder {
 
     virtual ~EntityBuilder() = default;
 
-    virtual InferenceEngine::CNNNetwork createNetwork(InferenceEngine::Core &core) {
-        return loader->load(core, model_path, base_config);
+    virtual InferenceEngine::CNNNetwork createNetwork() {
+        return loader->load(model_path, base_config);
     };
 
     virtual std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork,
                        std::string>
-    createPreProcAndExecutableNetwork(InferenceEngine::CNNNetwork &network, InferenceEngine::Core &core) {
-        return createPreProcAndExecutableNetwork_impl(network, core);
+    createPreProcAndExecutableNetwork(InferenceEngine::CNNNetwork &network) {
+        return createPreProcAndExecutableNetwork_impl(network);
     }
 
     virtual std::string getNetworkName(const InferenceBackend::NetworkReferenceWrapper &network) {
@@ -34,12 +34,11 @@ struct EntityBuilder {
   private:
     virtual std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork,
                        std::string>
-    createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network, InferenceEngine::Core &core) = 0;
+    createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network) = 0;
 
   protected:
     EntityBuilder(std::unique_ptr<InferenceBackend::ModelLoader> &&loader,
-                  const std::map<std::string, std::map<std::string, std::string>> &config,
-                  const std::string &model_path)
+                  const InferenceBackend::InferenceConfig &config, const std::string &model_path)
         : loader(std::move(loader)), base_config(config.at(InferenceBackend::KEY_BASE)),
           inference_config(config.at(InferenceBackend::KEY_INFERENCE)),
           layer_precision_config(config.at(InferenceBackend::KEY_LAYER_PRECISION)),
@@ -50,7 +49,7 @@ struct EntityBuilder {
 
     std::unique_ptr<InferenceBackend::ModelLoader> loader;
     const std::map<std::string, std::string> base_config;
-    const std::map<std::string, std::string> inference_config;
+    std::map<std::string, std::string> inference_config;
     const std::map<std::string, std::string> layer_precision_config;
     const std::map<std::string, std::string> layer_type_config;
     const size_t batch_size;
@@ -58,26 +57,27 @@ struct EntityBuilder {
 };
 
 struct IrBuilder : EntityBuilder {
-    IrBuilder(const std::map<std::string, std::map<std::string, std::string>> &config, const std::string &model_path,
-              void *display = nullptr)
-        : EntityBuilder(std::unique_ptr<InferenceBackend::ModelLoader>(new InferenceBackend::IrModelLoader(display)),
+    IrBuilder(const InferenceBackend::InferenceConfig &config, const std::string &model_path,
+              InferenceEngine::RemoteContext::Ptr remote_ctx = nullptr)
+        : EntityBuilder(std::unique_ptr<InferenceBackend::ModelLoader>(new InferenceBackend::IrModelLoader(remote_ctx)),
                         config, model_path) {
     }
 
   private:
     void configureNetworkLayers(const InferenceEngine::InputsDataMap &inputs_info, std::string &image_input_name);
     std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork, std::string>
-    createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network, InferenceEngine::Core &core) override;
+    createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network) override;
 };
 
 struct CompiledBuilder : EntityBuilder {
-    CompiledBuilder(const std::map<std::string, std::map<std::string, std::string>> &config,
-                    const std::string &model_path)
-        : EntityBuilder(std::unique_ptr<InferenceBackend::ModelLoader>(new InferenceBackend::CompiledModelLoader()),
-                        config, model_path) {
+    CompiledBuilder(const InferenceBackend::InferenceConfig &config, const std::string &model_path,
+                    InferenceEngine::RemoteContext::Ptr remote_ctx = nullptr)
+        : EntityBuilder(
+              std::unique_ptr<InferenceBackend::ModelLoader>(new InferenceBackend::CompiledModelLoader(remote_ctx)),
+              config, model_path) {
     }
 
   private:
     std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork, std::string>
-    createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network, InferenceEngine::Core &core);
+    createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network);
 };

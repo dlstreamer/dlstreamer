@@ -34,12 +34,17 @@ PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
+if (${ENABLE_VAAPI})
+    set(ADDITIONAL_LINKS va_api_wrapper)
+endif()
+
 target_link_libraries(${TARGET_NAME}
 PRIVATE
     ${GSTREAMER_LDFLAGS}
     ${GLIB2_LIBRARIES}
     common
     utils
+    ${ADDITIONAL_LINKS}
 )
 
 if (NOT ${DOWNLOAD_VAS_TRACKER})

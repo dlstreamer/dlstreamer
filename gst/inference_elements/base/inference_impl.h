@@ -17,6 +17,8 @@
 #include <list>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <vector>
 
 class InferenceImpl {
   public:
@@ -25,7 +27,7 @@ class InferenceImpl {
         std::shared_ptr<InferenceBackend::ImageInference> inference;
         std::vector<ModelInputProcessorInfo::Ptr> input_processor_info;
         std::map<std::string, GstStructure *> output_processor_info;
-        std::map<std::string, GValueArray *> labels;
+        std::map<std::string, std::vector<std::string>> labels;
     };
 
     InferenceImpl(GvaBaseInference *gva_base_inference);
@@ -33,7 +35,7 @@ class InferenceImpl {
     GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer);
     void SinkEvent(GstEvent *event);
     void FlushInference();
-    const std::vector<Model> &GetModels() const;
+    const Model &GetModel() const;
 
     void UpdateObjectClasses(GvaBaseInference *gva_base_inference);
     bool FilterObjectClass(GstVideoRegionOfInterestMeta *roi) const;
@@ -62,7 +64,7 @@ class InferenceImpl {
     std::vector<std::string> object_classes;
 
     mutable std::mutex _mutex;
-    std::vector<Model> models;
+    Model model;
     std::shared_ptr<InferenceBackend::Allocator> allocator;
 
     struct OutputFrame {
@@ -84,6 +86,7 @@ class InferenceImpl {
     void UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inference_roi);
     Model CreateModel(GvaBaseInference *gva_base_inference, const std::string &model_file,
                       const std::string &model_proc_path);
+    void UpdateModelReshapeInfo(GvaBaseInference *gva_base_inference);
 
     GstFlowReturn SubmitImages(GvaBaseInference *gva_base_inference,
                                const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstBuffer *buffer);

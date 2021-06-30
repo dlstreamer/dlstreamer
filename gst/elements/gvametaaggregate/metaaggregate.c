@@ -86,33 +86,38 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
     if (!buf_with_meta)
         return TRUE; // there is no buffer on the sink_pad this time. It's accepted behavior
 
-    while (
-        (meta = gst_buffer_iterate_meta_filtered(buf_with_meta, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE))) {
-        GstVideoRegionOfInterestMeta *original_roi_meta = (GstVideoRegionOfInterestMeta *)meta;
-
+    while ((meta = gst_buffer_iterate_meta(buf_with_meta, &state))) {
         g_return_val_if_fail(gst_buffer_is_writable(buf), FALSE);
+        if (meta->info->api == GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE) {
+            GstVideoRegionOfInterestMeta *original_roi_meta = (GstVideoRegionOfInterestMeta *)meta;
 
-        GstVideoRegionOfInterestMeta *output_meta = gst_buffer_add_video_region_of_interest_meta(
-            buf, g_quark_to_string(original_roi_meta->roi_type), original_roi_meta->x, original_roi_meta->y,
-            original_roi_meta->w, original_roi_meta->h);
+            GstVideoRegionOfInterestMeta *output_meta = gst_buffer_add_video_region_of_interest_meta(
+                buf, g_quark_to_string(original_roi_meta->roi_type), original_roi_meta->x, original_roi_meta->y,
+                original_roi_meta->w, original_roi_meta->h);
 
-        for (GList *l = original_roi_meta->params; l; l = l->next) {
-            GstStructure *s = GST_STRUCTURE(l->data);
-            if (!gst_structure_has_name(s, "object_id")) {
-                gst_video_region_of_interest_meta_add_param(
-                    output_meta, gst_structure_copy(gst_video_region_of_interest_meta_get_param(
-                                     original_roi_meta, gst_structure_get_name(s))));
-                if (gst_structure_has_name(s, "detection"))
-                    detection = s;
+            for (GList *l = original_roi_meta->params; l; l = l->next) {
+                GstStructure *s = GST_STRUCTURE(l->data);
+                if (!gst_structure_has_name(s, "object_id")) {
+                    gst_video_region_of_interest_meta_add_param(
+                        output_meta, gst_structure_copy(gst_video_region_of_interest_meta_get_param(
+                                         original_roi_meta, gst_structure_get_name(s))));
+                    if (gst_structure_has_name(s, "detection"))
+                        detection = s;
+                }
             }
-        }
 
-        if (src_pad_video_info->width != sink_pad_video_info->width ||
-            src_pad_video_info->height != sink_pad_video_info->height) {
-            // apply scale only when needed (if image size on src pad is different from image size on this sink pad)
-            gboolean status = roi_meta_scale(output_meta, src_pad_video_info, detection);
-            if (status == FALSE)
-                return status;
+            if (src_pad_video_info->width != sink_pad_video_info->width ||
+                src_pad_video_info->height != sink_pad_video_info->height) {
+                // apply scale only when needed (if image size on src pad is different from image size on this sink pad)
+                g_return_val_if_fail(roi_meta_scale(output_meta, src_pad_video_info, detection), FALSE);
+            }
+        } else if (meta->info->transform_func) {
+            // Try to copy the whole meta from sink buffer to out buffer
+            GstMetaTransformCopy copy_data = {.region = FALSE, .offset = 0, .size = -1};
+            if (!meta->info->transform_func(buf, meta, buf_with_meta, _gst_meta_transform_copy, &copy_data)) {
+                GST_ERROR("Failed to copy metadata to out buffer");
+                return FALSE;
+            }
         }
     }
     return TRUE;

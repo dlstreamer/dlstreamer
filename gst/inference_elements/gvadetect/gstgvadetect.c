@@ -9,8 +9,6 @@
 #include "gstgvadetect.h"
 #include "gva_caps.h"
 
-#include "detection_post_processors_c.h"
-
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -36,9 +34,6 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_detect_debug_category);
 G_DEFINE_TYPE_WITH_CODE(GstGvaDetect, gst_gva_detect, GST_TYPE_GVA_BASE_INFERENCE,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_detect_debug_category, "gvadetect", 0,
                                                 "debug category for gvadetect element"));
-
-static void gst_gva_detect_finilize(GObject *object);
-static void on_base_inference_initialized(GvaBaseInference *base_inference);
 
 void gst_gva_detect_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
     GstGvaDetect *gvadetect = (GstGvaDetect *)(object);
@@ -82,12 +77,8 @@ void gst_gva_detect_class_init(GstGvaDetectClass *klass) {
                                           "Intel Corporation");
 
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
-    gobject_class->finalize = gst_gva_detect_finilize;
     gobject_class->set_property = gst_gva_detect_set_property;
     gobject_class->get_property = gst_gva_detect_get_property;
-
-    GvaBaseInferenceClass *base_inference_class = GVA_BASE_INFERENCE_CLASS(klass);
-    base_inference_class->on_initialized = on_base_inference_initialized;
 
     g_object_class_install_property(
         gobject_class, PROP_THRESHOLD,
@@ -104,23 +95,4 @@ void gst_gva_detect_init(GstGvaDetect *gvadetect) {
 
     gvadetect->base_inference.type = GST_GVA_DETECT_TYPE;
     gvadetect->threshold = DEFALUT_THRESHOLD;
-}
-
-void gst_gva_detect_finilize(GObject *object) {
-    GstGvaDetect *gvadetect = GST_GVA_DETECT(object);
-
-    GST_DEBUG_OBJECT(gvadetect, "finalize");
-
-    releaseDetectionPostProcessor(gvadetect->base_inference.post_proc);
-    gvadetect->base_inference.post_proc = NULL;
-
-    G_OBJECT_CLASS(gst_gva_detect_parent_class)->finalize(object);
-}
-
-void on_base_inference_initialized(GvaBaseInference *base_inference) {
-    GstGvaDetect *gvadetect = GST_GVA_DETECT(base_inference);
-
-    GST_DEBUG_OBJECT(gvadetect, "on_base_inference_initialized");
-
-    base_inference->post_proc = createDetectionPostProcessor(base_inference->inference);
 }

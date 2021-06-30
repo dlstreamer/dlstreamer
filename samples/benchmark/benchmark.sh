@@ -10,8 +10,9 @@ set -e
 if [ -z ${1} ]; then
   echo "ERROR set path to video"
   echo "Usage : ./benchmark.sh VIDEO_FILE [DECODE_DEVICE] [INFERENCE_DEVICE] [CHANNELS_COUNT]"
-  echo "You can download video with \"curl https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4\" --output /path/to/your/video/head-pose-face-detection-female-and-male.mp4"
-  echo " and run sample ./benchmark.sh /path/to/your/video/head-pose-face-detection-female-and-male.mp4"
+  echo "You can download video with"
+  echo "\"curl https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/head-pose-face-detection-female-and-male.mp4 --output /path/to/your/video/head-pose-face-detection-female-and-male.mp4\""
+  echo "and run sample ./benchmark.sh /path/to/your/video/head-pose-face-detection-female-and-male.mp4"
   exit
 fi
 
@@ -29,15 +30,14 @@ PROC_PATH() {
 DETECT_MODEL_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
 
 if [ $DECODE_DEVICE == CPU ]; then
-  unset GST_VAAPI_ALL_DRIVERS
-  MEMORY_TYPE=""
+  DECODER="decodebin force-sw-decoders=true ! video/x-raw"
 else
-  export GST_VAAPI_ALL_DRIVERS=1
-  MEMORY_TYPE="(memory:DMABuf)"
+  DECODER="decodebin ! video/x-raw\(memory:DMABuf\)"
 fi
 
+
 PIPELINE=" filesrc location=${VIDEO_FILE_NAME} ! \
-decodebin ! video/x-raw${MEMORY_TYPE} ! \
+${DECODER} ! \
 gvadetect model-instance-id=inf0 model=${DETECT_MODEL_PATH} device=${INFERENCE_DEVICE} ! queue ! \
 gvafpscounter ! fakesink async=false "
 
@@ -50,4 +50,4 @@ done
 
 
 echo "gst-launch-1.0 -v ${FINAL_PIPELINE_STR}"
-gst-launch-1.0 -v ${FINAL_PIPELINE_STR}
+eval gst-launch-1.0 -v ${FINAL_PIPELINE_STR}

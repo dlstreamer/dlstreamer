@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,12 +13,11 @@
 #include <inference_engine.hpp>
 #include <ngraph/ngraph.hpp>
 
-#ifdef ENABLE_VAAPI
 #include <cldnn/cldnn_config.hpp>
-#include <gpu/gpu_context_api_va.hpp>
-#endif
 
 #include <fstream>
+
+#include "core_singleton.h"
 
 using namespace InferenceBackend;
 
@@ -181,11 +180,11 @@ bool ModelLoader::is_compile_model(const std::string &model_path) {
     return is_compile;
 }
 
-InferenceEngine::CNNNetwork IrModelLoader::load(InferenceEngine::Core &core, const std::string &model,
+InferenceEngine::CNNNetwork IrModelLoader::load(const std::string &model,
                                                 const std::map<std::string, std::string> &base_config) {
     try {
         // Load IR or ONNX network (.xml, .onnx file)
-        InferenceEngine::CNNNetwork network = core.ReadNetwork(model);
+        InferenceEngine::CNNNetwork network = IeCoreSingleton::Instance().ReadNetwork(model);
         bool reshape =
             (base_config.find(KEY_RESHAPE) != base_config.end()) ? std::stoi(base_config.at(KEY_RESHAPE)) : false;
         size_t batch_size =
@@ -214,37 +213,35 @@ std::string IrModelLoader::name(const NetworkReferenceWrapper &network) {
 }
 
 InferenceEngine::ExecutableNetwork IrModelLoader::import(InferenceEngine::CNNNetwork &network, const std::string &,
-                                                         InferenceEngine::Core &core,
                                                          const std::map<std::string, std::string> &base_config,
                                                          const std::map<std::string, std::string> &inference_config) {
 
     if (base_config.count(KEY_DEVICE) == 0)
-        throw std::runtime_error("Device does not specified");
+        throw std::runtime_error("Inference device is not specified");
     const std::string &device = base_config.at(KEY_DEVICE);
     InferenceEngine::ExecutableNetwork executable_network;
 
-#if defined(ENABLE_VAAPI)
-    if (_display and device == "GPU") {
-        InferenceEngine::gpu::VAContext::Ptr context =
-            InferenceEngine::gpu::make_shared_context(core, device, _display);
-        // This is a temporary workround to provide a compound blob instead of a remote one
-        std::map<std::string, std::string> inference_config_ = inference_config;
-        inference_config_[InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] =
-            InferenceEngine::PluginConfigParams::YES;
-        // Surface sharing works only with GPU_THROUGHPUT_STREAMS equal to default value ( = 1)
-        inference_config_.erase("GPU_THROUGHPUT_STREAMS");
-        executable_network = core.LoadNetwork(network, context, inference_config_);
+    if (_remote_ctx) {
+        // This is a workround to provide a compound blob instead of a remote one
+        std::map<std::string, std::string> config_copy = inference_config;
+        if (device.find("GPU") != device.npos) {
+            config_copy[InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] =
+                InferenceEngine::PluginConfigParams::YES;
+
+            // TODO: Surface sharing works only with GPU_THROUGHPUT_STREAMS equal to default value ( = 1)
+            GVA_WARNING("Erasing GPU_THROUGHPUT_STREAMS from Inference Engine config in surface sharing case");
+            config_copy.erase(KEY_GPU_THROUGHPUT_STREAMS);
+        }
+
+        executable_network = IeCoreSingleton::Instance().LoadNetwork(network, _remote_ctx, config_copy);
     } else {
-        executable_network = core.LoadNetwork(network, device, inference_config);
+        executable_network = IeCoreSingleton::Instance().LoadNetwork(network, device, inference_config);
     }
-#else
-    executable_network = core.LoadNetwork(network, device, inference_config);
-#endif
+
     return executable_network;
 }
 
-InferenceEngine::CNNNetwork CompiledModelLoader::load(InferenceEngine::Core &, const std::string &,
-                                                      const std::map<std::string, std::string> &) {
+InferenceEngine::CNNNetwork CompiledModelLoader::load(const std::string &, const std::map<std::string, std::string> &) {
     return InferenceEngine::CNNNetwork();
 }
 
@@ -253,15 +250,22 @@ std::string CompiledModelLoader::name(const NetworkReferenceWrapper &network) {
 }
 
 InferenceEngine::ExecutableNetwork
-CompiledModelLoader::import(InferenceEngine::CNNNetwork &, const std::string &model, InferenceEngine::Core &core,
+CompiledModelLoader::import(InferenceEngine::CNNNetwork &, const std::string &model,
                             const std::map<std::string, std::string> &base_config,
                             const std::map<std::string, std::string> &inference_config) {
     try {
         InferenceEngine::ExecutableNetwork executable_network;
-        if (base_config.count(KEY_DEVICE) == 0)
-            throw std::invalid_argument("Inference device is not specified");
-        const std::string &device = base_config.at(KEY_DEVICE);
-        executable_network = core.ImportNetwork(model, device, inference_config);
+        if (_remote_ctx) {
+            std::ifstream blobFile(model, std::ios::binary);
+            if (!blobFile.is_open())
+                throw std::runtime_error("Could not open model file");
+            executable_network = IeCoreSingleton::Instance().ImportNetwork(blobFile, _remote_ctx, inference_config);
+        } else {
+            if (base_config.count(KEY_DEVICE) == 0)
+                throw std::invalid_argument("Inference device is not specified");
+            const std::string &device = base_config.at(KEY_DEVICE);
+            executable_network = IeCoreSingleton::Instance().ImportNetwork(model, device, inference_config);
+        }
         return executable_network;
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to import pre-compiled model"));

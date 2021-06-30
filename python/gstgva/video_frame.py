@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -144,36 +144,53 @@ class VideoFrame:
     ## @brief Get buffer data wrapped by numpy.ndarray
     #  @return numpy array instance
     @contextmanager
-    def data(self, flag: Gst.MapFlags = Gst.MapFlags.WRITE) -> numpy.ndarray:
+    def data(self, flag: Gst.MapFlags = Gst.MapFlags.READ) -> numpy.ndarray:
         with gst_buffer_data(self.__buffer, flag) as data:
-            bytes_per_pix = self.__video_info.finfo.pixel_stride[0]  # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
+            # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
+            bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
+            is_yuv_format = self.__video_info.finfo.format in [
+                GstVideo.VideoFormat.NV12, GstVideo.VideoFormat.I420]
             w = self.__video_info.width
-            if self.__video_info.finfo.format == GstVideo.VideoFormat.NV12 or \
-               self.__video_info.finfo.format == GstVideo.VideoFormat.I420:
+            if is_yuv_format:
                 h = int(self.__video_info.height * 1.5)
-            elif self.__video_info.finfo.format == GstVideo.VideoFormat.BGR or \
-                 self.__video_info.finfo.format == GstVideo.VideoFormat.BGRA or \
-                 self.__video_info.finfo.format == GstVideo.VideoFormat.BGRX:
+            elif self.__video_info.finfo.format in [GstVideo.VideoFormat.BGR,
+                                                    GstVideo.VideoFormat.BGRA,
+                                                    GstVideo.VideoFormat.BGRX]:
                 h = self.__video_info.height
             else:
                 raise RuntimeError("VideoFrame.data: Unsupported format")
 
-            if len(data) != h * w * bytes_per_pix:
+            mapped_data_size = len(data)
+            requested_size = h * w * bytes_per_pix
+
+            if mapped_data_size != requested_size:
                 warn("Size of buffer's data: {}, and requested size: {}\n"
                      "Let to get shape from video meta...".format(
-                    len(data), h * w * bytes_per_pix), stacklevel=2)
+                         mapped_data_size, requested_size), stacklevel=2)
                 meta = self.video_meta()
                 if meta:
                     h, w = meta.height, meta.width
+                    requested_size = h * w * bytes_per_pix
                 else:
                     warn("Video meta is {}. Can't get shape.".format(meta),
-                            stacklevel=2)
+                         stacklevel=2)
 
             try:
-                yield numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)
+                if mapped_data_size < requested_size:
+                    raise RuntimeError("VideoFrame.data: Corrupted buffer")
+                elif mapped_data_size == requested_size:
+                    yield numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)
+                elif is_yuv_format:
+                    # In some cases image size after mapping can be larger than expected image size.
+                    # One of the reasons can be vaapi decoder which appends lines to the end of an image
+                    # so the height is multiple of 16. So we need to return an image that has the same
+                    # resolution as in video_info. That's why we drop extra lines added by decoder.
+                    yield self.__repack_video_frame(data)
+                else:
+                    raise RuntimeError("VideoFrame.data: Corrupted buffer")
             except TypeError as e:
                 warn(str(e) + "\nSize of buffer's data: {}, and requested size: {}".format(
-                    len(data), h * w * bytes_per_pix), stacklevel=2)
+                    mapped_data_size, requested_size), stacklevel=2)
                 raise e
 
     def __is_bounded(self, x, y, w, h):
@@ -189,6 +206,48 @@ class VideoFrame:
         h = (frame_height - y) if (h + y) > frame_height else h
 
         return x, y, w, h
+
+    def __repack_video_frame(self, data):
+        n_planes = self.__video_info.finfo.n_planes
+        if n_planes not in [2, 3]:
+            raise RuntimeError(
+                'VideoFrame.__repack_video_frame: Unsupported number of planes {}'.format(n_planes))
+
+        h, w = self.__video_info.height, self.__video_info.width
+        stride = self.__video_info.stride[0]
+        bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
+        input_h = int(len(data) / (w * bytes_per_pix) / 1.5)
+
+        planes = [numpy.ndarray((h, w, bytes_per_pix),
+                                buffer=data, dtype=numpy.uint8)]
+        offset = stride * input_h
+        stride = self.__video_info.stride[1]
+
+        if n_planes == 2:
+            uv_plane = self.__extract_plane(ctypes.addressof(
+                data) + offset, stride * input_h // 2, (h // 2, w, bytes_per_pix))
+            planes.append(uv_plane)
+        else:
+            shape = (h // 4, w, bytes_per_pix)
+            u_plane = self.__extract_plane(ctypes.addressof(
+                data) + offset, stride * input_h // 2, shape)
+
+            offset += stride * input_h // 2
+            stride = self.__video_info.stride[2]
+
+            v_plane = self.__extract_plane(ctypes.addressof(
+                data) + offset, stride * input_h // 2, shape)
+
+            planes.append(u_plane)
+            planes.append(v_plane)
+
+        return numpy.concatenate(planes)
+
+    @staticmethod
+    def __extract_plane(data_ptr, data_size, shape):
+        plane_raw = ctypes.cast(data_ptr, ctypes.POINTER(
+            ctypes.c_byte * data_size)).contents
+        return numpy.ndarray(shape, buffer=plane_raw, dtype=numpy.uint8)
 
     @staticmethod
     def __get_label_by_label_id(region_tensor: Gst.Structure, label_id: int) -> str:

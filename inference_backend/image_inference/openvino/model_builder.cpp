@@ -1,15 +1,17 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "model_builder.h"
-
 #include "inference_backend/logger.h"
+#include "utils.h"
+#include <core_singleton.h>
 
 namespace {
-void addExtension(InferenceEngine::Core &core, const std::map<std::string, std::string> &base_config);
+void addExtension(const std::map<std::string, std::string> &base_config,
+                  std::map<std::string, std::string> &inference_config);
 InferenceEngine::Precision getIePrecision(const std::string &str);
 InferenceEngine::InputsDataMap modelInputsInfo(InferenceEngine::ExecutableNetwork &executable_network);
 InferenceEngine::ColorFormat formatNameToIEColorFormat(const std::string &format);
@@ -48,25 +50,24 @@ void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inp
 }
 
 std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork, std::string>
-IrBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network, InferenceEngine::Core &core) {
-    addExtension(core, base_config);
+IrBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network) {
+    addExtension(base_config, inference_config);
     auto inputs_info = network.getInputsInfo();
     std::string image_input_name;
     configureNetworkLayers(inputs_info, image_input_name);
     std::unique_ptr<InferenceBackend::ImagePreprocessor> pre_processor =
         createPreProcessor(inputs_info[image_input_name], batch_size, base_config);
     InferenceEngine::ExecutableNetwork executable_network =
-        loader->import(network, model_path, core, base_config, inference_config);
+        loader->import(network, model_path, base_config, inference_config);
     return std::make_tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork,
                            std::string>(std::move(pre_processor), std::move(executable_network),
                                         std::move(image_input_name));
 }
 
 std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork, std::string>
-CompiledBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network,
-                                                        InferenceEngine::Core &core) {
+CompiledBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network) {
     InferenceEngine::ExecutableNetwork executable_network =
-        loader->import(network, model_path, core, base_config, inference_config);
+        loader->import(network, model_path, base_config, inference_config);
 
     auto inputs_info = modelInputsInfo(executable_network);
     if (inputs_info.size() > 1)
@@ -82,32 +83,57 @@ CompiledBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetw
 }
 
 namespace {
-void addExtension(InferenceEngine::Core &core, const std::map<std::string, std::string> &base_config) {
-    if (base_config.count(InferenceBackend::KEY_CPU_EXTENSION)) {
+void addExtension(const std::map<std::string, std::string> &base_config,
+                  std::map<std::string, std::string> &inference_config) {
+    std::map<std::string, std::string> extensions =
+        Utils::stringToMap(base_config.at(InferenceBackend::KEY_DEVICE_EXTENSIONS));
+    const std::string &device = base_config.at(InferenceBackend::KEY_DEVICE);
+
+    // 1. Process CPU extension first, because API differs from other devices extension. CPU extensions are shared
+    // across GVA elements, which use CPU or add CPU extensions. Thus, these extensions are set per process (NOT per GVA
+    // element/DL model)
+    if (extensions.count("CPU")) {
         try {
-            const std::string &cpu_extension = base_config.at(InferenceBackend::KEY_CPU_EXTENSION);
-            const auto extension_ptr = InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(cpu_extension);
-            core.AddExtension(extension_ptr, "CPU");
+            IeCoreSingleton::Instance().AddExtension(
+                InferenceEngine::make_so_pointer<InferenceEngine::IExtension>(extensions["CPU"]), "CPU");
         } catch (const std::exception &e) {
-            std::throw_with_nested(std::runtime_error("Failed to add CPU extension"));
+            std::throw_with_nested(std::runtime_error("Failed to add CPU extension: " + extensions["CPU"]));
+        }
+        extensions.erase("CPU"); // this extension was processed, don't want to load CPU extension again
+    }
+    // 2. Process HETERO and MULTI devices, in this case gva_base_inference->device_extensions is
+    // "GPU=extension1,CPU=extension2,MYRIAD=extension3"-like string. In this case we can't set extensions per model
+    // (through LoadNetwork/ImportNetwork), because we can't restrict model execution to one particular device
+    if (device.rfind("HETERO", 0) == 0 || device.rfind("MULTI", 0) == 0) {
+        for (auto it = extensions.begin(); it != extensions.end(); ++it) {
+            try {
+                const std::string &device_under_extension = it->first;
+                const std::string &config_file = it->second;
+                if (device.find(device_under_extension) == std::string::npos)
+                    throw std::runtime_error("Device " + device + " does not contain " + device_under_extension + ". " +
+                                             device_under_extension + " extension can't be applied");
+                // Process non-CPU device extension. Non-CPU devices can be extended following way (through
+                // global config). These extensions are additive (different custom layers coming from different
+                // config_file will be merged after all), and set per process per device (NOT per GVA element/DL model)
+                IeCoreSingleton::Instance().SetConfig(
+                    {{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, device_under_extension);
+            } catch (const std::exception &e) {
+                std::throw_with_nested(std::runtime_error("Failed to add " + it->first + " extension: " + it->second));
+            }
         }
     }
-    if (base_config.count(InferenceBackend::KEY_GPU_EXTENSION)) {
-        try {
-            // TODO is core.setConfig() same with inference_config
-            const std::string &config_file = base_config.at(InferenceBackend::KEY_GPU_EXTENSION);
-            core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, "GPU");
-        } catch (const std::exception &e) {
-            std::throw_with_nested(std::runtime_error("Failed to add GPU extension"));
+    // 3. Process single non-CPU device. In this case gva_base_inference->device_extensions is
+    // "<device>=single_extension" string
+    else {
+        if (extensions.count(device)) {
+            // This extension will be set for this device for particular model. It means,
+            // different extensions can be set per process per device per each GVA element/DL model
+            inference_config[InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE] = extensions[device];
+            extensions.erase(device); // this extension was processed
         }
-    }
-    if (base_config.count(InferenceBackend::KEY_VPU_EXTENSION)) {
-        try {
-            const std::string &config_file = base_config.at(InferenceBackend::KEY_VPU_EXTENSION);
-            core.SetConfig({{InferenceEngine::PluginConfigParams::KEY_CONFIG_FILE, config_file}}, "VPU");
-        } catch (const std::exception &e) {
-            std::throw_with_nested(std::runtime_error("Failed to add VPU extension"));
-        }
+        if (!extensions.empty())
+            throw std::runtime_error("Device extension " + extensions.begin()->first +
+                                     " can't be applied to chosen inference device: " + device);
     }
 }
 
@@ -162,6 +188,7 @@ createPreProcessor(InferenceEngine::InputInfo::Ptr input, size_t batch_size,
                                                          : "";
     InferenceBackend::ImagePreprocessorType image_preprocessor_type =
         static_cast<InferenceBackend::ImagePreprocessorType>(std::stoi(image_preprocessor_type_str));
+    const std::string &device = base_config.at(InferenceBackend::KEY_DEVICE);
     if (not input) {
         throw std::invalid_argument("Inputs is empty");
     }
@@ -175,8 +202,8 @@ createPreProcessor(InferenceEngine::InputInfo::Ptr input, size_t batch_size,
             input->getPreProcess().setColorFormat(formatNameToIEColorFormat(image_format));
             break;
         case InferenceBackend::ImagePreprocessorType::VAAPI_SURFACE_SHARING:
-            if (batch_size > 1)
-                throw std::runtime_error("Surface sharing with batching is not supported");
+            if (device.find("GPU") == std::string::npos)
+                throw std::runtime_error("Surface sharing is supported only on GPU device plugin");
             input->setLayout(InferenceEngine::Layout::NCHW);
             input->setPrecision(InferenceEngine::Precision::U8);
             input->getPreProcess().setColorFormat(InferenceEngine::ColorFormat::NV12);

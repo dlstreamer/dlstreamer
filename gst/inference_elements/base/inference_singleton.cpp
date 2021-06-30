@@ -81,7 +81,7 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     targetElem->gpu_streams = masterElem->gpu_streams;
     COPY_GSTRING(targetElem->ie_config, masterElem->ie_config);
     COPY_GSTRING(targetElem->allocator_name, masterElem->allocator_name);
-    COPY_GSTRING(targetElem->pre_proc_name, masterElem->pre_proc_name);
+    COPY_GSTRING(targetElem->pre_proc_type, masterElem->pre_proc_type);
     COPY_GSTRING(targetElem->object_class, masterElem->object_class);
     // no need to copy model_instance_id because it should match already.
 }

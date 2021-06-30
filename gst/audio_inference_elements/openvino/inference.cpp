@@ -5,7 +5,9 @@
  ******************************************************************************/
 
 #include "inference.h"
+#include "core_singleton.h"
 #include "image_inference.h"
+#include "inference_backend/logger.h"
 #include "model_loader.h"
 #include "utils.h"
 
@@ -65,9 +67,8 @@ OpenVINOAudioInference::OpenVINOAudioInference(const char *model, char *device, 
     auto loader = InferenceBackend::ModelLoader::is_compile_model(model)
                       ? std::unique_ptr<InferenceBackend::ModelLoader>(new CompiledModelLoader())
                       : std::unique_ptr<InferenceBackend::ModelLoader>(new IrModelLoader());
-    Core core;
-    CNNNetwork network = loader->load(core, model, base);
-    ExecutableNetwork executable_network = loader->import(network, model, core, base, inference_config);
+    CNNNetwork network = loader->load(model, base);
+    ExecutableNetwork executable_network = loader->import(network, model, base, inference_config);
     InferenceBackend::NetworkReferenceWrapper network_ref(network, executable_network);
     infOutput.model_name = loader->name(network_ref);
 
@@ -75,14 +76,7 @@ OpenVINOAudioInference::OpenVINOAudioInference(const char *model, char *device, 
     inferRequest = executable_network.CreateInferRequest();
     tensor_desc = executable_network.GetInputsInfo().begin()->second->getTensorDesc();
 
-#ifdef ENABLE_VPUX
-    std::tie(has_vpu_device_id, vpu_device_name) = Utils::parseDeviceName(device_name);
-    if (!vpu_device_name.empty()) {
-        const std::string msg = "VPUX device defined as " + vpu_device_name;
-        GVA_INFO(msg.c_str());
-    }
-#endif
-    CreateRemoteContext();
+    CreateRemoteContext(base[KEY_DEVICE]);
 
     InferenceEngine::ConstOutputsDataMap outputs = executable_network.GetOutputsInfo();
     std::map<std::string, std::pair<OutputBlob::Ptr, int>> output_blobs;
@@ -125,19 +119,19 @@ void OpenVINOAudioInference::setInputBlob(void *buffer_ptr, int dma_fd) {
     InferenceEngine::Blob::Ptr blob;
 
 #ifdef ENABLE_VPUX
-    if (!vpu_device_name.empty()) {
+    if (remote_context) {
         ParamMap params = {{InferenceEngine::KMB_PARAM_KEY(REMOTE_MEMORY_FD), dma_fd},
                            {InferenceEngine::KMB_PARAM_KEY(MEM_HANDLE), buffer_ptr}};
         switch (tensor_desc.getPrecision()) {
         case InferenceEngine::Precision::U8:
         case InferenceEngine::Precision::FP16:
-        case InferenceEngine::Precision::FP32:
-            RemoteBlob::Ptr remote_blob = remote_context->CreateBlob(tensor_desc, params);
-            if (remote_blob == nullptr)
+        case InferenceEngine::Precision::FP32: {
+            blob = remote_context->CreateBlob(tensor_desc, params);
+            if (blob == nullptr)
                 throw std::runtime_error("Failed to create remote blob for InferenceEngine::Precision " +
                                          std::to_string(tensor_desc.getPrecision()));
-            blob = InferenceEngine::make_shared_blob(remote_blob);
             break;
+        }
         default:
             throw std::invalid_argument("Failed to create Blob: InferenceEngine::Precision " +
                                         std::to_string(tensor_desc.getPrecision()) + " is not supported");
@@ -173,21 +167,31 @@ void OpenVINOAudioInference::infer() {
     inferRequest.Infer();
 }
 
-void OpenVINOAudioInference::CreateRemoteContext() {
 #ifdef ENABLE_VPUX
+void OpenVINOAudioInference::CreateRemoteContext(const std::string &device) {
+    std::string vpu_device_name;
+    bool has_vpu_device_id = false;
+    std::tie(has_vpu_device_id, vpu_device_name) = Utils::parseDeviceName(device);
     if (!vpu_device_name.empty()) {
+        const std::string msg = "VPUX device defined as " + vpu_device_name;
+        GVA_INFO(msg.c_str());
+
         const std::string base_device = "VPUX";
         std::string device = vpu_device_name;
         if (!has_vpu_device_id) {
             // Retrieve ID of the first available device
-            std::vector<std::string> device_list = core.GetMetric(base_device, METRIC_KEY(AVAILABLE_DEVICES));
+            std::vector<std::string> device_list =
+                IeCoreSingleton::Instance().GetMetric(base_device, METRIC_KEY(AVAILABLE_DEVICES));
             if (!device_list.empty())
                 device = device_list.at(0);
             // else device is already set to VPU-0
         }
 
         const InferenceEngine::ParamMap params = {{InferenceEngine::KMB_PARAM_KEY(DEVICE_ID), device}};
-        remote_context = core.CreateContext(base_device, params);
+        remote_context = IeCoreSingleton::Instance().CreateContext(base_device, params);
     }
-#endif
 }
+#else
+void OpenVINOAudioInference::CreateRemoteContext(const std::string & /* device */) {
+}
+#endif

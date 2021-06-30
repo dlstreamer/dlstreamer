@@ -176,10 +176,13 @@ class Tensor:
                 value = list()
                 for i in range(0, gvalue_array.contents.n_values):
                     g_value = libgobject.g_value_array_get_nth(gvalue_array, ctypes.c_uint(i))
-                    try:
+                    if g_value.contents.g_type == hash(GObject.TYPE_FLOAT):
+                        value.append(libgobject.g_value_get_float(g_value))
+                    elif g_value.contents.g_type == hash(GObject.TYPE_UINT):
                         value.append(libgobject.g_value_get_uint(g_value))
-                    except Exception:
-                        raise TypeError("Tensor array can contain only uint values")
+                    else:
+                        raise TypeError(
+                            "Unsupported value type for GValue array")
                 libgst.g_value_array_free(gvalue_array)
                 return value
 

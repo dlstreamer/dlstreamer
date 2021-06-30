@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -31,4 +31,5 @@ docker build -f ${BASEDIR}/${dockerfile} -t dl_streamer:"$tag" \
     --build-arg DOCKER_PRIVATE_REGISTRY=${docker_private_registry} \
     --build-arg OPENVINO_URL=${openvino_url} \
     --build-arg OpenVINO_VERSION=${openvino_ver} \
+    --build-arg ENABLE_DPCPP_INSTALLATION=OFF \
     $CONTEXTDIR

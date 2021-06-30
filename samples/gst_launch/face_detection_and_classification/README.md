@@ -34,16 +34,16 @@ The sample contains `model_proc` subfolder with .json files for each model with 
 ./face_detection_and_classification.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT]
 ```
 The sample takes three command-line *optional* parameters:
-1. [INPUT_VIDEO] to specify input video file.  
+1. [INPUT_VIDEO] to specify input video file.
 The input could be
 * local video file
 * web camera device (ex. `/dev/video0`)
-* RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)  
+* RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)
 If parameter is not specified, the sample by default streams video example from HTTPS link (utilizing `urisourcebin` element) so requires internet conection.
-2. [DEVICE] to specify device for detection and classification.  
-        Please refer to OpenVINO™ toolkit documentation for supported devices.  
-        https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_Supported_Devices.html  
-        You can find what devices are supported on your system by running following OpenVINO™ toolkit sample:  
+2. [DEVICE] to specify device for detection and classification.
+        Please refer to OpenVINO™ toolkit documentation for supported devices.
+        https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_Supported_Devices.html
+        You can find what devices are supported on your system by running following OpenVINO™ toolkit sample:
         https://docs.openvinotoolkit.org/latest/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html
 3. [SINK_ELEMENT] to choose between render mode and fps throughput mode:
     * display - render (default)
@@ -53,7 +53,7 @@ If parameter is not specified, the sample by default streams video example from 
 
 The sample
 * prints gst-launch-1.0 full command line into console
-* starts the command and either visualizes video with bouding boxes around detected faces, facial landmarks points and text with classification results (age/gender, emotion) for each detected face or 
+* starts the command and either visualizes video with bounding boxes around detected faces, facial landmarks points and text with classification results (age/gender, emotion) for each detected face or
 prints out fps if you set SINK_ELEMENT = fps
 
 ## See also

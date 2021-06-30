@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,14 +10,14 @@
 
 class ModelProcParserV1 : public ModelProcParser {
   public:
-    virtual std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc(const nlohmann::json &input_preproc) {
+    std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc(const nlohmann::json &input_preproc) final {
         std::vector<ModelInputProcessorInfo::Ptr> preproc_desc;
+        preproc_desc.reserve(input_preproc.size());
 
         for (const auto &proc_item : input_preproc) {
-            std::shared_ptr<ModelInputProcessorInfo> preprocessor(new ModelInputProcessorInfo);
-            preprocessor->layer_name =
-                JsonReader::getValueDefaultIfNotFound(proc_item, "layer_name", std::string("UNKNOWN"));
-            preprocessor->format = JsonReader::getValueDefaultIfNotFound(proc_item, "format", std::string("image"));
+            ModelInputProcessorInfo::Ptr preprocessor = std::make_shared<ModelInputProcessorInfo>();
+            preprocessor->layer_name = proc_item.value("layer_name", std::string("UNKNOWN"));
+            preprocessor->format = proc_item.value("format", std::string("image"));
 
             preprocessor->params = gst_structure_new_empty("params");
 

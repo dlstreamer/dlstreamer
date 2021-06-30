@@ -77,8 +77,9 @@ typedef void (*PreProcFunction)(GstStructure *preproc, InferenceBackend::Image &
 typedef bool (*FilterROIFunction)(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
                                   GstVideoRegionOfInterestMeta *roi);
 
-#include "../common/post_processor.h"
-using PostProcessorExitStatus = PostProcessor::ExitStatus;
+#include "common/post_processor/post_processor.h"
+using PostProcessorExitStatus = post_processing::PostProcessor::ExitStatus;
+using PostProcessor = post_processing::PostProcessor;
 
 #else // __cplusplus
 

@@ -36,6 +36,28 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaMetaAggregatePad, gst_gva_meta_aggregate_pad, GST_
                         GST_DEBUG_CATEGORY_INIT(gst_gva_meta_aggregate_debug, "gvametaaggregate", 0,
                                                 "debug category for gvametaaggregate element"));
 
+static void update_caps_feature(GstCaps *caps, CapsFeature feature) {
+    if (caps == NULL)
+        return;
+
+    switch (feature) {
+    case VA_SURFACE_CAPS_FEATURE:
+        gst_caps_set_features_simple(caps, gst_caps_features_from_string(VASURFACE_FEATURE_STR));
+        break;
+    case DMA_BUF_CAPS_FEATURE:
+        gst_caps_set_features_simple(caps, gst_caps_features_from_string(DMABUF_FEATURE_STR));
+        break;
+    default:
+        break;
+    }
+}
+
+static GstCaps *gst_gva_meta_aggregate_pad_get_caps(GstGvaMetaAggregatePad *pad) {
+    GstCaps *caps = gst_video_info_to_caps(&pad->info);
+    update_caps_feature(caps, pad->caps_feature);
+    return caps;
+}
+
 static GstFlowReturn gst_gva_meta_aggregate_flush_pad(GstAggregatorPad *aggpad, GstAggregator *aggregator) {
     UNUSED(aggregator);
     GstGvaMetaAggregatePad *pad = GST_GVA_META_AGGREGATE_PAD(aggpad);
@@ -116,9 +138,11 @@ static gboolean gst_gva_meta_aggregate_pad_sink_setcaps(GstPad *pad, GstObject *
     if (!gst_video_info_from_caps(&info, caps)) {
         return FALSE;
     }
+    CapsFeature feature = get_caps_feature(caps);
 
     GST_GVA_META_AGGREGATE_LOCK(gvametaaggregate);
     gvametaaggregatepad->info = info;
+    gvametaaggregatepad->caps_feature = feature;
     GST_GVA_META_AGGREGATE_UNLOCK(gvametaaggregate);
 
     return TRUE;
@@ -208,9 +232,11 @@ static GstCaps *gst_gva_meta_aggregate_default_fixate_src_caps(GstAggregator *ag
     gint height = GST_VIDEO_INFO_HEIGHT(&first_pad->info);
     gint fps_n = GST_VIDEO_INFO_FPS_N(&first_pad->info);
     gint fps_d = GST_VIDEO_INFO_FPS_D(&first_pad->info);
+    CapsFeature feature = first_pad->caps_feature;
     GST_OBJECT_UNLOCK(gvametaaggregate);
 
     caps = gst_caps_make_writable(caps);
+    update_caps_feature(caps, feature);
     GstStructure *s = gst_caps_get_structure(caps, 0);
     gst_structure_fixate_field_nearest_int(s, "width", width);
     gst_structure_fixate_field_nearest_int(s, "height", height);
@@ -242,7 +268,7 @@ static GstFlowReturn gst_gva_meta_aggregate_update_src_caps(GstAggregator *agg, 
     GST_OBJECT_LOCK(gvametaaggregate);
     GList *sinkpads = GST_ELEMENT(gvametaaggregate)->sinkpads;
     GstGvaMetaAggregatePad *first_pad = sinkpads->data;
-    GstCaps *first_caps = gst_video_info_to_caps(&first_pad->info);
+    GstCaps *first_caps = gst_gva_meta_aggregate_pad_get_caps(first_pad);
     GST_OBJECT_UNLOCK(gvametaaggregate);
 
     if (!gst_caps_can_intersect(caps, first_caps)) {

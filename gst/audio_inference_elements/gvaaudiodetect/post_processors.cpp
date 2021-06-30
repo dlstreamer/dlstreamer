@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -20,7 +20,7 @@ void ExtractDetectionResults(AudioInferenceFrame *frame, AudioInferenceOutput *i
         if (model_proc_itr != infOutput->model_proc.cend()) {
             std::string layer_name = blob_iter.first;
 
-            float *tensor_array = (float *)(blob_iter.second.first->GetData());
+            const float *tensor_array = reinterpret_cast<const float *>(blob_iter.second.first->GetData());
             int tensor_size = blob_iter.second.second;
 
             int index = std::max_element(tensor_array, tensor_array + tensor_size) - tensor_array;

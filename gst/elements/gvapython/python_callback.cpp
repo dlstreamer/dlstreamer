@@ -15,56 +15,6 @@
 #include <pygobject-3.0/pygobject.h>
 
 namespace {
-
-class PythonContextInitializer {
-  public:
-    PythonContextInitializer() {
-        state = PyGILState_UNLOCKED;
-        if (Py_IsInitialized()) {
-            state = PyGILState_Ensure();
-        } else {
-            Py_Initialize();
-        }
-
-        sys_path = PySys_GetObject("path");
-    }
-    ~PythonContextInitializer() {
-        if (Py_IsInitialized()) {
-            PyGILState_Release(state);
-        } else {
-            PyEval_SaveThread();
-        }
-    }
-
-    void initialize() {
-        /* load libpython.so and initilize pygobject */
-        Dl_info libpython_info = Dl_info();
-        dladdr((void *)Py_IsInitialized, &libpython_info);
-        GModule *libpython = g_module_open(libpython_info.dli_fname, G_MODULE_BIND_LAZY);
-        if (!pygobject_init(3, 0, 0)) {
-            throw std::runtime_error("pygobject_init failed");
-        }
-        if (libpython) {
-            g_module_close(libpython);
-        }
-        /* init arguments passed to a python script*/
-        static wchar_t tmp[] = L"";
-        static wchar_t *empty_argv[] = {tmp};
-        PySys_SetArgv(1, empty_argv);
-    }
-
-    void extendPath(const std::string &module_path) {
-        if (!module_path.empty()) {
-            /* PyList_Append increases the reference counter */
-            PyList_Append(sys_path, WRAPPER(PyUnicode_FromString(module_path.c_str())));
-        }
-    }
-
-  private:
-    PyGILState_STATE state;
-    PyObject *sys_path;
-};
-
 PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, const char *args_string,
                        const char *kwargs_string) {
     DECL_WRAPPER(class_type, PyObject_GetAttrString(pluginModule, class_name));
@@ -89,42 +39,74 @@ PyObject *extractClass(PyObjectWrapper &pluginModule, const char *class_name, co
     return PyObject_CallFunctionObjArgs(class_type, NULL);
 }
 
-gboolean callPython(GstBuffer *buffer, PyObjectWrapper &py_frame_class, PyObjectWrapper &py_caps,
-                    PyObjectWrapper &py_function) {
-    DECL_WRAPPER(py_buffer, pyg_boxed_new(buffer->mini_object.type, buffer, TRUE, TRUE));
+gboolean callPython(GstBuffer *buffer, GstCaps *caps, PyObjectWrapper &py_frame_class, PyObjectWrapper &py_function) {
+    DECL_WRAPPER(py_buffer, pyg_boxed_new(buffer->mini_object.type, buffer, FALSE /*copy_boxed*/, FALSE /*own_ref*/));
+    DECL_WRAPPER(py_caps, pyg_boxed_new(caps->mini_object.type, caps, FALSE /*copy_boxed*/, FALSE /*own_ref*/));
     DECL_WRAPPER(frame, PyObject_CallFunctionObjArgs(py_frame_class, (PyObject *)py_buffer, Py_None,
                                                      (PyObject *)py_caps, nullptr));
     DECL_WRAPPER(args, Py_BuildValue("(O)", (PyObject *)frame));
-
-    // make buffer writable, the reference counter was increased by pyg_boxed_new() call
-    gst_buffer_unref(buffer);
-
     PyObjectWrapper result(PyObject_CallObject(py_function, args));
 
-    // increase reference counter back, disposal of py_buffer object will decrease it
-    gst_buffer_ref(buffer);
     if (((PyObject *)result) == nullptr) {
         throw std::runtime_error("Error in Python function");
     }
     return (PyObject_IsTrue(result) == 1) ? 1 : 0;
 }
-
 } // namespace
+
+PythonContextInitializer::PythonContextInitializer() {
+    state = PyGILState_UNLOCKED;
+    if (Py_IsInitialized()) {
+        state = PyGILState_Ensure();
+    } else {
+        Py_Initialize();
+    }
+
+    sys_path = PySys_GetObject("path");
+}
+
+PythonContextInitializer::~PythonContextInitializer() {
+    if (Py_IsInitialized()) {
+        PyGILState_Release(state);
+    } else {
+        PyEval_SaveThread();
+    }
+}
+
+void PythonContextInitializer::initialize() {
+    /* load libpython.so and initilize pygobject */
+    Dl_info libpython_info = Dl_info();
+    dladdr((void *)Py_IsInitialized, &libpython_info);
+    GModule *libpython = g_module_open(libpython_info.dli_fname, G_MODULE_BIND_LAZY);
+    if (!pygobject_init(3, 0, 0)) {
+        throw std::runtime_error("pygobject_init failed");
+    }
+    if (libpython) {
+        g_module_close(libpython);
+    }
+    /* init arguments passed to a python script*/
+    static wchar_t tmp[] = L"";
+    static wchar_t *empty_argv[] = {tmp};
+    PySys_SetArgv(1, empty_argv);
+}
+
+void PythonContextInitializer::extendPath(const std::string &module_path) {
+    if (!module_path.empty()) {
+        /* PyList_Append increases the reference counter */
+        PyList_Append(sys_path, WRAPPER(PyUnicode_FromString(module_path.c_str())));
+    }
+}
 
 PythonCallback::PythonCallback(const char *module_path, const char *class_name, const char *function_name,
                                const char *args_string, const char *kwargs_string) {
     ITT_TASK(__FUNCTION__);
+    caps_ptr = nullptr;
     if (module_path == nullptr) {
         throw std::invalid_argument("module_path cannot be empty");
     }
-    auto context_initializer = PythonContextInitializer();
-    context_initializer.initialize();
 
-    // add user-specified callback module into Python path
     const char *filename = strrchr(module_path, '/');
     if (filename) {
-        std::string dir(module_path, filename);
-        context_initializer.extendPath(dir);
         ++filename; // shifting next to '/'
     } else {
         filename = module_path;
@@ -136,13 +118,14 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
     } else {
         module_name = std::string(filename, extension);
     }
+
     PyObjectWrapper pluginModule(PyImport_Import(WRAPPER(PyUnicode_FromString(module_name.c_str()))));
     if (!(PyObject *)pluginModule) {
         log_python_error(nullptr, false);
         throw std::runtime_error("Error loading Python module " + std::string(module_path));
     }
     if (class_name) {
-        py_class.reset(extractClass(pluginModule, class_name, args_string, kwargs_string), "py_class");
+        PyObjectWrapper py_class(extractClass(pluginModule, class_name, args_string, kwargs_string), "py_class");
 
         if (!(PyObject *)py_class) {
             log_python_error(nullptr, false);
@@ -160,9 +143,9 @@ PythonCallback::PythonCallback(const char *module_path, const char *class_name, 
 }
 
 void PythonCallback::SetCaps(GstCaps *caps) {
-
+    assert(caps && "Expected vaild caps in PythonCallback::SetCaps!");
+    caps_ptr = caps;
     if (!(PyObject *)py_frame_class) {
-        auto context_initializer = PythonContextInitializer();
         GstStructure *caps_s = gst_caps_get_structure((const GstCaps *)caps, 0);
         const gchar *name = gst_structure_get_name(caps_s);
 
@@ -186,26 +169,10 @@ void PythonCallback::SetCaps(GstCaps *caps) {
             throw std::runtime_error("Invalid input caps");
         }
     }
-
-    // Create Python caps
-    if (!(PyObject *)py_caps) {
-        if (!py_caps.reset(pyg_boxed_new(caps->mini_object.type, caps, TRUE, TRUE), "py_caps")) {
-            throw std::runtime_error("Error creating Gst.Caps");
-        }
-    }
-}
-
-PythonCallback::~PythonCallback() {
-    // TODO: when try to dealocate causes segfault
-    py_class.release();
-    py_caps.release();
-    py_function.release();
-    py_frame_class.release();
 }
 
 gboolean PythonCallback::CallPython(GstBuffer *buffer) {
     ITT_TASK(module_name.c_str());
-    auto context_initializer = PythonContextInitializer();
-    gboolean result = callPython(buffer, py_frame_class, py_caps, py_function);
+    gboolean result = callPython(buffer, caps_ptr, py_frame_class, py_function);
     return result;
 }

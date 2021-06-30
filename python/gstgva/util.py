@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -16,6 +16,7 @@ from gi.repository import GstVideo, GLib, GObject, Gst
 libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
 
 GST_PADDING = 4
+GST_VAAPI_VIDEO_MEMORY_NAME = "GstVaapiVideoMemory"
 
 
 class GstMapInfo(ctypes.Structure):
@@ -57,6 +58,28 @@ class GValueArray(ctypes.Structure):
                 ("n_preallocated", ctypes.c_uint32)]
 
 
+class GstMiniObject(ctypes.Structure):
+    _fields_ = [
+        ("type", ctypes.c_void_p),
+        ("refcount", ctypes.c_int),
+        ("lockstate", ctypes.c_int),
+        ("flags", ctypes.c_uint)
+    ]
+
+
+class GstMemory(ctypes.Structure):
+    _fields_ = [
+        ("mini_object", GstMiniObject),
+        ("allocator", ctypes.c_void_p),
+        ("parent", ctypes.c_void_p),
+        ("maxsize", ctypes.c_size_t),
+        ("align", ctypes.c_size_t),
+        ("offset", ctypes.c_size_t),
+        ("size", ctypes.c_size_t)
+    ]
+
+
+GST_MEMORY_POINTER = ctypes.POINTER(GstMemory)
 G_VALUE_ARRAY_POINTER = ctypes.POINTER(GValueArray)
 
 # gst buffer
@@ -73,6 +96,12 @@ libgst.gst_buffer_remove_meta.restype = ctypes.c_bool
 libgst.gst_buffer_add_meta.argtypes = [
     ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p]
 libgst.gst_buffer_add_meta.restype = ctypes.c_void_p
+libgst.gst_buffer_get_memory.argtypes = [ctypes.c_void_p, ctypes.c_int]
+libgst.gst_buffer_get_memory.restype = GST_MEMORY_POINTER
+
+# gst memory
+libgst.gst_memory_is_type.argtypes = [ctypes.c_void_p, ctypes.c_char_p]
+libgst.gst_memory_is_type.restype = ctypes.c_bool
 
 # gst miniobject
 libgst.gst_mini_object_make_writable.argtypes = [ctypes.c_void_p]
@@ -112,7 +141,8 @@ libgst.gst_structure_get_int.restype = ctypes.c_int
 libgst.gst_structure_get_double.argtypes = [
     ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(ctypes.c_double)]
 libgst.gst_structure_get_double.restype = ctypes.c_int
-libgst.gst_structure_get_array.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(G_VALUE_ARRAY_POINTER)]
+libgst.gst_structure_get_array.argtypes = [
+    ctypes.c_void_p, ctypes.c_char_p, ctypes.POINTER(G_VALUE_ARRAY_POINTER)]
 libgst.gst_structure_get_array.restype = ctypes.c_bool
 libgst.gst_structure_n_fields.argtypes = [ctypes.c_void_p]
 libgst.gst_structure_n_fields.restype = ctypes.c_int
@@ -137,6 +167,20 @@ libgst.gst_value_array_append_value.restype = None
 # gst_meta
 libgst.gst_meta_get_info.argtypes = [ctypes.c_char_p]
 libgst.gst_meta_get_info.restype = ctypes.c_void_p
+
+
+def is_vaapi_buffer(_buffer):
+    if _buffer is None:
+        raise TypeError("Passed buffer is None")
+    mem = libgst.gst_buffer_get_memory(hash(_buffer), 0)
+    if mem is None:
+        return False
+    res = libgst.gst_memory_is_type(
+        mem, GST_VAAPI_VIDEO_MEMORY_NAME.encode('utf-8'))
+    # gst_memory_unref
+    mem.contents.mini_object.refcount -= 1
+    return res
+
 
 @contextmanager
 def GST_PAD_PROBE_INFO_BUFFER(info):
@@ -163,6 +207,11 @@ def gst_buffer_data(_buffer, flags):
         raise TypeError("Cannot pass NULL to gst_buffer_map")
 
     ptr = hash(_buffer)
+
+    # Prevent calling gst_buffer_map with VASurface buffer for writing
+    # Otherwise it will fail silently
+    if (flags & Gst.MapFlags.WRITE) and is_vaapi_buffer(ptr):
+        raise RuntimeError("Couldn't map VASurface buffer for writing")
 
     mapping = GstMapInfo()
     success = libgst.gst_buffer_map(ptr, mapping, flags)
@@ -225,6 +274,8 @@ libgobject.g_value_array_get_nth.argtypes = [G_VALUE_ARRAY_POINTER, ctypes.c_uin
 libgobject.g_value_array_get_nth.restype = G_VALUE_POINTER
 libgobject.g_value_get_uint.argtypes = [G_VALUE_POINTER]
 libgobject.g_value_get_uint.restype = ctypes.c_uint
+libgobject.g_value_get_float.argtypes = [G_VALUE_POINTER]
+libgobject.g_value_get_float.restype = ctypes.c_float
 
 # libglib
 libglib = ctypes.CDLL('libglib-2.0.so')
@@ -252,9 +303,11 @@ class VideoRegionOfInterestMeta(ctypes.Structure):
 
 
 VIDEO_REGION_OF_INTEREST_POINTER = ctypes.POINTER(VideoRegionOfInterestMeta)
-libgstvideo.gst_video_region_of_interest_meta_get_param.argtypes = [VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_char_p]
+libgstvideo.gst_video_region_of_interest_meta_get_param.argtypes = [
+    VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_char_p]
 libgstvideo.gst_video_region_of_interest_meta_get_param.restype = ctypes.c_void_p
-libgstvideo.gst_video_region_of_interest_meta_add_param.argtypes = [VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_void_p]
+libgstvideo.gst_video_region_of_interest_meta_add_param.argtypes = [
+    VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_void_p]
 libgstvideo.gst_video_region_of_interest_meta_add_param.restype = None
 
 # GVATensorMeta
@@ -278,6 +331,7 @@ class GVATensorMeta(ctypes.Structure):
 
         return ctypes.cast(value, ctypes.POINTER(GVATensorMeta)).contents
 
+
 class GVAJSONMetaStr(str):
     def __new__(cls, meta, content):
         return super().__new__(cls, content)
@@ -286,13 +340,13 @@ class GVAJSONMetaStr(str):
         self.meta = meta
         super().__init__()
 
+
 # GVAJSONMeta
 class GVAJSONMeta(ctypes.Structure):
     _fields_ = [('_meta_flags', ctypes.c_int),
                 ('_info', ctypes.c_void_p),
                 ('_message', ctypes.c_char_p)
                 ]
-
 
     def get_message(self):
         return GVAJSONMetaStr(self, self._message.decode('utf-8'))
@@ -325,7 +379,8 @@ class GVAJSONMeta(ctypes.Structure):
         gpointer = ctypes.c_void_p()
         while(True):
             try:
-                value = libgst.gst_buffer_iterate_meta_filtered(hash(buffer), ctypes.byref(gpointer), meta_api)
+                value = libgst.gst_buffer_iterate_meta_filtered(
+                    hash(buffer), ctypes.byref(gpointer), meta_api)
             except Exception as error:
                 value = None
 
