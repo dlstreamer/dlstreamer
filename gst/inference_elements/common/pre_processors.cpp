@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -44,8 +44,7 @@ InputPreprocessingFunction createSequenceIndexFunction() {
     return [](const InputBlob::Ptr &blob) {
         size_t maxSequenceSizePerPlate = blob->GetDims()[0];
         float *blob_data = static_cast<float *>(blob->GetData());
-        blob_data[0] = 0.0f;
-        std::fill(blob_data + 1, blob_data + maxSequenceSizePerPlate, 1.0f);
+        std::fill(blob_data, blob_data + maxSequenceSizePerPlate, 1.0f);
     };
 }
 
