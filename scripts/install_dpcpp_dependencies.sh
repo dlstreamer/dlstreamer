@@ -13,6 +13,7 @@ REQUIRED_DRIVER_VERSION="21.19.19792"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 UPGRADE_DRIVER=OFF
 UNINSTALL_DRIVER=OFF
+DPCPP_VERSION="2021.2.0"
 
 print_help()
 {
@@ -286,7 +287,7 @@ choose_proper_packages()
     if [[ $INSTALL_PACKAGE_TYPE == 'runtime' ]]; then
         PREREQUISITES="wget gpg-agent software-properties-common"
         LEVEL_ZERO_PACKAGES="level-zero intel-level-zero-gpu"
-        DPCPP_PACKAGE="intel-oneapi-compiler-dpcpp-cpp-runtime"
+        DPCPP_PACKAGE="intel-oneapi-compiler-dpcpp-cpp-runtime-$DPCPP_VERSION"
     elif [[ $INSTALL_PACKAGE_TYPE == 'devel' ]]; then
         PREREQUISITES="wget gpg-agent software-properties-common ocl-icd-opencl-dev opencl-headers"
 
@@ -296,7 +297,7 @@ choose_proper_packages()
             LEVEL_ZERO_PACKAGES="level-zero-dev intel-level-zero-gpu"
         fi
 
-        DPCPP_PACKAGE="intel-oneapi-dpcpp-cpp-compiler"
+        DPCPP_PACKAGE="intel-oneapi-compiler-dpcpp-cpp-$DPCPP_VERSION"
     fi
 
     if [[ $UBUNTU_VERSION == '18.04' ]]; then
@@ -331,7 +332,7 @@ install_level_zero()
 
 install_dpcpp()
 {
-    curl -fsSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2023.PUB | apt-key add - 
+    curl -fsSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | apt-key add - 
     apt-add-repository "deb https://apt.repos.intel.com/oneapi all main"
 
     _install_packages "${DPCPP_PACKAGE}"
@@ -351,8 +352,8 @@ install_summary()
     echo "Installation completed successfully."
     echo
     echo "Next steps:"
-    echo "Plese enable Intel® oneAPI DPC++ Compiler development environment by the following command:"
-    echo "source /opt/intel/oneapi/compiler/latest/env/vars.sh"
+    echo "Please enable Intel® oneAPI DPC++ Compiler development environment by running the following command:"
+    echo "source /opt/intel/oneapi/compiler/$DPCPP_VERSION/env/vars.sh"
     echo
 }
 
