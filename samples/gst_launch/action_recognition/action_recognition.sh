@@ -18,10 +18,10 @@ fi
 
 if [[ $DEVICE == "CPU" ]]; then
   CONVERTER="videoconvert ! video/x-raw,format=BGRx"
-  PREPROC_BACKEND="pre-proc-backend=opencv"
+  PREPROC_BACKEND="opencv"
 elif [[ $DEVICE == "GPU" ]]; then
   CONVERTER="vaapipostproc ! video/x-raw\(memory:VASurface\)"
-  PREPROC_BACKEND="pre-proc-backend=vaapi-surface-sharing"
+  PREPROC_BACKEND="vaapi-surface-sharing"
 else
   echo Error wrong value for DEVICE parameter
   echo Possible values: CPU, GPU
@@ -54,17 +54,17 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-# Pipeline uses gvametaaggregate
+# Pipeline uses gvaactionrecognitionbin
 
 PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
 decodebin ! \
 $CONVERTER ! \
-gvaactionrecognitionbin enc-device=$DEVICE \
-$PREPROC_BACKEND \
+gvaactionrecognitionbin pre-proc-backend=$PREPROC_BACKEND \
 model-proc=$MODEL_PROC \
-enc-model=$MODEL_ENCODER \
 enc-device=$DEVICE \
+enc-model=$MODEL_ENCODER \
+dec-device=$DEVICE \
 dec-model=$MODEL_DECODER ! \
 $SINK_ELEMENT"
 
