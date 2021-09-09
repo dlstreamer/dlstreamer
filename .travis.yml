@@ -1,5 +1,3 @@
-sudo: false
-
 dist: xenial
 
 branches:
@@ -11,13 +9,12 @@ services:
 
 # Build API reference
 script:
-  - docker pull alpine:3.10
-  - docker run -v $PWD:/home alpine:3.10 /bin/sh -c "cd /home/docs && apk update && apk add doxygen && doxygen Doxyfile;"
+  - docker pull ubuntu:latest
+  - docker run -v $PWD:/home ubuntu:latest /bin/sh -c "cd /home/docs && apt update && apt install -y doxygen graphviz && doxygen Doxyfile;"
 
 # Deploy API reference
 deploy:
   provider: pages
-  skip_cleanup: true
   local_dir: docs/html
   github_token: $GH_REPO_TOKEN
   on:
