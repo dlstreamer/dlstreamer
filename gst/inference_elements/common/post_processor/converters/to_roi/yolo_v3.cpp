@@ -147,11 +147,8 @@ TensorsTable YOLOv3Converter::convert(const OutputBlobs &output_blobs) const {
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
         if (model_input_image_info.batch_size != 1) {
-            std::string err = "Batch size other than 1 is not supported";
-            const auto &converter = getConverterName();
-            if (not converter.empty())
-                err += " for this post processor: " + std::string(converter);
-            throw std::invalid_argument(err);
+            throw std::invalid_argument("Batch size other than 1 is not supported for this post processor: " +
+                                        std::string(YOLOv3Converter::getName()));
         }
 
         DetectedObjectsTable objects_table(model_input_image_info.batch_size);

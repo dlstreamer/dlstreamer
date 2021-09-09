@@ -22,6 +22,7 @@
 #include "config.h"
 #include "core_singleton.h"
 #include "gst_allocator_wrapper.h"
+#include "gst_vaapi_helper.h"
 #include "gva_buffer_map.h"
 #include "gva_caps.h"
 #include "gva_utils.h"
@@ -284,6 +285,9 @@ std::shared_ptr<InferenceBackend::Image> CreateImage(GstBuffer *buffer, GstVideo
 
 void UpdateClassificationHistory(GstVideoRegionOfInterestMeta *meta, GvaBaseInference *gva_base_inference,
                                  const GstStructure *classification_result) {
+    if (gva_base_inference->type != GST_GVA_CLASSIFY_TYPE)
+        return;
+
     GstGvaClassify *gvaclassify = (GstGvaClassify *)gva_base_inference;
     gint meta_id = 0;
     get_object_id(meta, &meta_id);
@@ -348,17 +352,23 @@ MemoryType GetMemoryType(MemoryType input_image_memory_type, ImagePreprocessorTy
 }
 
 VaApiDisplayPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
+    assert(gva_base_inference);
+
+    auto display = VaapiHelper::queryVaDisplay(&gva_base_inference->base_transform);
+    if (display) {
+        GVA_INFO("Using shared VADisplay");
+        return display;
+    }
+
 #ifdef ENABLE_VAAPI
     uint32_t rel_dev_index = 0;
     const std::string device(gva_base_inference->device);
     if (device.find("GPU") != device.npos)
         rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
-    auto display = vaApiCreateVaDisplay(rel_dev_index);
-    return display;
-#else
-    (void)gva_base_inference;
-    return nullptr;
+    display = vaApiCreateVaDisplay(rel_dev_index);
 #endif
+
+    return display;
 }
 
 } // namespace
@@ -638,7 +648,8 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             full_frame_meta.y = 0;
             full_frame_meta.w = gva_base_inference->info->width;
             full_frame_meta.h = gva_base_inference->info->height;
-            metas.push_back(&full_frame_meta);
+            if (is_roi_size_valid(&full_frame_meta))
+                metas.push_back(&full_frame_meta);
             break;
         }
         default:

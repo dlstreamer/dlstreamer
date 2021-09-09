@@ -141,7 +141,7 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(const std::string &model_name
     const auto output_sigmoid_activation = getOutputSigmoidActivation(model_proc_output_info.get());
     auto bbox_number_on_cell = getBboxNumberOnCell(model_proc_output_info.get());
 
-    if (converter_name == "tensor_to_bbox_yolo_v2") {
+    if (converter_name == YOLOv2Converter::getName()) {
         if (!bbox_number_on_cell)
             bbox_number_on_cell = 5;
         return BlobToMetaConverter::Ptr(
@@ -149,7 +149,7 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(const std::string &model_name
                                 confidence_threshold, classes_number, anchors, cells_number, cells_number,
                                 iou_threshold, bbox_number_on_cell, do_cls_softmax, output_sigmoid_activation));
     }
-    if (converter_name == "tensor_to_bbox_yolo_v3") {
+    if (converter_name == YOLOv3Converter::getName()) {
         if (!bbox_number_on_cell)
             bbox_number_on_cell = 3;
         const auto masks = getMask(model_proc_output_info.get(), bbox_number_on_cell, cells_number);

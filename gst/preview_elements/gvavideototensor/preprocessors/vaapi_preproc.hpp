@@ -22,10 +22,11 @@ class VaApiImagePool;
 class VaApiImage;
 class VaApiContext;
 } // namespace InferenceBackend
+using VaApiDisplayPtr = std::shared_ptr<void>;
 
 class VaapiPreProc : public IPreProc {
   public:
-    VaapiPreProc(GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info,
+    VaapiPreProc(VaApiDisplayPtr display, GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info,
                  InferenceBackend::FourCC format = InferenceBackend::FourCC::FOURCC_RGBP,
                  InferenceBackend::MemoryType out_memory_type = InferenceBackend::MemoryType::SYSTEM);
     ~VaapiPreProc();

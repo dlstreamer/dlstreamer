@@ -13,11 +13,12 @@
 using namespace InferenceEngine;
 using namespace InferenceBackend;
 
-VaapiSurfaceSharingPreProc::VaapiSurfaceSharingPreProc(GstVideoInfo *input_video_info,
+VaapiSurfaceSharingPreProc::VaapiSurfaceSharingPreProc(VaApiDisplayPtr display, GstVideoInfo *input_video_info,
                                                        const TensorCaps &output_tensor_info)
     : _input_video_info(input_video_info), _output_tensor_info(output_tensor_info),
       _pre_proc_info(new InferenceEngine::PreProcessInfo()),
-      _vaapi_pre_proc(new VaapiPreProc(input_video_info, output_tensor_info, FourCC::FOURCC_NV12, MemoryType::VAAPI)) {
+      _vaapi_pre_proc(
+          new VaapiPreProc(display, input_video_info, output_tensor_info, FourCC::FOURCC_NV12, MemoryType::VAAPI)) {
     if (!_input_video_info)
         throw std::invalid_argument("GstVideoInfo is null");
 

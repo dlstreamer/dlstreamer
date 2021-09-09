@@ -5,8 +5,11 @@
  ******************************************************************************/
 
 #include "blob_to_roi_converter.h"
-#include "ov_default.h"
+#include "atss.h"
+#include "ssd.h"
 #include "yolo_base.h"
+#include "yolo_v2.h"
+#include "yolo_v3.h"
 
 #include "inference_backend/logger.h"
 
@@ -33,10 +36,13 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(const std::string &model_nam
     if (not gst_structure_get_double(model_proc_output_info.get(), "confidence_threshold", &confidence_threshold))
         throw std::runtime_error("Have not been gotten confidence_threshold.");
 
-    if (converter_name.empty() or converter_name == "tensor_to_bbox_ssd")
-        return BlobToMetaConverter::Ptr(new OVDefaultConverter(
+    if (converter_name == SSDConverter::getName())
+        return BlobToMetaConverter::Ptr(new SSDConverter(
             model_name, input_image_info, std::move(model_proc_output_info), labels, confidence_threshold));
-    else if (converter_name == "tensor_to_bbox_yolo_v2" or converter_name == "tensor_to_bbox_yolo_v3")
+    else if (converter_name == ATSSConverter::getName())
+        return BlobToMetaConverter::Ptr(new ATSSConverter(
+            model_name, input_image_info, std::move(model_proc_output_info), labels, confidence_threshold));
+    else if (converter_name == YOLOv2Converter::getName() || converter_name == YOLOv3Converter::getName())
         return YOLOBaseConverter::create(model_name, input_image_info, std::move(model_proc_output_info), labels,
                                          converter_name, confidence_threshold);
     else

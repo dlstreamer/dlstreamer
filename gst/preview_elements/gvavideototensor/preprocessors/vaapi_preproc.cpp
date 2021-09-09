@@ -26,10 +26,11 @@ struct VaapiImageInfo {
 
 } // namespace
 
-VaapiPreProc::VaapiPreProc(GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info,
-                           InferenceBackend::FourCC format, MemoryType out_memory_type)
+VaapiPreProc::VaapiPreProc(VaApiDisplayPtr display, GstVideoInfo *input_video_info,
+                           const TensorCaps &output_tensor_info, InferenceBackend::FourCC format,
+                           MemoryType out_memory_type)
     : _input_video_info(input_video_info), _output_tensor_info(output_tensor_info), _out_memory_type(out_memory_type),
-      _va_context(new VaApiContext()), _va_converter(new VaApiConverter(_va_context.get())) {
+      _va_context(new VaApiContext(display)), _va_converter(new VaApiConverter(_va_context.get())) {
     uint32_t batch = _output_tensor_info.HasBatchSize() ? _output_tensor_info.GetBatchSize() : 1;
 
     _va_image_pool.reset(

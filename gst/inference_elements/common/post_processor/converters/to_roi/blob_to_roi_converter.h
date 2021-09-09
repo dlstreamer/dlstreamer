@@ -93,6 +93,7 @@ class BlobToROIConverter : public BlobToMetaConverter {
     static BlobToMetaConverter::Ptr create(const std::string &model_name, const ModelImageInputInfo &input_image_info,
                                            GstStructureUniquePtr model_proc_output_info,
                                            const std::vector<std::string> &labels, const std::string &converter_name);
+    static const size_t min_dims_size = 2;
 };
 
 } // namespace post_processing

@@ -28,7 +28,6 @@ class BlobToMetaConverter {
     ModelImageInputInfo input_image_info;
 
     GstStructureUniquePtr model_proc_output_info;
-    std::string converter_name;
     std::vector<std::string> labels;
 
   protected:
@@ -45,9 +44,6 @@ class BlobToMetaConverter {
     const std::string &getLabelByLabelId(size_t label_id) const {
         static const std::string empty_label = "";
         return (getLabels().empty()) ? empty_label : getLabels().at(label_id);
-    }
-    const std::string &getConverterName() const {
-        return converter_name;
     }
     const GstStructureUniquePtr &getModelProcOutputInfo() const {
         return model_proc_output_info;

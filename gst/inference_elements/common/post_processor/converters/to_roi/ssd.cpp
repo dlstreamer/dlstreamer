@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "ov_default.h"
+#include "ssd.h"
 
 #include "inference_backend/image_inference.h"
 #include "inference_backend/logger.h"
@@ -19,8 +19,8 @@
 
 using namespace post_processing;
 
-void OVDefaultConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &blob, DetectedObjectsTable &objects,
-                                         double roi_scale) const {
+void SSDConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &blob, DetectedObjectsTable &objects,
+                                   double roi_scale) const {
     const float *data = reinterpret_cast<const float *>(blob->GetData());
     if (not data)
         throw std::invalid_argument("Output blob data is nullptr");
@@ -28,22 +28,21 @@ void OVDefaultConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr
     auto dims = blob->GetDims();
     size_t dims_size = dims.size();
 
-    static constexpr size_t min_dims_size = 2;
-    if (dims_size < min_dims_size)
+    if (dims_size < BlobToROIConverter::min_dims_size)
         throw std::invalid_argument("Output blob dimentions size " + std::to_string(dims_size) +
-                                    " is not supported (less than " + std::to_string(min_dims_size) + ")");
+                                    " is not supported (less than " +
+                                    std::to_string(BlobToROIConverter::min_dims_size) + ").");
 
-    for (size_t i = min_dims_size + 1; i < dims_size; ++i) {
+    for (size_t i = BlobToROIConverter::min_dims_size + 1; i < dims_size; ++i) {
         if (dims[dims_size - i] != 1)
             throw std::invalid_argument("All output blob dimensions, except for object size and max "
                                         "objects count, must be equal to 1");
     }
 
     size_t object_size = dims[dims_size - 1];
-    static constexpr size_t supported_object_size = 7; // SSD DetectionOutput format
-    if (object_size != supported_object_size)
+    if (object_size != SSDConverter::model_object_size)
         throw std::invalid_argument("Object size dimension of output blob is set to " + std::to_string(object_size) +
-                                    ", but only " + std::to_string(supported_object_size) + " supported");
+                                    ", but only " + std::to_string(SSDConverter::model_object_size) + " supported.");
 
     size_t max_proposal_count = dims[dims_size - 2];
     for (size_t i = 0; i < max_proposal_count; ++i) {
@@ -53,8 +52,8 @@ void OVDefaultConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr
             break;
         }
 
-        int label_id = safe_convert<int>(data[i * object_size + 1]);
-        double confidence = data[i * object_size + 2];
+        size_t label_id = safe_convert<size_t>(data[i * object_size + 1]);
+        float confidence = data[i * object_size + 2];
         /* discard inference results that do not match 'confidence_threshold' */
         if (confidence < confidence_threshold) {
             continue;
@@ -82,7 +81,7 @@ void OVDefaultConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr
     }
 }
 
-TensorsTable OVDefaultConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable SSDConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

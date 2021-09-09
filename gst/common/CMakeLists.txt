@@ -47,6 +47,11 @@ PUBLIC
         logger
         gstvideoanalyticsmeta
         json-hpp
+        utils
 PRIVATE
         ${GSTALLOC_LDFLAGS}
 )
+
+if(${ENABLE_VAAPI})
+    target_link_libraries(${TARGET_NAME} PRIVATE va_api_wrapper)
+endif()

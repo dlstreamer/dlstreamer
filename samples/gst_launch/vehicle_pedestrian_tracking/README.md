@@ -26,7 +26,7 @@ Overall this sample builds GStreamer pipeline of the following elements
 ## Models
 
 The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
-*   __person-vehicle-bike-detection-crossroad-0078__ is primary detection network for detecting persons, vehicles and bikes
+* __person-vehicle-bike-detection-2004__ is primary detection network for detecting persons, vehicles and bikes
 *   __person-attributes-recognition-crossroad-0230__ classifies person attributes
 *   __vehicle-attributes-recognition-barrier-0039__ classifies vehicle attributes
 

@@ -185,22 +185,26 @@ VaApiConverter::VaApiConverter(VaApiContext *context) : _context(context) {
 }
 
 void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
-    VASurfaceID src_surface = VA_INVALID_SURFACE;
     Image &dst = va_api_dst.image;
 
     uint64_t fd = 0;
-
+    VASurfaceID src_surface = VA_INVALID_SURFACE;
+    bool owns_src_surface = false;
     if (src.type == MemoryType::VAAPI) {
-        src_surface = ConvertVASurfaceFromDifferentDriverContext(
-            VaDpyWrapper::fromHandle(src.va_display), src.va_surface_id, _context->Display(), _context->RTFormat(), fd);
-
+        if (src.va_display != dst.va_display) {
+            src_surface =
+                ConvertVASurfaceFromDifferentDriverContext(VaDpyWrapper::fromHandle(src.va_display), src.va_surface_id,
+                                                           _context->Display(), _context->RTFormat(), fd);
+            owns_src_surface = true;
+        } else {
+            src_surface = src.va_surface_id;
+        }
     } else if (src.type == MemoryType::DMA_BUFFER) {
         src_surface = ConvertDMABuf(_context->Display(), src, _context->RTFormat());
+        owns_src_surface = true;
     } else {
         throw std::runtime_error("VaApiConverter::Convert: unsupported MemoryType");
     }
-
-    VASurfaceID dst_surface = dst.va_surface_id;
 
     VAProcPipelineParameterBuffer pipeline_param = VAProcPipelineParameterBuffer();
     pipeline_param.surface = src_surface;
@@ -214,12 +218,12 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
     // pipeline_param.filter_flags = VA_FILTER_SCALING_HQ; // High-quality scaling method
 
     auto context = _context->Display().drvCtx();
-    auto vtable = _context->Display().drvVtable();
+    const auto &vtable = _context->Display().drvVtable();
     VABufferID pipeline_param_buf_id = VA_INVALID_ID;
     VA_CALL(vtable.vaCreateBuffer(context, _context->Id(), VAProcPipelineParameterBufferType, sizeof(pipeline_param), 1,
                                   &pipeline_param, &pipeline_param_buf_id));
 
-    VA_CALL(vtable.vaBeginPicture(context, _context->Id(), dst_surface));
+    VA_CALL(vtable.vaBeginPicture(context, _context->Id(), dst.va_surface_id));
 
     VA_CALL(vtable.vaRenderPicture(context, _context->Id(), &pipeline_param_buf_id, 1));
 
@@ -227,9 +231,10 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
 
     VA_CALL(vtable.vaDestroyBuffer(context, pipeline_param_buf_id));
 
-    VA_CALL(vtable.vaDestroySurfaces(context, &src_surface, 1));
+    if (owns_src_surface)
+        VA_CALL(vtable.vaDestroySurfaces(context, &src_surface, 1));
 
-    if (src.type == MemoryType::VAAPI)
+    if (src.type == MemoryType::VAAPI && owns_src_surface)
         if (close(fd) == -1)
             throw std::runtime_error("VaApiConverter::Convert: close fd failed");
 }

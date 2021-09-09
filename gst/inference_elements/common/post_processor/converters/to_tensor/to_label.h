@@ -32,5 +32,9 @@ class ToLabelConverter : public BlobToTensorConverter {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static std::string getName() {
+        return "tensor_to_label";
+    }
 };
 } // namespace post_processing

@@ -37,8 +37,6 @@ class ConverterFacade {
     MetaAttacher::Ptr meta_attacher;
 
   public:
-    ConverterFacade(std::unordered_set<std::string> all_layer_names, int inference_type, int inference_region,
-                    const ModelImageInputInfo &input_image_info, const std::string &model_name);
     ConverterFacade(std::unordered_set<std::string> all_layer_names, GstStructure *model_proc_output_info,
                     int inference_type, int inference_region, const ModelImageInputInfo &input_image_info,
                     const std::string &model_name, const std::vector<std::string> &labels);
