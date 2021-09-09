@@ -19,20 +19,43 @@
 
 namespace post_processing {
 
-class OVDefaultConverter : public BlobToROIConverter {
+class SSDConverter : public BlobToROIConverter {
   protected:
     // FIXME: move roi_scale to coordinates restorer or attacher
     void parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &blob, DetectedObjectsTable &objects,
                          double roi_scale) const;
 
   public:
-    OVDefaultConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                       GstStructureUniquePtr model_proc_output_info, const std::vector<std::string> &labels,
-                       double confidence_threshold)
+    SSDConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
+                 GstStructureUniquePtr model_proc_output_info, const std::vector<std::string> &labels,
+                 double confidence_threshold)
         : BlobToROIConverter(model_name, input_image_info, std::move(model_proc_output_info), labels,
                              confidence_threshold, false, 0.0) {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static const size_t model_object_size = 7; // SSD DetectionOutput format
+
+    static bool isValidModelOutputs(const std::map<std::string, std::vector<size_t>> &model_outputs_info) {
+        bool result = false;
+
+        for (const auto &output : model_outputs_info) {
+            const std::vector<size_t> dims = output.second;
+            if (dims.size() < BlobToROIConverter::min_dims_size)
+                continue;
+
+            if (dims[dims.size() - 1] == SSDConverter::model_object_size) {
+                result = true;
+                break;
+            }
+        }
+
+        return result;
+    }
+
+    static std::string getName() {
+        return "tensor_to_bbox_ssd";
+    }
 };
 } // namespace post_processing

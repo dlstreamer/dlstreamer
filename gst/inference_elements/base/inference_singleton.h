@@ -31,6 +31,7 @@ GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffe
 void base_inference_sink_event(GvaBaseInference *base_inference, GstEvent *event);
 void flush_inference(GvaBaseInference *base_inference);
 void update_inference_object_classes(GvaBaseInference *base_inference);
+gboolean is_roi_size_valid(GstVideoRegionOfInterestMeta *roi_meta);
 
 extern FilterROIFunction IS_ROI_INFERENCE_NEEDED;
 

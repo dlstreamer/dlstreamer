@@ -27,5 +27,9 @@ class RawDataCopyConverter : public BlobToTensorConverter {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static std::string getName() {
+        return "raw_data_copy";
+    }
 };
 } // namespace post_processing

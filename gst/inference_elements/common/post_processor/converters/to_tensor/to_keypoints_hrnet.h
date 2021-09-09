@@ -27,5 +27,9 @@ class ToKeypointsHRnetConverter : public ToKeypointsConverter {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static std::string getName() {
+        return "tensor_to_keypoints_hrnet";
+    }
 };
 } // namespace post_processing

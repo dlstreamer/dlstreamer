@@ -13,9 +13,12 @@
 
 #include <ie_preprocess.hpp>
 
+using VaApiDisplayPtr = std::shared_ptr<void>;
+
 class VaapiSurfaceSharingPreProc : public IPreProc {
   public:
-    VaapiSurfaceSharingPreProc(GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info);
+    VaapiSurfaceSharingPreProc(VaApiDisplayPtr display, GstVideoInfo *input_video_info,
+                               const TensorCaps &output_tensor_info);
     ~VaapiSurfaceSharingPreProc();
 
     void process(GstBuffer *in_buffer, GstBuffer *out_buffer) final;

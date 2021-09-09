@@ -40,5 +40,9 @@ class YOLOv2Converter : public YOLOBaseConverter {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static std::string getName() {
+        return "tensor_to_bbox_yolo_v2";
+    }
 };
 } // namespace post_processing

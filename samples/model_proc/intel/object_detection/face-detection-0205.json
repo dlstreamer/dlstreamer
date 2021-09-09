@@ -3,13 +3,10 @@
   "input_preproc": [],
   "output_postproc": [
     {
+      "converter": "tensor_to_bbox_atss",
       "labels": [
-        "",
-        "person",
-        "vehicle",
-        "bike"
-      ],
-      "converter": "tensor_to_bbox_ssd"
+        "face"
+      ]
     }
   ]
 }

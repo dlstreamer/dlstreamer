@@ -73,25 +73,6 @@ CoordinatesRestorer::Ptr ConverterFacade::createCoordinatesRestorer(int inferenc
     return nullptr;
 }
 
-ConverterFacade::ConverterFacade(std::unordered_set<std::string> all_layer_names, int inference_type,
-                                 int inference_region, const ModelImageInputInfo &input_image_info,
-                                 const std::string &model_name)
-    : layer_names_to_process(all_layer_names) {
-
-    GstStructureUniquePtr model_proc_output_info =
-        GstStructureUniquePtr(gst_structure_new_empty("ANY"), gst_structure_free);
-    std::vector<std::string> labels{};
-
-    blob_to_meta =
-        BlobToMetaConverter::create(model_proc_output_info.get(), inference_type, input_image_info, model_name, labels,
-                                    getDisplayedLayerNameInMeta(std::vector<std::string>(
-                                        layer_names_to_process.cbegin(), layer_names_to_process.cend())));
-
-    coordinates_restorer = createCoordinatesRestorer(inference_region, input_image_info);
-
-    meta_attacher = MetaAttacher::create(inference_type, inference_region, input_image_info);
-}
-
 ConverterFacade::ConverterFacade(std::unordered_set<std::string> all_layer_names, GstStructure *model_proc_output_info,
                                  int inference_type, int inference_region, const ModelImageInputInfo &input_image_info,
                                  const std::string &model_name, const std::vector<std::string> &labels)

@@ -6,7 +6,7 @@
 
 #include "blob_to_meta_converter.h"
 
-#include "converters/to_roi/ov_default.h"
+#include "converters/to_roi/ssd.h"
 #include "converters/to_roi/yolo_base.h"
 #include "converters/to_tensor/raw_data_copy.h"
 #include "converters/to_tensor/to_keypoints_3d.h"
@@ -32,11 +32,12 @@ using namespace post_processing;
 namespace {
 std::string getConverterType(GstStructure *s) {
     if (s == nullptr || !gst_structure_has_field(s, "converter"))
-        return "";
+        throw std::runtime_error("Couldn't determine converter type.");
 
     std::string converter_type = gst_structure_get_string(s, "converter");
     if (converter_type.empty())
         throw std::runtime_error("model_proc's output_processor has empty converter.");
+
     return converter_type;
 }
 
@@ -97,8 +98,6 @@ BlobToMetaConverter::BlobToMetaConverter(const std::string &model_name, const Mo
                                          const std::vector<std::string> &labels)
     : model_name(model_name), input_image_info(input_image_info),
       model_proc_output_info(std::move(model_proc_output_info)), labels(labels) {
-
-    converter_name = getConverterType(model_proc_output_info.get());
 }
 
 BlobToMetaConverter::Ptr BlobToMetaConverter::create(GstStructure *model_proc_output_info, int inference_type,
@@ -126,7 +125,7 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(GstStructure *model_proc_ou
     } break;
 
     case GST_GVA_INFERENCE_TYPE: {
-        if (converter_name.empty() or converter_name == "raw_data_copy")
+        if (converter_name == RawDataCopyConverter::getName())
             return BlobToMetaConverter::Ptr(
                 new RawDataCopyConverter(model_name, input_image_info, std::move(tensor), labels));
         else
@@ -134,22 +133,22 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(GstStructure *model_proc_ou
     } break;
 
     case GST_GVA_CLASSIFY_TYPE: {
-        if (converter_name.empty() or converter_name == "raw_data_copy")
+        if (converter_name == RawDataCopyConverter::getName())
             return BlobToMetaConverter::Ptr(
                 new RawDataCopyConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == "tensor_to_label")
+        else if (converter_name == ToLabelConverter::getName())
             return BlobToMetaConverter::Ptr(
                 new ToLabelConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == "tensor_to_text")
+        else if (converter_name == ToTextConverter::getName())
             return BlobToMetaConverter::Ptr(
                 new ToTextConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == "tensor_to_keypoints_hrnet")
+        else if (converter_name == ToKeypointsHRnetConverter::getName())
             return BlobToMetaConverter::Ptr(
                 new ToKeypointsHRnetConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == "tensor_to_keypoints_3d")
+        else if (converter_name == ToKeypoints3DConverter::getName())
             return BlobToMetaConverter::Ptr(
                 new ToKeypoints3DConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == "tensor_to_keypoints_openpose")
+        else if (converter_name == ToKeypointsOpenPoseConverter::getName())
             return BlobToMetaConverter::Ptr(new ToKeypointsOpenPoseConverter(
                 model_name, input_image_info, std::move(tensor), labels, getKeypointsNumber(model_proc_output_info)));
         else

@@ -226,11 +226,17 @@ void update_inference_object_classes(GvaBaseInference *base_inference) {
     }
 }
 
+gboolean is_roi_size_valid(GstVideoRegionOfInterestMeta *roi_meta) {
+    return roi_meta->w > 1 && roi_meta->h > 1;
+}
+
 bool is_roi_inference_needed(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
                              GstVideoRegionOfInterestMeta *roi) {
     InferenceImpl *inference = gva_base_inference->inference;
     assert(inference);
 
+    if (!is_roi_size_valid(roi))
+        return false;
     // Check if object-class is the same as roi class label
     if (not inference->FilterObjectClass(roi))
         return false;

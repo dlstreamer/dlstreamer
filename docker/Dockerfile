@@ -144,7 +144,7 @@ RUN source /opt/intel/openvino/bin/setupvars.sh && \
     --buildtype=${BUILD_TYPE} \
     build/ && \
     ninja -C build
-    
+
 RUN rm /opt/intel/openvino/data_processing/gstreamer/lib/gstreamer-1.0/libgstvaapi.so && \
     cp /home/gstreamer-vaapi-${GST_VERSION}/build/gst/vaapi/libgstvaapi.so /opt/intel/openvino/data_processing/gstreamer/lib/gstreamer-1.0/ &&\
     chmod 644 /opt/intel/openvino/data_processing/gstreamer/lib/gstreamer-1.0/libgstvaapi.so
@@ -183,7 +183,6 @@ ENV XDG_RUNTIME_DIR=${PATH}:/usr/xdgr
 ENV DISPLAY=:0.0
 
 ARG GIT_INFO
-ARG SOURCE_REV
 
 # Install stable MediaSDK version
 RUN add-apt-repository universe \
@@ -225,7 +224,7 @@ ENV PATH=/opt/intel/oneapi/compiler/2021.2.0/linux/lib/oclfpga/llvm/aocl-bin:/op
 
 
 RUN cd /opt/intel/openvino/install_dependencies/ \
-    && ./install_openvino_dependencies.sh -y 
+    && ./install_openvino_dependencies.sh -y
 
 RUN source /opt/intel/openvino/bin/setupvars.sh \
     && mkdir -p dl-streamer/build \
@@ -233,7 +232,6 @@ RUN source /opt/intel/openvino/bin/setupvars.sh \
     && cmake \
     -DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
     -DCMAKE_INSTALL_PREFIX=/usr \
-    -DVERSION_PATCH=${SOURCE_REV} \
     -DGIT_INFO=${GIT_INFO} \
     -DENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION} \
     -DENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION} \
@@ -253,7 +251,7 @@ RUN source /opt/intel/openvino/bin/setupvars.sh \
 
 RUN printf "\nsource /opt/intel/openvino/bin/setupvars.sh\n" >> /root/.bashrc
 
-# Install dependencies for download_models.sh script 
+# Install dependencies for download_models.sh script
 RUN pip3 install -r ${OV_DLSTREAMER_DIR}/requirements.txt \
     && cd /opt/intel/openvino/deployment_tools/model_optimizer/install_prerequisites/ \
     && ./install_prerequisites.sh

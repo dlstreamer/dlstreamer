@@ -40,5 +40,7 @@ class PostProcessor {
     ModelProcOutputsValidationResult
     validateModelProcOutputs(const std::map<std::string, GstStructure *> &model_proc_outputs,
                              const ModelOutputsInfo &model_outputs_info) const;
+    void setConverterIfNotSpecified(GstStructure *model_proc_output, const ModelOutputsInfo &model_outputs_info,
+                                    int inference_type);
 };
 } // namespace post_processing

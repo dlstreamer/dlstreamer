@@ -21,11 +21,7 @@ option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" OFF)
 
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 5)
-
-if (NOT DEFINED VERSION_PATCH OR "${VERSION_PATCH}" STREQUAL "")
-    set(VERSION_PATCH 0)
-    message(WARNING "VERSION_PATCH is undefined. Set default value ${VERSION_PATCH}.")
-endif()
+set(VERSION_PATCH 2)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")

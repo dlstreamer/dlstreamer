@@ -5,6 +5,9 @@
  ******************************************************************************/
 
 #include "post_processor.h"
+#include "converters/to_roi/atss.h"
+#include "converters/to_roi/ssd.h"
+#include "converters/to_tensor/raw_data_copy.h"
 
 #include "gstgvadetect.h"
 #include "gva_base_inference.h"
@@ -96,27 +99,54 @@ PostProcessor::validateModelProcOutputs(const std::map<std::string, GstStructure
     return PostProcessor::ModelProcOutputsValidationResult::OK;
 }
 
+void PostProcessor::setConverterIfNotSpecified(GstStructure *model_proc_output,
+                                               const ModelOutputsInfo &model_outputs_info, int inference_type) {
+    if (model_proc_output == nullptr)
+        throw std::runtime_error("Can not get model_proc output information.");
+
+    if (gst_structure_has_field(model_proc_output, "converter"))
+        return;
+
+    switch (inference_type) {
+    case GST_GVA_DETECT_TYPE: {
+        if (ATSSConverter::isValidModelOutputs(model_outputs_info))
+            gst_structure_set(model_proc_output, "converter", G_TYPE_STRING, ATSSConverter::getName().c_str(), NULL);
+        else if (SSDConverter::isValidModelOutputs(model_outputs_info))
+            gst_structure_set(model_proc_output, "converter", G_TYPE_STRING, SSDConverter::getName().c_str(), NULL);
+        else
+            throw std::runtime_error("Failed to determine the default detection converter. Please specify it yourself "
+                                     "in the 'model-proc' file.");
+    } break;
+    case GST_GVA_CLASSIFY_TYPE:
+    case GST_GVA_INFERENCE_TYPE:
+        gst_structure_set(model_proc_output, "converter", G_TYPE_STRING, RawDataCopyConverter::getName().c_str(), NULL);
+        break;
+    default:
+        throw std::runtime_error("Unknown inference type.");
+    }
+}
+
 PostProcessor::PostProcessor(InferenceImpl *inference_impl, GvaBaseInference *base_inference) {
     try {
         auto inference_type = base_inference->type;
         auto inference_region = base_inference->inference_region;
+        const std::string any_layer_name = "ANY";
 
         const auto &model = inference_impl->GetModel();
 
         std::map<std::string, std::vector<std::string>> labels = model.labels;
         if (labels.empty())
-            labels.insert(std::make_pair("ANY", std::vector<std::string>{}));
+            labels.insert(std::make_pair(any_layer_name, std::vector<std::string>{}));
 
         ModelImageInputInfo input_image_info;
         model.inference->GetModelImageInputInfo(input_image_info.width, input_image_info.height,
                                                 input_image_info.batch_size, input_image_info.format,
                                                 input_image_info.memory_type);
 
-        const std::map<std::string, GstStructure *> &model_proc_outputs = model.output_processor_info;
         ModelOutputsInfo model_outputs_info = model.inference->GetModelOutputsInfo();
         const std::string &model_name = model.name;
 
-        auto validation_result = validateModelProcOutputs(model_proc_outputs, model_outputs_info);
+        auto validation_result = validateModelProcOutputs(model.output_processor_info, model_outputs_info);
 
         switch (validation_result) {
         case PostProcessor::ModelProcOutputsValidationResult::USE_DEFAULT: {
@@ -126,34 +156,28 @@ PostProcessor::PostProcessor(InferenceImpl *inference_impl, GvaBaseInference *ba
                 layer_names.insert(output_info.first);
             }
 
-            if (inference_type == GST_GVA_DETECT_TYPE) {
-                std::map<std::string, GstStructure *> detect_model_proc_outputs;
-                GstStructureUniquePtr model_proc_output_info(nullptr, gst_structure_free);
+            std::map<std::string, GstStructure *> model_proc_outputs;
+            GstStructureUniquePtr model_proc_output_info(nullptr, gst_structure_free);
 
-                if (model_proc_outputs.empty()) {
-                    model_proc_output_info.reset(gst_structure_new_empty("detection"));
-                    detect_model_proc_outputs.insert(std::make_pair("ANY", model_proc_output_info.get()));
-                } else {
-                    detect_model_proc_outputs = model_proc_outputs;
-                }
-
-                GstGvaDetect *gva_detect = reinterpret_cast<GstGvaDetect *>(base_inference);
-                gst_structure_set(detect_model_proc_outputs.cbegin()->second, "confidence_threshold", G_TYPE_DOUBLE,
-                                  gva_detect->threshold, NULL);
-
-                converters.emplace_back(layer_names, detect_model_proc_outputs.cbegin()->second, inference_type,
-                                        inference_region, input_image_info, model_name,
-                                        labels.at(detect_model_proc_outputs.cbegin()->first));
-            } else if (model_proc_outputs.empty()) {
-                converters.emplace_back(layer_names, inference_type, inference_region, input_image_info, model_name);
+            if (model.output_processor_info.empty()) {
+                model_proc_output_info.reset(gst_structure_new_empty(any_layer_name.c_str()));
+                model_proc_outputs.insert(std::make_pair(any_layer_name, model_proc_output_info.get()));
             } else {
-                converters.emplace_back(layer_names, model_proc_outputs.cbegin()->second, inference_type,
-                                        inference_region, input_image_info, model_name,
-                                        labels.at(model_proc_outputs.cbegin()->first));
+                model_proc_outputs = model.output_processor_info;
             }
+            setConverterIfNotSpecified(model_proc_outputs.cbegin()->second, model_outputs_info, inference_type);
+
+            if (inference_type == GST_GVA_DETECT_TYPE) {
+                GstGvaDetect *gva_detect = reinterpret_cast<GstGvaDetect *>(base_inference);
+                gst_structure_set(model_proc_outputs.cbegin()->second, "confidence_threshold", G_TYPE_DOUBLE,
+                                  gva_detect->threshold, NULL);
+            }
+
+            converters.emplace_back(layer_names, model_proc_outputs.cbegin()->second, inference_type, inference_region,
+                                    input_image_info, model_name, labels.at(model_proc_outputs.cbegin()->first));
         } break;
         case PostProcessor::ModelProcOutputsValidationResult::OK: {
-            for (const auto &model_proc_output : model_proc_outputs) {
+            for (const auto &model_proc_output : model.output_processor_info) {
                 if (model_proc_output.second == nullptr) {
                     throw std::runtime_error("Can not get model_proc output information.");
                 }

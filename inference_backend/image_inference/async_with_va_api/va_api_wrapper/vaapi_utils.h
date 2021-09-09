@@ -53,7 +53,7 @@ class VaDpyWrapper final {
   public:
     explicit VaDpyWrapper() = default;
     explicit VaDpyWrapper(VADisplay d) : _dpy(d) {
-        if (!enshure_display())
+        if (!isDisplayValid(_dpy))
             throw std::invalid_argument("VADisplay is invalid.");
     }
 
@@ -61,12 +61,18 @@ class VaDpyWrapper final {
         return VaDpyWrapper(d);
     }
 
+    static bool isDisplayValid(VADisplay d) noexcept {
+        auto pDisplayContext = reinterpret_cast<VADisplayContextP>(d);
+        return d && pDisplayContext && (pDisplayContext->vadpy_magic == VA_DISPLAY_MAGIC) &&
+               pDisplayContext->vaIsValid(pDisplayContext);
+    }
+
     VADisplay raw() const noexcept {
         return _dpy;
     }
 
     explicit operator bool() const noexcept {
-        return enshure_display();
+        return isDisplayValid(_dpy);
     }
 
     VADisplayContextP dpyCtx() const noexcept {
@@ -83,12 +89,6 @@ class VaDpyWrapper final {
 
   private:
     VADisplay _dpy = nullptr;
-
-    bool enshure_display() const noexcept {
-        VADisplayContextP pDisplayContext = (VADisplayContextP)_dpy;
-        return _dpy && pDisplayContext && (pDisplayContext->vadpy_magic == VA_DISPLAY_MAGIC) &&
-               pDisplayContext->vaIsValid(pDisplayContext);
-    }
 };
 
 using VaApiDisplayPtr = std::shared_ptr<void>;

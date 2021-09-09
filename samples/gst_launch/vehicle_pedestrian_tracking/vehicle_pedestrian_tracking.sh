@@ -36,7 +36,7 @@ else
   exit
 fi
 
-MODEL_1=person-vehicle-bike-detection-crossroad-0078
+MODEL_1=person-vehicle-bike-detection-2004
 MODEL_2=person-attributes-recognition-crossroad-0230
 MODEL_3=vehicle-attributes-recognition-barrier-0039
 
@@ -54,9 +54,9 @@ PROC_PATH() {
     echo $(dirname "$0")/model_proc/$1.json
 }
 
-DETECTION_MODEL=${MODELS_PATH}/intel/person-vehicle-bike-detection-crossroad-0078/FP32/person-vehicle-bike-detection-crossroad-0078.xml 
-PERSON_CLASSIFICATION_MODEL=${MODELS_PATH}/intel/person-attributes-recognition-crossroad-0230/FP32/person-attributes-recognition-crossroad-0230.xml
-VEHICLE_CLASSIFICATION_MODEL=${MODELS_PATH}/intel/vehicle-attributes-recognition-barrier-0039/FP32/vehicle-attributes-recognition-barrier-0039.xml
+DETECTION_MODEL=${MODELS_PATH}/intel/${MODEL_1}/FP32/${MODEL_1}.xml 
+PERSON_CLASSIFICATION_MODEL=${MODELS_PATH}/intel/${MODEL_2}/FP32/${MODEL_2}.xml
+VEHICLE_CLASSIFICATION_MODEL=${MODELS_PATH}/intel/${MODEL_3}/FP32/${MODEL_3}.xml
 
 DETECTION_MODEL_PROC=$(PROC_PATH $MODEL_1)
 PERSON_CLASSIFICATION_MODEL_PROC=$(PROC_PATH $MODEL_2)
@@ -67,7 +67,7 @@ PIPELINE="gst-launch-1.0 \
   gvadetect model=$DETECTION_MODEL \
             model-proc=$DETECTION_MODEL_PROC \
             inference-interval=${DETECTION_INTERVAL} \
-            threshold=0.6 \
+            threshold=0.4 \
             device=${DEVICE} ! \
   queue ! \
   gvatrack tracking-type=${TRACKING_TYPE} ! \

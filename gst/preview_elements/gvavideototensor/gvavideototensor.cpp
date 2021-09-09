@@ -11,12 +11,17 @@
 #include "preprocessors/vaapi_surface_sharing_preproc.hpp"
 
 #include <capabilities/capabilities.hpp>
+#include <gst_vaapi_helper.h>
 #include <gva_custom_meta.hpp>
 #include <model_proc_provider.h>
 #include <pre_processor_info_parser.hpp>
 #include <utils.h>
 
 #include <gst/video/video.h>
+
+#ifdef ENABLE_VAAPI
+#include "vaapi_utils.h"
+#endif
 
 GST_DEBUG_CATEGORY(gst_gva_video_to_tensor_debug_category);
 
@@ -67,6 +72,24 @@ using namespace InferenceBackend;
 
 namespace {
 constexpr auto DEFAULT_PRE_PROC_BACKEND = OPENCV;
+
+VaApiDisplayPtr createVaDisplay(GstBaseTransform *base_transform) {
+    assert(base_transform);
+
+    auto display = VaapiHelper::queryVaDisplay(base_transform);
+    if (display) {
+        GST_DEBUG_OBJECT(base_transform, "Using shared VADisplay");
+        return display;
+    }
+
+#ifdef ENABLE_VAAPI
+    uint32_t rel_dev_index = 0;
+    display = vaApiCreateVaDisplay(rel_dev_index);
+#endif
+
+    return display;
+}
+
 } // namespace
 
 void _GstGvaVideoToTensor::init_preprocessor() {
@@ -81,10 +104,11 @@ void _GstGvaVideoToTensor::init_preprocessor() {
         break;
 #ifdef ENABLE_VAAPI
     case VAAPI_SYSTEM:
-        props.preprocessor.reset(new VaapiPreProc(props.input_info, props.tensor_caps));
+        props.preprocessor.reset(new VaapiPreProc(createVaDisplay(&this->base), props.input_info, props.tensor_caps));
         break;
     case VAAPI_SURFACE_SHARING:
-        props.preprocessor.reset(new VaapiSurfaceSharingPreProc(props.input_info, props.tensor_caps));
+        props.preprocessor.reset(
+            new VaapiSurfaceSharingPreProc(createVaDisplay(&this->base), props.input_info, props.tensor_caps));
         break;
 #endif
     default:
