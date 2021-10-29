@@ -19,11 +19,11 @@
 
 #define GST_CAT_DEFAULT gst_gva_meta_convert_debug_category
 
+namespace {
+
 gboolean dump_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
-    if (converter == nullptr) {
-        GST_ERROR_OBJECT(converter, "GVA meta convert data pointer is null");
-        return FALSE;
-    }
+    assert(converter && buffer && "Expected valid GstGvaMetaConvert and GstBuffer");
+
     try {
         if (converter->info) {
             GVA::VideoFrame video_frame(buffer, converter->info);
@@ -41,12 +41,14 @@ gboolean dump_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         }
 #endif
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(converter, "%s", e.what());
+        GST_ERROR_OBJECT(converter, "%s", Utils::createNestedErrorMsg(e).c_str());
         return FALSE;
     }
 
     return TRUE;
 }
+
+} // namespace
 
 GHashTable *get_converters() {
     GHashTable *converters = g_hash_table_new(g_direct_hash, g_direct_equal);

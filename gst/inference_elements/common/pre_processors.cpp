@@ -33,7 +33,7 @@ InputPreprocessingFunction createImageInfoFunction(const GstStructure *params, c
 
     return [width, height, scale](const InputBlob::Ptr &blob) {
         auto dims = blob->GetDims();
-        float *data = static_cast<float *>(blob->GetData());
+        float *data = reinterpret_cast<float *>(blob->GetData());
         data[0] = static_cast<float>(height);
         data[1] = static_cast<float>(width);
         std::fill(data + 2, data + dims[1], static_cast<float>(scale));
@@ -43,7 +43,7 @@ InputPreprocessingFunction createImageInfoFunction(const GstStructure *params, c
 InputPreprocessingFunction createSequenceIndexFunction() {
     return [](const InputBlob::Ptr &blob) {
         size_t maxSequenceSizePerPlate = blob->GetDims()[0];
-        float *blob_data = static_cast<float *>(blob->GetData());
+        float *blob_data = reinterpret_cast<float *>(blob->GetData());
         std::fill(blob_data, blob_data + maxSequenceSizePerPlate, 1.0f);
     };
 }
@@ -117,7 +117,7 @@ Image getImage(const InputBlob::Ptr &blob) {
     default:
         throw std::invalid_argument("Unsupported layout for image");
     }
-    uint8_t *data = static_cast<uint8_t *>(blob->GetData());
+    uint8_t *data = reinterpret_cast<uint8_t *>(blob->GetData());
     data += blob->GetIndexInBatch() * 3 * image.width * image.height;
     image.planes[0] = data;
     image.planes[1] = data + image.width * image.height;

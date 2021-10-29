@@ -13,19 +13,19 @@
 #include <CL/sycl/backend.hpp>
 #include <CL/sycl/backend/level_zero.hpp>
 
-struct usm_ptr_context_t;
 class UsmBufferMapper : public BufferMapper {
-    InferenceBackend::Image _image;
     std::shared_ptr<sycl::queue> _queue;
-    int _dma_fd;
+    std::unique_ptr<BufferMapper> _input_mapper;
 
-    void *_ze_context;
-    void *_usm_ptr;
-    void *get_device_pointer(std::shared_ptr<sycl::queue> queue, GstBuffer *buffer, InferenceBackend::Image *image);
+    static void *getDeviceMemPointer(sycl::queue &queue, int dma_fd, size_t dma_size);
+    InferenceBackend::Image convertSurfaceImgToDmaImg(const InferenceBackend::Image &image, size_t *out_dma_size);
+    InferenceBackend::Image mapToDmaImg(GstBuffer *buffer, GstMapFlags flags, size_t *out_dma_size);
 
   public:
-    UsmBufferMapper(std::shared_ptr<sycl::queue> queue);
+    UsmBufferMapper(std::shared_ptr<sycl::queue> queue, std::unique_ptr<BufferMapper> input_buffer_mapper);
 
-    InferenceBackend::Image map(GstBuffer *buffer, GstVideoInfo *info, GstMapFlags) override;
-    void unmap() override;
+    InferenceBackend::MemoryType memoryType() const override;
+
+    InferenceBackend::Image map(GstBuffer *buffer, GstMapFlags flags) override;
+    void unmap(InferenceBackend::Image &image) override;
 };

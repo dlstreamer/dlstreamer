@@ -79,7 +79,28 @@ class ImageInference {
 class Blob {
   public:
     enum class Layout { ANY = 0, NCHW = 1, NHWC = 2, NC = 193 };
-    enum class Precision { FP32 = 10, U8 = 40 };
+    enum class Precision {
+        UNSPECIFIED = 255, /**< Unspecified value. Used by default */
+        MIXED = 0,         /**< Mixed value. Can be received from network. No applicable for tensors */
+        FP32 = 10,         /**< 32bit floating point value */
+        FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
+        BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
+        FP64 = 13,         /**< 64bit floating point value */
+        Q78 = 20,          /**< 16bit specific signed fixed point precision */
+        I16 = 30,          /**< 16bit signed integer value */
+        U4 = 39,           /**< 4bit unsigned integer value */
+        U8 = 40,           /**< 8bit unsigned integer value */
+        I4 = 49,           /**< 4bit signed integer value */
+        I8 = 50,           /**< 8bit signed integer value */
+        U16 = 60,          /**< 16bit unsigned integer value */
+        I32 = 70,          /**< 32bit signed integer value */
+        U32 = 74,          /**< 32bit unsigned integer value */
+        I64 = 72,          /**< 64bit signed integer value */
+        U64 = 73,          /**< 64bit unsigned integer value */
+        BIN = 71,          /**< 1bit integer value */
+        BOOL = 41,         /**< 8bit bool type */
+        CUSTOM = 80        /**< custom precision has it's own name and size of elements */
+    };
     virtual ~Blob() = default;
     virtual const std::vector<size_t> &GetDims() const = 0;
     size_t GetSize() const {
@@ -133,7 +154,8 @@ class Allocator {
 #define __DECLARE_CONFIG_KEY(name) static constexpr auto __CONFIG_KEY(name) = #name
 __DECLARE_CONFIG_KEY(BASE);
 __DECLARE_CONFIG_KEY(INFERENCE);
-__DECLARE_CONFIG_KEY(LAYER_PRECISION);
+__DECLARE_CONFIG_KEY(PRE_PROCESSOR);
+__DECLARE_CONFIG_KEY(INPUT_LAYER_PRECISION);
 __DECLARE_CONFIG_KEY(FORMAT);
 __DECLARE_CONFIG_KEY(DEVICE);
 __DECLARE_CONFIG_KEY(MODEL); // Path to model
@@ -150,6 +172,8 @@ __DECLARE_CONFIG_KEY(RESHAPE_WIDTH);
 __DECLARE_CONFIG_KEY(RESHAPE_HEIGHT);
 __DECLARE_CONFIG_KEY(image);
 __DECLARE_CONFIG_KEY(CAPS_FEATURE);
+__DECLARE_CONFIG_KEY(VAAPI_THREAD_POOL_SIZE);
+__DECLARE_CONFIG_KEY(VAAPI_FAST_SCALE_LOAD_FACTOR);
 #undef __DECLARE_CONFIG_KEY
 #undef __CONFIG_KEY
 

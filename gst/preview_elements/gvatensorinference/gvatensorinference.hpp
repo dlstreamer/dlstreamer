@@ -16,6 +16,7 @@
 #include <capabilities/types.hpp>
 #include <memory_type.hpp>
 
+#include "inference_storage.hpp"
 #include "tensor_inference.hpp"
 
 G_BEGIN_DECLS
@@ -23,18 +24,17 @@ G_BEGIN_DECLS
 #define GVA_TENSOR_INFERENCE_NAME "[Preview] Generic Inference Element"
 #define GVA_TENSOR_INFERENCE_DESCRIPTION "Performs inference on an input data"
 
-GST_DEBUG_CATEGORY_EXTERN(gst_gva_tensor_inference_debug_category);
-#define GST_DEBUG_CAT_GVA_TENSOR_INFERENCE gst_gva_tensor_inference_debug_category
+GST_DEBUG_CATEGORY_EXTERN(gva_tensor_inference_debug_category);
+#define GST_DEBUG_CAT_GVA_TENSOR_INFERENCE gva_tensor_inference_debug_category
 
-#define GST_TYPE_GVA_TENSOR_INFERENCE (gst_gva_tensor_inference_get_type())
-#define GST_GVA_TENSOR_INFERENCE(obj)                                                                                  \
-    (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVA_TENSOR_INFERENCE, GstGvaTensorInference))
-#define GST_GVA_TENSOR_INFERENCE_CLASS(klass)                                                                          \
-    (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_GVA_TENSOR_INFERENCE, GstGvaTensorInferenceClass))
+#define GST_TYPE_GVA_TENSOR_INFERENCE (gva_tensor_inference_get_type())
+#define GVA_TENSOR_INFERENCE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVA_TENSOR_INFERENCE, GvaTensorInference))
+#define GVA_TENSOR_INFERENCE_CLASS(klass)                                                                              \
+    (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_GVA_TENSOR_INFERENCE, GvaTensorInferenceClass))
 #define GST_IS_GVA_TENSOR_INFERENCE(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_GVA_TENSOR_INFERENCE))
 #define GST_IS_GVA_TENSOR_INFERENCE_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_GVA_TENSOR_INFERENCE))
 
-typedef struct _GstGvaTensorInference {
+typedef struct _GvaTensorInference {
     GstBaseTransform base;
 
     // TODO: think about making it simplier
@@ -44,23 +44,29 @@ typedef struct _GstGvaTensorInference {
         std::string model;
         std::string ie_config;
         std::string device;
+        std::string instance_id;
+        std::string object_class;
         guint nireq;
         guint batch_size;
 
-        TensorCaps input_caps;
-        TensorCaps output_caps;
+        TensorCapsArray input_caps;
+        TensorCapsArray output_caps;
 
-        std::unique_ptr<TensorInference> infer;
+        GstVideoInfo *input_video_info;
+
+        std::shared_ptr<TensorInference> infer;
+        InferenceQueue<GstBuffer *> infer_queue;
+        std::shared_ptr<MemoryPool> infer_pool;
+        std::vector<std::string> obj_classes_filter;
     } props;
 
     void RunInference(GstBuffer *inbuf, GstBuffer *outbuf);
-} GstGvaTensorInference;
+} GvaTensorInference;
 
-typedef struct _GstGvaTensorInferenceClass {
+typedef struct _GvaTensorInferenceClass {
     GstBaseTransformClass base_class;
-} GstGvaTensorInferenceClass;
+} GvaTensorInferenceClass;
 
-GType gst_gva_tensor_inference_get_type(void);
-gboolean gva_tensor_inference_stopped(GstGvaTensorInference *self);
+GType gva_tensor_inference_get_type(void);
 
 G_END_DECLS

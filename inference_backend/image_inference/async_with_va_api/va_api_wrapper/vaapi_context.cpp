@@ -35,17 +35,6 @@ VaApiContext::VaApiContext(VaApiDisplayPtr va_display_ptr)
     assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
 }
 
-VaApiContext::VaApiContext(const std::string &device) {
-    _display_storage = vaApiCreateVaDisplay(Utils::getRelativeGpuDeviceIndex(device));
-    _display = VaDpyWrapper::fromHandle(_display_storage.get());
-
-    create_config_and_contexts();
-    create_supported_pixel_formats();
-
-    assert(_va_config_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAConfigID.");
-    assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
-}
-
 VaApiContext::~VaApiContext() {
     auto vtable = _display.drvVtable();
     auto ctx = _display.drvCtx();

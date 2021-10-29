@@ -27,6 +27,7 @@ static std::mutex inference_pool_mutex_;
     _DST = g_strdup(_SRC);
 
 gboolean registerElement(GvaBaseInference *base_inference) {
+    assert(base_inference != nullptr && "Expected a valid pointer to gva_base_inference");
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
         std::string name(base_inference->model_instance_id);
@@ -67,7 +68,7 @@ gboolean registerElement(GvaBaseInference *base_inference) {
 }
 
 void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem, InferenceImpl *inference_impl) {
-    assert(masterElem);
+    assert(targetElem && masterElem && inference_impl);
     targetElem->inference = inference_impl;
 
     COPY_GSTRING(targetElem->model, masterElem->model);
@@ -114,6 +115,9 @@ void check_image_formats_same(GstVideoFormat &existing_format, const GstVideoFor
 
 InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
     try {
+        if (!base_inference)
+            throw std::invalid_argument("GvaBaseInference is null");
+
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
         std::string name(base_inference->model_instance_id);
 
@@ -160,90 +164,3 @@ void release_inference_instance(GvaBaseInference *base_inference) {
                           ("%s", Utils::createNestedErrorMsg(e).c_str()));
     }
 }
-
-GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffer *buf) {
-    if (!base_inference || !base_inference->inference) {
-        GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
-                          ("empty inference instance"));
-        return GST_BASE_TRANSFORM_FLOW_DROPPED;
-    }
-
-    GstFlowReturn status;
-    try {
-        status = ((InferenceImpl *)base_inference->inference)->TransformFrameIp(base_inference, buf);
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-        status = GST_FLOW_ERROR;
-    }
-
-    return status;
-}
-
-void base_inference_sink_event(GvaBaseInference *base_inference, GstEvent *event) {
-    try {
-        if (base_inference->inference) {
-            ((InferenceImpl *)base_inference->inference)->SinkEvent(event);
-        }
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, CORE, EVENT, ("base_inference failed while handling sink"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-    }
-}
-
-void flush_inference(GvaBaseInference *base_inference) {
-    if (!base_inference || !base_inference->inference) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
-                          ("empty inference instance"));
-        return;
-    }
-
-    try {
-        ((InferenceImpl *)base_inference->inference)->FlushInference();
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-    }
-}
-
-void update_inference_object_classes(GvaBaseInference *base_inference) {
-    if (!base_inference) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on object classes updating"),
-                          ("empty base_inference instance"));
-        return;
-    }
-    if (!base_inference->inference) {
-        GST_ELEMENT_INFO(base_inference, CORE, STATE_CHANGE, ("object classes update was not completed"),
-                         ("empty inference instance: retry will be performed once instance will be acquired"));
-        return;
-    }
-
-    try {
-        ((InferenceImpl *)base_inference->inference)->UpdateObjectClasses(base_inference);
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on object classes updating"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-    }
-}
-
-gboolean is_roi_size_valid(GstVideoRegionOfInterestMeta *roi_meta) {
-    return roi_meta->w > 1 && roi_meta->h > 1;
-}
-
-bool is_roi_inference_needed(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
-                             GstVideoRegionOfInterestMeta *roi) {
-    InferenceImpl *inference = gva_base_inference->inference;
-    assert(inference);
-
-    if (!is_roi_size_valid(roi))
-        return false;
-    // Check if object-class is the same as roi class label
-    if (not inference->FilterObjectClass(roi))
-        return false;
-
-    if (gva_base_inference->specific_roi_filter)
-        return gva_base_inference->specific_roi_filter(gva_base_inference, current_num_frame, buffer, roi);
-    return true;
-}
-
-FilterROIFunction IS_ROI_INFERENCE_NEEDED = is_roi_inference_needed;

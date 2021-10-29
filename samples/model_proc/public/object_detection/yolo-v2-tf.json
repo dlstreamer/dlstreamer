@@ -1,10 +1,9 @@
 {
-    "json_schema_version": "2.0.0",
+    "json_schema_version": "2.1.0",
     "input_preproc": [],
     "output_postproc": [
         {
-            "converter": "tensor_to_bbox_yolo_v2",
-            "classes": 80,
+            "converter": "yolo_v2",
             "anchors": [
                 0.57273,
                 0.677385,
@@ -18,8 +17,6 @@
                 9.16828
             ],
             "iou_threshold": 0.5,
-            "bbox_number_on_cell": 5,
-            "cells_number": 19,
             "labels": [
                 "person",
                 "bicycle",

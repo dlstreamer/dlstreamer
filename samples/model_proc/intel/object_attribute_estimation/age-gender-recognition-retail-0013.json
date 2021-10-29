@@ -1,5 +1,5 @@
 {
-    "json_schema_version": "2.0.0",
+    "json_schema_version": "2.1.0",
     "input_preproc": [],
     "output_postproc": [
         {
@@ -9,15 +9,15 @@
                 "Female",
                 "Male"
             ],
-            "converter": "tensor_to_label",
+            "converter": "label",
             "method": "max"
         },
         {
             "layer_name": "age_conv3",
             "attribute_name": "age",
-            "converter": "tensor_to_text",
-            "tensor_to_text_scale": 100.0,
-            "tensor_to_text_precision": 0
+            "converter": "text",
+            "text_precision": 0,
+            "text_scale": 100.0
         }
     ]
 }

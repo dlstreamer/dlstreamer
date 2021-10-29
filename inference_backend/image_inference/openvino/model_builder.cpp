@@ -18,6 +18,8 @@ InferenceEngine::ColorFormat formatNameToIEColorFormat(const std::string &format
 std::unique_ptr<InferenceBackend::ImagePreprocessor>
 createPreProcessor(InferenceEngine::InputInfo::Ptr input, size_t batch_size,
                    const std::map<std::string, std::string> &base_config);
+void checkLayersExist(const InferenceEngine::InputsDataMap &inputs_info,
+                      const std::map<std::string, std::string> &layers_config);
 } // namespace
 
 void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inputs_info,
@@ -27,9 +29,9 @@ void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inp
 
     if (inputs_info.size() == 1) {
         auto info = inputs_info.begin();
-        GVA_INFO(std::string("Input image layer name: \"" + info->first + "\"").c_str());
-        const auto precision_it = layer_precision_config.find(info->first);
-        if (precision_it == layer_precision_config.cend()) {
+        GVA_INFO("Input image layer name: '%s'", info->first.c_str());
+        const auto precision_it = input_layer_precision_config.find(info->first);
+        if (precision_it == input_layer_precision_config.cend()) {
             info->second->setPrecision(InferenceEngine::Precision::U8);
         } else {
             info->second->setPrecision(getIePrecision(precision_it->second));
@@ -37,9 +39,9 @@ void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inp
         image_input_name = info->first;
     } else {
         for (auto &input_info : inputs_info) {
-            auto precision_it = layer_precision_config.find(input_info.first);
-            auto type_it = layer_type_config.find(input_info.first);
-            if (precision_it == layer_precision_config.end() or type_it == layer_type_config.end())
+            auto precision_it = input_layer_precision_config.find(input_info.first);
+            auto type_it = layer_format_config.find(input_info.first);
+            if (precision_it == input_layer_precision_config.end() or type_it == layer_format_config.end())
                 throw std::invalid_argument("Config for layer precision does not contain precision info for layer: " +
                                             input_info.first);
             if (type_it->second == InferenceBackend::KEY_image)
@@ -49,16 +51,27 @@ void IrBuilder::configureNetworkLayers(const InferenceEngine::InputsDataMap &inp
     }
 }
 
+void IrBuilder::checkLayersConfig(const InferenceEngine::InputsDataMap &inputs_info) {
+    checkLayersExist(inputs_info, input_layer_precision_config);
+    checkLayersExist(inputs_info, layer_format_config);
+}
+
 std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork, std::string>
 IrBuilder::createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network) {
     addExtension(base_config, inference_config);
     auto inputs_info = network.getInputsInfo();
+
+    checkLayersConfig(inputs_info);
+
     std::string image_input_name;
     configureNetworkLayers(inputs_info, image_input_name);
+
     std::unique_ptr<InferenceBackend::ImagePreprocessor> pre_processor =
         createPreProcessor(inputs_info[image_input_name], batch_size, base_config);
+
     InferenceEngine::ExecutableNetwork executable_network =
         loader->import(network, model_path, base_config, inference_config);
+
     return std::make_tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork,
                            std::string>(std::move(pre_processor), std::move(executable_network),
                                         std::move(image_input_name));
@@ -170,10 +183,9 @@ InferenceEngine::ColorFormat formatNameToIEColorFormat(const std::string &format
     if (iter != formatMap.end()) {
         return iter->second;
     } else {
-        std::string err =
-            "Color format '" + format +
-            "' is not supported by Inference Engine preprocessing. InferenceEngine::ColorFormat::RAW will be set";
-        GVA_ERROR(err.c_str());
+        GVA_ERROR("Color format '%s' is not supported by Inference Engine preprocessing. "
+                  "InferenceEngine::ColorFormat::RAW will be set",
+                  format.c_str());
         return InferenceEngine::ColorFormat::RAW;
     }
 }
@@ -181,6 +193,9 @@ InferenceEngine::ColorFormat formatNameToIEColorFormat(const std::string &format
 std::unique_ptr<InferenceBackend::ImagePreprocessor>
 createPreProcessor(InferenceEngine::InputInfo::Ptr input, size_t batch_size,
                    const std::map<std::string, std::string> &base_config) {
+    if (not input)
+        throw std::invalid_argument("Inputs are empty");
+
     const std::string &image_format =
         base_config.count(InferenceBackend::KEY_IMAGE_FORMAT) ? base_config.at(InferenceBackend::KEY_IMAGE_FORMAT) : "";
     const std::string &image_preprocessor_type_str = base_config.count(InferenceBackend::KEY_PRE_PROCESSOR_TYPE)
@@ -189,9 +204,7 @@ createPreProcessor(InferenceEngine::InputInfo::Ptr input, size_t batch_size,
     InferenceBackend::ImagePreprocessorType image_preprocessor_type =
         static_cast<InferenceBackend::ImagePreprocessorType>(std::stoi(image_preprocessor_type_str));
     const std::string &device = base_config.at(InferenceBackend::KEY_DEVICE);
-    if (not input) {
-        throw std::invalid_argument("Inputs is empty");
-    }
+
     try {
         std::unique_ptr<InferenceBackend::ImagePreprocessor> pre_processor = nullptr;
         switch (image_preprocessor_type) {
@@ -218,6 +231,17 @@ createPreProcessor(InferenceEngine::InputInfo::Ptr input, size_t batch_size,
         return pre_processor;
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to create preprocessor of"));
+    }
+}
+
+void checkLayersExist(const InferenceEngine::InputsDataMap &inputs_info,
+                      const std::map<std::string, std::string> &layers_config) {
+    for (const auto &lp : layers_config) {
+        const auto &layer_name = lp.first;
+        if (layer_name != "ANY" && inputs_info.find(layer_name) == inputs_info.cend()) {
+            throw std::runtime_error("Layer '" + layer_name +
+                                     "' does not exist. Please, check `input_preproc` section in model-proc.");
+        }
     }
 }
 } // namespace

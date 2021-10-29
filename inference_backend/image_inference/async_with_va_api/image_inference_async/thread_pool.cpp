@@ -76,8 +76,6 @@ void ThreadPool::_task_runner() {
                 task();
         }
     } catch (const std::exception &e) {
-        const std::string msg =
-            Utils::createNestedErrorMsg(e, std::string("Error was happened during in another thread:"));
-        GVA_ERROR(msg.c_str())
+        GVA_ERROR("Error was happened during in another thread: %s", Utils::createNestedErrorMsg(e).c_str());
     }
 }

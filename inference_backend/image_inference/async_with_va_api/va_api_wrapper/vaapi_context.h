@@ -20,7 +20,6 @@ class VaApiContext {
   public:
     explicit VaApiContext(VADisplay va_display);
     explicit VaApiContext(VaApiDisplayPtr va_display_ptr);
-    explicit VaApiContext(const std::string &device = "GPU");
 
     ~VaApiContext();
 

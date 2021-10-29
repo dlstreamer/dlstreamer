@@ -29,12 +29,15 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    gstgvaactionrecognitionbin
-    gstgvatensoracc
-    gstgvatensorinference
-    gstgvatensortometa
-    gstgvavideototensor
+    ${GSTREAMER_LIBRARIES}
+    gvaactionrecognitionbin
+    gvadetectbin
+    gvaclassifybin
+    gvatensoracc
+    gvatensorinference
+    gvatensortometa
+    gvavideototensor
+    tensormux
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

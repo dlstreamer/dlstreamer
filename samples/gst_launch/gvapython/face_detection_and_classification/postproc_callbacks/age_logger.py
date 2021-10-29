@@ -6,10 +6,11 @@
 
 from gstgva import VideoFrame
 
+
 class AgeLogger:
     def __init__(self, log_file_path):
         self.log_file = open(log_file_path, "a")
-    
+
     def log_age(self, frame: VideoFrame) -> bool:
         for roi in frame.regions():
             for tensor in roi.tensors():

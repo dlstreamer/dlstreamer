@@ -6,7 +6,7 @@
 
 #include "opencv_utils.h"
 #include "inference_backend/logger.h"
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
 
 #include <opencv2/opencv.hpp>
 
@@ -20,46 +20,57 @@ int ImageToMat(const Image &src, cv::Mat &dst) {
 
 int CreateMat(uint8_t *const *planes, uint32_t src_width, uint32_t src_height, int format, const uint32_t *stride,
               const uint32_t * /*offset*/, cv::Mat &dst) {
+    if (!planes)
+        throw std::invalid_argument("Invalid planes data pointer");
+    if (!stride)
+        throw std::invalid_argument("Invalid stride data pointer");
+
     switch (format) {
     case FOURCC_BGRX:
     case FOURCC_BGRA:
-        dst = cv::Mat(src_height, src_width, CV_8UC4, planes[0], stride[0]);
+        dst = cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC4, planes[0], stride[0]);
         return FOURCC_BGRA;
     case FOURCC_BGR:
-        dst = cv::Mat(src_height, src_width, CV_8UC3, planes[0], stride[0]);
+        dst = cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC3, planes[0], stride[0]);
         return FOURCC_BGR;
     case FOURCC_BGRP: {
-        cv::Mat channelB = cv::Mat(src_height, src_width, CV_8UC1, planes[0], stride[0]);
-        cv::Mat channelG = cv::Mat(src_height, src_width, CV_8UC1, planes[1], stride[1]);
-        cv::Mat channelR = cv::Mat(src_height, src_width, CV_8UC1, planes[2], stride[2]);
+        cv::Mat channelB =
+            cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC1, planes[0], stride[0]);
+        cv::Mat channelG =
+            cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC1, planes[1], stride[1]);
+        cv::Mat channelR =
+            cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC1, planes[2], stride[2]);
         std::vector<cv::Mat> channels{channelB, channelG, channelR};
         cv::merge(channels, dst);
         return FOURCC_BGRP;
     }
     case FOURCC_RGBP: {
-        cv::Mat channelR = cv::Mat(src_height, src_width, CV_8UC1, planes[0], stride[0]);
-        cv::Mat channelG = cv::Mat(src_height, src_width, CV_8UC1, planes[1], stride[1]);
-        cv::Mat channelB = cv::Mat(src_height, src_width, CV_8UC1, planes[2], stride[2]);
+        cv::Mat channelR =
+            cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC1, planes[0], stride[0]);
+        cv::Mat channelG =
+            cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC1, planes[1], stride[1]);
+        cv::Mat channelB =
+            cv::Mat(safe_convert<int>(src_height), safe_convert<int>(src_width), CV_8UC1, planes[2], stride[2]);
         std::vector<cv::Mat> channels{channelB, channelG, channelR};
         cv::merge(channels, dst);
         return FOURCC_BGRP;
     }
     case FOURCC_I420: {
-        const uint32_t height = (src_height % 2 == 0) ? src_height : src_height - 1;
-        const uint32_t width = (src_width % 2 == 0) ? src_width : src_width - 1;
-        const uint32_t size = height * width;
+        const int32_t height = safe_convert<int32_t>((src_height % 2 == 0) ? src_height : src_height - 1);
+        const int32_t width = safe_convert<int32_t>((src_width % 2 == 0) ? src_width : src_width - 1);
+        const int32_t size = safe_mul(height, width);
 
-        const uint32_t half_height = height / 2;
-        const uint32_t half_width = width / 2;
-        const uint32_t quarter_size = half_height * half_width;
+        const int32_t half_height = height / 2;
+        const int32_t half_width = width / 2;
+        const int32_t quarter_size = safe_mul(half_height, half_width);
 
         cv::Mat yuv420;
         if (planes[1] == (planes[0] + size) and planes[2] == (planes[1] + quarter_size)) {
             // If image is provided by libav decoder, YUV planes are stored sequentially with zero strides
-            yuv420 = cv::Mat(height + half_height, width, CV_8UC1, planes[0]);
+            yuv420 = cv::Mat(safe_add(height, half_height), width, CV_8UC1, planes[0]);
         } else {
             // If image is provided by vaapi decoder/postprocessing, YUV planes are stored with non-zero strides
-            yuv420 = cv::Mat(height + half_height, width, CV_8UC1);
+            yuv420 = cv::Mat(safe_add(height, half_height), width, CV_8UC1);
 
             cv::Mat raw_y = cv::Mat(height, width, CV_8UC1, planes[0], stride[0]);
             cv::Mat y = cv::Mat(height, width, CV_8UC1, yuv420.data);
@@ -77,14 +88,14 @@ int CreateMat(uint8_t *const *planes, uint32_t src_width, uint32_t src_height, i
         return FOURCC_BGR;
     }
     case FOURCC_NV12: {
-        const uint32_t height = (src_height % 2 == 0) ? src_height : src_height - 1;
-        const uint32_t width = (src_width % 2 == 0) ? src_width : src_width - 1;
-        const uint32_t size = height * width;
+        const int32_t height = safe_convert<int32_t>((src_height % 2 == 0) ? src_height : src_height - 1);
+        const int32_t width = safe_convert<int32_t>((src_width % 2 == 0) ? src_width : src_width - 1);
+        const int32_t size = safe_mul(height, width);
 
-        const uint32_t half_height = height / 2;
-        const uint32_t half_width = width / 2;
+        const int32_t half_height = height / 2;
+        const int32_t half_width = width / 2;
 
-        cv::Mat yuv12 = cv::Mat(height + half_height, width, CV_8UC1);
+        cv::Mat yuv12 = cv::Mat(safe_add(height, half_height), width, CV_8UC1);
 
         cv::Mat raw_y = cv::Mat(height, width, CV_8UC1, planes[0], stride[0]);
         cv::Mat y12 = cv::Mat(height, width, CV_8UC1, yuv12.data);
@@ -103,51 +114,53 @@ int CreateMat(uint8_t *const *planes, uint32_t src_width, uint32_t src_height, i
 }
 
 template <typename T>
-void MatToMultiPlaneImageTyped(const cv::Mat &src, uint32_t dst_width, uint32_t dst_height, uint8_t **dst_planes) {
+void MatToMultiPlaneImageTyped(const cv::Mat &src, uint32_t dst_width, uint32_t dst_height,
+                               uint8_t *const *dst_planes) {
     ITT_TASK(__FUNCTION__);
+    if (!dst_planes)
+        throw std::invalid_argument("Invalid destination planes data pointer");
+
     try {
         if (src.size().height < 0 or src.size().width < 0) {
             throw std::invalid_argument("Unsupported cv::Mat size.");
         }
-        const auto src_height = static_cast<uint32_t>(src.size().height);
-        const auto src_width = static_cast<uint32_t>(src.size().width);
+        const auto src_height = safe_convert<uint32_t>(src.size().height);
+        const auto src_width = safe_convert<uint32_t>(src.size().width);
 
         if (src_height != dst_height or src_width != dst_width) {
             throw std::invalid_argument("MatToMultiPlaneImageTyped: Different height/width in cv::Mat and Image.");
-        }
-
-        // This storage will used to
-        uint32_t area = static_cast<uint32_t>(src.size().area());
-        static std::vector<T> storage;
-        if (area > storage.size()) {
-            storage.resize(area);
         }
 
         int channels = src.channels();
         switch (channels) {
         case 1: {
             ITT_TASK("1-channel MatToMultiPlaneImage");
-            cv::Mat_<T> wrapped_mat = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[0]));
+            cv::Mat_<T> wrapped_mat(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                    reinterpret_cast<T *>(dst_planes[0]));
             src.copyTo(wrapped_mat);
             break;
         }
         case 3: {
             ITT_TASK("3-channel MatToMultiPlaneImage");
-            std::vector<cv::Mat_<T>> mats(channels);
-            mats[0] = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[0]));
-            mats[1] = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[1]));
-            mats[2] = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[2]));
+            std::vector<cv::Mat_<T>> mats{cv::Mat_<T>(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                                      reinterpret_cast<T *>(dst_planes[0])),
+                                          cv::Mat_<T>(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                                      reinterpret_cast<T *>(dst_planes[1])),
+                                          cv::Mat_<T>(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                                      reinterpret_cast<T *>(dst_planes[2]))};
             cv::split(src, mats);
             break;
         }
         case 4: {
             ITT_TASK("4-channel MatToMultiPlaneImage");
-            std::vector<cv::Mat_<T>> mats(channels);
-            mats[0] = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[0]));
-            mats[1] = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[1]));
-            mats[2] = cv::Mat_<T>(dst_height, dst_width, reinterpret_cast<T *>(dst_planes[2]));
-            mats[3] = cv::Mat_<T>(dst_height, dst_width, storage.data());
-            cv::split(src, mats);
+            std::vector<cv::Mat_<T>> mats{cv::Mat_<T>(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                                      reinterpret_cast<T *>(dst_planes[0])),
+                                          cv::Mat_<T>(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                                      reinterpret_cast<T *>(dst_planes[1])),
+                                          cv::Mat_<T>(safe_convert<int>(dst_height), safe_convert<int>(dst_width),
+                                                      reinterpret_cast<T *>(dst_planes[2]))};
+            // Get only first 3 channels
+            cv::mixChannels({src}, mats, {0, 0, 1, 1, 2, 2});
             break;
         }
         default: {
@@ -167,7 +180,7 @@ void MatToMultiPlaneImage(const cv::Mat &src, Image &dst) {
 }
 
 void MatToMultiPlaneImage(const cv::Mat &src, int dst_format, uint32_t dst_width, uint32_t dst_height,
-                          uint8_t **dst_planes) {
+                          uint8_t *const *dst_planes) {
     switch (dst_format) {
     case FOURCC_RGBP: {
         if (src.depth() != CV_8U)
@@ -191,9 +204,10 @@ void MatToMultiPlaneImage(const cv::Mat &src, int dst_format, uint32_t dst_width
 
 cv::Mat ResizeMat(const cv::Mat &orig_image, const size_t height, const size_t width) {
     cv::Mat resized_image(orig_image);
-    if (width != (size_t)orig_image.size().width || height != (size_t)orig_image.size().height) {
+    if (width != safe_convert<size_t>(orig_image.size().width) ||
+        height != safe_convert<size_t>(orig_image.size().height)) {
         ITT_TASK("cv::resize");
-        cv::resize(orig_image, resized_image, cv::Size(width, height));
+        cv::resize(orig_image, resized_image, cv::Size(safe_convert<int>(width), safe_convert<int>(height)));
     }
     return resized_image;
 }
@@ -208,8 +222,8 @@ void ResizeAspectRatio(cv::Mat &image, const cv::Size &dst_size,
         ITT_TASK("ResizeAspectRatio");
         cv::Size target_dst_size(dst_size.width, dst_size.height);
         if (scale_param) {
-            target_dst_size.width += dst_size.width / scale_param;
-            target_dst_size.height += dst_size.height / scale_param;
+            target_dst_size.width = safe_add(target_dst_size.width, dst_size.width / safe_convert<int>(scale_param));
+            target_dst_size.height = safe_add(target_dst_size.height, dst_size.height / safe_convert<int>(scale_param));
         }
         auto orig_width = image.size().width;
         auto orig_height = image.size().height;
@@ -234,7 +248,7 @@ void ResizeAspectRatio(cv::Mat &image, const cv::Size &dst_size,
             cv::resize(image, resized_image, cv::Size(width, height));
 
             // background
-            image = cv::Mat(target_dst_size, image.type(), {128, 128, 128});
+            image = cv::Mat(target_dst_size, image.type(), {0, 0, 0});
             cv::Rect place_to_insert((target_dst_size.width - width) / 2, (target_dst_size.height - height) / 2, width,
                                      height);
             cv::Mat insertPos(image, place_to_insert);
@@ -243,7 +257,8 @@ void ResizeAspectRatio(cv::Mat &image, const cv::Size &dst_size,
 
             // need for post-processing
             if (image_transform_info)
-                image_transform_info->AspectRatioResizeHasDone(place_to_insert.x, place_to_insert.y, scale, scale);
+                image_transform_info->AspectRatioResizeHasDone(safe_convert<size_t>(place_to_insert.x),
+                                                               safe_convert<size_t>(place_to_insert.y), scale, scale);
         } else {
             Resize(image, cv::Size(width, height));
         }
@@ -273,7 +288,7 @@ void Crop(cv::Mat &image, const cv::Rect &roi, const ImageTransformationParams::
 
         // need for post-processing
         if (image_transform_info)
-            image_transform_info->CropHasDone(roi.x, roi.y);
+            image_transform_info->CropHasDone(safe_convert<size_t>(roi.x), safe_convert<size_t>(roi.y));
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed during Crop image pre-processing"));
     }
@@ -306,13 +321,15 @@ void AddPadding(cv::Mat &image, const cv::Size dst_size, size_t stride_x, size_t
         }
 
         cv::Mat dst_image(dst_size, image.type(), fill_value_scalar);
-        cv::Rect place_to_insert(stride_x, stride_y, image.size().width, image.size().height);
+        cv::Rect place_to_insert(safe_convert<int>(stride_x), safe_convert<int>(stride_y), image.size().width,
+                                 image.size().height);
         cv::Mat insertPos(dst_image, place_to_insert);
         // inplace insertion
         image.copyTo(insertPos);
         image = dst_image;
 
-        image_transform_info->PaddingHasDone(stride_x, stride_y);
+        if (image_transform_info)
+            image_transform_info->PaddingHasDone(stride_x, stride_y);
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed during AddPadding image pre-processing"));
     }
@@ -369,6 +386,8 @@ void Normalization(cv::Mat &image, const std::vector<double> &mean, const std::v
 void ColorSpaceConvert(const cv::Mat &orig_image, cv::Mat &result_img, const int src_color_format,
                        InputImageLayerDesc::ColorSpace target_color_format) {
     try {
+        ITT_TASK(__FUNCTION__);
+
         switch (target_color_format) {
         case InputImageLayerDesc::ColorSpace::BGR:
             switch (src_color_format) {
@@ -377,10 +396,12 @@ void ColorSpaceConvert(const cv::Mat &orig_image, cv::Mat &result_img, const int
                 break;
             case FOURCC_RGBA:
             case FOURCC_RGBX:
+            case FOURCC_RGBP:
                 cv::cvtColor(orig_image, result_img, cv::COLOR_RGBA2BGR);
                 break;
             case FOURCC_BGRA:
             case FOURCC_BGRX:
+            case FOURCC_BGRP:
                 cv::cvtColor(orig_image, result_img, cv::COLOR_BGRA2BGR);
                 break;
             default:
@@ -395,10 +416,12 @@ void ColorSpaceConvert(const cv::Mat &orig_image, cv::Mat &result_img, const int
                 break;
             case FOURCC_RGBA:
             case FOURCC_RGBX:
+            case FOURCC_RGBP:
                 cv::cvtColor(orig_image, result_img, cv::COLOR_RGBA2RGB);
                 break;
             case FOURCC_BGRA:
             case FOURCC_BGRX:
+            case FOURCC_BGRP:
                 cv::cvtColor(orig_image, result_img, cv::COLOR_BGRA2RGB);
                 break;
             default:
@@ -413,10 +436,12 @@ void ColorSpaceConvert(const cv::Mat &orig_image, cv::Mat &result_img, const int
                 break;
             case FOURCC_RGBA:
             case FOURCC_RGBX:
+            case FOURCC_RGBP:
                 cv::cvtColor(orig_image, result_img, cv::COLOR_RGBA2GRAY);
                 break;
             case FOURCC_BGRA:
             case FOURCC_BGRX:
+            case FOURCC_BGRP:
                 cv::cvtColor(orig_image, result_img, cv::COLOR_BGRA2GRAY);
                 break;
             default:

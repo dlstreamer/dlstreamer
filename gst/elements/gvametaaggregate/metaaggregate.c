@@ -55,6 +55,10 @@ GstFlowReturn aggregate_metas(GstGvaMetaAggregate *magg, GstBuffer *outbuf) {
         GST_ERROR("Nullptr src pad during meta aggregate. Meta won't be aggregated");
         return GST_FLOW_ERROR;
     }
+    if (!outbuf) {
+        GST_ERROR("Ouput buffer is null. Meta won't be aggregated");
+        return GST_FLOW_ERROR;
+    }
 
     GList *first_sink_pad_it = GST_ELEMENT(magg)->sinkpads;
     for (GList *l = first_sink_pad_it->next; l; l = l->next) {
@@ -75,7 +79,7 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
     GstMeta *meta = NULL;
     gpointer state = NULL;
     GstStructure *detection = NULL;
-    if (!sink_pad || !src_pad_video_info)
+    if (!buf || !sink_pad || !src_pad_video_info)
         return FALSE;
 
     GstVideoInfo *sink_pad_video_info = &sink_pad->info;

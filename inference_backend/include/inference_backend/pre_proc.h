@@ -24,11 +24,10 @@ class ImagePreprocessor {
     virtual void ReleaseImage(const Image &dst) = 0; // to be called if Convert called with bAllocateDestination = true
 
   protected:
-    bool doNeedPreProcessing(const Image &src, Image &dst);
-    bool doNeedCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info);
+    bool needPreProcessing(const Image &src, Image &dst);
+    bool needCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info);
 };
 
-int GetPlanesCount(int fourcc);
 Image ApplyCrop(const Image &src);
 
 ImagePreprocessor *CreatePreProcOpenCV();

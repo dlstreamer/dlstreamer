@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -48,7 +48,23 @@ class Tensor {
     enum class Precision {
         UNSPECIFIED = GVA_PRECISION_UNSPECIFIED, /**< default value */
         FP32 = GVA_PRECISION_FP32,               /**< 32bit floating point value */
-        U8 = GVA_PRECISION_U8                    /**< unsignned 8bit integer value */
+        FP16 = GVA_PRECISION_FP16,    /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
+        BF16 = GVA_PRECISION_BF16,    /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
+        FP64 = GVA_PRECISION_FP64,    /**< 64bit floating point value */
+        Q78 = GVA_PRECISION_Q78,      /**< 16bit specific signed fixed point precision */
+        I16 = GVA_PRECISION_I16,      /**< 16bit signed integer value */
+        U4 = GVA_PRECISION_U4,        /**< 4bit unsigned integer value */
+        U8 = GVA_PRECISION_U8,        /**< unsigned 8bit integer value */
+        I4 = GVA_PRECISION_I4,        /**< 4bit signed integer value */
+        I8 = GVA_PRECISION_I8,        /**< 8bit signed integer value */
+        U16 = GVA_PRECISION_U16,      /**< 16bit unsigned integer value */
+        I32 = GVA_PRECISION_I32,      /**< 32bit signed integer value */
+        U32 = GVA_PRECISION_U32,      /**< 32bit unsigned integer value */
+        I64 = GVA_PRECISION_I64,      /**< 64bit signed integer value */
+        U64 = GVA_PRECISION_U64,      /**< 64bit unsigned integer value */
+        BIN = GVA_PRECISION_BIN,      /**< 1bit integer value */
+        BOOL = GVA_PRECISION_BOOL,    /**< 8bit bool type */
+        CUSTOM = GVA_PRECISION_CUSTOM /**< custom precision has it's own name and size of elements */
     };
 
     /**
@@ -281,10 +297,42 @@ class Tensor {
     std::string precision_as_string() const {
         Precision precision_value = precision();
         switch (precision_value) {
-        case Precision::U8:
-            return "U8";
         case Precision::FP32:
             return "FP32";
+        case Precision::FP16:
+            return "FP16";
+        case Precision::BF16:
+            return "BF16";
+        case Precision::FP64:
+            return "FP64";
+        case Precision::Q78:
+            return "Q78";
+        case Precision::I16:
+            return "I16";
+        case Precision::U4:
+            return "U4";
+        case Precision::U8:
+            return "U8";
+        case Precision::I4:
+            return "I4";
+        case Precision::I8:
+            return "I8";
+        case Precision::U16:
+            return "U16";
+        case Precision::I32:
+            return "I32";
+        case Precision::U32:
+            return "U32";
+        case Precision::I64:
+            return "I64";
+        case Precision::U64:
+            return "U64";
+        case Precision::BIN:
+            return "BIN";
+        case Precision::BOOL:
+            return "BOOL";
+        case Precision::CUSTOM:
+            return "CUSTOM";
         default:
             return "UNSPECIFIED";
         }
@@ -335,7 +383,7 @@ class Tensor {
 
     /**
      * @brief Construct Tensor instance from GstStructure. Tensor does not own structure, so if you use this
-     * consrtuctor, free structure after Tensor's lifetime, if needed
+     * constructor, free structure after Tensor's lifetime, if needed
      * @param structure GstStructure to create Tensor instance from.
      */
     Tensor(GstStructure *structure) : _structure(structure) {

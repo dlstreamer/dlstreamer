@@ -14,7 +14,7 @@ VasOtGPULibBinderImpl::VasOtGPULibBinderImpl() {
         m_libvasot_gpu_loader = SharedObject::getLibrary("libvasot_gpu.so");
     } catch (const std::exception &e) {
         m_libvasot_gpu_loader = nullptr;
-        GVA_ERROR(e.what());
+        GVA_ERROR("Couldn't load shared library for GPU OT: %s", e.what());
     }
 }
 

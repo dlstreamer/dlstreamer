@@ -11,9 +11,9 @@
 #include "model_loader.h"
 #include "utils.h"
 
+#include <algorithm>
 #include <fstream>
 #include <limits.h>
-#include <regex>
 #include <string>
 
 #ifdef ENABLE_VPUX
@@ -24,33 +24,35 @@ using namespace InferenceEngine;
 using namespace std;
 using namespace InferenceBackend;
 
+namespace {
 class IEOutputBlob : public OutputBlob {
   public:
     IEOutputBlob(InferenceEngine::Blob::Ptr blob) : blob(blob) {
     }
 
-    virtual const std::vector<size_t> &GetDims() const {
+    const std::vector<size_t> &GetDims() const final {
         return blob->getTensorDesc().getDims();
     }
 
-    virtual Layout GetLayout() const {
-        return static_cast<Layout>((int)blob->getTensorDesc().getLayout());
+    Layout GetLayout() const final {
+        return static_cast<Layout>(static_cast<int>(blob->getTensorDesc().getLayout()));
     }
 
-    virtual Precision GetPrecision() const {
-        return static_cast<Precision>((int)blob->getTensorDesc().getPrecision());
+    Precision GetPrecision() const final {
+        return static_cast<Precision>(static_cast<int>(blob->getTensorDesc().getPrecision()));
     }
 
-    virtual const void *GetData() const {
+    const void *GetData() const final {
         return blob->buffer();
     }
 
-    virtual ~IEOutputBlob() {
+    ~IEOutputBlob() final {
     }
 
   protected:
     InferenceEngine::Blob::Ptr blob;
 };
+} // namespace
 
 OpenVINOAudioInference::~OpenVINOAudioInference() {
 }
@@ -97,10 +99,7 @@ std::vector<uint8_t> OpenVINOAudioInference::convertFloatToU8(std::vector<float>
         std::vector<uint8_t> data_after_fq(normalized_samples.size());
         transform(normalized_samples.begin(), normalized_samples.end(), data_after_fq.begin(), [](float v) {
             float fq = ((v - FQ_PARAMS_MIN) / FQ_PARAMS_SCALE) * 255;
-            if (fq > 255)
-                fq = 255.0;
-            if (fq < 0)
-                fq = 0.0;
+            fq = std::max(0.f, std::min(255.f, fq));
             return fq;
         });
         return data_after_fq;

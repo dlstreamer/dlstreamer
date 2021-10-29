@@ -46,7 +46,7 @@ static gboolean gst_gva_classify_check_properties_correctness(GstGvaClassify *gv
 static gboolean gst_gva_classify_start(GstBaseTransform *trans);
 
 void gst_gva_classify_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
-    GstGvaClassify *gvaclassify = (GstGvaClassify *)(object);
+    GstGvaClassify *gvaclassify = GST_GVA_CLASSIFY(object);
 
     GST_DEBUG_OBJECT(gvaclassify, "set_property");
 
@@ -77,7 +77,7 @@ void gst_gva_classify_set_property(GObject *object, guint property_id, const GVa
 }
 
 void gst_gva_classify_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
-    GstGvaClassify *gvaclassify = (GstGvaClassify *)(object);
+    GstGvaClassify *gvaclassify = GST_GVA_CLASSIFY(object);
 
     GST_DEBUG_OBJECT(gvaclassify, "get_property");
 
@@ -189,7 +189,10 @@ gboolean gst_gva_classify_check_properties_correctness(GstGvaClassify *gvaclassi
 }
 
 gboolean gst_gva_classify_start(GstBaseTransform *trans) {
-    GstGvaClassify *gvaclassify = (GstGvaClassify *)(trans);
+    GstGvaClassify *gvaclassify = GST_GVA_CLASSIFY(trans);
+
+    GST_INFO_OBJECT(gvaclassify, "%s parameters:\n -- Reclassify interval: %d\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvaclassify)), gvaclassify->reclassify_interval);
 
     if (!gst_gva_classify_check_properties_correctness(gvaclassify))
         return FALSE;

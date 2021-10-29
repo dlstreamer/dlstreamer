@@ -11,7 +11,7 @@
 #include <string>
 #include <unordered_map>
 
-using Color = cv::Scalar_<u_int8_t>;
+using Color = cv::Scalar_<uint8_t>;
 
 namespace std {
 

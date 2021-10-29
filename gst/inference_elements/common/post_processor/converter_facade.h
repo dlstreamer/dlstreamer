@@ -25,26 +25,30 @@ namespace post_processing {
 class ConverterFacade {
   private:
     void setLayerNames(const GstStructure *s);
+    ModelOutputsInfo extractProcessedModelOutputsInfo(const ModelOutputsInfo &all_output_blobs) const;
     OutputBlobs extractProcessedOutputBlobs(const OutputBlobs &all_output_blobs) const;
 
-    CoordinatesRestorer::Ptr createCoordinatesRestorer(int inference_type, const ModelImageInputInfo &input_image_info,
+    CoordinatesRestorer::Ptr createCoordinatesRestorer(ConverterType, AttachType, const ModelImageInputInfo &,
                                                        GstStructure *model_proc_output_info = nullptr);
 
   protected:
     std::unordered_set<std::string> layer_names_to_process;
+    bool process_all_outputs;
+
     BlobToMetaConverter::Ptr blob_to_meta;
     CoordinatesRestorer::Ptr coordinates_restorer;
     MetaAttacher::Ptr meta_attacher;
 
   public:
     ConverterFacade(std::unordered_set<std::string> all_layer_names, GstStructure *model_proc_output_info,
-                    int inference_type, int inference_region, const ModelImageInputInfo &input_image_info,
-                    const std::string &model_name, const std::vector<std::string> &labels);
-    ConverterFacade(GstStructure *model_proc_output_info, int inference_type, int inference_region,
-                    const ModelImageInputInfo &input_image_info, const std::string &model_name,
+                    ConverterType converter_type, AttachType attach_type, const ModelImageInputInfo &input_image_info,
+                    const ModelOutputsInfo &outputs_info, const std::string &model_name,
                     const std::vector<std::string> &labels);
+    ConverterFacade(GstStructure *model_proc_output_info, ConverterType converter_type, AttachType attach_type,
+                    const ModelImageInputInfo &input_image_info, const ModelOutputsInfo &outputs_info,
+                    const std::string &model_name, const std::vector<std::string> &labels);
 
-    void convert(const OutputBlobs &all_output_blobs, InferenceFrames &frames) const;
+    void convert(const OutputBlobs &all_output_blobs, FramesWrapper &frames) const;
 
     ConverterFacade() = default;
     ConverterFacade(const ConverterFacade &) = default;

@@ -9,6 +9,7 @@
 #ifdef __cplusplus
 
 #include "common/input_model_preproc.h"
+#include "common/post_processor.h"
 #include "inference_backend/image_inference.h"
 #include "inference_backend/input_image_layer_descriptor.h"
 
@@ -30,33 +31,8 @@ struct InferenceFrame {
     InferenceBackend::ImageTransformationParams::Ptr image_transform_info = nullptr;
 
     InferenceFrame() = default;
-    InferenceFrame(GstBuffer *_buf, GstVideoRegionOfInterestMeta _roi, std::vector<GstStructure *> _roi_classifications,
-                   GvaBaseInference *_gva_base_inference, GstVideoInfo *_info)
-        : buffer(_buf), roi(_roi), roi_classifications(_roi_classifications), gva_base_inference(_gva_base_inference) {
-        info = (_info) ? gst_video_info_copy(_info) : nullptr;
-    }
-    InferenceFrame(const InferenceFrame &inf)
-        : buffer(inf.buffer), roi(inf.roi), roi_classifications(inf.roi_classifications),
-          gva_base_inference(inf.gva_base_inference) {
-        this->info = (inf.info) ? gst_video_info_copy(inf.info) : nullptr;
-        this->image_transform_info = inf.image_transform_info;
-    }
-    InferenceFrame &operator=(const InferenceFrame &rhs) {
-        buffer = rhs.buffer;
-        roi = rhs.roi;
-        roi_classifications = rhs.roi_classifications;
-        gva_base_inference = rhs.gva_base_inference;
-        if (this->info) {
-            gst_video_info_free(this->info);
-            this->info = nullptr;
-        }
-        if (rhs.info)
-            this->info = gst_video_info_copy(rhs.info);
-
-        image_transform_info = rhs.image_transform_info;
-
-        return *this;
-    }
+    InferenceFrame(const InferenceFrame &) = delete;
+    InferenceFrame &operator=(const InferenceFrame &rhs) = delete;
     ~InferenceFrame() {
         if (info) {
             gst_video_info_free(info);
@@ -77,8 +53,7 @@ typedef void (*PreProcFunction)(GstStructure *preproc, InferenceBackend::Image &
 typedef bool (*FilterROIFunction)(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
                                   GstVideoRegionOfInterestMeta *roi);
 
-#include "common/post_processor/post_processor.h"
-using PostProcessorExitStatus = post_processing::PostProcessor::ExitStatus;
+using PostProcessorExitStatus = post_processing::PostProcessorImpl::ExitStatus;
 using PostProcessor = post_processing::PostProcessor;
 
 #else // __cplusplus

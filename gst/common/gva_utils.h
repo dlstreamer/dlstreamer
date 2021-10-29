@@ -19,6 +19,8 @@ void set_object_id(GstVideoRegionOfInterestMeta *meta, gint id);
 
 void gva_buffer_check_and_make_writable(GstBuffer **buffer, const char *called_function_name);
 
+int gst_format_to_fourcc(int format);
+
 G_END_DECLS
 
 #define GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buf, state)                                                          \

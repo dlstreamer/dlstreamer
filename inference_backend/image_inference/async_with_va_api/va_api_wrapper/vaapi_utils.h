@@ -87,6 +87,8 @@ class VaDpyWrapper final {
         return *drvCtx()->vtable;
     }
 
+    int currentSubDevice() const;
+
   private:
     VADisplay _dpy = nullptr;
 };

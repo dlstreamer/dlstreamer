@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
 #include <functional>
 
 #include "config.h"
 #include "inference_backend/pre_proc.h"
+#include "utils.h"
 
 namespace InferenceBackend {
 
@@ -27,29 +28,10 @@ ImagePreprocessor *ImagePreprocessor::Create(ImagePreprocessorType type) {
     return p;
 }
 
-int GetPlanesCount(int fourcc) {
-    switch (fourcc) {
-    case FOURCC_BGRA:
-    case FOURCC_BGRX:
-    case FOURCC_BGR:
-    case FOURCC_RGBA:
-    case FOURCC_RGBX:
-        return 1;
-    case FOURCC_NV12:
-        return 2;
-    case FOURCC_BGRP:
-    case FOURCC_RGBP:
-    case FOURCC_I420:
-        return 3;
-    }
-
-    return 0;
-}
-
 Image ApplyCrop(const Image &src) {
     // GVA_DEBUG(__FUNCTION__);
     Image dst = src;
-    int planes_count = GetPlanesCount(src.format);
+    int planes_count = Utils::GetPlanesCount(src.format);
     if (!src.rect.width && !src.rect.height) {
         for (int i = 0; i < planes_count; i++)
             dst.planes[i] = src.planes[i];
@@ -102,19 +84,16 @@ Image ApplyCrop(const Image &src) {
     return dst;
 }
 
-bool ImagePreprocessor::doNeedCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info) {
-    if (pre_proc_info)
-        if (pre_proc_info->isDefined())
-            return true;
-    return false;
+bool ImagePreprocessor::needCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info) {
+    return pre_proc_info && pre_proc_info->isDefined();
 }
 
-bool ImagePreprocessor::doNeedPreProcessing(const Image &src, Image &dst) {
+bool ImagePreprocessor::needPreProcessing(const Image &src, Image &dst) {
     if (src.format == dst.format and (src.format == FourCC::FOURCC_RGBP or src.format == FourCC::FOURCC_RGBP_F32) and
         src.width == dst.width and src.height == dst.height) {
-        return true;
+        return false;
     }
-    return false;
+    return true;
 }
 
 } // namespace InferenceBackend

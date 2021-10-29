@@ -16,13 +16,13 @@ class IAccumulator {
      *
      * @param mem
      */
-    virtual void accumulate(GstMemory *mem) = 0;
+    virtual void accumulate(GstBuffer *inbuf) = 0;
     /**
      * @brief Resulting data from accumulated memories
      *
      * @return GstMemory* accumulation result
      */
-    virtual GstMemory *get_result() = 0;
+    virtual bool get_result(GstBuffer *outbuf) = 0;
     /**
      * @brief Clear all memories in accumulator
      *

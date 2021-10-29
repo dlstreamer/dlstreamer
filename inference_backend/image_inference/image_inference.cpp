@@ -67,8 +67,7 @@ ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_ty
     ImageInference::Ptr result_inference;
     if (async_mode) {
 #ifdef ENABLE_VAAPI
-        constexpr uint32_t THREAD_POOL_SIZE = 5;
-        result_inference = std::make_shared<ImageInferenceAsync>(THREAD_POOL_SIZE, va_display, std::move(ov_inference));
+        result_inference = std::make_shared<ImageInferenceAsync>(config, va_display, std::move(ov_inference));
 #endif
     } else {
         result_inference = std::move(ov_inference);

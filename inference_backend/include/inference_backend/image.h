@@ -73,6 +73,9 @@ struct Image {
     uint32_t offsets[MAX_PLANES_NUMBER] = {0, 0, 0, 0};
     Rectangle<uint32_t> rect;
 
+    // Filled in and used by the BufferMapper.
+    void *map_context = nullptr;
+
     Image() = default;
 };
 

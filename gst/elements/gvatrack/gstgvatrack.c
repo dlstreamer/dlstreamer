@@ -277,7 +277,12 @@ static gboolean gst_gva_track_sink_event(GstBaseTransform *trans, GstEvent *even
 }
 
 static gboolean gst_gva_track_start(GstBaseTransform *trans) {
-    UNUSED(trans);
+    GstGvaTrack *gva_track = GST_GVA_TRACK(trans);
+
+    GST_INFO_OBJECT(gva_track, "%s parameters:\n -- Device: %s\n -- Tracking type: %s\n -- Tracking config: %s\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gva_track)), gva_track->device,
+                    tracking_type_to_string(gva_track->tracking_type), gva_track->tracking_config);
+
     return TRUE;
 }
 

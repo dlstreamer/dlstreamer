@@ -12,8 +12,8 @@ This sample builds GStreamer pipeline of the following elements
 * `videoconvert` for converting video frame into different color formats
 * [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) uses for full-frame inference and post-processing of OpenPose's output
 * [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for points and theirs connections visualization
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 

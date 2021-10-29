@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,10 +10,6 @@
 #include <gst/base/gstbasetransform.h>
 
 #include "gva_base_inference.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif /* __cplusplus */
 
 G_BEGIN_DECLS
 
@@ -34,9 +30,5 @@ typedef struct _GstGvaInferenceClass {
 GType gst_gva_inference_get_type(void);
 
 G_END_DECLS
-
-#ifdef __cplusplus
-} // extern "C"
-#endif /* __cplusplus */
 
 #endif

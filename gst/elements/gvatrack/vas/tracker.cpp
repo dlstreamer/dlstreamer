@@ -4,18 +4,24 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "tracker.h"
-#include "mapped_mat.h"
+#include "config.h"
 
-#include "gva_buffer_map.h"
+#include "buffer_map/buffer_mapper.h"
+#include "mapped_mat.h"
+#include "tracker.h"
+
+#include "gst_vaapi_helper.h"
 #include "gva_utils.h"
+#include "scope_guard.h"
 #include "tracker_gpu_loader.h"
 #include "utils.h"
 #include "video_frame.h"
 
-#include "config.h"
-
 #include <functional>
+
+#ifdef ENABLE_VAAPI
+#include "vaapi_converter.h"
+#endif
 
 using namespace VasWrapper;
 
@@ -89,6 +95,25 @@ void append(GVA::VideoFrame &video_frame, const vas::ot::Object &tracked_object,
 
 } // namespace
 
+// Simple structure to keep all VAAPI related things in one place
+struct Tracker::VaApiEntity {
+#ifdef ENABLE_VAAPI
+
+    VaApiEntity(VaApiDisplayPtr dpy) : context(dpy), converter(&context) {
+    }
+
+    InferenceBackend::VaApiContext context;
+    InferenceBackend::VaApiConverter converter;
+
+#else // !ENABLE_VAAPI
+
+    VaApiEntity(VaApiDisplayPtr) {
+        throw std::runtime_error("Couldn't create required VAAPI instances: project was built without VAAPI support");
+    }
+
+#endif
+};
+
 Tracker::Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_type)
     : gva_track(gva_track), tracker_type(tracking_type) {
     if (!gva_track) {
@@ -104,11 +129,13 @@ Tracker::Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_ty
 
     // Parse device string. Examples: VPU.1, CPU, VPU, etc.
     std::vector<std::string> full_device = Utils::splitString(gva_track->device, '.');
-    auto backend = backendType(full_device[0]);
+    backend_type = backendType(full_device[0]);
 
     const bool use_gpu_so =
-        backend == vas::BackendType::GPU && (tracking_type == vas::ot::TrackingType::ZERO_TERM ||
-                                             tracking_type == vas::ot::TrackingType::ZERO_TERM_COLOR_HISTOGRAM);
+        backend_type == vas::BackendType::GPU && (tracking_type == vas::ot::TrackingType::ZERO_TERM ||
+                                                  tracking_type == vas::ot::TrackingType::ZERO_TERM_COLOR_HISTOGRAM);
+
+    std::unique_ptr<vas::ot::ObjectTracker::Builder> builder;
     if (use_gpu_so) {
         if (!VasOtGPULibBinder::get().is_loaded())
             throw std::runtime_error("Failed to load vasot GPU library. " + Utils::dpcppInstructionMsg);
@@ -151,21 +178,21 @@ Tracker::Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_ty
     GST_INFO_OBJECT(gva_track, "-- max_num_objects: %#x", builder->max_num_objects);
     GST_INFO_OBJECT(gva_track, "-- tracking_per_class: %u", builder->tracking_per_class);
 
-    builder->backend_type = backend;
+    builder->backend_type = backend_type;
     GST_INFO_OBJECT(gva_track, "-- backend_type: %d", static_cast<int>(builder->backend_type));
 
     if ((builder->backend_type == vas::BackendType::VPU || builder->backend_type == vas::BackendType::GPU) &&
         full_device.size() > 1) {
-        cfg["device_id"] = full_device[1];
+        cfg["device_id"] = full_device.at(1);
         GST_INFO_OBJECT(gva_track, "-- device_id: %s", cfg["device_id"].c_str());
     }
 
     builder->platform_config = std::move(cfg);
     if (use_gpu_so) {
-        // TODO: Need to get va display
-        // object_tracker = builder.Build(va_context.DisplayRaw(), tracker_type);
+        buildGPUTracker(builder.get());
     } else {
         object_tracker = builder->Build(tracker_type);
+        buffer_mapper = BufferMapperFactory::createMapper(InferenceBackend::MemoryType::SYSTEM, gva_track->info);
     }
 }
 
@@ -176,23 +203,13 @@ void Tracker::track(GstBuffer *buffer) {
         GVA::VideoFrame video_frame(buffer, gva_track->info);
         std::vector<vas::ot::DetectedObject> detected_objects = extractDetectedObjects(video_frame, labels);
 
-        std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
         std::vector<vas::ot::Object> tracked_objects;
-
-        // For imageless algorithms image is not important, so in that case static cv::Mat is passed thus avoiding
-        // redundant buffer map/unmap operations
-        if (tracker_type == vas::ot::TrackingType::ZERO_TERM_IMAGELESS ||
-            tracker_type == vas::ot::TrackingType::SHORT_TERM_IMAGELESS) {
-            tracked_objects = object_tracker->Track(cv_empty_mat, detected_objects);
-#ifdef ENABLE_VAAPI
-        } else if (builder->backend_type == vas::BackendType::GPU) {
+        if (backend_type == vas::BackendType::CPU)
+            tracked_objects = trackCPU(buffer, detected_objects);
+        else
             tracked_objects = trackGPU(buffer, detected_objects);
-#endif
-        } else {
-            MappedMat cv_mat(buffer, gva_track->info, GST_MAP_READ);
-            tracked_objects = object_tracker->Track(cv_mat.mat(), detected_objects);
-        }
 
+        std::vector<GVA::RegionOfInterest> regions = video_frame.regions();
         for (const auto &tracked_object : tracked_objects) {
             if (tracked_object.status == vas::ot::TrackingStatus::LOST)
                 continue;
@@ -205,61 +222,87 @@ void Tracker::track(GstBuffer *buffer) {
             }
         }
     } catch (const std::exception &e) {
-        GST_ERROR("Exception within tracker occured: %s", e.what());
+        GST_ERROR("Exception within tracker occurred: %s", Utils::createNestedErrorMsg(e).c_str());
         throw std::runtime_error("Track: error while tracking objects");
     }
+}
+
+void Tracker::buildGPUTracker(vas::ot::ObjectTracker::Builder *builder) {
+    assert(builder && "Builder cannot be null");
+
+    InferenceBackend::MemoryType mem_type;
+    switch (gva_track->caps_feature) {
+    case DMA_BUF_CAPS_FEATURE:
+        mem_type = InferenceBackend::MemoryType::DMA_BUFFER;
+        break;
+    case VA_SURFACE_CAPS_FEATURE:
+        mem_type = InferenceBackend::MemoryType::VAAPI;
+        break;
+    default:
+        throw std::runtime_error("Unsupported buffer memory type");
+    }
+
+    auto va_display = VaapiHelper::queryVaDisplay(const_cast<GstBaseTransform *>(&gva_track->base_transform));
+    if (!va_display)
+        throw std::runtime_error("Couldn't query VADisplay from VA-API elements. Possible reason: gstreamer-vaapi "
+                                 "isn't built with required patches");
+
+    vaapi.reset(new VaApiEntity(va_display));
+
+    buffer_mapper = BufferMapperFactory::createMapper(mem_type, gva_track->info, va_display);
+
+    object_tracker = VasOtGPULibBinder::get().createGPUTracker(builder, va_display.get(), tracker_type);
+}
+
+std::vector<vas::ot::Object> Tracker::trackCPU(GstBuffer *buffer,
+                                               const std::vector<vas::ot::DetectedObject> &detected_objects) {
+
+    if (!buffer)
+        throw std::invalid_argument("trackCPU: buffer is null");
+    assert(backend_type == vas::BackendType::CPU);
+    assert(buffer_mapper->memoryType() == InferenceBackend::MemoryType::SYSTEM &&
+           "Mapper to system memory is expected");
+
+    // For imageless algorithms image is not important, so in that case static cv::Mat is passed thus avoiding
+    // redundant buffer map/unmap operations
+    if (tracker_type == vas::ot::TrackingType::ZERO_TERM_IMAGELESS ||
+        tracker_type == vas::ot::TrackingType::SHORT_TERM_IMAGELESS) {
+        return object_tracker->Track(cv_empty_mat, detected_objects);
+    }
+
+    MappedMat cv_mat(buffer, *buffer_mapper, GST_MAP_READ);
+    return object_tracker->Track(cv_mat.mat(), detected_objects);
 }
 
 #ifdef ENABLE_VAAPI
 std::vector<vas::ot::Object> Tracker::trackGPU(GstBuffer *buffer,
                                                const std::vector<vas::ot::DetectedObject> &detected_objects) {
     using namespace InferenceBackend;
+    if (!buffer)
+        throw std::invalid_argument("trackGPU: buffer is null");
+    assert(backend_type == vas::BackendType::GPU);
+    assert(vaapi);
 
-    MemoryType mem_type;
-    switch (gva_track->caps_feature) {
-    case DMA_BUF_CAPS_FEATURE:
-        mem_type = MemoryType::DMA_BUFFER;
-        break;
-    case VA_SURFACE_CAPS_FEATURE:
-        mem_type = MemoryType::VAAPI;
-        break;
-    default:
-        throw std::runtime_error("Unsupported buffer memory type");
-    }
+    Image image = buffer_mapper->map(buffer, GST_MAP_READ);
+    auto image_sg = makeScopeGuard([&] { buffer_mapper->unmap(image); });
 
-    Image image;
-    BufferMapContext mapContext;
-    gva_buffer_map(buffer, image, mapContext, gva_track->info, mem_type, GST_MAP_READ);
-    auto mapContextPtr = std::unique_ptr<BufferMapContext, std::function<void(BufferMapContext *)>>(
-        &mapContext, [](BufferMapContext *mapContext) { gva_buffer_unmap(*mapContext); });
-
-    VADisplay display = image.va_display;
     VASurfaceID surface_id = image.va_surface_id;
 
-    if (mem_type == MemoryType::DMA_BUFFER) {
-        if (!vaapi_converter || !vaapi_context) {
-            vaapi_context = std::unique_ptr<VaApiContext>(new VaApiContext());
-            vaapi_converter = std::unique_ptr<VaApiConverter>(new VaApiConverter(vaapi_context.get()));
-        }
+    if (image.type == MemoryType::DMA_BUFFER) {
+        VaApiImage dst_va_image(&vaapi->context, image.width, image.height, FourCC::FOURCC_NV12, MemoryType::VAAPI);
 
-        auto dst_va_image = std::unique_ptr<VaApiImage>(
-            new VaApiImage(vaapi_context.get(), image.width, image.height, FourCC::FOURCC_NV12, MemoryType::VAAPI));
+        vaapi->converter.Convert(image, dst_va_image);
 
-        vaapi_converter->Convert(image, *dst_va_image);
-
-        auto image_map = dst_va_image->Map();
-        display = image_map.va_display;
+        auto image_map = dst_va_image.Map();
         surface_id = image_map.va_surface_id;
-        dst_va_image->Unmap();
-    }
-
-    // TODO: Need to get original va display from context created by vaapi elements
-    if (!object_tracker) {
-        object_tracker = VasOtGPULibBinder::get().createGPUTracker(builder.get(), display, tracker_type);
+        dst_va_image.Unmap();
     }
 
     return VasOtGPULibBinder::get().runTrackGPU(object_tracker.get(), surface_id, image.width, image.height,
                                                 detected_objects);
 }
-
+#else
+std::vector<vas::ot::Object> Tracker::trackGPU(GstBuffer *, const std::vector<vas::ot::DetectedObject> &) {
+    assert(false && "Couldn't run track on GPU: project was built without VAAPI support");
+}
 #endif

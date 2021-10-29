@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -35,8 +35,7 @@ shared_ptr<GstAllocator> create_gst_allocator(const std::string &name) {
     const char *allocator_name = nullptr;
     if (!name.empty() && name != "default") {
         allocator_name = name.c_str();
-        string str = build_string(allocator_name, " will be used as allocator name");
-        GVA_TRACE(str.c_str());
+        GVA_TRACE("The '%s' will be used as allocator name", allocator_name);
     } else {
         GVA_WARNING("Allocator name is empty. Default gstreamer allocator will be used");
     }
@@ -44,9 +43,7 @@ shared_ptr<GstAllocator> create_gst_allocator(const std::string &name) {
     auto allocator = shared_ptr<GstAllocator>(gst_allocator_find(allocator_name), gst_object_unref);
 
     if (allocator == nullptr && !name.empty()) {
-        const string str =
-            build_string("Cannot find allocator \"", name, "\". Fallback to default gstreamer allocator");
-        GVA_WARNING(str.c_str());
+        GVA_WARNING("Cannot find allocator '%s'. Fallback to default gstreamer allocator", name.c_str());
     } else {
         GVA_TRACE("Allocator is initialized");
     }
@@ -66,7 +63,7 @@ struct Memory {
         try {
             memory = new Memory(size, allocator);
         } catch (const exception &e) {
-            GVA_ERROR(e.what());
+            GVA_ERROR("An error occured while creating Memory object: %s", e.what());
         }
         return memory;
     }
@@ -103,7 +100,7 @@ void GstAllocatorWrapper::Alloc(size_t size, void *&buffer_ptr, AllocContext *&a
 
     if (memory == nullptr) {
         string str = build_string("Could not allocate given size of memory (", size, ")");
-        GVA_ERROR(str.c_str());
+        GVA_ERROR("%s", str.c_str());
         throw runtime_error(str.c_str());
     }
 
@@ -126,8 +123,7 @@ void GstAllocatorWrapper::Free(AllocContext *alloc_context) {
         GVA_TRACE("Memory deallocated");
     } catch (const exception &e) {
         // TODO: log
-        string str = build_string("Memory deallocation failed: ", e.what());
-        GVA_ERROR(str.c_str());
+        GVA_ERROR("Memory deallocation failed: %s", e.what());
         throw;
     }
     GVA_TRACE("Memory deallocated");

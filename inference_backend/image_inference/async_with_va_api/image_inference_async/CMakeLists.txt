@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -32,6 +32,7 @@ PRIVATE
         logger
         va_api_wrapper
         runtime_feature_toggling
+        ${CMAKE_THREAD_LIBS_INIT}
 )
 
 if(${ENABLE_ITT})

@@ -39,6 +39,10 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
     list (APPEND MAIN_HEADERS ${AUDIO_META_HEADERS})
 endif()
 
+if(WIN32)
+    set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
+endif()
+
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
 set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
@@ -61,14 +65,14 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${GSTREAMER_LDFLAGS}
-        ${GSTVIDEO_LDFLAGS}
+        ${GSTREAMER_LIBRARIES}
+        ${GSTVIDEO_LIBRARIES}
         ${OpenCV_LIBS}
         ${GLIB2_LIBRARIES}
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LDFLAGS})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
 endif()
 
 configure_file(${CMAKE_SOURCE_DIR}/cmake/dl-streamer.pc.in ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc @ONLY)

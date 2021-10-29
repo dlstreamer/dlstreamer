@@ -40,6 +40,6 @@ target_link_libraries(${TARGET_NAME}
 PRIVATE
         ${OpenCV_LIBS}
         ${GLIB2_LIBRARIES}
-        ${GSTREAMER_LDFLAGS}
-        ${GSTVIDEO_LDFLAGS}
+        ${GSTREAMER_LIBRARIES}
+        ${GSTVIDEO_LIBRARIES}
     )

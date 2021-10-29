@@ -8,16 +8,16 @@
 
 #include <opencv_utils/opencv_utils.h>
 
+#include <inference_backend/pre_proc.h>
+
 #include <frame_data.hpp>
+#include <safe_arithmetic.hpp>
 
 using namespace InferenceBackend;
 
 namespace {
-int get_planes_num_from_preproc(const InputImageLayerDesc::Ptr &pre_proc_info) {
-    if (!pre_proc_info)
-        return 0;
-
-    switch (pre_proc_info->getTargetColorSpace()) {
+int format_planes_num(InputImageLayerDesc::ColorSpace color_format) {
+    switch (color_format) {
     case InputImageLayerDesc::ColorSpace::YUV:
         // TODO: YUV is not implemented yet. Refactor later for supported YUV
         throw std::runtime_error("Unsupported YUV color space format");
@@ -31,99 +31,90 @@ int get_planes_num_from_preproc(const InputImageLayerDesc::Ptr &pre_proc_info) {
         return 0;
     }
 }
-
-cv::Mat preprocess_mat(const cv::Mat &src_mat, const int src_color_format, const cv::Size &dst_size,
-                       const InputImageLayerDesc::Ptr &pre_proc_info) {
-    if (!pre_proc_info)
-        return src_mat;
-
-    cv::Mat result_img(src_mat.size(), src_mat.type());
-
-    if (pre_proc_info->doNeedColorSpaceConversion(src_color_format)) {
-        Utils::ColorSpaceConvert(src_mat, result_img, src_color_format, pre_proc_info->getTargetColorSpace());
-    } else {
-        result_img = src_mat;
-    }
-
-    if (pre_proc_info->doNeedResize() && result_img.size() != dst_size) {
-        switch (pre_proc_info->getResizeType()) {
-        case InputImageLayerDesc::Resize::NO_ASPECT_RATIO:
-            Utils::Resize(result_img, dst_size);
-            break;
-        case InputImageLayerDesc::Resize::ASPECT_RATIO: {
-            // TODO: think about aspect ration resize + crop more carefully
-            auto scale_param = pre_proc_info->doNeedCrop() ? 0 : 8;
-            Utils::ResizeAspectRatio(result_img, dst_size, nullptr, scale_param, !pre_proc_info->doNeedCrop());
-            break;
-        }
-        default:
-            break;
-        }
-    }
-
-    if (pre_proc_info->doNeedCrop() && result_img.size() != dst_size) {
-        cv::Point2i tl_point;
-        auto src_size = result_img.size();
-        switch (pre_proc_info->getCropType()) {
-        case InputImageLayerDesc::Crop::CENTRAL:
-            tl_point = {(src_size.width - dst_size.width) / 2, (src_size.height - dst_size.height) / 2};
-            break;
-        case InputImageLayerDesc::Crop::TOP_LEFT:
-            tl_point = {0, 0};
-            break;
-        case InputImageLayerDesc::Crop::TOP_RIGHT:
-            tl_point = {src_size.width - dst_size.width, 0};
-            break;
-        case InputImageLayerDesc::Crop::BOTTOM_LEFT:
-            tl_point = {0, src_size.height - dst_size.height};
-            break;
-        case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
-            tl_point = {src_size.width - dst_size.width, src_size.height - dst_size.height};
-            break;
-        default:
-            break;
-        }
-        Utils::Crop(result_img, {tl_point, dst_size}, nullptr);
-    }
-
-    return result_img;
-}
 } // namespace
 
 OpenCVPreProc::OpenCVPreProc(GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info,
                              const InputImageLayerDesc::Ptr &pre_proc_info)
     : _input_video_info(input_video_info), _output_tensor_info(output_tensor_info), _pre_proc_info(pre_proc_info) {
+    if (!_input_video_info)
+        throw std::invalid_argument("OpenCVPreProc: GstVideoInfo is null");
 }
 
 void OpenCVPreProc::process(GstBuffer *in_buffer, GstBuffer *out_buffer) {
+    if (!in_buffer || !out_buffer)
+        throw std::invalid_argument("OpenCVPreProc: GstBuffer is null");
+
     FrameData src;
     src.Map(in_buffer, _input_video_info, InferenceBackend::MemoryType::SYSTEM, GST_MAP_READ);
 
+    /* TODO: hardcoded RGB fallback */
+    auto target_color = _pre_proc_info && _pre_proc_info->getTargetColorSpace() != InputImageLayerDesc::ColorSpace::NO
+                            ? _pre_proc_info->getTargetColorSpace()
+                            : InputImageLayerDesc::ColorSpace::RGB;
     FrameData dst;
-    dst.Map(out_buffer, _output_tensor_info, GST_MAP_WRITE, get_planes_num_from_preproc(_pre_proc_info));
+    dst.Map(out_buffer, _output_tensor_info, GST_MAP_WRITE, InferenceBackend::MemoryType::SYSTEM,
+            format_planes_num(target_color));
 
-    cv::Mat src_mat;
-    uint8_t *src_planes[MAX_PLANES_NUM];
-    uint32_t src_strides[MAX_PLANES_NUM];
-    uint32_t src_offsets[MAX_PLANES_NUM];
+    auto frame_data_to_image = [](const FrameData &frame_data) {
+        Image image;
+        image.type = frame_data.GetMemoryType();
+        for (auto i = 0u; i < frame_data.GetPlanesNum(); i++) {
+            image.planes[i] = frame_data.GetPlane(i);
+            image.stride[i] = frame_data.GetStride(i);
+            image.offsets[i] = frame_data.GetOffset(i);
+        }
+        image.format = frame_data.GetFormat();
+        image.width = frame_data.GetWidth();
+        image.height = frame_data.GetHeight();
+        image.size = frame_data.GetSize();
+        image.rect = {0, 0, image.width, image.height};
+        return image;
+    };
 
-    // TODO: use std::vector instead of raw array pointers
-    for (guint i = 0; i < src.GetPlanesNum(); i++) {
-        src_planes[i] = src.GetPlane(i);
-        src_strides[i] = src.GetStride(i);
-        src_offsets[i] = src.GetOffset(i);
-    }
+    auto vpp = std::unique_ptr<ImagePreprocessor>(ImagePreprocessor::Create(ImagePreprocessorType::OPENCV));
+    auto src_image = frame_data_to_image(src);
+    auto dst_image = frame_data_to_image(dst);
 
-    Utils::CreateMat(src_planes, src.GetWidth(), src.GetHeight(), src.GetFormat(), src_strides, src_offsets, src_mat);
-
-    auto res = preprocess_mat(src_mat, src.GetFormat(), cv::Size(dst.GetWidth(), dst.GetHeight()), _pre_proc_info);
-
-    uint8_t *dst_planes[MAX_PLANES_NUM];
-    for (guint i = 0; i < dst.GetPlanesNum(); i++)
-        dst_planes[i] = dst.GetPlane(i);
-    Utils::MatToMultiPlaneImage(res, dst.GetFormat(), dst.GetWidth(), dst.GetHeight(), dst_planes);
+    vpp->Convert(src_image, dst_image, _pre_proc_info, nullptr, false);
 }
 
 void OpenCVPreProc::process(GstBuffer *) {
     throw std::runtime_error("OpenCVPreProc: In-place processing is not supported");
+}
+
+size_t OpenCVPreProc::output_size() const {
+    auto out_area = safe_mul(_output_tensor_info.GetWidth(), _output_tensor_info.GetHeight());
+    auto format = gst_format_to_four_CC(GST_VIDEO_INFO_FORMAT(_input_video_info));
+
+    size_t out_size = 0;
+    if (_pre_proc_info && _pre_proc_info->doNeedColorSpaceConversion(format)) {
+        switch (_pre_proc_info->getTargetColorSpace()) {
+        case InputImageLayerDesc::ColorSpace::RGB:
+        case InputImageLayerDesc::ColorSpace::BGR:
+            out_size = 3 * out_area;
+            break;
+        case InputImageLayerDesc::ColorSpace::GRAYSCALE:
+            out_size = out_area;
+            break;
+        case InputImageLayerDesc::ColorSpace::YUV:
+            out_size = 3 * out_area / 2;
+            break;
+        default:
+            break;
+        }
+    } else {
+        // TODO: hardcoded fallback to RGB
+        out_size = 3 * out_area;
+    }
+
+    return out_size;
+}
+
+bool OpenCVPreProc::need_preprocessing() const {
+    if (_pre_proc_info && _pre_proc_info->isDefined())
+        return true;
+    /* TODO: color space */
+    return static_cast<size_t>(_input_video_info->width) != _output_tensor_info.GetWidth() ||
+           static_cast<size_t>(_input_video_info->height) != _output_tensor_info.GetHeight() ||
+           GST_VIDEO_INFO_FORMAT(_input_video_info) != GST_VIDEO_FORMAT_RGBx; // TODO: what are possible formats?
 }

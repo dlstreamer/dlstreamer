@@ -14,6 +14,7 @@
 
 #include <map>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <vector>
 
@@ -25,23 +26,78 @@ class YOLOv2Converter : public YOLOBaseConverter {
     size_t getIndex(size_t index, size_t k, size_t i, size_t j) const;
     std::vector<float> softmax(const float *arr, size_t size, size_t common_offset) const;
 
-    void parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &blob, std::vector<DetectedObject> &objects) const;
+    void parseOutputBlob(const float *blob_data, const std::vector<size_t> &blob_dims, size_t blob_size,
+                         std::vector<DetectedObject> &objects) const override;
 
   public:
-    YOLOv2Converter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                    GstStructureUniquePtr model_proc_output_info, const std::vector<std::string> &labels,
-                    double confidence_threshold, size_t classes_number, std::vector<float> anchors,
-                    size_t cells_number_x, size_t cells_number_y, double iou_threshold, size_t bbox_number_on_cell,
-                    bool do_cls_softmax, bool output_sigmoid_activation)
-        : YOLOBaseConverter(model_name, input_image_info, std::move(model_proc_output_info), labels,
-                            confidence_threshold, anchors, iou_threshold,
-                            {classes_number, cells_number_x, cells_number_y, bbox_number_on_cell}, do_cls_softmax,
-                            output_sigmoid_activation) {
+    YOLOv2Converter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold,
+                    const YOLOBaseConverter::Initializer &yolo_initializer)
+        : YOLOBaseConverter(std::move(initializer), confidence_threshold, iou_threshold, yolo_initializer) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    static bool checkModelProcOutputs(std::pair<size_t, size_t> cells, size_t boxes, size_t classes,
+                                      const ModelOutputsInfo &outputs_info, OutputDimsLayout layout,
+                                      const ModelImageInputInfo &input_info) {
+        if (outputs_info.size() != 1)
+            throw std::runtime_error("Yolo v2 converter can process models with only one output.");
+
+        const auto &blob_dims = outputs_info.cbegin()->second;
+
+        if (layout != OutputDimsLayout::NO) {
+            size_t cells_x_i = 0;
+            size_t cells_y_i = 0;
+            switch (layout) {
+            case OutputDimsLayout::NBCxCy:
+                cells_x_i = 2;
+                cells_y_i = 3;
+                break;
+            case OutputDimsLayout::NCxCyB:
+                cells_x_i = 1;
+                cells_y_i = 2;
+                break;
+            case OutputDimsLayout::BCxCy:
+                cells_x_i = 1;
+                cells_y_i = 2;
+                break;
+            case OutputDimsLayout::CxCyB:
+                cells_x_i = 0;
+                cells_y_i = 1;
+                break;
+
+            default:
+                break;
+            }
+
+            if (cells.first != blob_dims[cells_x_i]) {
+                GST_ERROR("Mismatch between cells_number_x: %lu - and the actual of the bounding box: %lu.",
+                          cells.first, blob_dims[cells_x_i]);
+                return false;
+            }
+            if (cells.second != blob_dims[cells_y_i]) {
+                GST_ERROR("Mismatch between cells_number_y: %lu - and the actual of the bounding box: %lu.",
+                          cells.second, blob_dims[cells_y_i]);
+                return false;
+            }
+        }
+
+        size_t batch_size = input_info.batch_size;
+
+        size_t blob_size = std::accumulate(blob_dims.cbegin(), blob_dims.cend(), 1lu, std::multiplies<size_t>());
+        size_t required_blob_size = batch_size * cells.first * cells.second * boxes * (classes + 5);
+
+        if (blob_size != required_blob_size) {
+            GST_ERROR("Size of the resulting output blob (%lu) does not match the required (%lu).", blob_size,
+                      required_blob_size);
+            return false;
+        }
+
+        return true;
+    }
 
     static std::string getName() {
+        return "yolo_v2";
+    }
+    static std::string getDepricatedName() {
         return "tensor_to_bbox_yolo_v2";
     }
 };

@@ -200,6 +200,13 @@ static gboolean gst_gva_python_start(GstBaseTransform *trans) {
     }
     argument_string = get_arguments_string(gvapython->args);
     keyword_argument_string = get_arguments_string(gvapython->kwargs);
+
+    GST_INFO_OBJECT(gvapython,
+                    "%s parameters:\n -- Module: %s\n -- Class: %s\n -- Function: %s\n -- Arg: %s\n "
+                    "-- Keyword Arg: %s\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvapython)), gvapython->module_name, gvapython->class_name,
+                    gvapython->function_name, argument_string, keyword_argument_string);
+
     if (keyword_argument_string && argument_string) {
         gvapython->python_callback =
             create_python_callback(gvapython->module_name, gvapython->class_name, gvapython->function_name,
@@ -208,9 +215,11 @@ static gboolean gst_gva_python_start(GstBaseTransform *trans) {
 
     if (!gvapython->python_callback) {
         GST_ELEMENT_ERROR(trans, LIBRARY, INIT, ("Error creating Python callback"),
-                          ("Module: %s\n Class: %s\n Function: %s\n Arg: %s\nKeyword Arg: %s\n", gvapython->module_name,
-                           gvapython->class_name, gvapython->function_name, argument_string, keyword_argument_string));
+                          ("Module: %s\n Class: %s\n Function: %s\n Arg: %s\n Keyword Arg: %s\n",
+                           gvapython->module_name, gvapython->class_name, gvapython->function_name, argument_string,
+                           keyword_argument_string));
     }
+
     g_free(argument_string);
     g_free(keyword_argument_string);
     return gvapython->python_callback != NULL;

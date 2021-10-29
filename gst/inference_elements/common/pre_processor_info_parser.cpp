@@ -6,10 +6,11 @@
 
 #include "pre_processor_info_parser.hpp"
 
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
 
 #include <cassert>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 

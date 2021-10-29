@@ -13,8 +13,8 @@ This sample builds GStreamer pipeline of the following elements
 * [gvaactionrecognitionbin](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaactionrecognitionbin) for action recognition based on OpenVINO™ Toolkit Inference Engine
 * [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for labels visualization
 * `gvafpscounter` for rendering fps info in terminal
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 

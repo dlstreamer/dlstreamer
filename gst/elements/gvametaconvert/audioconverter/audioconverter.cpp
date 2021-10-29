@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,7 +14,11 @@
 
 using json = nlohmann::json;
 
+namespace {
+
 json convert_event_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    assert(converter && buffer && "Expected valid pointers GstGvaMetaConvert and GstBuffer");
+
     json res;
     GVA::AudioFrame audio_frame(buffer, converter->audio_info);
     std::vector<GVA::AudioEvent> events = audio_frame.events();
@@ -37,7 +41,7 @@ json convert_event_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 
         for (GList *l = it->_meta()->params; l; l = g_list_next(l)) {
 
-            GstStructure *s = (GstStructure *)l->data;
+            GstStructure *s = GST_STRUCTURE(l->data);
             const gchar *s_name = gst_structure_get_name(s);
             if (strcmp(s_name, "detection") == 0) {
 
@@ -50,7 +54,7 @@ json convert_event_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 
                     double confidence;
                     if (gst_structure_get(s, "confidence", G_TYPE_DOUBLE, &confidence, NULL)) {
-                        confidence = ((int)(confidence * 100)) / (double)100;
+                        confidence = static_cast<int>(confidence * 100) / static_cast<double>(100);
                         detection.push_back({"confidence", confidence});
                     }
                     int label_id;
@@ -71,7 +75,7 @@ json convert_event_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                 double confidence;
                 if (gst_structure_get(s, "label", G_TYPE_STRING, &label, "model_name", G_TYPE_STRING, &model_name,
                                       "confidence", G_TYPE_DOUBLE, &confidence, NULL)) {
-                    confidence = ((int)(confidence * 100)) / (double)100;
+                    confidence = static_cast<int>(confidence * 100) / static_cast<double>(100);
                     const gchar *attribute_name = gst_structure_get_string(s, "attribute_name")
                                                       ? gst_structure_get_string(s, "attribute_name")
                                                       : s_name;
@@ -98,6 +102,8 @@ json convert_event_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 }
 
 json get_audio_frame_data(GstGvaMetaConvert *converter) {
+    assert(converter && "Expected valid pointer GstGvaMetaConvert");
+
     json res;
     if (converter->audio_info) {
         res["rate"] = converter->audio_info->rate;
@@ -107,10 +113,18 @@ json get_audio_frame_data(GstGvaMetaConvert *converter) {
         res["source"] = converter->source;
     if (converter->tags && json::accept(converter->tags))
         res["tags"] = json::parse(converter->tags);
+
     return res;
 }
 
+} // namespace
+
 void dump_audio_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    if (!converter)
+        throw std::invalid_argument("GvaMetaConvert is null");
+    if (!buffer)
+        throw std::invalid_argument("GstBuffer is null");
+
     GVA::AudioFrame audio_frame(buffer, converter->audio_info);
     for (GVA::AudioEvent &event : audio_frame.events()) {
         auto segment = event.segment();
@@ -122,6 +136,11 @@ void dump_audio_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 }
 
 gboolean convert_audio_meta_to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    if (!converter)
+        throw std::invalid_argument("GvaMetaConvert is null");
+    if (!buffer)
+        throw std::invalid_argument("GstBuffer is null");
+
     json jframe = get_audio_frame_data(converter);
     json jevent_detection = convert_event_detection(converter, buffer);
     if (jevent_detection.empty()) {

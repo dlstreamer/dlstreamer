@@ -8,6 +8,5 @@
 
 #include "renderer.h"
 
-std::unique_ptr<Renderer> create_cpu_renderer(InferenceBackend::FourCC format,
-                                              std::shared_ptr<ColorConverter> converter,
+std::unique_ptr<Renderer> create_cpu_renderer(const GstVideoInfo *video_info, std::shared_ptr<ColorConverter> converter,
                                               InferenceBackend::MemoryType memory_type);

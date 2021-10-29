@@ -33,15 +33,20 @@ class InferenceImpl {
     InferenceImpl(GvaBaseInference *gva_base_inference);
 
     GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer);
-    void SinkEvent(GstEvent *event);
     void FlushInference();
     const Model &GetModel() const;
 
-    void UpdateObjectClasses(GvaBaseInference *gva_base_inference);
+    void UpdateObjectClasses(const gchar *obj_classes_str);
     bool FilterObjectClass(GstVideoRegionOfInterestMeta *roi) const;
     bool FilterObjectClass(const std::string &object_class) const;
 
+    InferenceBackend::MemoryType GetInferenceMemoryType() const {
+        return memory_type;
+    }
+
     ~InferenceImpl();
+
+    static bool IsRoiSizeValid(const GstVideoRegionOfInterestMeta *roi_meta);
 
   private:
     InferenceBackend::MemoryType memory_type;

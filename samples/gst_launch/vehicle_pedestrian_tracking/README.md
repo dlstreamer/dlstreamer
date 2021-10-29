@@ -20,13 +20,13 @@ Overall this sample builds GStreamer pipeline of the following elements
 * [gvatrack](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvatrack) for tracking objects
 * [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) inserted into pipeline twice for person and vehicle classification
 * [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for bounding boxes and labels visualization
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 
 The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
-* __person-vehicle-bike-detection-2004__ is primary detection network for detecting persons, vehicles and bikes
+*   __person-vehicle-bike-detection-2004__ is primary detection network for detecting persons, vehicles and bikes
 *   __person-attributes-recognition-crossroad-0230__ classifies person attributes
 *   __vehicle-attributes-recognition-barrier-0039__ classifies vehicle attributes
 

@@ -26,53 +26,6 @@
 
 using namespace gpu::draw;
 
-void RendererNV12::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                                uint64_t drm_format_modifier) {
-    ITT_TASK(__FUNCTION__);
-    draw_prims_on_mask(prims);
-
-    sycl::event e0 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[0], 0, gpu::dpcpp::SubsampligParams{4, 4, 4},
-                                     drm_format_modifier);
-    sycl::event e1 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[1], 1, gpu::dpcpp::SubsampligParams{4, 2, 0},
-                                     drm_format_modifier);
-
-    e0.wait();
-    e1.wait();
-
-    clear_mask();
-};
-
-void RendererI420::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                                uint64_t drm_format_modifier) {
-    ITT_TASK(__FUNCTION__);
-    draw_prims_on_mask(prims);
-    sycl::event e0 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[0], 0, gpu::dpcpp::SubsampligParams{4, 4, 4},
-                                     drm_format_modifier);
-    sycl::event e1 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[1], 1, gpu::dpcpp::SubsampligParams{4, 2, 0},
-                                     drm_format_modifier);
-    sycl::event e2 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[2], 2, gpu::dpcpp::SubsampligParams{4, 2, 0},
-                                     drm_format_modifier);
-
-    e0.wait();
-    e1.wait();
-    e2.wait();
-
-    clear_mask();
-}
-
-void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                               uint64_t drm_format_modifier) {
-    ITT_TASK(__FUNCTION__);
-    draw_prims_on_mask(prims);
-
-    sycl::event e0 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[0], 0, gpu::dpcpp::SubsampligParams{4, 4, 4},
-                                     drm_format_modifier);
-
-    e0.wait();
-
-    clear_mask();
-}
-
 gpu::dpcpp::Rect RendererGPU::prepare_rectangle(gapidraw::Rect rect, int &max_side) {
     rect.rect.x = rect.rect.x & ~1;
     rect.rect.y = rect.rect.y & ~1;
@@ -178,7 +131,7 @@ void RendererGPU::malloc_device_prims(int prim_type, uint32_t size) {
     }
 }
 
-void RendererGPU::draw_prims_on_mask(std::vector<gapidraw::Prim> &prims) {
+void RendererRGB::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
     ITT_TASK(__FUNCTION__);
 
     std::vector<gpu::dpcpp::Rect> tmp_rectangles;
@@ -223,37 +176,32 @@ void RendererGPU::draw_prims_on_mask(std::vector<gapidraw::Prim> &prims) {
         }
     }
     sycl::event e0, e1, e2, e3;
-
-    mask_clear_event.wait();
     if (!tmp_rectangles.empty()) {
         uint32_t rectangles_size = tmp_rectangles.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Rect>(), rectangles_size);
         queue->memcpy(rectangles.get(), tmp_rectangles.data(), rectangles_size * sizeof(gpu::dpcpp::Rect)).wait();
-        e0 = gpu::dpcpp::renderRectangles(*queue, image_width, mask.get(), rectangles.get(), rectangles_size,
-                                          rect_max_side);
+        e0 = gpu::dpcpp::renderRectangles(*queue, image_planes[0], rectangles.get(), rectangles_size, rect_max_side);
     }
 
     if (!tmp_circles.empty()) {
         uint32_t circles_size = tmp_circles.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Circle>(), circles_size);
         queue->memcpy(circles.get(), tmp_circles.data(), tmp_circles.size() * sizeof(gpu::dpcpp::Circle)).wait();
-        e1 = gpu::dpcpp::renderCircles(*queue, image_width, mask.get(), circles.get(), circles_size, max_radius);
+        e1 = gpu::dpcpp::renderCircles(*queue, image_planes[0], circles.get(), circles_size, max_radius);
     }
 
     if (!tmp_lines.empty()) {
         uint32_t lines_size = tmp_lines.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Line>(), lines_size);
         queue->memcpy(lines.get(), tmp_lines.data(), tmp_lines.size() * sizeof(gpu::dpcpp::Line)).wait();
-        e3 =
-            gpu::dpcpp::renderLines(*queue, image_width, mask.get(), lines.get(), lines_size, tmp_lines[0].first.thick);
+        e3 = gpu::dpcpp::renderLines(*queue, image_planes[0], lines.get(), lines_size, tmp_lines[0].first.thick);
     }
 
     if (!tmp_texts.empty()) {
         uint32_t texts_size = tmp_texts.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Text>(), texts_size);
         queue->memcpy(texts.get(), tmp_texts.data(), tmp_texts.size() * sizeof(gpu::dpcpp::Text)).wait();
-        e2 = gpu::dpcpp::renderTexts(*queue, image_width, mask.get(), texts.get(), texts_size, text_max_height,
-                                     text_max_width);
+        e2 = gpu::dpcpp::renderTexts(*queue, image_planes[0], texts.get(), texts_size, text_max_height, text_max_width);
     }
     e0.wait();
     e1.wait();
@@ -261,32 +209,23 @@ void RendererGPU::draw_prims_on_mask(std::vector<gapidraw::Prim> &prims) {
     e3.wait();
 }
 
-void RendererGPU::buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &,
-                             GstVideoInfo *info) {
-    image = buffer_mapper->map(buffer, info, GST_MAP_READWRITE);
+void RendererGPU::buffer_map(GstBuffer *buffer, InferenceBackend::Image &image) {
+    image = buffer_mapper->map(buffer, GST_MAP_READWRITE);
 }
 
-void RendererGPU::buffer_unmap(BufferMapContext &) {
-    buffer_mapper->unmap();
+void RendererGPU::buffer_unmap(InferenceBackend::Image &image) {
+    buffer_mapper->unmap(image);
 }
 
-void RendererGPU::clear_mask() {
-    mask_clear_event = queue->fill(mask.get(), 0, image_height * image_width * sizeof(gpu::dpcpp::MaskedPixel));
-}
-
-RendererGPU::RendererGPU(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type,
-                         int image_width, int image_height)
-    : Renderer(color_converter, memory_type), image_width(image_width), image_height(image_height) {
+RendererGPU::RendererGPU(std::shared_ptr<ColorConverter> color_converter,
+                         std::unique_ptr<BufferMapper> input_buffer_mapper, int image_width, int image_height)
+    : Renderer(color_converter, InferenceBackend::MemoryType::USM_DEVICE_POINTER), image_width(image_width),
+      image_height(image_height) {
     queue = std::make_shared<sycl::queue>(sycl::gpu_selector());
-    buffer_mapper = std::shared_ptr<BufferMapper>(new UsmBufferMapper(queue));
-    int alloc_size = image_height * image_width;
-    mask = gpu_unique_ptr<gpu::dpcpp::MaskedPixel>(sycl::malloc_device<gpu::dpcpp::MaskedPixel>(alloc_size, *queue),
-                                                   [this](gpu::dpcpp::MaskedPixel *mask) { sycl::free(mask, *queue); });
-    queue->fill(mask.get(), 0, alloc_size * sizeof(gpu::dpcpp::MaskedPixel)).wait();
+    buffer_mapper = std::make_shared<UsmBufferMapper>(queue, std::move(input_buffer_mapper));
 }
 
 RendererGPU::~RendererGPU() {
-    mask_clear_event.wait();
     for (auto &t : text_storage)
         if (t.second.map)
             sycl::free(t.second.map, *queue);

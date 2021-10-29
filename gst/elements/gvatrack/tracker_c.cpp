@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 #include "tracker_c.h"
 #include "tracker_factory.h"
 #include "utils.h"
+#include <stdexcept>
 
 ITracker *acquire_tracker_instance(const GstGvaTrack *gva_track, GError **error) {
     ITracker *tracker = nullptr;

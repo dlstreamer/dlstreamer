@@ -7,6 +7,7 @@
 #pragma once
 
 #include "image.h"
+#include "safe_arithmetic.hpp"
 
 #include <memory>
 #include <vector>
@@ -152,16 +153,14 @@ class InputImageLayerDesc {
         return true;
     }
     bool doNeedColorSpaceConversion(int src_color_space) const {
-        if (color_space != ColorSpace::NO) {
-            if (src_color_space == FOURCC_BGR and color_space == ColorSpace::BGR)
-                return false;
-            if (src_color_space == FOURCC_RGB and color_space == ColorSpace::RGB)
-                return false;
-            if (src_color_space == FOURCC_YUV and color_space == ColorSpace::YUV)
-                return false;
-        } else {
+        if (color_space == ColorSpace::NO)
             return false;
-        }
+
+        if ((src_color_space == FOURCC_BGR && color_space == ColorSpace::BGR) ||
+            (src_color_space == FOURCC_RGB && color_space == ColorSpace::RGB) ||
+            (src_color_space == FOURCC_YUV && color_space == ColorSpace::YUV))
+            return false;
+
         return true;
     }
     ColorSpace getTargetColorSpace() const {
@@ -203,6 +202,7 @@ class InputImageLayerDesc {
 
 class ImageTransformationParams {
   protected:
+    bool was_resize = false;
     bool was_crop = false;
     bool was_aspect_ratio_resize = false;
     bool was_padding = false;
@@ -210,43 +210,51 @@ class ImageTransformationParams {
   public:
     using Ptr = std::shared_ptr<ImageTransformationParams>;
 
-    size_t cropped_frame_size_x = 0; //  eg 0 for *_Left crop; (src_size - dst_size) / 2 for CentralCrop
-    size_t cropped_frame_size_y = 0; //  eg 0 for Top_* crop; (src_size - dst_size) / 2 for CentralCrop
-
-    size_t resize_padding_size_x = 0; // padding is used by aspect_ratio resize
-    size_t resize_padding_size_y = 0;
     double resize_scale_x = 1;
     double resize_scale_y = 1;
 
+    size_t padding_size_x = 0;
+    size_t padding_size_y = 0;
+
+    size_t croped_border_size_x = 0;
+    size_t croped_border_size_y = 0;
+
     bool WasTransformation() {
-        return (was_aspect_ratio_resize || was_crop);
+        return (was_aspect_ratio_resize || was_crop || was_padding || was_resize);
     }
 
     void CropHasDone(size_t _cropped_frame_size_x, size_t _cropped_frame_size_y) {
         was_crop = true;
-        cropped_frame_size_x = _cropped_frame_size_x;
-        cropped_frame_size_y = _cropped_frame_size_y;
+        croped_border_size_x = safe_add(croped_border_size_x, _cropped_frame_size_x);
+        croped_border_size_y = safe_add(croped_border_size_y, _cropped_frame_size_y);
     }
     bool WasCrop() const {
         return was_crop;
     }
 
-    void AspectRatioResizeHasDone(size_t _resize_padding_size_x, size_t _resize_padding_size_y, double _resize_scale_x,
+    void AspectRatioResizeHasDone(size_t _padding_size_x, size_t _padding_size_y, double _resize_scale_x,
                                   double _resize_scale_y) {
         was_aspect_ratio_resize = true;
-        resize_padding_size_x += _resize_padding_size_x;
-        resize_padding_size_y += _resize_padding_size_y;
-        resize_scale_x *= _resize_scale_x;
-        resize_scale_y *= _resize_scale_y;
+        PaddingHasDone(_padding_size_x, _padding_size_y);
+        ResizeHasDone(_resize_scale_x, _resize_scale_y);
     }
     bool WasAspectRatioResize() const {
         return was_aspect_ratio_resize;
     }
 
+    void ResizeHasDone(double _resize_scale_x, double _resize_scale_y) {
+        was_resize = true;
+        resize_scale_x *= _resize_scale_x;
+        resize_scale_y *= _resize_scale_y;
+    }
+    bool WasResize() const {
+        return was_resize;
+    }
+
     void PaddingHasDone(size_t _padding_size_x, size_t _padding_size_y) {
         was_padding = true;
-        resize_padding_size_x += _padding_size_x;
-        resize_padding_size_y += _padding_size_y;
+        padding_size_x = safe_add(padding_size_x, _padding_size_x);
+        padding_size_y = safe_add(padding_size_y, _padding_size_y);
     }
     bool WasPadding() const {
         return was_padding;

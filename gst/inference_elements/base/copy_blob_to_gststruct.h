@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,4 +13,4 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
                                   const char *model_name, const char *layer_name, int32_t batch_size,
                                   int32_t batch_index);
 
-void copy_buffer_to_structure(GstStructure *structure, const void *buffer, int size);
+void copy_buffer_to_structure(GstStructure *structure, const void *buffer, size_t size);

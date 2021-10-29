@@ -5,9 +5,7 @@
  ******************************************************************************/
 
 #include "post_processor_c.h"
-#include "post_processor.h"
-
-#include "inference_impl.h"
+#include "post_processor_impl.h"
 
 #include "utils.h"
 #include <inference_backend/logger.h>
@@ -21,7 +19,7 @@ post_processing::PostProcessor *createPostProcessor(InferenceImpl *inference_imp
     try {
         post_processor = new post_processing::PostProcessor(inference_impl, base_inference);
     } catch (const std::exception &e) {
-        GVA_ERROR(Utils::createNestedErrorMsg(e).c_str());
+        GVA_ERROR("Couldn't create post-processor: %s", Utils::createNestedErrorMsg(e).c_str());
     }
     return post_processor;
 }

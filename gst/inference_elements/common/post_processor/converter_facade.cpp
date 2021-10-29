@@ -60,46 +60,79 @@ void ConverterFacade::setLayerNames(const GstStructure *s) {
     }
 }
 
-CoordinatesRestorer::Ptr ConverterFacade::createCoordinatesRestorer(int inference_type,
+CoordinatesRestorer::Ptr ConverterFacade::createCoordinatesRestorer(ConverterType converter_type,
+                                                                    AttachType attach_type,
                                                                     const ModelImageInputInfo &input_image_info,
                                                                     GstStructure *model_proc_output_info) {
-    if (inference_type == GST_GVA_DETECT_TYPE)
-        return CoordinatesRestorer::Ptr(new ROICoordinatesRestorer(input_image_info));
+    if (converter_type == ConverterType::TO_ROI)
+        return CoordinatesRestorer::Ptr(new ROICoordinatesRestorer(input_image_info, attach_type));
 
     if (model_proc_output_info != nullptr)
         if (gst_structure_has_field(model_proc_output_info, "point_names"))
-            return CoordinatesRestorer::Ptr(new KeypointsCoordinatesRestorer(input_image_info));
+            return CoordinatesRestorer::Ptr(new KeypointsCoordinatesRestorer(input_image_info, attach_type));
 
     return nullptr;
 }
 
 ConverterFacade::ConverterFacade(std::unordered_set<std::string> all_layer_names, GstStructure *model_proc_output_info,
-                                 int inference_type, int inference_region, const ModelImageInputInfo &input_image_info,
+                                 ConverterType converter_type, AttachType attach_type,
+                                 const ModelImageInputInfo &input_image_info, const ModelOutputsInfo &outputs_info,
                                  const std::string &model_name, const std::vector<std::string> &labels)
-    : layer_names_to_process(all_layer_names) {
-    blob_to_meta =
-        BlobToMetaConverter::create(model_proc_output_info, inference_type, input_image_info, model_name, labels,
-                                    getDisplayedLayerNameInMeta(std::vector<std::string>(
-                                        layer_names_to_process.cbegin(), layer_names_to_process.cend())));
-    coordinates_restorer = createCoordinatesRestorer(inference_type, input_image_info, model_proc_output_info);
-    meta_attacher = MetaAttacher::create(inference_type, inference_region, input_image_info);
+    : layer_names_to_process(all_layer_names), process_all_outputs(true) {
+
+    GstStructureUniquePtr smart_model_proc_output_info(gst_structure_copy(model_proc_output_info), gst_structure_free);
+    BlobToMetaConverter::Initializer initializer = {model_name, input_image_info, outputs_info,
+                                                    std::move(smart_model_proc_output_info), labels};
+
+    const auto displayed_layer_name_to_process = getDisplayedLayerNameInMeta(
+        std::vector<std::string>(layer_names_to_process.cbegin(), layer_names_to_process.cend()));
+
+    blob_to_meta = BlobToMetaConverter::create(std::move(initializer), converter_type, displayed_layer_name_to_process);
+    coordinates_restorer =
+        createCoordinatesRestorer(converter_type, attach_type, input_image_info, model_proc_output_info);
+    meta_attacher = MetaAttacher::create(converter_type, attach_type);
 }
 
-ConverterFacade::ConverterFacade(GstStructure *model_proc_output_info, int inference_type, int inference_region,
-                                 const ModelImageInputInfo &input_image_info, const std::string &model_name,
-                                 const std::vector<std::string> &labels) {
+ConverterFacade::ConverterFacade(GstStructure *model_proc_output_info, ConverterType converter_type,
+                                 AttachType attach_type, const ModelImageInputInfo &input_image_info,
+                                 const ModelOutputsInfo &outputs_info, const std::string &model_name,
+                                 const std::vector<std::string> &labels)
+    : process_all_outputs(false) {
     if (model_proc_output_info == nullptr) {
         throw std::runtime_error("Can not get model_proc output information.");
     }
 
     setLayerNames(model_proc_output_info);
+    if (layer_names_to_process.size() == outputs_info.size())
+        process_all_outputs = true;
 
-    blob_to_meta =
-        BlobToMetaConverter::create(model_proc_output_info, inference_type, input_image_info, model_name, labels,
-                                    getDisplayedLayerNameInMeta(std::vector<std::string>(
-                                        layer_names_to_process.cbegin(), layer_names_to_process.cend())));
-    coordinates_restorer = createCoordinatesRestorer(inference_type, input_image_info, model_proc_output_info);
-    meta_attacher = MetaAttacher::create(inference_type, inference_region, input_image_info);
+    const auto outputs_info_to_process = extractProcessedModelOutputsInfo(outputs_info);
+    GstStructureUniquePtr smart_model_proc_output_info(gst_structure_copy(model_proc_output_info), gst_structure_free);
+
+    BlobToMetaConverter::Initializer initializer = {model_name, input_image_info, outputs_info_to_process,
+                                                    std::move(smart_model_proc_output_info), labels};
+
+    const auto displayed_layer_name_to_process = getDisplayedLayerNameInMeta(
+        std::vector<std::string>(layer_names_to_process.cbegin(), layer_names_to_process.cend()));
+
+    blob_to_meta = BlobToMetaConverter::create(std::move(initializer), converter_type, displayed_layer_name_to_process);
+    coordinates_restorer =
+        createCoordinatesRestorer(converter_type, attach_type, input_image_info, model_proc_output_info);
+    meta_attacher = MetaAttacher::create(converter_type, attach_type);
+}
+
+ModelOutputsInfo ConverterFacade::extractProcessedModelOutputsInfo(const ModelOutputsInfo &all_output_blobs) const {
+    if (all_output_blobs.empty())
+        throw std::invalid_argument("Output blobs are empty.");
+
+    // FIXME: c++17 has extract method for it
+    ModelOutputsInfo processed_output_blobs;
+    for (const auto &blob : all_output_blobs) {
+        if (layer_names_to_process.find(blob.first) != layer_names_to_process.cend())
+            processed_output_blobs.insert(blob);
+    }
+
+    return processed_output_blobs;
 }
 
 OutputBlobs ConverterFacade::extractProcessedOutputBlobs(const OutputBlobs &all_output_blobs) const {
@@ -116,11 +149,16 @@ OutputBlobs ConverterFacade::extractProcessedOutputBlobs(const OutputBlobs &all_
     return processed_output_blobs;
 }
 
-void ConverterFacade::convert(const OutputBlobs &all_output_blobs, InferenceFrames &frames) const {
-    const auto processed_output_blobs = extractProcessedOutputBlobs(all_output_blobs);
-    auto tensors_batch = blob_to_meta->convert(processed_output_blobs);
+void ConverterFacade::convert(const OutputBlobs &all_output_blobs, FramesWrapper &frames) const {
+    TensorsTable tensors_batch;
+    if (process_all_outputs)
+        tensors_batch = blob_to_meta->convert(all_output_blobs);
+    else {
+        const auto processed_output_blobs = extractProcessedOutputBlobs(all_output_blobs);
+        tensors_batch = blob_to_meta->convert(processed_output_blobs);
+    }
 
-    if (coordinates_restorer != nullptr)
+    if (frames.need_coordinate_restore() && coordinates_restorer != nullptr)
         coordinates_restorer->restore(tensors_batch, frames);
 
     meta_attacher->attach(tensors_batch, frames);
