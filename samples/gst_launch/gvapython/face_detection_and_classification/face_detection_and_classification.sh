@@ -7,12 +7,21 @@
 
 set -e
 
+# SSH does not support vaapisink, so if user is connected via ssh 
+# ximagesink will be prioritised in autovideosink, vaapisink otherwise
+
+if ( pstree -s $$ | grep -q 'sshd' ); then
+    FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+else
+    FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},vaapisink:MAX
+fi
+
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 
 DEVICE=${2:-CPU}
 
 if [[ $3 == "display" ]] || [[ -z $3 ]]; then
-  SINK_ELEMENT="gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
+  SINK_ELEMENT="gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
 elif [[ $3 == "fps" ]]; then
   SINK_ELEMENT="gvafpscounter ! fakesink async=false "
 else
@@ -43,7 +52,7 @@ CLASS_MODEL_PATH=${MODELS_PATH}/intel/age-gender-recognition-retail-0013/FP32/ag
 echo Running sample with the following parameters:
 echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
 
-PIPELINE="gst-launch-1.0 \
+PIPELINE="env GST_PLUGIN_FEATURE_RANK=${FEATURE_RANK} gst-launch-1.0 \
 $SOURCE_ELEMENT ! decodebin ! \
 gvainference model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
 gvapython module=$PYTHON_SCRIPT1 ! \
@@ -54,4 +63,4 @@ $SINK_ELEMENT"
 
 echo ${PIPELINE}
 PYTHONPATH=$PYTHONPATH:$(dirname "$0")/../../../../python \
-${PIPELINE}
+$PIPELINE

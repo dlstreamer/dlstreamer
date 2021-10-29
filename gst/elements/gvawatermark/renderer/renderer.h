@@ -8,14 +8,11 @@
 
 #include "color_converter.h"
 
-#include "gva_buffer_map.h"
 #include "inference_backend/image.h"
 
 #include <gst/video/video-info.h>
 
 #include <opencv2/gapi/render/render_types.hpp>
-
-#include <unistd.h>
 
 #include <memory>
 #include <stdexcept>
@@ -25,7 +22,7 @@ namespace gapidraw = cv::gapi::wip::draw;
 
 class Renderer {
   public:
-    void draw(GstBuffer *buffer, GstVideoInfo *info, std::vector<gapidraw::Prim> prims);
+    void draw(GstBuffer *buffer, std::vector<gapidraw::Prim> prims);
 
     virtual ~Renderer() = default;
 
@@ -39,11 +36,9 @@ class Renderer {
 
     void convert_prims_color(std::vector<gapidraw::Prim> &prims);
 
-    virtual void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                              uint64_t drm_format_modifier = 0) = 0;
-    virtual void buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &map_context,
-                            GstVideoInfo *info) = 0;
-    virtual void buffer_unmap(BufferMapContext &map_context) = 0;
+    virtual void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) = 0;
+    virtual void buffer_map(GstBuffer *buffer, InferenceBackend::Image &image) = 0;
+    virtual void buffer_unmap(InferenceBackend::Image &image) = 0;
 
   private:
     static int FourccToOpenCVMatType(int fourcc);

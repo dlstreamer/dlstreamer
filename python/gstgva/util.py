@@ -226,7 +226,7 @@ def gst_buffer_data(_buffer, flags):
 
 
 # libgobject
-libgobject = ctypes.CDLL('libgobject-2.0.so')
+libgobject = ctypes.CDLL("libgobject-2.0.so.0")
 
 
 class GList(ctypes.Structure):
@@ -278,12 +278,12 @@ libgobject.g_value_get_float.argtypes = [G_VALUE_POINTER]
 libgobject.g_value_get_float.restype = ctypes.c_float
 
 # libglib
-libglib = ctypes.CDLL('libglib-2.0.so')
+libglib = ctypes.CDLL("libglib-2.0.so.0")
 libglib.g_strdup.argtypes = [ctypes.c_char_p]
 libglib.g_strdup.restype = ctypes.c_void_p
 
 # libgstvideo
-libgstvideo = ctypes.CDLL("libgstvideo-1.0.so")
+libgstvideo = ctypes.CDLL("libgstvideo-1.0.so.0")
 
 
 # VideoRegionOfInterestMeta

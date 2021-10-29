@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -20,6 +20,8 @@ add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 target_link_libraries(${TARGET_NAME}
 PRIVATE
         inference_backend
+        opencv_pre_proc
+        utils
 )
 
 target_include_directories(${TARGET_NAME}

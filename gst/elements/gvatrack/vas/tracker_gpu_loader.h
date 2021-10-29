@@ -8,7 +8,14 @@
 
 #include "so_loader.h"
 #include "vas/ot.h"
+
+#ifdef ENABLE_VAAPI
 #include <va/va.h>
+#else
+// Stubs
+using VADisplay = void *;
+using VASurfaceID = unsigned int;
+#endif
 
 class VasOtGPULibBinderImpl {
   public:

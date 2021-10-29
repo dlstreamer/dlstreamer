@@ -54,15 +54,12 @@ else
 fi
 
 PROC_PATH() {
-    echo "$(dirname '$1')/model_proc/$2.json"
+    echo $(dirname "$0")/model_proc/$1.json
 }
 
 DETECT_MODEL_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
 CLASS_MODEL_PATH=${MODELS_PATH}/intel/age-gender-recognition-retail-0013/FP32/age-gender-recognition-retail-0013.xml
-echo "MODEL2: ${MODEL2}"
-MODEL2_PROC=$(PROC_PATH "./" "$MODEL2")
-echo "MODEL2_PROC: $MODEL2_PROC"
-echo $SOURCE_ELEMENT
+MODEL2_PROC=$(PROC_PATH  $MODEL2)
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! \
 decodebin ! \

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -28,7 +28,23 @@ G_BEGIN_DECLS
 typedef enum {
     GVA_PRECISION_UNSPECIFIED = 255, /**< default value */
     GVA_PRECISION_FP32 = 10,         /**< 32bit floating point value */
-    GVA_PRECISION_U8 = 40            /**< unsignned 8bit integer value */
+    GVA_PRECISION_FP16 = 11,         /**< 16bit floating point value, 5 bit for exponent, 10 bit for mantisa */
+    GVA_PRECISION_BF16 = 12,         /**< 16bit floating point value, 8 bit for exponent, 7 bit for mantisa*/
+    GVA_PRECISION_FP64 = 13,         /**< 64bit floating point value */
+    GVA_PRECISION_Q78 = 20,          /**< 16bit specific signed fixed point precision */
+    GVA_PRECISION_I16 = 30,          /**< 16bit signed integer value */
+    GVA_PRECISION_U4 = 39,           /**< 4bit unsigned integer value */
+    GVA_PRECISION_U8 = 40,           /**< unsignned 8bit integer value */
+    GVA_PRECISION_I4 = 49,           /**< 4bit signed integer value */
+    GVA_PRECISION_I8 = 50,           /**< 8bit signed integer value */
+    GVA_PRECISION_U16 = 60,          /**< 16bit unsigned integer value */
+    GVA_PRECISION_I32 = 70,          /**< 32bit signed integer value */
+    GVA_PRECISION_U32 = 74,          /**< 32bit unsigned integer value */
+    GVA_PRECISION_I64 = 72,          /**< 64bit signed integer value */
+    GVA_PRECISION_U64 = 73,          /**< 64bit unsigned integer value */
+    GVA_PRECISION_BIN = 71,          /**< 1bit integer value */
+    GVA_PRECISION_BOOL = 41,         /**< 8bit bool type */
+    GVA_PRECISION_CUSTOM = 80        /**< custom precision has it's own name and size of elements */
 } GVAPrecision;
 
 /**

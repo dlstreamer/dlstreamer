@@ -8,7 +8,7 @@
 #include "copy_blob_to_gststruct.h"
 #include "inference_backend/image_inference.h"
 #include "inference_backend/logger.h"
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
 
 #include <exception>
 #include <string>
@@ -46,7 +46,7 @@ TensorsTable RawDataCopyConverter::convert(const OutputBlobs &output_blobs) cons
             }
         }
     } catch (const std::exception &e) {
-        GVA_ERROR(e.what());
+        GVA_ERROR("An error occurred while processing output BLOBs: %s", e.what());
     }
     return tensors_table;
 }

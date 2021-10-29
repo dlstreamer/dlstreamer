@@ -43,8 +43,6 @@ RUN tar -xzf *.tgz \
     && ln --symbolic /opt/intel/openvino_${OpenVINO_VERSION}/ /opt/intel/openvino \
     && cp ./rpm/intel-openvino-mediasdk* /opt/intel/mediasdk/
 
-
-
 FROM ${DOCKER_PRIVATE_REGISTRY}ubuntu:20.04 as gst-build
 ENV HOME=/home
 WORKDIR ${HOME}
@@ -102,7 +100,7 @@ ENV PATCHES_ROOT=${HOME}/build/src/patches
 ENV SYS_PATCHES_DIR=${HOME}/src/patches
 RUN mkdir -p ${PATCHES_ROOT} && mkdir -p ${SYS_PATCHES_DIR}
 
-RUN    pip3 install --no-cache-dir meson ninja
+RUN pip3 install --no-cache-dir meson ninja
 
 COPY --from=ov-build /opt/intel /opt/intel
 
@@ -122,19 +120,21 @@ RUN wget ${GST_PLUGIN_VAAPI_REPO} -O build/src/gstreamer-vaapi-${GST_VERSION}.ta
 RUN tar xvf build/src/gstreamer-vaapi-${GST_VERSION}.tar.xz
 
 # download gstreamer-vaapi patch
-ARG GSTREAMER_VAAPI_PATCH_URL=https://raw.githubusercontent.com/openvinotoolkit/dlstreamer_gst/master/patches/gstreamer-vaapi/vasurface_qdata.patch
-RUN wget ${GSTREAMER_VAAPI_PATCH_URL} -O ${PATCHES_ROOT}/gstreamer-vaapi.patch
+ARG GSTREAMER_VAAPI_PATCH_URL=https://gitlab.freedesktop.org/gstreamer/gstreamer-vaapi/-/merge_requests/435.patch
+ARG GSTREAMER_VAAPI_PATCH_DMA_URL=https://raw.githubusercontent.com/openvinotoolkit/dlstreamer_gst/master/patches/gstreamer-vaapi/dma-vaapiencode.patch
+RUN wget ${GSTREAMER_VAAPI_PATCH_URL} -O ${PATCHES_ROOT}/gst-vaapi-peek-vadisplay.patch
+RUN wget ${GSTREAMER_VAAPI_PATCH_DMA_URL} -O ${PATCHES_ROOT}/dma-vaapiencode.patch
 
 # put gstreamer-vaapi license along with the patch
 RUN mkdir ${PATCHES_ROOT}/gstreamer_vaapi_patch_license && \
     cp gstreamer-vaapi-${GST_VERSION}/COPYING.LIB ${PATCHES_ROOT}/gstreamer_vaapi_patch_license/LICENSE
 
-
 ARG MESON_GST_TESTS=disabled
 
 RUN source /opt/intel/openvino/bin/setupvars.sh && \
     cd gstreamer-vaapi-${GST_VERSION} && \
-    wget -O - ${GSTREAMER_VAAPI_PATCH_URL} | git apply && \
+    git apply ${PATCHES_ROOT}/gst-vaapi-peek-vadisplay.patch && \
+    git apply ${PATCHES_ROOT}/dma-vaapiencode.patch && \
     PKG_CONFIG_PATH=$PWD/build/pkgconfig:${PKG_CONFIG_PATH} meson \
     -Dexamples=${MESON_GST_TESTS} \
     -Dtests=${MESON_GST_TESTS} \

@@ -14,9 +14,8 @@
 #include "gstgvainference.h"
 #include "gstgvametaaggregate.h"
 #include "gstgvametaconvert.h"
-#include "gstgvametapublish.h"
-#include "gstgvawatermark.h"
 #include "gstgvawatermarkimpl.h"
+#include "gvawatermark.h"
 
 #include "gva_json_meta.h"
 #include "gva_tensor_meta.h"
@@ -43,9 +42,6 @@ static gboolean plugin_init(GstPlugin *plugin) {
     if (!gst_element_register(plugin, "gvafpscounter", GST_RANK_NONE, GST_TYPE_GVA_FPSCOUNTER))
         return FALSE;
 
-    if (!gst_element_register(plugin, "gvametapublish", GST_RANK_NONE, GST_TYPE_GVA_META_PUBLISH))
-        return FALSE;
-
     if (!gst_element_register(plugin, "gvametaaggregate", GST_RANK_NONE, GST_TYPE_GVA_META_AGGREGATE))
         return FALSE;
 
@@ -58,5 +54,5 @@ static gboolean plugin_init(GstPlugin *plugin) {
     return TRUE;
 }
 
-GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, videoanalytics, "Video Analytics elements", plugin_init,
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, videoanalytics, "DL Streamer elements", plugin_init,
                   PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

@@ -13,8 +13,8 @@ This sample builds GStreamer pipeline of the following elements
 * [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for face detection based on OpenVINO™ Toolkit Inference Engine
 * [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) inserted into pipeline three times for face classification on three DL models (age-gender, emotion, landmark points)
 * [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for bounding boxes and labels visualization
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 

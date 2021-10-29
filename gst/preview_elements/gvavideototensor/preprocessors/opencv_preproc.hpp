@@ -16,6 +16,11 @@ class OpenCVPreProc : public IPreProc {
     void process(GstBuffer *in_buffer, GstBuffer *out_buffer) final;
     void process(GstBuffer *buffer) final;
 
+    void flush() final{};
+
+    size_t output_size() const final;
+    bool need_preprocessing() const final;
+
   private:
     GstVideoInfo *_input_video_info;
     TensorCaps _output_tensor_info;

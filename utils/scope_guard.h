@@ -5,6 +5,8 @@
  ******************************************************************************/
 #pragma once
 
+#include <utility>
+
 template <class Fn>
 class ScopeGuard {
   public:

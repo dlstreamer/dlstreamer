@@ -6,15 +6,17 @@
 
 #include "vaapi_converter.h"
 
-#include <stdexcept>
-#include <string>
-#include <unistd.h>
-
 #include "inference_backend/pre_proc.h"
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
+#include "utils.h"
 
 #include <drm/drm_fourcc.h>
 #include <va/va_drmcommon.h>
+
+#include <cstring>
+#include <stdexcept>
+#include <string>
+#include <unistd.h>
 
 using namespace InferenceBackend;
 
@@ -109,7 +111,7 @@ VASurfaceID ConvertDMABuf(VaDpyWrapper display, const Image &src, int rt_format)
     VASurfaceAttribExternalBuffers external = VASurfaceAttribExternalBuffers();
     external.width = src.width;
     external.height = src.height;
-    external.num_planes = GetPlanesCount(src.format);
+    external.num_planes = Utils::GetPlanesCount(src.format);
     uint64_t dma_fd = src.dma_fd;
     external.buffers = &dma_fd;
     external.num_buffers = 1;
@@ -133,8 +135,8 @@ VASurfaceID ConvertDMABuf(VaDpyWrapper display, const Image &src, int rt_format)
     attribs[1].value.value.p = &external;
 
     VASurfaceID va_surface_id;
-    VA_CALL(display.drvVtable().vaCreateSurfaces2(display.drvCtx(), rt_format, src.width, src.height, &va_surface_id, 1,
-                                                  attribs, 2))
+    VA_CALL(display.drvVtable().vaCreateSurfaces2(display.drvCtx(), safe_convert<uint32_t>(rt_format), src.width,
+                                                  src.height, &va_surface_id, 1, attribs, 2))
 
     return va_surface_id;
 }
@@ -181,14 +183,136 @@ VASurfaceID ConvertDMABuf(VaDpyWrapper display, const Image &src, int rt_format)
 
 VaApiConverter::VaApiConverter(VaApiContext *context) : _context(context) {
     if (!context)
-        throw std::runtime_error("VaApiContext is null. VaConverter requers not nullptr context.");
+        throw std::runtime_error("VaApiContext is null. VaConverter requires not nullptr context.");
 }
 
-void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
+void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerDesc::Ptr &pre_proc_info,
+                                                          uint16_t dst_width, uint16_t dst_height,
+                                                          VARectangle &src_surface_region,
+                                                          VARectangle &dst_surface_region,
+                                                          VAProcPipelineParameterBuffer &pipeline_param,
+                                                          const ImageTransformationParams::Ptr &image_transform_info) {
+    // Padding preparations
+    uint16_t padding_x = 0;
+    uint16_t padding_y = 0;
+    uint32_t background_color = 0xff000000;
+    if (pre_proc_info->doNeedPadding() && (!image_transform_info || !image_transform_info->WasPadding())) {
+        const auto &padding = pre_proc_info->getPadding();
+        padding_x = safe_convert<uint16_t>(padding.stride_x);
+        padding_y = safe_convert<uint16_t>(padding.stride_y);
+        const auto &fill_value = padding.fill_value;
+        background_color |=
+            static_cast<uint32_t>(fill_value.at(0) * pow(2, 16) + fill_value.at(1) * pow(2, 8) + fill_value.at(2));
+    }
+
+    dst_surface_region.x = padding_x;
+    dst_surface_region.y = padding_y;
+
+    uint16_t input_width_except_padding = dst_width - (padding_x * 2);
+    uint16_t input_height_except_padding = dst_height - (padding_y * 2);
+
+    // Resize preparations
+    double resize_scale_param_x = 1;
+    double resize_scale_param_y = 1;
+    if (pre_proc_info->doNeedResize() && (src_surface_region.width != input_width_except_padding &&
+                                          src_surface_region.height != input_height_except_padding)) {
+        double additional_crop_scale_param = 1;
+        if (pre_proc_info->doNeedCrop() && pre_proc_info->doNeedResize()) {
+            additional_crop_scale_param = 1.125;
+        }
+
+        resize_scale_param_x = safe_convert<double>(input_width_except_padding) / src_surface_region.width;
+        resize_scale_param_y = safe_convert<double>(input_height_except_padding) / src_surface_region.height;
+
+        if (pre_proc_info->getResizeType() == InputImageLayerDesc::Resize::ASPECT_RATIO) {
+            resize_scale_param_x = resize_scale_param_y = std::min(resize_scale_param_x, resize_scale_param_y);
+        }
+
+        resize_scale_param_x *= additional_crop_scale_param;
+        resize_scale_param_y *= additional_crop_scale_param;
+
+        // Resize in future pipeline
+        dst_surface_region.width = safe_convert<uint16_t>(src_surface_region.width * resize_scale_param_x + 0.5);
+        dst_surface_region.height = safe_convert<uint16_t>(src_surface_region.height * resize_scale_param_x + 0.5);
+
+        if (image_transform_info)
+            image_transform_info->ResizeHasDone(resize_scale_param_x, resize_scale_param_y);
+    }
+
+    // Crop preparations
+    if (pre_proc_info->doNeedCrop() && (dst_surface_region.width != input_width_except_padding &&
+                                        dst_surface_region.height != input_height_except_padding)) {
+        uint16_t cropped_border_x = 0;
+        uint16_t cropped_border_y = 0;
+
+        if (dst_surface_region.width > input_width_except_padding)
+            cropped_border_x = dst_surface_region.width - input_width_except_padding;
+        if (dst_surface_region.height > input_height_except_padding)
+            cropped_border_y = dst_surface_region.height - input_height_except_padding;
+
+        uint16_t cropped_width = dst_surface_region.width - cropped_border_x;
+        uint16_t cropped_height = dst_surface_region.height - cropped_border_y;
+
+        switch (pre_proc_info->getCropType()) {
+        case InputImageLayerDesc::Crop::CENTRAL:
+            cropped_border_x /= 2;
+            cropped_border_y /= 2;
+            break;
+        case InputImageLayerDesc::Crop::TOP_LEFT:
+            cropped_border_x = 0;
+            cropped_border_y = 0;
+            break;
+        case InputImageLayerDesc::Crop::TOP_RIGHT:
+            cropped_border_y = 0;
+            break;
+        case InputImageLayerDesc::Crop::BOTTOM_LEFT:
+            cropped_border_x = 0;
+            break;
+        case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
+            break;
+        default:
+            break;
+        }
+
+        // Should have this size after src_crop & src_resize
+        dst_surface_region.width = cropped_width;
+        dst_surface_region.height = cropped_height;
+
+        if (image_transform_info)
+            image_transform_info->CropHasDone(cropped_border_x, cropped_border_y);
+
+        cropped_border_x = safe_convert<uint16_t>(safe_convert<double>(cropped_border_x) / resize_scale_param_x);
+        cropped_border_y = safe_convert<uint16_t>(safe_convert<double>(cropped_border_y) / resize_scale_param_y);
+        cropped_width = safe_convert<uint16_t>(safe_convert<double>(cropped_width) / resize_scale_param_x);
+        cropped_height = safe_convert<uint16_t>(safe_convert<double>(cropped_height) / resize_scale_param_y);
+
+        // Actualy we crop src before resize to get 1 preproc pipeline instead 2 (src->dst_resized + dst_resized ->
+        // cropped)
+        src_surface_region.x += cropped_border_x;
+        src_surface_region.y += cropped_border_y;
+        src_surface_region.width = cropped_width;
+        src_surface_region.height = cropped_height;
+    }
+
+    // Add padding for The padding and padding from aspect-ratio resize
+    dst_surface_region.x = (dst_width - dst_surface_region.width) / 2;
+    dst_surface_region.y = (dst_height - dst_surface_region.height) / 2;
+
+    if (image_transform_info)
+        image_transform_info->PaddingHasDone(safe_convert<size_t>(dst_surface_region.x),
+                                             safe_convert<size_t>(dst_surface_region.y));
+
+    pipeline_param.output_region = &dst_surface_region;
+    pipeline_param.output_background_color = background_color;
+}
+
+void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst, const InputImageLayerDesc::Ptr &pre_proc_info,
+                             const ImageTransformationParams::Ptr &image_transform_info) {
+
+    VASurfaceID src_surface = VA_INVALID_SURFACE;
     Image &dst = va_api_dst.image;
 
     uint64_t fd = 0;
-    VASurfaceID src_surface = VA_INVALID_SURFACE;
     bool owns_src_surface = false;
     if (src.type == MemoryType::VAAPI) {
         if (src.va_display != dst.va_display) {
@@ -203,20 +327,47 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
         src_surface = ConvertDMABuf(_context->Display(), src, _context->RTFormat());
         owns_src_surface = true;
     } else {
-        throw std::runtime_error("VaApiConverter::Convert: unsupported MemoryType");
+        throw std::runtime_error("VaApiConverter::Convert: unsupported MemoryType.");
     }
 
-    VAProcPipelineParameterBuffer pipeline_param = VAProcPipelineParameterBuffer();
+    VAProcPipelineParameterBuffer pipeline_param;
+    std::memset(&pipeline_param, 0, sizeof(pipeline_param));
+
     pipeline_param.surface = src_surface;
-    VARectangle surface_region = {.x = static_cast<int16_t>(src.rect.x),
-                                  .y = static_cast<int16_t>(src.rect.y),
-                                  .width = static_cast<uint16_t>(src.rect.width),
-                                  .height = static_cast<uint16_t>(src.rect.height)};
-    if (surface_region.width > 0 && surface_region.height > 0)
-        pipeline_param.surface_region = &surface_region;
 
-    // pipeline_param.filter_flags = VA_FILTER_SCALING_HQ; // High-quality scaling method
+    // Scale and csc mode
+    pipeline_param.filter_flags = va_api_dst.scaling_flags;
 
+    // Crop ROI
+    VARectangle src_surface_region = {.x = safe_convert<int16_t>(src.rect.x),
+                                      .y = safe_convert<int16_t>(src.rect.y),
+                                      .width = safe_convert<uint16_t>(src.rect.width),
+                                      .height = safe_convert<uint16_t>(src.rect.height)};
+    if (src_surface_region.width > 0 && src_surface_region.height > 0)
+        pipeline_param.surface_region = &src_surface_region;
+
+    // Resize to this Rect
+    VARectangle dst_surface_region = {.x = static_cast<int16_t>(0),
+                                      .y = static_cast<int16_t>(0),
+                                      .width = src_surface_region.width,
+                                      .height = src_surface_region.height};
+
+    if (pre_proc_info && pre_proc_info->isDefined()) {
+        SetupPipelineRegionsWithCustomParams(pre_proc_info, safe_convert<uint16_t>(dst.width),
+                                             safe_convert<uint16_t>(dst.height), src_surface_region, dst_surface_region,
+                                             pipeline_param, image_transform_info);
+
+    } else {
+        // Just a resize in that case
+        dst_surface_region = {.x = static_cast<int16_t>(0),
+                              .y = static_cast<int16_t>(0),
+                              .width = safe_convert<uint16_t>(dst.width),
+                              .height = safe_convert<uint16_t>(dst.height)};
+
+        pipeline_param.output_region = &dst_surface_region;
+    }
+
+    // execute pre-proc pipeline
     auto context = _context->Display().drvCtx();
     const auto &vtable = _context->Display().drvVtable();
     VABufferID pipeline_param_buf_id = VA_INVALID_ID;
@@ -236,5 +387,5 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst) {
 
     if (src.type == MemoryType::VAAPI && owns_src_surface)
         if (close(fd) == -1)
-            throw std::runtime_error("VaApiConverter::Convert: close fd failed");
+            throw std::runtime_error("VaApiConverter::Convert: close fd failed.");
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -50,6 +50,9 @@ bool TrackerFactory::Register(const GstGvaTrackingType tracking_type, TrackerCre
 }
 
 ITracker *TrackerFactory::Create(const GstGvaTrack *gva_track) {
+    if (!gva_track)
+        throw std::invalid_argument("GvaTrack instance is null");
+
     auto tracker_it = registred_trackers.find(gva_track->tracking_type);
     if (tracker_it != registred_trackers.end())
         return tracker_it->second(gva_track);

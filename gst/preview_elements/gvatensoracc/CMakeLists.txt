@@ -6,7 +6,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "gstgvatensoracc")
+set(TARGET_NAME "gvatensoracc")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.16 REQUIRED)
@@ -39,7 +39,7 @@ target_link_libraries(${TARGET_NAME}
 PRIVATE
     gvacommon
     ${GLIB2_LIBRARIES}
-    ${GSTBASE_LDFLAGS}
-    ${GSTREAMER_LDFLAGS}
+    ${GSTBASE_LIBRARIES}
+    ${GSTREAMER_LIBRARIES}
     utils
 )

@@ -10,23 +10,23 @@
 #include <gst/gst.h>
 
 #include "fpscounter_c.h"
-#include "gva_caps.h"
 
 #include "config.h"
 #include "utils.h"
-#include <regex.h>
-
-/* enable usage with application/tensor caps */
-#include <capabilities/capabilities.hpp>
-#define GVA_MIXED_CAPS GVA_CAPS GVA_TENSOR_CAPS
 
 #define ELEMENT_LONG_NAME "Frames Per Second counter"
 #define ELEMENT_DESCRIPTION "Measures frames per second across multiple streams in a single process."
 
+#define CAPS_TEMPLATE_STRING "video/x-raw(ANY);application/tensor(ANY);application/tensors(ANY);"
+static GstStaticPadTemplate srctemplate =
+    GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST_PAD_ALWAYS, GST_STATIC_CAPS_ANY);
+static GstStaticPadTemplate sinktemplate =
+    GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS(CAPS_TEMPLATE_STRING));
+
 GST_DEBUG_CATEGORY_STATIC(gst_gva_fpscounter_debug_category);
 #define GST_CAT_DEFAULT gst_gva_fpscounter_debug_category
 
-enum { PROP_0, PROP_INTERVAL, PROP_STARTING_FRAME };
+enum { PROP_0, PROP_INTERVAL, PROP_STARTING_FRAME, PROP_WRITE_PIPE, PROP_READ_PIPE };
 
 #define DEFAULT_INTERVAL "1"
 
@@ -60,10 +60,8 @@ static void gst_gva_fpscounter_class_init(GstGvaFpscounterClass *klass) {
 
     /* Setting up pads and setting metadata should be moved to
        base_class_init if you intend to subclass this class. */
-    gst_element_class_add_pad_template(
-        element_class, gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, gst_caps_from_string(GVA_MIXED_CAPS)));
-    gst_element_class_add_pad_template(element_class, gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS,
-                                                                           gst_caps_from_string(GVA_MIXED_CAPS)));
+    gst_element_class_add_static_pad_template(element_class, &srctemplate);
+    gst_element_class_add_static_pad_template(element_class, &sinktemplate);
 
     gst_element_class_set_static_metadata(element_class, ELEMENT_LONG_NAME, "Video", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");
@@ -87,6 +85,16 @@ static void gst_gva_fpscounter_class_init(GstGvaFpscounterClass *klass) {
                           "processed to remove the influence of initialization cost",
                           DEFAULT_MIN_STARTING_FRAME, DEFAULT_MAX_STARTING_FRAME, DEFAULT_STARTING_FRAME,
                           (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(
+        gobject_class, PROP_WRITE_PIPE,
+        g_param_spec_string("write-pipe", "Write into named pipe",
+                            "Write FPS data to a named pipe. Blocks until read-pipe is opened.", "",
+                            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(
+        gobject_class, PROP_READ_PIPE,
+        g_param_spec_string("read-pipe", "Read from named pipe",
+                            "Read FPS data from a named pipe. Create and delete a named pipe.", "",
+                            G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static void gst_gva_fpscounter_init(GstGvaFpscounter *gva_fpscounter) {
@@ -96,6 +104,8 @@ static void gst_gva_fpscounter_init(GstGvaFpscounter *gva_fpscounter) {
 
     gva_fpscounter->interval = g_strdup(DEFAULT_INTERVAL);
     gva_fpscounter->starting_frame = DEFAULT_STARTING_FRAME;
+    gva_fpscounter->write_pipe = NULL;
+    gva_fpscounter->read_pipe = NULL;
 }
 
 void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
@@ -109,6 +119,12 @@ void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue 
     case PROP_STARTING_FRAME:
         g_value_set_uint(value, gvafpscounter->starting_frame);
         break;
+    case PROP_WRITE_PIPE:
+        g_value_set_string(value, gvafpscounter->write_pipe);
+        break;
+    case PROP_READ_PIPE:
+        g_value_set_string(value, gvafpscounter->read_pipe);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -117,9 +133,7 @@ void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue 
 
 static gboolean gst_gva_fpscounter_check_interval_value(const GValue *value) {
     /* check if interval property is valid */
-    regex_t interval_reg;
-    g_assert(regcomp(&interval_reg, "^[0-9]{1,9}(,[0-9]{1,9})*$", REG_EXTENDED) == 0);
-    if (regexec(&interval_reg, g_value_get_string(value), 0, NULL, 0) != 0) {
+    if (!fps_counter_validate_intervals(g_value_get_string(value))) {
         g_warning("gvafpscounter's interval property value is invalid."
                   " Positive integers must be used (may be comma separated). Default value will be set.");
         return FALSE;
@@ -144,6 +158,14 @@ void gst_gva_fpscounter_set_property(GObject *object, guint property_id, const G
     case PROP_STARTING_FRAME:
         gvafpscounter->starting_frame = g_value_get_uint(value);
         break;
+    case PROP_WRITE_PIPE:
+        g_free(gvafpscounter->write_pipe);
+        gvafpscounter->write_pipe = g_value_dup_string(value);
+        break;
+    case PROP_READ_PIPE:
+        g_free(gvafpscounter->read_pipe);
+        gvafpscounter->read_pipe = g_value_dup_string(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -160,14 +182,28 @@ static void gst_gva_fpscounter_cleanup(GstGvaFpscounter *gva_fpscounter) {
         g_free(gva_fpscounter->interval);
         gva_fpscounter->interval = NULL;
     }
+    g_free(gva_fpscounter->write_pipe);
+    g_free(gva_fpscounter->read_pipe);
 }
 
 static gboolean gst_gva_fpscounter_start(GstBaseTransform *trans) {
     GstGvaFpscounter *gvafpscounter = GST_GVA_FPSCOUNTER(trans);
 
     GST_DEBUG_OBJECT(gvafpscounter, "start");
-    fps_counter_create_average(gvafpscounter->starting_frame);
-    fps_counter_create_iterative(gvafpscounter->interval);
+
+    GST_INFO_OBJECT(gvafpscounter, "%s parameters:\n -- Starting frame: %d\n -- Interval: %s\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvafpscounter)), gvafpscounter->starting_frame,
+                    gvafpscounter->interval);
+
+    if (gvafpscounter->write_pipe) {
+        fps_counter_create_writepipe(gvafpscounter->write_pipe);
+    } else {
+        fps_counter_create_average(gvafpscounter->starting_frame);
+        fps_counter_create_iterative(gvafpscounter->interval);
+        if (gvafpscounter->read_pipe) {
+            fps_counter_create_readpipe(gvafpscounter, gvafpscounter->read_pipe);
+        }
+    }
     return TRUE;
 }
 

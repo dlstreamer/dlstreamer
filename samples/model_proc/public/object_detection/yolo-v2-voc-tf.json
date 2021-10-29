@@ -1,9 +1,10 @@
 {
-    "json_schema_version": "2.0.0",
+    "json_schema_version": "2.1.0",
     "input_preproc": [],
     "output_postproc": [
         {
-            "converter": "tensor_to_bbox_yolo_v2",
+            "converter": "yolo_v2",
+            "iou_threshold": 0.5,
             "anchors": [
                 1.3221,
                 1.73145,
@@ -16,10 +17,6 @@
                 11.2364,
                 10.0071
             ],
-            "classes": 20,
-            "iou_threshold": 0.5,
-            "bbox_number_on_cell": 5,
-            "cells_number": 13,
             "labels": [
                 "aeroplane",
                 "bicycle",

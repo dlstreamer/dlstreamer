@@ -10,7 +10,7 @@ set (TARGET_NAME "gvatrack")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 
 
 file (GLOB MAIN_SRC
@@ -40,7 +40,7 @@ endif()
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
     ${GLIB2_LIBRARIES}
     common
     utils

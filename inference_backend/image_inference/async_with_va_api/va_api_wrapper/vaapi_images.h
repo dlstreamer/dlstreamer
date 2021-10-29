@@ -25,14 +25,18 @@ struct VaApiImage {
     std::future<void> sync;
     bool completed = true;
     std::unique_ptr<ImageMap> image_map;
+    uint32_t scaling_flags = VA_FILTER_SCALING_DEFAULT;
 
     VaApiImage();
-    VaApiImage(const VaApiImage &other) = delete;
-    VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, int format, MemoryType memory_type);
+    VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, int format, MemoryType memory_type,
+               uint32_t scaling_flgs = VA_FILTER_SCALING_DEFAULT);
     ~VaApiImage();
 
     Image Map();
     void Unmap();
+
+    VaApiImage(const VaApiImage &) = delete;
+    VaApiImage &operator=(const VaApiImage &) = delete;
 };
 
 class VaApiImagePool {
@@ -50,8 +54,29 @@ class VaApiImagePool {
         FourCC format;
         MemoryType memory_type;
     };
+
+    struct SizeParams {
+        // Number of items in the pool with default scaling method
+        uint32_t num_default = 0;
+        // Number of items in the pool with fast scaling method
+        uint32_t num_fast = 0;
+
+        SizeParams(uint32_t num_default_scale, uint32_t num_fast_scale) noexcept
+            : num_default(num_default_scale), num_fast(num_fast_scale) {
+        }
+        explicit SizeParams(uint32_t pool_size) noexcept : SizeParams(pool_size, 0) {
+        }
+        explicit SizeParams() = default;
+
+        // Returns total size (items) of the pool
+        size_t size() const {
+            return num_default + num_fast;
+        }
+    };
+
+    VaApiImagePool(VaApiContext *context, SizeParams size_params, ImageInfo info);
+
     void Flush();
-    VaApiImagePool(VaApiContext *context_, size_t image_pool_size, ImageInfo info);
 };
 
 } // namespace InferenceBackend

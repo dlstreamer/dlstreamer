@@ -14,13 +14,7 @@
 #include <cstdint>
 
 constexpr auto MAX_PLANES_NUM = 4;
-
-struct VaMemInfo {
-    uint32_t va_surface_id = 0;
-    void *va_display = nullptr;
-};
-
-VaMemInfo get_va_info_from_buffer(GstBuffer *buffer);
+const uint32_t VASURFACE_INVALID_ID = 0xffffffff;
 
 // TODO: rename?
 // TODO: Contains video specific info, should be more abstract or not?
@@ -32,20 +26,26 @@ class FrameData {
 
     void Map(GstBuffer *buffer, GstVideoInfo *video_info, InferenceBackend::MemoryType memory_type,
              GstMapFlags map_flags);
-    void Map(GstBuffer *buffer, const TensorCaps &tensor_caps, GstMapFlags map_flags, int planes_num = 3,
-             InferenceBackend::MemoryType memory_type = InferenceBackend::MemoryType::SYSTEM);
+    void Map(GstBuffer *buffer, const TensorCaps &tensor_caps, GstMapFlags map_flags,
+             InferenceBackend::MemoryType memory_type = InferenceBackend::MemoryType::SYSTEM, uint32_t planes_num = 1,
+             std::vector<size_t> plane_sizes = {});
 
     bool IsMapped() const;
     void Unmap();
 
     InferenceBackend::MemoryType GetMemoryType() const;
     int GetDMABufDescriptor() const;
-    VaMemInfo GetVaMemInfo() const;
+    uint32_t GetVaSurfaceID() const;
 
-    guint GetPlanesNum() const;
-    uint8_t *GetPlane(guint index) const;
-    uint32_t GetOffset(guint index) const;
-    uint32_t GetStride(guint index) const;
+    uint32_t GetPlanesNum() const;
+    uint8_t *GetPlane(uint32_t index) const;
+    uint32_t GetOffset(uint32_t index) const;
+    uint32_t GetStride(uint32_t index) const;
+
+    const std::vector<uint8_t *> &GetPlanes() const;
+    const std::vector<uint32_t> &GetStrides() const;
+    const std::vector<uint32_t> &GetOffsets() const;
+
     uint32_t GetSize() const;
     uint32_t GetWidth() const;
     uint32_t GetHeight() const;
@@ -60,13 +60,17 @@ class FrameData {
   private:
     InferenceBackend::MemoryType _mem_type = InferenceBackend::MemoryType::SYSTEM;
     TensorCaps _tensor_caps;
-    GstVideoFrame _mapped_frame;
-    GstMapInfo _tensor_map_info;
-    GstBuffer *_mapped_buffer;
-    int _tensor_planes_num = 0;
+    GstVideoFrame _mapped_frame = {};
+    GstMapInfo _tensor_map_info = {};
+    GstBuffer *_mapped_buffer = nullptr;
     int _dma_fd = -1;
-    VaMemInfo _va_mem_info;
+    uint32_t _va_surface_id = VASURFACE_INVALID_ID;
     uint32_t _width = 0;
     uint32_t _height = 0;
-    InferenceBackend::FourCC _format;
+    InferenceBackend::FourCC _format = InferenceBackend::FourCC::FOURCC_BGR;
+
+    uint32_t _size = 0;
+    std::vector<uint8_t *> _planes;
+    std::vector<uint32_t> _strides;
+    std::vector<uint32_t> _offsets;
 };

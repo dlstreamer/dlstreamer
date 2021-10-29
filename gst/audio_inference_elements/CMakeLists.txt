@@ -32,7 +32,9 @@ set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
 
 # FIXME: implicit declaration of tracer functions
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=implicit-function-declaration)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=implicit-function-declaration)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
@@ -45,14 +47,15 @@ PUBLIC
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
+    utils
 )
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
     utils
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    ${GSTALLOC_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
+    ${GSTALLOC_LIBRARIES}
     common
     gstvideoanalyticsmeta
     inference_backend

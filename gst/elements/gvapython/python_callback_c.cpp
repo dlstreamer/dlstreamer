@@ -12,6 +12,8 @@
 #include <nlohmann/json.hpp>
 using nlohmann::json;
 
+namespace {
+
 class PythonError {
     PyObjectWrapper py_stringio_constructor;
     PyObjectWrapper py_traceback_print_exception;
@@ -41,6 +43,8 @@ class PythonError {
     }
 };
 
+} // namespace
+
 void log_python_error(GstGvaPython *gvapython, gboolean is_fatal) {
     PyObject *ptype, *pvalue, *ptraceback;
     PyErr_Fetch(&ptype, &pvalue, &ptraceback);
@@ -60,7 +64,7 @@ void create_arguments(void **args, void **kwargs) {
 }
 
 void delete_arguments(void *args) {
-    json *json_args = (json *)args;
+    json *json_args = static_cast<json *>(args);
     try {
         delete json_args;
     } catch (const std::exception &e) {
@@ -71,7 +75,7 @@ void delete_arguments(void *args) {
 gchar *get_arguments_string(void *args) {
     try {
         if (args) {
-            json *json_args = (json *)args;
+            json *json_args = static_cast<json *>(args);
             auto string = json_args->dump();
             return g_strdup(string.c_str());
         }
@@ -84,7 +88,7 @@ gchar *get_arguments_string(void *args) {
 gboolean update_keyword_arguments(const char *argument, void **args) {
     gboolean result = TRUE;
     try {
-        json *json_args = (json *)*args;
+        json *json_args = static_cast<json *>(*args);
         json new_argument = json::parse(argument);
         json_args->update(new_argument);
     } catch (json::parse_error &e) {
@@ -104,7 +108,7 @@ gboolean update_keyword_arguments(const char *argument, void **args) {
 gboolean update_arguments(const char *argument, void **args) {
     gboolean result = TRUE;
     try {
-        json *json_args = (json *)*args;
+        json *json_args = static_cast<json *>(*args);
         json new_argument = json::parse(argument);
         switch (new_argument.type()) {
         case json::value_t::array: {

@@ -41,15 +41,15 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${GSTREAMER_LDFLAGS}
-        ${GSTVIDEO_LDFLAGS}
+        ${GSTREAMER_LIBRARIES}
+        ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}
         logger
         gstvideoanalyticsmeta
         json-hpp
         utils
 PRIVATE
-        ${GSTALLOC_LDFLAGS}
+        ${GSTALLOC_LIBRARIES}
 )
 
 if(${ENABLE_VAAPI})

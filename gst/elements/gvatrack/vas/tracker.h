@@ -10,10 +10,6 @@
 #include "itracker.h"
 #include "vas/ot.h"
 
-#ifdef ENABLE_VAAPI
-#include "vaapi_converter.h"
-#endif
-
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
@@ -29,15 +25,21 @@ class Tracker : public ITracker {
     std::unique_ptr<vas::ot::ObjectTracker> object_tracker;
     const GstGvaTrack *gva_track;
     std::unordered_map<int, std::string> labels;
+    vas::BackendType backend_type;
     vas::ot::TrackingType tracker_type;
     cv::Mat cv_empty_mat;
-    std::unique_ptr<vas::ot::ObjectTracker::Builder> builder;
-#ifdef ENABLE_VAAPI
-    std::unique_ptr<InferenceBackend::VaApiContext> vaapi_context;
-    std::unique_ptr<InferenceBackend::VaApiConverter> vaapi_converter;
+    std::unique_ptr<class BufferMapper> buffer_mapper;
+
+    struct VaApiEntity;
+    std::unique_ptr<VaApiEntity> vaapi;
+
+    void buildGPUTracker(vas::ot::ObjectTracker::Builder *builder);
+
+    std::vector<vas::ot::Object> trackCPU(GstBuffer *buffer,
+                                          const std::vector<vas::ot::DetectedObject> &detected_objects);
+
     std::vector<vas::ot::Object> trackGPU(GstBuffer *buffer,
                                           const std::vector<vas::ot::DetectedObject> &detected_objects);
-#endif
 
   public:
     Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_type);

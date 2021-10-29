@@ -1,5 +1,5 @@
 {
-    "json_schema_version": "2.0.0",
+    "json_schema_version": "2.1.0",
     "input_preproc": [
         {
             "format": "image",
@@ -17,7 +17,7 @@
     ],
     "output_postproc": [
         {
-            "converter": "tensor_to_bbox_yolo_v2",
+            "converter": "yolo_v2",
             "classes": 80,
             "do_cls_softmax": true,
             "output_sigmoid_activation": true,

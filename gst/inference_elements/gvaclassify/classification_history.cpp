@@ -103,8 +103,8 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
             }
         }
     } catch (const std::exception &e) {
-        std::string err = "Failed to fill detection tensor parameters from history:\n" + Utils::createNestedErrorMsg(e);
-        GVA_ERROR(err.c_str());
+        GVA_ERROR("Failed to fill detection tensor parameters from history:\n%s",
+                  Utils::createNestedErrorMsg(e).c_str());
     }
 }
 

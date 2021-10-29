@@ -37,21 +37,11 @@ std::vector<float> YOLOv2Converter::softmax(const float *arr, size_t size, size_
     return sftm_arr;
 }
 
-void YOLOv2Converter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &blob,
+void YOLOv2Converter::parseOutputBlob(const float *blob_data, const std::vector<size_t> &, size_t,
                                       std::vector<DetectedObject> &objects) const {
-    const float *blob_data = reinterpret_cast<const float *>(blob->GetData());
+
     if (not blob_data)
         throw std::invalid_argument("Output blob data is nullptr");
-
-    const auto blob_dims = blob->GetDims();
-    size_t blob_size = 1;
-    for (const auto &dim : blob_dims)
-        blob_size *= dim;
-
-    if (blob_size != output_shape_info.requied_blob_size)
-        throw std::runtime_error("Size of the resulting output blob (" + std::to_string(blob_size) +
-                                 ") does not match the required (" +
-                                 std::to_string(output_shape_info.requied_blob_size) + ").");
 
     for (size_t bbox_scale_index = 0; bbox_scale_index < output_shape_info.bbox_number_on_cell; ++bbox_scale_index) {
         const float anchor_scale_w = anchors[bbox_scale_index * 2];
@@ -124,33 +114,4 @@ void YOLOv2Converter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &b
             }
         }
     }
-}
-
-TensorsTable YOLOv2Converter::convert(const OutputBlobs &output_blobs) const {
-    ITT_TASK(__FUNCTION__);
-    try {
-        const auto &model_input_image_info = getModelInputImageInfo();
-
-        if (model_input_image_info.batch_size != 1) {
-            throw std::invalid_argument("Batch size other than 1 is not supported for this post processor: " +
-                                        std::string(YOLOv2Converter::getName()));
-        }
-
-        DetectedObjectsTable objects_table(model_input_image_info.batch_size);
-        auto &objects = objects_table[0];
-
-        for (const auto &blob_iter : output_blobs) {
-            const InferenceBackend::OutputBlob::Ptr &blob = blob_iter.second;
-            if (not blob)
-                throw std::invalid_argument("Output blob is nullptr");
-
-            parseOutputBlob(blob, objects);
-        }
-
-        return storeObjects(objects_table);
-    } catch (const std::exception &e) {
-        std::throw_with_nested(std::runtime_error("Failed to do YoloV3 post-processing"));
-    }
-
-    return TensorsTable{};
 }

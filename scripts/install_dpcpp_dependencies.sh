@@ -9,11 +9,17 @@ EXIT_FAILURE=1
 EXIT_WRONG_ARG=2
 INSTALL_PACKAGE_TYPE=
 AVAILABLE_TYPES=("devel" "runtime")
-REQUIRED_DRIVER_VERSION="21.19.19792"
+REQUIRED_DRIVER_VERSION="21.37.20939"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 UPGRADE_DRIVER=OFF
 UNINSTALL_DRIVER=OFF
 DPCPP_VERSION="2021.2.0"
+
+typeset -A is_specific_generation
+is_specific_generation['ICL/TGL']=false
+is_specific_generation['ADL']=false
+IS_OLD_GENERATION=false
+GFX_VERSION=""
 
 print_help()
 {
@@ -123,8 +129,8 @@ distro_init()
 
 verify_checksum()
 {
-    curl -L -O "https://github.com/intel/compute-runtime/releases/download/$REQUIRED_DRIVER_VERSION/ww19.sum"
-    sha256sum -c ww19.sum
+    curl -L -O "https://github.com/intel/compute-runtime/releases/download/$REQUIRED_DRIVER_VERSION/ww37.sum"
+    sha256sum -c ww37.sum
 }
 
 uninstall_user_mode()
@@ -173,19 +179,19 @@ download_packages()
     mkdir -p "$SCRIPT_DIR/neo"
     cd "$SCRIPT_DIR/neo" || exit
 
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-gmmlib_21.1.2_amd64.deb
-    curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.7181/intel-igc-core_1.0.7181_amd64.deb
-    curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.7181/intel-igc-opencl_1.0.7181_amd64.deb
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-opencl_21.19.19792_amd64.deb
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-ocloc_21.19.19792_amd64.deb
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-level-zero-gpu_1.1.19792_amd64.deb
+    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.37.20939/intel-gmmlib_21.2.1_amd64.deb
+    curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.8517/intel-igc-core_1.0.8517_amd64.deb
+    curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.8517/intel-igc-opencl_1.0.8517_amd64.deb
+    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.37.20939/intel-opencl_21.37.20939_amd64.deb
+    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.37.20939/intel-ocloc_21.37.20939_amd64.deb
+#    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/21.37.20939/intel-level-zero-gpu_1.2.20939_amd64.deb
 
-    verify_checksum
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: checksums do not match for the downloaded packages"
-        echo "       Please check your Internet connection and make sure you have enough disk space or fix the problem manually and try again."
-        exit $EXIT_FAILURE
-    fi
+#    verify_checksum
+#    if [[ $? -ne 0 ]]; then
+#        echo "ERROR: checksums do not match for the downloaded packages"
+#        echo "       Please check your Internet connection and make sure you have enough disk space or fix the problem manually and try again."
+#        exit $EXIT_FAILURE
+#    fi
 }
 
 _deploy_deb()
@@ -250,22 +256,58 @@ install_driver()
 check_specific_generation()
 {
     echo "Checking processor generation..."
-    specific_generation=$(grep -m1 'model name' /proc/cpuinfo | grep -E "i[357]-1[01][0-9]{2,4}N?G[147R]E?")
-    if [[ -z "$specific_generation" && "$UPGRADE_DRIVER" != 'ON' ]]; then
-        echo
-        echo "Warning: Intel® oneAPI DPC++ Compiler needs Intel® GPU driver $REQUIRED_DRIVER_VERSION or higher."
-        echo "Warning: Your generation Intel® Core™ processor is older than 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
-        echo "The newest version of Intel® GPU driver may cause performance degradation of inference in your platform."
-        echo "If you agree and want to continue, please run script again with --upgrade_driver parameter. In this case Intel® GPU driver will be upgraded automatically."
-        exit
+
+    cpuinfo_modelname=$(grep -m1 'model name' /proc/cpuinfo)
+    if [[ -n $(echo "$cpuinfo_modelname" | grep -E "i[357]-1[01][0-9]{2,4}N?G[147R]E?") ]]; then
+        is_specific_generation['ICL/TGL']=true
+    elif [[ -n $(echo "$cpuinfo_modelname" | grep -E "i[3579]-12[0-9]{3}[A-Z]{0,2}") ]]; then
+        is_specific_generation['ADL']=true
+    else
+        IS_OLD_GENERATION=true
     fi
 }
 
 check_current_driver()
 {
-    gfx_version=$(apt show intel-opencl | grep Version)
-    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version[[:space:]]*\:[[:space:]]*//')"
-    if [[ -z $gfx_version || $gfx_version < "$REQUIRED_DRIVER_VERSION" ]]; then
+    if dpkg -s intel-opencl > /dev/null 2>&1; then
+        GFX_VERSION=$(dpkg -s intel-opencl | grep Version)
+    elif dpkg -s intel-opencl-icd > /dev/null 2>&1; then
+        GFX_VERSION=$(dpkg -s intel-opencl-icd | grep Version)
+    fi
+
+    GFX_VERSION="$(echo -e "${GFX_VERSION}" | grep -Eo "[0-9]{2,3}\.[0-9]{2,3}\.[0-9]{3,6}")"
+}
+
+check_installation_possibility()
+{
+    need_upgrade_driver=false
+    check_specific_generation
+    check_current_driver
+
+    if [[ -z $GFX_VERSION || $GFX_VERSION < "$REQUIRED_DRIVER_VERSION" ]]; then
+
+        if [[ "$IS_OLD_GENERATION" == true ]]; then
+            if [[ "$UPGRADE_DRIVER" != 'ON' ]]; then
+                echo
+                echo "Warning: Intel® oneAPI DPC++ Compiler needs Intel® GPU driver $REQUIRED_DRIVER_VERSION or higher."
+                echo "Warning: Your generation Intel® Core™ processor is older than 10th generation Intel® Core™ processor (formerly Ice Lake)."
+                echo "The newest version of Intel® GPU driver may cause performance degradation of inference in your platform."
+                echo "If you agree and want to continue, please run script again with --upgrade_driver parameter. In this case Intel® GPU driver will be upgraded automatically."
+                exit
+            else
+                need_upgrade_driver=true
+            fi
+        elif [[ "${is_specific_generation['ICL/TGL']}" == true ]]; then
+            need_upgrade_driver=true
+        elif [[ "${is_specific_generation['ADL']}" == true ]]; then
+            echo
+            echo "ERROR: Intel® oneAPI DPC++ Compiler needs Intel® GPU driver $REQUIRED_DRIVER_VERSION or higher."
+            echo "Plese run install_NEO_OCL_driver.sh script from OpenVINO install directory to install required Intel® GPU driver."
+            exit
+        fi
+    fi
+
+    if [[ "$need_upgrade_driver" == true ]]; then
         echo
         echo "Warning: Intel® GPU driver $REQUIRED_DRIVER_VERSION will be installed."
         install_driver
@@ -292,7 +334,7 @@ choose_proper_packages()
         PREREQUISITES="wget gpg-agent software-properties-common ocl-icd-opencl-dev opencl-headers"
 
         if [[ $UBUNTU_VERSION == '18.04' ]]; then
-            LEVEL_ZERO_PACKAGES="level-zero-devel intel-level-zero-gpu"
+            LEVEL_ZERO_PACKAGES="intel-igc-core=1.0.8517 intel-igc-opencl=1.0.8517 level-zero-devel intel-level-zero-gpu"
         elif [[ $UBUNTU_VERSION == '20.04' ]]; then
             LEVEL_ZERO_PACKAGES="level-zero-dev intel-level-zero-gpu"
         fi
@@ -366,8 +408,7 @@ main()
         uninstall_user_mode
         uninstall_summary
     else
-        check_specific_generation
-        check_current_driver
+        check_installation_possibility
         install
         install_summary
     fi

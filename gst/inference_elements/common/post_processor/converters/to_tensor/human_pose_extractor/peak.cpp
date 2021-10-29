@@ -92,7 +92,7 @@ void AssignmentAlgoritm(std::vector<TwoJointsConnection> &temp_joint_connections
     std::sort(temp_joint_connections.begin(), temp_joint_connections.end(),
               [](const TwoJointsConnection &a, const TwoJointsConnection &b) { return (a.score > b.score); });
 
-    int num_limbs = static_cast<int>(std::min(candidate_a.size(), candidate_b.size()));
+    int num_limbs = safe_convert<int>(std::min(candidate_a.size(), candidate_b.size()));
     int cnt = 0;
     std::vector<bool> occur_a(candidate_a.size(), false);
     std::vector<bool> occur_b(candidate_b.size(), false);

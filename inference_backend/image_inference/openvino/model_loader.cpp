@@ -15,6 +15,7 @@
 
 #include <cldnn/cldnn_config.hpp>
 
+#include <array>
 #include <fstream>
 
 #include "core_singleton.h"
@@ -84,8 +85,8 @@ std::tuple<size_t, size_t> GetDimsFromInputDynamicShape(InferenceEngine::CNNNetw
                                  " network with all dynamic dimensions in input shape. Specify the input dimensions in "
                                  "'batch-size', 'reshape-width' and 'reshape-height' parameters");
 
-    size_t height = part_shape[2].get_length();
-    size_t width = part_shape[3].get_length();
+    size_t height = safe_convert<size_t>(part_shape[2].get_length());
+    size_t width = safe_convert<size_t>(part_shape[3].get_length());
 
     return std::make_tuple(width, height);
 }
@@ -215,26 +216,15 @@ std::string IrModelLoader::name(const NetworkReferenceWrapper &network) {
 InferenceEngine::ExecutableNetwork IrModelLoader::import(InferenceEngine::CNNNetwork &network, const std::string &,
                                                          const std::map<std::string, std::string> &base_config,
                                                          const std::map<std::string, std::string> &inference_config) {
-
-    if (base_config.count(KEY_DEVICE) == 0)
-        throw std::runtime_error("Inference device is not specified");
-    const std::string &device = base_config.at(KEY_DEVICE);
     InferenceEngine::ExecutableNetwork executable_network;
 
     if (_remote_ctx) {
-        // This is a workround to provide a compound blob instead of a remote one
-        std::map<std::string, std::string> config_copy = inference_config;
-        if (device.find("GPU") != device.npos) {
-            config_copy[InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] =
-                InferenceEngine::PluginConfigParams::YES;
-
-            // TODO: Surface sharing works only with GPU_THROUGHPUT_STREAMS equal to default value ( = 1)
-            GVA_WARNING("Erasing GPU_THROUGHPUT_STREAMS from Inference Engine config in surface sharing case");
-            config_copy.erase(KEY_GPU_THROUGHPUT_STREAMS);
-        }
-
-        executable_network = IeCoreSingleton::Instance().LoadNetwork(network, _remote_ctx, config_copy);
+        executable_network = IeCoreSingleton::Instance().LoadNetwork(network, _remote_ctx, inference_config);
     } else {
+        if (base_config.count(KEY_DEVICE) == 0)
+            throw std::runtime_error("Inference device is not specified");
+        const std::string &device = base_config.at(KEY_DEVICE);
+
         executable_network = IeCoreSingleton::Instance().LoadNetwork(network, device, inference_config);
     }
 

@@ -6,6 +6,7 @@
 
 #include "renderer_cpu.h"
 
+#include <buffer_map/buffer_mapper.h>
 #include <opencv2/gapi/render/render.hpp>
 
 namespace {
@@ -32,16 +33,25 @@ cv::Point2i calc_point_for_u_v_planes(cv::Point2i pt) {
 
 } // namespace
 
-void RendererCPU::buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &map_context,
-                             GstVideoInfo *info) {
-    gva_buffer_map(buffer, image, map_context, info, _memory_type, GST_MAP_READWRITE);
+RendererCPU::RendererCPU(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type,
+                         const GstVideoInfo *info)
+    : Renderer(color_converter, memory_type) {
+
+    buffer_mapper = BufferMapperFactory::createMapper(memory_type, info);
 }
 
-void RendererCPU::buffer_unmap(BufferMapContext &map_context) {
-    gva_buffer_unmap(map_context);
+RendererCPU::~RendererCPU() {
 }
 
-void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims, uint64_t) {
+void RendererCPU::buffer_map(GstBuffer *buffer, InferenceBackend::Image &image) {
+    image = buffer_mapper->map(buffer, GST_MAP_READWRITE);
+}
+
+void RendererCPU::buffer_unmap(InferenceBackend::Image &image) {
+    buffer_mapper->unmap(image);
+}
+
+void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
     for (auto &p : prims) {
         switch (p.index()) {
         case gapidraw::Prim::index_of<gapidraw::Line>(): {
@@ -187,6 +197,6 @@ void RendererNV12::draw_line(std::vector<cv::Mat> &mats, gapidraw::Line line) {
     cv::line(u_v, pos1_u_v, pos2_u_v, {line.color[1], line.color[2]}, calc_thick_for_u_v_planes(line.thick));
 }
 
-void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims, uint64_t) {
+void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
     gapidraw::render(image_planes[0], prims);
 }

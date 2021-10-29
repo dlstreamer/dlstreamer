@@ -8,7 +8,7 @@
 #include "inference_backend/logger.h"
 #include "utils.h"
 
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
 #include <ie_compound_blob.h>
 #include <inference_backend/image.h>
 
@@ -64,10 +64,12 @@ Blob::Ptr GPU::MakeSharedBlob(const Image &image, const TensorDesc &tensor_desc,
 
     ParamMap blob_params{{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
                          {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), image.va_surface_id},
-                         {GPU_PARAM_KEY(VA_PLANE), static_cast<uint32_t>(plane_num)}};
+                         {GPU_PARAM_KEY(VA_PLANE), safe_convert<uint32_t>(plane_num)}};
     blob = std::dynamic_pointer_cast<Blob>(_remote_context->CreateBlob(tensor_desc, blob_params));
 #else
     assert(false && "Trying to use WrapImageStrategy::GPU when VAAPI support was not enabled during build.");
+    UNUSED(tensor_desc);
+    UNUSED(plane_num);
 #endif
 
     return blob;
@@ -92,19 +94,21 @@ inline int GetNumberChannels(int format) {
 
 Blob::Ptr BGRImageToBlob(const Image &image, const WrapImageStrategy::General &strategy) {
     int channels = GetNumberChannels(image.format);
-    if (image.stride[0] != channels * image.width)
+    if (image.stride[0] != safe_mul(safe_convert<uint32_t>(channels), image.width))
         throw std::runtime_error("Image is not dense");
 
-    TensorDesc tensor_desc(Precision::U8, {1, (size_t)channels, (size_t)image.height, (size_t)image.width},
-                           Layout::NHWC);
+    TensorDesc tensor_desc(
+        Precision::U8,
+        {1, safe_convert<size_t>(channels), safe_convert<size_t>(image.height), safe_convert<size_t>(image.width)},
+        Layout::NHWC);
 
     auto image_blob = strategy.MakeSharedBlob(image, tensor_desc, 0);
     if (!image_blob)
         throw std::runtime_error("Failed to create blob for image plane");
 
     if (image.rect.width && image.rect.height) {
-        ROI crop_roi(
-            {0, (size_t)image.rect.x, (size_t)image.rect.y, (size_t)image.rect.width, (size_t)image.rect.height});
+        ROI crop_roi({0, safe_convert<size_t>(image.rect.x), safe_convert<size_t>(image.rect.y),
+                      safe_convert<size_t>(image.rect.width), safe_convert<size_t>(image.rect.height)});
         image_blob = make_shared_blob(image_blob, crop_roi);
     }
 
@@ -114,8 +118,8 @@ Blob::Ptr BGRImageToBlob(const Image &image, const WrapImageStrategy::General &s
 Blob::Ptr NV12ImageToBlob(const Image &image, const WrapImageStrategy::General &strategy) {
     std::vector<size_t> NHWC = {0, 2, 3, 1};
     std::vector<size_t> dimOffsets = {0, 0, 0, 0};
-    const size_t imageWidth = (size_t)image.width;
-    const size_t imageHeight = (size_t)image.height;
+    const size_t imageWidth = safe_convert<size_t>(image.width);
+    const size_t imageHeight = safe_convert<size_t>(image.height);
     BlockingDesc memY({1, imageHeight, imageWidth, 1}, NHWC, 0, dimOffsets,
                       {image.offsets[1] + image.stride[0] * imageHeight / 2, image.stride[0], 1, 1});
     BlockingDesc memUV({1, imageHeight / 2, imageWidth / 2, 2}, NHWC, 0, dimOffsets,
@@ -130,13 +134,13 @@ Blob::Ptr NV12ImageToBlob(const Image &image, const WrapImageStrategy::General &
 
     ROI crop_roi_y({
         0,
-        (size_t)((image.rect.x & 0x1) ? image.rect.x - 1 : image.rect.x),
-        (size_t)((image.rect.y & 0x1) ? image.rect.y - 1 : image.rect.y),
-        (size_t)((image.rect.width & 0x1) ? image.rect.width - 1 : image.rect.width),
-        (size_t)((image.rect.height & 0x1) ? image.rect.height - 1 : image.rect.height),
+        safe_convert<size_t>(((image.rect.x & 0x1) ? image.rect.x - 1 : image.rect.x)),
+        safe_convert<size_t>(((image.rect.y & 0x1) ? image.rect.y - 1 : image.rect.y)),
+        safe_convert<size_t>(((image.rect.width & 0x1) ? image.rect.width - 1 : image.rect.width)),
+        safe_convert<size_t>(((image.rect.height & 0x1) ? image.rect.height - 1 : image.rect.height)),
     });
-    ROI crop_roi_uv({0, (size_t)image.rect.x / 2, (size_t)image.rect.y / 2, (size_t)image.rect.width / 2,
-                     (size_t)image.rect.height / 2});
+    ROI crop_roi_uv({0, safe_convert<size_t>(image.rect.x / 2), safe_convert<size_t>(image.rect.y / 2),
+                     safe_convert<size_t>(image.rect.width / 2), safe_convert<size_t>(image.rect.height / 2)});
 
     Blob::Ptr y_plane_with_roi = make_shared_blob(blobY, crop_roi_y);
     Blob::Ptr uv_plane_with_roi = make_shared_blob(blobUV, crop_roi_uv);
@@ -181,13 +185,13 @@ Blob::Ptr I420ImageToBlob(const Image &image, const WrapImageStrategy::General &
 
     ROI Y_roi({
         0,
-        (size_t)((image.rect.x & 0x1) ? image.rect.x - 1 : image.rect.x),
-        (size_t)((image.rect.y & 0x1) ? image.rect.y - 1 : image.rect.y),
-        (size_t)((image.rect.width & 0x1) ? image.rect.width - 1 : image.rect.width),
-        (size_t)((image.rect.height & 0x1) ? image.rect.height - 1 : image.rect.height),
+        safe_convert<size_t>(((image.rect.x & 0x1) ? image.rect.x - 1 : image.rect.x)),
+        safe_convert<size_t>(((image.rect.y & 0x1) ? image.rect.y - 1 : image.rect.y)),
+        safe_convert<size_t>(((image.rect.width & 0x1) ? image.rect.width - 1 : image.rect.width)),
+        safe_convert<size_t>(((image.rect.height & 0x1) ? image.rect.height - 1 : image.rect.height)),
     });
-    ROI U_V_roi({0, (size_t)image.rect.x / 2, (size_t)image.rect.y / 2, (size_t)image.rect.width / 2,
-                 (size_t)image.rect.height / 2});
+    ROI U_V_roi({0, safe_convert<size_t>(image.rect.x / 2), safe_convert<size_t>(image.rect.y / 2),
+                 safe_convert<size_t>(image.rect.width / 2), safe_convert<size_t>(image.rect.height / 2)});
 
     Blob::Ptr Y_plane_with_roi = make_shared_blob(Y_plane_blob, Y_roi);
     Blob::Ptr U_plane_with_roi = make_shared_blob(U_plane_blob, U_V_roi);
@@ -199,7 +203,7 @@ Blob::Ptr I420ImageToBlob(const Image &image, const WrapImageStrategy::General &
 } // namespace
 
 Blob::Ptr WrapImageToBlob(const Image &image, const WrapImageStrategy::General &strategy) {
-    GVA_DEBUG(__FUNCTION__);
+    GVA_DEBUG("enter");
     ITT_TASK(__FUNCTION__);
     try {
         switch (image.format) {

@@ -85,12 +85,11 @@ void Renderer::convert_prims_color(std::vector<gapidraw::Prim> &prims) {
     }
 }
 
-void Renderer::draw(GstBuffer *buffer, GstVideoInfo *info, std::vector<gapidraw::Prim> prims) {
-    BufferMapContext mapContext;
+void Renderer::draw(GstBuffer *buffer, std::vector<gapidraw::Prim> prims) {
     InferenceBackend::Image image;
-    buffer_map(buffer, image, mapContext, info);
-    auto mapContextGuard = makeScopeGuard([&] { buffer_unmap(mapContext); });
+    buffer_map(buffer, image);
+    auto mapContextGuard = makeScopeGuard([&] { buffer_unmap(image); });
     std::vector<cv::Mat> image_planes = convertImageToMat(image);
     convert_prims_color(prims);
-    draw_backend(image_planes, prims, image.drm_format_modifier);
+    draw_backend(image_planes, prims);
 }

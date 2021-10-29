@@ -7,7 +7,7 @@ In this sample the `gvapython` element is used three times.
 
  First time it's inserted after `gvainference` element running object detection. This demonstrates custom conversion of model output into list of bounding boxes. See file `ssd_object_detection.py` with conversion function coded in Python.
 
- Second time it's inserted after `gvaclassify` element running object classification. This demonstrates custom conversion of model output into object attributes (age and gender in this example). See file `age_gender_classification.py` with conversion function coded in Python.
+ Second time it's inserted after `gvainference` element running object classification. This demonstrates custom conversion of model output into object attributes (age and gender in this example). See file `age_gender_classification.py` with conversion function coded in Python.
 
  Third time it's inserted after previous `gvapython` to log ages into file. This demonstrates resource management in Python script. It opens log file in class constructor and closes it in destructor. Constructor will be called during pipeline initialization and destructor will be called on pipeline stop. See file `age_logger.py`. This is just an example of how to work with resources in Python script, for better logging please refer to [Metadata Publishing Sample](../../metapublish/README.md)
 

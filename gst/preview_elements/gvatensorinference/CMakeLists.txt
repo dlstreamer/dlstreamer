@@ -6,7 +6,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "gstgvatensorinference")
+set(TARGET_NAME "gvatensorinference")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.16 REQUIRED)
@@ -40,7 +40,8 @@ PUBLIC
 PRIVATE
     gvacommon
     ${GLIB2_LIBRARIES}
-    ${GSTBASE_LDFLAGS}
-    ${GSTREAMER_LDFLAGS}
+    ${GSTBASE_LIBRARIES}
+    ${GSTREAMER_LIBRARIES}
     utils
+    common
 )

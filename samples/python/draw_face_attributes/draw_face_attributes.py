@@ -1,11 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 from gstgva import VideoFrame, util
 import sys
+import os
 import numpy
 import cv2
 from argparse import ArgumentParser
@@ -91,9 +92,9 @@ def create_launch_string():
     gvainference model={} device=CPU inference-region=roi-list ! queue ! \
     gvainference model={} device=CPU inference-region=roi-list ! queue ! \
     gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! \
-    fpsdisplaysink video-sink=xvimagesink sync=false".format(source, args.input, args.detection_model,
-                                                             args.classification_model1, args.classification_model2,
-                                                             args.classification_model3)
+    gvafpscounter ! autovideosink sync=false".format(source, args.input, args.detection_model,
+                                                     args.classification_model1, args.classification_model2,
+                                                     args.classification_model3)
 
 
 def glib_mainloop():
@@ -131,9 +132,18 @@ def set_callbacks(pipeline):
 
 
 if __name__ == '__main__':
+    # SSH does not support vaapisink, so if user is connected via ssh
+    # ximagesink will be prioritised in autovideosink, vaapisink otherwise
+    sink_rank = 'ximagesink:MAX' if not os.system("pstree -s $$ | grep -q 'sshd'") else 'vaapisink:MAX'
+    if 'GST_PLUGIN_FEATURE_RANK' in os.environ:
+        os.environ['GST_PLUGIN_FEATURE_RANK'] += ',' + sink_rank
+    else:
+        os.environ['GST_PLUGIN_FEATURE_RANK'] = sink_rank
+
     Gst.init(sys.argv)
     gst_launch_string = create_launch_string()
-    print(gst_launch_string)
+    print("GST_PLUGIN_FEATURE_RANK=", os.environ.get(
+        "GST_PLUGIN_FEATURE_RANK"), gst_launch_string)
     pipeline = Gst.parse_launch(gst_launch_string)
 
     set_callbacks(pipeline)

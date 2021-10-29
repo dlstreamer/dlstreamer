@@ -6,7 +6,8 @@
 
 #include "gva_utils.h"
 
-#include "inference_backend/logger.h"
+#include <inference_backend/image.h>
+#include <inference_backend/logger.h>
 
 #include <cassert>
 #include <string>
@@ -41,4 +42,30 @@ void gva_buffer_check_and_make_writable(GstBuffer **buffer, const char *called_f
         GST_WARNING("%s: Making a writable buffer requires buffer copy.", called_function_name);
         *buffer = gst_buffer_make_writable(*buffer);
     }
+}
+
+int gst_format_to_fourcc(int format) {
+    switch (format) {
+    case GST_VIDEO_FORMAT_NV12:
+        GST_DEBUG("GST_VIDEO_FORMAT_NV12");
+        return InferenceBackend::FourCC::FOURCC_NV12;
+    case GST_VIDEO_FORMAT_BGR:
+        GST_DEBUG("GST_VIDEO_FORMAT_BGR");
+        return InferenceBackend::FourCC::FOURCC_BGR;
+    case GST_VIDEO_FORMAT_BGRx:
+        GST_DEBUG("GST_VIDEO_FORMAT_BGRx");
+        return InferenceBackend::FourCC::FOURCC_BGRX;
+    case GST_VIDEO_FORMAT_BGRA:
+        GST_DEBUG("GST_VIDEO_FORMAT_BGRA");
+        return InferenceBackend::FourCC::FOURCC_BGRA;
+    case GST_VIDEO_FORMAT_RGBA:
+        GST_DEBUG("GST_VIDEO_FORMAT_RGBA");
+        return InferenceBackend::FourCC::FOURCC_RGBA;
+    case GST_VIDEO_FORMAT_I420:
+        GST_DEBUG("GST_VIDEO_FORMAT_I420");
+        return InferenceBackend::FourCC::FOURCC_I420;
+    }
+
+    GST_WARNING("Unsupported GST Format: %d.", format);
+    return 0;
 }

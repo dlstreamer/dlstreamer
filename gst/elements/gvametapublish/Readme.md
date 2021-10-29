@@ -33,7 +33,7 @@ A GStreamer element to publish JSON data to a designated file, or a chosen messa
     - To publish data to mqtt broker:
 
         ```bash
-        gvametapublish method=mqtt address=127.0.0.1:1883 mqtt-client-id=clientIdValue topic=topicName timeout=timeoutValue
+        gvametapublish method=mqtt address=127.0.0.1:1883 mqtt-client-id=clientIdValue topic=topicName
         ```
 
     - To publish data to kafka broker:

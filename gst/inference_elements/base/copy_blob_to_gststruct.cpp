@@ -6,24 +6,19 @@
 
 #include "copy_blob_to_gststruct.h"
 
-#include "inference_backend/safe_arithmetic.h"
+#include "safe_arithmetic.hpp"
 #include <inference_backend/logger.h>
 
 #include <cmath>
 
 using namespace std;
 
-void copy_buffer_to_structure(GstStructure *structure, const void *buffer, int size) {
-    ITT_TASK(__FUNCTION__);
-    GVariant *v = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, buffer, size, 1);
-    if (not v)
-        throw std::invalid_argument("Failed to create GVariant array");
-    gsize n_elem;
-    gst_structure_set(structure, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
-                      g_variant_get_fixed_array(v, &n_elem, 1), NULL);
-}
+namespace {
 
 int GetUnbatchedSizeInBytes(InferenceBackend::OutputBlob::Ptr blob, size_t batch_size) {
+    if (!blob)
+        throw std::invalid_argument("GetUnbatchedSizeInBytes: blob is null");
+
     const std::vector<size_t> &dims = blob->GetDims();
     // On some type of models, such as SSD, batch-size at the output layer may differ from the input layer in case of
     // reshape. In the topology of such models, there is a decrease in dimension on hidden layers, which causes the
@@ -37,10 +32,26 @@ int GetUnbatchedSizeInBytes(InferenceBackend::OutputBlob::Ptr blob, size_t batch
     size /= batch_size;
 
     switch (blob->GetPrecision()) {
+    case InferenceBackend::OutputBlob::Precision::FP64:
+    case InferenceBackend::OutputBlob::Precision::I64:
+    case InferenceBackend::OutputBlob::Precision::U64:
+        size *= sizeof(int64_t);
+        break;
     case InferenceBackend::OutputBlob::Precision::FP32:
-        size *= sizeof(float);
+    case InferenceBackend::OutputBlob::Precision::I32:
+    case InferenceBackend::OutputBlob::Precision::U32:
+        size *= sizeof(int32_t);
+        break;
+    case InferenceBackend::OutputBlob::Precision::FP16:
+    case InferenceBackend::OutputBlob::Precision::BF16:
+    case InferenceBackend::OutputBlob::Precision::I16:
+    case InferenceBackend::OutputBlob::Precision::Q78:
+    case InferenceBackend::OutputBlob::Precision::U16:
+        size *= sizeof(int16_t);
         break;
     case InferenceBackend::OutputBlob::Precision::U8:
+    case InferenceBackend::OutputBlob::Precision::I8:
+    case InferenceBackend::OutputBlob::Precision::BOOL:
         break;
     default:
         throw std::invalid_argument("Failed to get blob size for blob with " +
@@ -72,22 +83,40 @@ GValueArray *ConvertVectorToGValueArr(const std::vector<size_t> &vector) {
     }
 }
 
+} // namespace
+
+void copy_buffer_to_structure(GstStructure *structure, const void *buffer, size_t size) {
+    ITT_TASK(__FUNCTION__);
+    if (!structure || !buffer)
+        throw std::invalid_argument("Failed to copy buffer to structure: null arguments");
+
+    GVariant *v = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, buffer, size, 1);
+    if (not v)
+        throw std::invalid_argument("Failed to create GVariant array");
+    gsize n_elem;
+    gst_structure_set(structure, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
+                      g_variant_get_fixed_array(v, &n_elem, 1), NULL);
+}
+
 void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStructure *gst_struct,
                                   const char *model_name, const char *layer_name, int32_t batch_size,
                                   int32_t batch_index) {
     try {
+        if (!blob)
+            throw std::invalid_argument("Blob pointer is null");
+
         const uint8_t *data = reinterpret_cast<const uint8_t *>(blob->GetData());
         if (data == nullptr)
             throw std::invalid_argument("Failed to get blob data");
 
-        int size = GetUnbatchedSizeInBytes(blob, batch_size);
+        size_t size = GetUnbatchedSizeInBytes(blob, batch_size);
 
         // TODO: check data buffer size
         copy_buffer_to_structure(gst_struct, data + batch_index * size, size);
 
         gst_structure_set(gst_struct, "layer_name", G_TYPE_STRING, layer_name, "model_name", G_TYPE_STRING, model_name,
-                          "precision", G_TYPE_INT, (int)blob->GetPrecision(), "layout", G_TYPE_INT,
-                          (int)blob->GetLayout(), NULL);
+                          "precision", G_TYPE_INT, static_cast<int>(blob->GetPrecision()), "layout", G_TYPE_INT,
+                          static_cast<int>(blob->GetLayout()), NULL);
 
         // dimensions
         auto dims = blob->GetDims();

@@ -30,15 +30,5 @@ struct RasterText {
 
 using Text = std::pair<gpu::dpcpp::RasterText, Color>;
 
-struct MaskedPixel {
-    cv::Scalar_<u_int8_t> ch;
-    bool colored; // Indicates should the exact pixel be colored or not.
-};
-
-struct SubsampligParams {
-    uint8_t J;
-    uint8_t a;
-    uint8_t b;
-};
 } // namespace dpcpp
 } // namespace gpu

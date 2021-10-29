@@ -7,20 +7,42 @@
 #include "coordinates_restorer.h"
 
 #include "copy_blob_to_gststruct.h"
-#include "gva_base_inference.h"
 #include "gva_utils.h"
 #include "processor_types.h"
 
 #include "inference_backend/logger.h"
-#include "inference_backend/safe_arithmetic.h"
-#include "tensor.h"
 
-#include <cassert>
 #include <exception>
-#include <memory>
-#include <vector>
 
 using namespace post_processing;
+
+template <typename T>
+void CoordinatesRestorer::restoreActualCoordinates(const FrameWrapper &frame, T &real_x, T &real_y) {
+    const InferenceBackend::ImageTransformationParams::Ptr pre_proc_info = frame.image_transform_info;
+    if (!(pre_proc_info && pre_proc_info->WasTransformation()))
+        return;
+
+    auto orig_img_abs_x = real_x * input_info.width;
+    auto orig_img_abs_y = real_y * input_info.height;
+
+    if (pre_proc_info->WasPadding()) {
+        orig_img_abs_x -= pre_proc_info->padding_size_x;
+        orig_img_abs_y -= pre_proc_info->padding_size_y;
+    }
+    if (pre_proc_info->WasCrop()) {
+        orig_img_abs_x += pre_proc_info->croped_border_size_x;
+        orig_img_abs_y += pre_proc_info->croped_border_size_y;
+    }
+    if (pre_proc_info->WasResize()) {
+        if (pre_proc_info->resize_scale_x)
+            orig_img_abs_x /= pre_proc_info->resize_scale_x;
+        if (pre_proc_info->resize_scale_y)
+            orig_img_abs_y /= pre_proc_info->resize_scale_y;
+    }
+
+    real_x = orig_img_abs_x / frame.roi->w;
+    real_y = orig_img_abs_y / frame.roi->h;
+}
 
 void ROICoordinatesRestorer::clipNormalizedRect(double &real_x_min, double &real_y_min, double &real_x_max,
                                                 double &real_y_max) {
@@ -46,59 +68,20 @@ void ROICoordinatesRestorer::getAbsoluteCoordinates(int orig_image_width, int or
     abs_h = safe_convert<uint32_t>((real_y_max - real_y_min) * orig_image_height + 0.5);
 }
 
-void ROICoordinatesRestorer::getActualCoordinates(int orig_image_width, int orig_image_height,
-                                                  const InferenceBackend::ImageTransformationParams::Ptr &pre_proc_info,
-                                                  double &real_x_min, double &real_y_min, double &real_x_max,
-                                                  double &real_y_max) {
-
-    auto input_img_abs_min_x = real_x_min * input_info.width;
-    auto input_img_abs_min_y = real_y_min * input_info.height;
-    auto input_img_abs_max_x = real_x_max * input_info.width;
-    auto input_img_abs_max_y = real_y_max * input_info.height;
-
-    if (pre_proc_info->WasCrop()) {
-        input_img_abs_min_x += pre_proc_info->cropped_frame_size_x;
-        input_img_abs_min_y += pre_proc_info->cropped_frame_size_y;
-        input_img_abs_max_x += pre_proc_info->cropped_frame_size_x;
-        input_img_abs_max_y += pre_proc_info->cropped_frame_size_y;
-    }
-
-    if (pre_proc_info->WasAspectRatioResize() or pre_proc_info->WasPadding()) {
-        auto abs_min_x = (input_img_abs_min_x - static_cast<double>(pre_proc_info->resize_padding_size_x)) /
-                         pre_proc_info->resize_scale_x;
-        auto abs_min_y = (input_img_abs_min_y - static_cast<double>(pre_proc_info->resize_padding_size_y)) /
-                         pre_proc_info->resize_scale_y;
-        auto abs_max_x = (input_img_abs_max_x - static_cast<double>(pre_proc_info->resize_padding_size_x)) /
-                         pre_proc_info->resize_scale_x;
-        auto abs_max_y = (input_img_abs_max_y - static_cast<double>(pre_proc_info->resize_padding_size_y)) /
-                         pre_proc_info->resize_scale_y;
-
-        real_x_min = abs_min_x / orig_image_width;
-        real_x_max = abs_max_x / orig_image_width;
-        real_y_min = abs_min_y / orig_image_height;
-        real_y_max = abs_max_y / orig_image_height;
-    } else {
-        real_x_min += static_cast<double>(pre_proc_info->cropped_frame_size_x) / orig_image_width;
-        real_x_max += static_cast<double>(pre_proc_info->cropped_frame_size_x) / orig_image_width;
-        real_y_min += static_cast<double>(pre_proc_info->cropped_frame_size_y) / orig_image_height;
-        real_y_max += static_cast<double>(pre_proc_info->cropped_frame_size_y) / orig_image_height;
-    }
-}
-
 /**
  * Iterating through GstBuffer's tensors_batch and searching for meta that matching frame's ROI.
  *
- * @param[in] frame - pointer to InferenceFrame containing pointers to buffer and ROI.
+ * @param[in] frame - pointer to FrameWrapper containing pointers to buffer and ROI.
  *
  * @return GstVideoRegionOfInterestMeta - meta of GstBuffer, or nullptr.
  *
  * @throw std::invalid_argument when GstBuffer is nullptr.
  */
-GstVideoRegionOfInterestMeta *ROICoordinatesRestorer::findDetectionMeta(const InferenceFrame &frame) {
+GstVideoRegionOfInterestMeta *ROICoordinatesRestorer::findDetectionMeta(const FrameWrapper &frame) {
     GstBuffer *buffer = frame.buffer;
     if (not buffer)
         throw std::invalid_argument("Inference frame's buffer is nullptr");
-    auto frame_roi = &frame.roi;
+    auto frame_roi = frame.roi;
     GstVideoRegionOfInterestMeta *meta = nullptr;
     gpointer state = nullptr;
     while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
@@ -110,16 +93,16 @@ GstVideoRegionOfInterestMeta *ROICoordinatesRestorer::findDetectionMeta(const In
 }
 
 void ROICoordinatesRestorer::updateCoordinatesToFullFrame(double &x_min, double &y_min, double &x_max, double &y_max,
-                                                          const InferenceFrame &frame) {
+                                                          const FrameWrapper &frame) {
     /* In case of gvadetect with inference-region=roi-list we get coordinates relative to ROI.
      * We need to convert them to coordinates relative to the full frame. */
-    if (frame.gva_base_inference->inference_region == ROI_LIST) {
+    if (attach_type == AttachType::TO_FRAME) {
         GstVideoRegionOfInterestMeta *meta = findDetectionMeta(frame);
         if (meta) {
-            x_min = (meta->x + meta->w * x_min) / frame.info->width;
-            y_min = (meta->y + meta->h * y_min) / frame.info->height;
-            x_max = (meta->x + meta->w * x_max) / frame.info->width;
-            y_max = (meta->y + meta->h * y_max) / frame.info->height;
+            x_min = (meta->x + meta->w * x_min) / frame.width;
+            y_min = (meta->y + meta->h * y_min) / frame.height;
+            x_max = (meta->x + meta->w * x_max) / frame.width;
+            y_max = (meta->y + meta->h * y_max) / frame.height;
         }
     }
 }
@@ -130,38 +113,32 @@ void ROICoordinatesRestorer::getRealCoordinates(GstStructure *detection_tensor, 
                       "y_min", G_TYPE_DOUBLE, &y_min_real, "y_max", G_TYPE_DOUBLE, &y_max_real, NULL);
 }
 
-void ROICoordinatesRestorer::getCoordinates(GstStructure *detection_tensor, const InferenceFrame &frame,
+void ROICoordinatesRestorer::getCoordinates(GstStructure *detection_tensor, const FrameWrapper &frame,
                                             double &x_min_real, double &y_min_real, double &x_max_real,
                                             double &y_max_real, uint32_t &x_abs, uint32_t &y_abs, uint32_t &w_abs,
                                             uint32_t &h_abs) {
 
     getRealCoordinates(detection_tensor, x_min_real, y_min_real, x_max_real, y_max_real);
 
-    if (frame.image_transform_info and frame.image_transform_info->WasTransformation())
-        getActualCoordinates(frame.info->width, frame.info->height, frame.image_transform_info, x_min_real, y_min_real,
-                             x_max_real, y_max_real);
+    if (frame.image_transform_info and frame.image_transform_info->WasTransformation()) {
+        restoreActualCoordinates(frame, x_min_real, y_min_real);
+        restoreActualCoordinates(frame, x_max_real, y_max_real);
+    }
 
     updateCoordinatesToFullFrame(x_min_real, y_min_real, x_max_real, y_max_real, frame);
 
     clipNormalizedRect(x_min_real, y_min_real, x_max_real, y_max_real);
 
-    getAbsoluteCoordinates(frame.info->width, frame.info->height, x_min_real, y_min_real, x_max_real, y_max_real, x_abs,
-                           y_abs, w_abs, h_abs);
+    getAbsoluteCoordinates(frame.width, frame.height, x_min_real, y_min_real, x_max_real, y_max_real, x_abs, y_abs,
+                           w_abs, h_abs);
 }
 
-void ROICoordinatesRestorer::restore(TensorsTable &tensors_batch, const InferenceFrames &frames) {
+void ROICoordinatesRestorer::restore(TensorsTable &tensors_batch, const FramesWrapper &frames) {
     try {
-
-        if (frames.empty()) {
-            throw std::invalid_argument("There are no inference frames");
-        }
-
-        if (frames.size() != tensors_batch.size())
-            throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                                   std::to_string(tensors_batch.size()) + " / " + std::to_string(frames.size()));
+        checkFramesAndTensorsTable(frames, tensors_batch);
 
         for (size_t i = 0; i < frames.size(); ++i) {
-            const auto &frame = *frames[i].get();
+            const auto &frame = frames[i];
             const auto &tensor = tensors_batch[i];
 
             for (size_t j = 0; j < tensor.size(); ++j) {
@@ -179,54 +156,16 @@ void ROICoordinatesRestorer::restore(TensorsTable &tensors_batch, const Inferenc
             }
         }
     } catch (const std::exception &e) {
-        GVA_ERROR(e.what());
+        GVA_ERROR("An error occurred while restoring coordinates for ROI: %s", e.what());
     }
 }
 
-void KeypointsCoordinatesRestorer::restoreActualCoordinates(const InferenceFrame &frame, float &real_x, float &real_y) {
-    const InferenceBackend::ImageTransformationParams::Ptr pre_proc_info = frame.image_transform_info;
-    const size_t orig_image_width = frame.roi.w;
-    const size_t orig_image_height = frame.roi.h;
-
-    if (not(pre_proc_info and pre_proc_info->WasTransformation()))
-        return;
-
-    auto input_img_abs_x = real_x * input_info.width;
-    auto input_img_abs_y = real_y * input_info.height;
-
-    if (pre_proc_info->WasCrop()) {
-        input_img_abs_x += pre_proc_info->cropped_frame_size_x;
-        input_img_abs_y += pre_proc_info->cropped_frame_size_y;
-    }
-    if (pre_proc_info->WasAspectRatioResize() or pre_proc_info->WasPadding()) {
-
-        auto abs_x = (input_img_abs_x - safe_convert<float>(pre_proc_info->resize_padding_size_x)) /
-                     pre_proc_info->resize_scale_x;
-        auto abs_y = (input_img_abs_y - safe_convert<float>(pre_proc_info->resize_padding_size_y)) /
-                     pre_proc_info->resize_scale_y;
-
-        real_x = abs_x / orig_image_width;
-        real_y = abs_y / orig_image_height;
-
-    } else {
-        real_x += static_cast<float>(pre_proc_info->cropped_frame_size_x) / orig_image_width;
-        real_y += static_cast<float>(pre_proc_info->cropped_frame_size_y) / orig_image_height;
-    }
-}
-
-void KeypointsCoordinatesRestorer::restore(TensorsTable &tensors, const InferenceFrames &frames) {
+void KeypointsCoordinatesRestorer::restore(TensorsTable &tensors, const FramesWrapper &frames) {
     try {
-
-        if (frames.empty()) {
-            throw std::invalid_argument("There are no inference frames");
-        }
-
-        if (frames.size() != tensors.size())
-            throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                                   std::to_string(tensors.size()) + " / " + std::to_string(frames.size()));
+        checkFramesAndTensorsTable(frames, tensors);
 
         for (size_t i = 0; i < frames.size(); ++i) {
-            const auto &frame = *frames[i].get();
+            const auto &frame = frames[i];
             const auto &tensor = tensors[i];
 
             for (size_t j = 0; j < tensor.size(); ++j) {
@@ -261,6 +200,6 @@ void KeypointsCoordinatesRestorer::restore(TensorsTable &tensors, const Inferenc
             }
         }
     } catch (const std::exception &e) {
-        GVA_ERROR(e.what());
+        GVA_ERROR("An error occurred while restoring coordinates for keypoints: %s", e.what());
     }
 }

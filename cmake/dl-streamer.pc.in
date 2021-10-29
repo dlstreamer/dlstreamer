@@ -2,7 +2,7 @@ prefix=${pcfiledir}/../..
 exec_prefix=${prefix}/bin
 libdir=${prefix}/lib
 includedir=${prefix}/include
-Name: GStreamer Video Analytics (GVA) Plugin
+Name: DL Streamer (Gstreamer Video Analytics Plugin)
 Description: Elements that enable CNN model-based video analytics capabilities in the GStreamer framework
 Version:@VERSION_MAJOR@.@VERSION_MINOR@.@VERSION_PATCH@
 Libs: -L${libdir} -lgstvideoanalyticsmeta

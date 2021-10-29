@@ -51,7 +51,10 @@ VaApiImage::VaApiImage() {
 }
 
 VaApiImage::VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, int pixel_format,
-                       MemoryType memory_type) {
+                       MemoryType memory_type, uint32_t scaling_flgs /*= VA_FILTER_SCALING_DEFAULT*/) {
+    if (!context_)
+        throw std::invalid_argument("Invalid Vaapi context object");
+
     context = context_;
     image.type = memory_type;
     image.width = width;
@@ -61,6 +64,7 @@ VaApiImage::VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, 
     image.va_surface_id = CreateVASurface(context->Display(), width, height, pixel_format, context_->RTFormat());
     image_map = std::unique_ptr<ImageMap>(ImageMap::Create(memory_type));
     completed = true;
+    scaling_flags = scaling_flgs;
 }
 
 VaApiImage::~VaApiImage() {
@@ -69,8 +73,7 @@ VaApiImage::~VaApiImage() {
             auto dpy = VaDpyWrapper::fromHandle(image.va_display);
             VA_CALL(dpy.drvVtable().vaDestroySurfaces(dpy.drvCtx(), (uint32_t *)&image.va_surface_id, 1));
         } catch (const std::exception &e) {
-            std::string error_message = std::string("VA surface destroying failed with exception: ") + e.what();
-            GVA_WARNING(error_message.c_str());
+            GVA_WARNING("VA surface destroying failed: %s", e.what());
         }
     }
 }
@@ -83,11 +86,14 @@ Image VaApiImage::Map() {
     return image_map->Map(image);
 }
 
-VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, ImageInfo info) {
-    if (not context_)
+VaApiImagePool::VaApiImagePool(VaApiContext *context, SizeParams size_params, ImageInfo info) {
+    if (!context)
         throw std::invalid_argument("VaApiContext is nullptr");
 
-    if (not context_->IsPixelFormatSupported(info.format)) {
+    if (size_params.size() == 0)
+        throw std::invalid_argument("size_params can't be zero");
+
+    if (!context->IsPixelFormatSupported(info.format)) {
         std::string msg = "Unsupported requested pixel format " + FourccName(info.format) + ". ";
         switch (info.memory_type) {
         case InferenceBackend::MemoryType::SYSTEM: {
@@ -95,7 +101,7 @@ VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, I
             // conversion after.
             bool is_set = false;
             for (auto format : possible_formats)
-                if (context_->IsPixelFormatSupported(format.va_fourcc)) {
+                if (context->IsPixelFormatSupported(format.va_fourcc)) {
                     msg += "Using a supported format " + FourccName(format.va_fourcc) + ".";
                     info.format = format.ib_fourcc;
                     is_set = true;
@@ -104,7 +110,7 @@ VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, I
             if (not is_set)
                 throw std::runtime_error(msg + "Could not set the other pixel format, none are supported.");
             else
-                GVA_WARNING(msg.c_str());
+                GVA_WARNING("%s", msg.c_str());
             break;
         }
         // In the case when the vaapi memory is requested, we cannot do software color conversion after.
@@ -115,9 +121,13 @@ VaApiImagePool::VaApiImagePool(VaApiContext *context_, size_t image_pool_size, I
         }
     }
 
-    for (size_t i = 0; i < image_pool_size; ++i) {
+    GVA_INFO("VA-API image pool size: default=%u, fast=%u", size_params.num_default, size_params.num_fast);
+
+    _images.reserve(size_params.size());
+    for (size_t i = 0; i < size_params.size(); i++) {
+        const uint32_t scaling_method = i < size_params.num_fast ? VA_FILTER_SCALING_FAST : VA_FILTER_SCALING_DEFAULT;
         _images.push_back(std::unique_ptr<VaApiImage>(
-            new VaApiImage(context_, info.width, info.height, info.format, info.memory_type)));
+            new VaApiImage(context, info.width, info.height, info.format, info.memory_type, scaling_method)));
     }
 }
 
@@ -136,7 +146,7 @@ VaApiImage *VaApiImagePool::AcquireBuffer() {
 
 void VaApiImagePool::ReleaseBuffer(VaApiImage *image) {
     if (!image)
-        throw std::runtime_error("Recived VA-API image is null");
+        throw std::runtime_error("Received VA-API image is null");
 
     image->completed = true;
     _free_image_condition_variable.notify_one();

@@ -8,57 +8,54 @@
 
 #include "post_proc_common.h"
 
-#include "inference_backend/input_image_layer_descriptor.h"
-
 #include <gst/gst.h>
 #include <gst/video/gstvideometa.h>
 
-#include <map>
-#include <memory>
-#include <string>
-
-struct InferenceFrame;
-
 namespace post_processing {
 class MetaAttacher {
-  protected:
-    ModelImageInputInfo input_info;
-
   public:
-    MetaAttacher(const ModelImageInputInfo &input_info) : input_info(input_info) {
-    }
+    MetaAttacher() = default;
 
-    virtual void attach(const TensorsTable &tensors_batch, InferenceFrames &frames) = 0;
+    virtual void attach(const TensorsTable &tensors_batch, FramesWrapper &frames) = 0;
 
     using Ptr = std::unique_ptr<MetaAttacher>;
-    static Ptr create(int inference_type, int inference_region, const ModelImageInputInfo &input_image_info);
+    static Ptr create(ConverterType converter_type, AttachType attach_type);
 
     virtual ~MetaAttacher() = default;
 };
 
 class ROIToFrameAttacher : public MetaAttacher {
   public:
-    ROIToFrameAttacher(const ModelImageInputInfo &input_info) : MetaAttacher(input_info) {
-    }
+    ROIToFrameAttacher() = default;
 
-    void attach(const TensorsTable &tensors_batch, InferenceFrames &frames) override;
+    void attach(const TensorsTable &tensors_batch, FramesWrapper &frames) override;
 };
+
 class TensorToFrameAttacher : public MetaAttacher {
   public:
-    TensorToFrameAttacher(const ModelImageInputInfo &input_info) : MetaAttacher(input_info) {
-    }
+    TensorToFrameAttacher() = default;
 
-    void attach(const TensorsTable &tensors_batch, InferenceFrames &frames) override;
+    void attach(const TensorsTable &tensors_batch, FramesWrapper &frames) override;
 };
+
 class TensorToROIAttacher : public MetaAttacher {
+  private:
+    GstVideoRegionOfInterestMeta *findROIMeta(GstBuffer *buffer, GstVideoRegionOfInterestMeta *frame_roi);
+
+  public:
+    TensorToROIAttacher() = default;
+
+    void attach(const TensorsTable &tensors_batch, FramesWrapper &frames) override;
+};
+
+class TensorToFrameAttacherForMicro : public MetaAttacher {
   private:
     GstVideoRegionOfInterestMeta *findROIMeta(GstBuffer *buffer, const GstVideoRegionOfInterestMeta &frame_roi);
 
   public:
-    TensorToROIAttacher(const ModelImageInputInfo &input_info) : MetaAttacher(input_info) {
-    }
+    TensorToFrameAttacherForMicro() = default;
 
-    void attach(const TensorsTable &tensors_batch, InferenceFrames &frames) override;
+    void attach(const TensorsTable &tensors_batch, FramesWrapper &frames) override;
 };
 
 } // namespace post_processing

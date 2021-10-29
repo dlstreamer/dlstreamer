@@ -1,10 +1,9 @@
 {
-    "json_schema_version": "2.0.0",
+    "json_schema_version": "2.1.0",
     "input_preproc": [
         {
             "format": "image",
-            "layer_name": "input",
-            "precision": "FP32",
+            "layer_name": "data",
             "params": {
                 "color_space": "BGR",
                 "resize": "aspect-ratio",
@@ -17,7 +16,7 @@
     ],
     "output_postproc": [
         {
-            "converter": "tensor_to_keypoints_hrnet",
+            "converter": "keypoints_hrnet",
             "point_names": [
                 "nose",
                 "eye_l",

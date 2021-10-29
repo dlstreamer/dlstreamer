@@ -1,26 +1,30 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "audio_infer_impl.h"
 #include <cmath>
+#include <stdexcept>
 
 AudioInferImpl::~AudioInferImpl() {
 }
 
 AudioInferImpl::AudioInferImpl(GvaAudioBaseInference *audio_base_inference) {
+    if (!audio_base_inference)
+        throw std::invalid_argument("GvaAudioBaseInference is null");
+
     this->audio_base_inference = audio_base_inference;
     setNumOfSamplesToSlide();
 }
 
-void AudioInferImpl::addSamples(int16_t *samples, uint num_samples, ulong start_time) {
-    if (samples && num_samples > 0) {
-        setStartTime(start_time);
-        audioData.insert(audioData.end(), &samples[0], &samples[num_samples]);
-    } else
+void AudioInferImpl::addSamples(int16_t *samples, uint32_t num_samples, uint64_t start_time) {
+    if (!samples || num_samples == 0)
         throw std::runtime_error("Invalid Input data");
+
+    setStartTime(start_time);
+    audioData.insert(audioData.end(), &samples[0], &samples[num_samples]);
 }
 
 bool AudioInferImpl::readyToInfer() {
@@ -28,9 +32,14 @@ bool AudioInferImpl::readyToInfer() {
 }
 
 void AudioInferImpl::fillAudioFrame(AudioInferenceFrame *frame) {
+    if (!frame)
+        throw std::invalid_argument("AudioInferenceFrame is null");
+    if (inferenceStartTime.empty())
+        throw std::runtime_error("Inference start time is not set");
+
     frame->samples = audioData;
-    frame->startTime = inferenceStartTime[0];
-    frame->endTime = inferenceStartTime[0] + (audioData.size() * MULTIPLIER);
+    frame->startTime = inferenceStartTime.front();
+    frame->endTime = inferenceStartTime.front() + (audioData.size() * MULTIPLIER);
     if (sliding_samples < audio_base_inference->sample_length) {
         audioData.erase(audioData.begin(), audioData.begin() + sliding_samples);
         inferenceStartTime.erase(inferenceStartTime.begin());
@@ -41,7 +50,7 @@ void AudioInferImpl::fillAudioFrame(AudioInferenceFrame *frame) {
     startTimeSet = false;
 }
 
-void AudioInferImpl::setStartTime(ulong start_time) {
+void AudioInferImpl::setStartTime(uint64_t start_time) {
     if (sliding_samples < audio_base_inference->sample_length && ((audioData.size() % sliding_samples) == 0)) {
         startTimeSet = false;
     }

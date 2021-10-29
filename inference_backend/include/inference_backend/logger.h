@@ -1,11 +1,14 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
+
 #include "config.h"
+#include <stdarg.h>
+
 enum {
     GVA_ERROR_LOG_LEVEL = 1,
     GVA_WARNING_LOG_LEVEL,
@@ -17,24 +20,29 @@ enum {
     GVA_MEMDUMP_LOG_LEVEL,
 };
 
-#define GVA_DEBUG_LOG(level, message) debug_log(level, __FILE__, __FUNCTION__, __LINE__, message);
-
-#define GVA_MEMDUMP(message) GVA_DEBUG_LOG(GVA_MEMDUMP_LOG_LEVEL, message);
-#define GVA_TRACE(message) GVA_DEBUG_LOG(GVA_TRACE_LOG_LEVEL, message);
-#define GVA_LOG(message) GVA_DEBUG_LOG(GVA_LOG_LOG_LEVEL, message);
-#define GVA_DEBUG(message) GVA_DEBUG_LOG(GVA_DEBUG_LEVEL, message);
-#define GVA_INFO(message) GVA_DEBUG_LOG(GVA_INFO_LOG_LEVEL, message);
-#define GVA_FIXME(message) GVA_DEBUG_LOG(GVA_FIXME_LOG_LEVEL, message);
-#define GVA_WARNING(message) GVA_DEBUG_LOG(GVA_WARNING_LOG_LEVEL, message);
-#define GVA_ERROR(message) GVA_DEBUG_LOG(GVA_ERROR_LOG_LEVEL, message);
-
-using GvaLogFuncPtr = void (*)(int level, const char *file, const char *function, int line, const char *message);
+using GvaLogFuncPtr = void (*)(int level, const char *file, const char *function, int line, const char *format,
+                               va_list args);
 
 void set_log_function(GvaLogFuncPtr log_func);
+void debug_log(int level, const char *file, const char *function, int line, const char *format, ...)
+#ifdef __linux__
+    __attribute__((__format__(__printf__, 5, 6)))
+#endif
+    ;
 
-void debug_log(int level, const char *file, const char *function, int line, const char *message);
+#define GVA_DEBUG_LOG(level, format, ...)                                                                              \
+    do {                                                                                                               \
+        debug_log(level, __FILE__, __FUNCTION__, __LINE__, format, ##__VA_ARGS__);                                     \
+    } while (0)
 
-void default_log_function(int level, const char *file, const char *function, int line, const char *message);
+#define GVA_MEMDUMP(format, ...) GVA_DEBUG_LOG(GVA_MEMDUMP_LOG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_TRACE(format, ...) GVA_DEBUG_LOG(GVA_TRACE_LOG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_LOG(format, ...) GVA_DEBUG_LOG(GVA_LOG_LOG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_DEBUG(format, ...) GVA_DEBUG_LOG(GVA_DEBUG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_INFO(format, ...) GVA_DEBUG_LOG(GVA_INFO_LOG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_FIXME(format, ...) GVA_DEBUG_LOG(GVA_FIXME_LOG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_WARNING(format, ...) GVA_DEBUG_LOG(GVA_WARNING_LOG_LEVEL, format, ##__VA_ARGS__)
+#define GVA_ERROR(format, ...) GVA_DEBUG_LOG(GVA_ERROR_LOG_LEVEL, format, ##__VA_ARGS__)
 
 #if defined(ENABLE_ITT) && defined(__cplusplus)
 #include "ittnotify.h"

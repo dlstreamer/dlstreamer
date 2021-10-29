@@ -33,6 +33,7 @@ static void gva_audio_base_inference_init(GvaAudioBaseInference *audio_base_infe
 
     if (audio_base_inference == NULL)
         return;
+
     gva_audio_base_inference_cleanup(audio_base_inference);
     audio_base_inference->model = g_strdup(DEFAULT_MODEL);
     audio_base_inference->model_proc = g_strdup(DEFAULT_MODEL_PROC);
@@ -99,6 +100,14 @@ gboolean gva_audio_base_inference_stop(GstBaseTransform *trans) {
 gboolean gva_audio_base_inference_start(GstBaseTransform *trans) {
     GvaAudioBaseInference *audio_base_inference = GVA_AUDIO_BASE_INFERENCE(trans);
     GST_DEBUG_OBJECT(audio_base_inference, "start");
+
+    GST_INFO_OBJECT(audio_base_inference,
+                    "%s inference parameters:\n -- Model: %s\n -- Model proc: %s\n "
+                    "-- Sliding window: %f\n -- Threshold: %f\n -- Device: %s\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(audio_base_inference)), audio_base_inference->model,
+                    audio_base_inference->model_proc, audio_base_inference->sliding_length,
+                    audio_base_inference->threshold, audio_base_inference->device);
+
     if (audio_base_inference->model == NULL) {
         GST_ELEMENT_ERROR(audio_base_inference, RESOURCE, NOT_FOUND, ("'model' is not set"),
                           ("'model' property is not set"));
@@ -118,6 +127,7 @@ gboolean gva_audio_base_inference_start(GstBaseTransform *trans) {
             return FALSE;
         }
     }
+
     if (audio_base_inference->model_proc != NULL) {
         if (!g_file_test(audio_base_inference->model_proc, G_FILE_TEST_EXISTS)) {
             GST_ELEMENT_WARNING(audio_base_inference, RESOURCE, NOT_FOUND, ("'model-proc' does not exist"),

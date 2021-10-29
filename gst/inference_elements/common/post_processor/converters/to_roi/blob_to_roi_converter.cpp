@@ -5,8 +5,8 @@
  ******************************************************************************/
 
 #include "blob_to_roi_converter.h"
-#include "atss.h"
-#include "ssd.h"
+#include "boxes_labels.h"
+#include "detection_output.h"
 #include "yolo_base.h"
 #include "yolo_v2.h"
 #include "yolo_v3.h"
@@ -24,11 +24,9 @@
 
 using namespace post_processing;
 
-BlobToMetaConverter::Ptr BlobToROIConverter::create(const std::string &model_name,
-                                                    const ModelImageInputInfo &input_image_info,
-                                                    GstStructureUniquePtr model_proc_output_info,
-                                                    const std::vector<std::string> &labels,
+BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initializer initializer,
                                                     const std::string &converter_name) {
+    auto &model_proc_output_info = initializer.model_proc_output_info;
     if (model_proc_output_info == nullptr)
         throw std::runtime_error("model_proc_output_info have been hot initialized.");
 
@@ -36,15 +34,12 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(const std::string &model_nam
     if (not gst_structure_get_double(model_proc_output_info.get(), "confidence_threshold", &confidence_threshold))
         throw std::runtime_error("Have not been gotten confidence_threshold.");
 
-    if (converter_name == SSDConverter::getName())
-        return BlobToMetaConverter::Ptr(new SSDConverter(
-            model_name, input_image_info, std::move(model_proc_output_info), labels, confidence_threshold));
-    else if (converter_name == ATSSConverter::getName())
-        return BlobToMetaConverter::Ptr(new ATSSConverter(
-            model_name, input_image_info, std::move(model_proc_output_info), labels, confidence_threshold));
+    if (converter_name == DetectionOutputConverter::getName())
+        return BlobToMetaConverter::Ptr(new DetectionOutputConverter(std::move(initializer), confidence_threshold));
+    else if (converter_name == BoxesLabelsConverter::getName())
+        return BlobToMetaConverter::Ptr(new BoxesLabelsConverter(std::move(initializer), confidence_threshold));
     else if (converter_name == YOLOv2Converter::getName() || converter_name == YOLOv3Converter::getName())
-        return YOLOBaseConverter::create(model_name, input_image_info, std::move(model_proc_output_info), labels,
-                                         converter_name, confidence_threshold);
+        return YOLOBaseConverter::create(std::move(initializer), converter_name, confidence_threshold);
     else
         throw std::runtime_error("Converter \"" + converter_name + "\" is not implemented.");
 

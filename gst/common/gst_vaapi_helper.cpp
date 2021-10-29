@@ -60,9 +60,10 @@ VaApiDisplayPtr queryDisplayInternal(GstPad *pad, const gchar *context_type, con
 
 VaApiDisplayPtr queryVaDisplay(GstBaseTransform *element) {
     static const char GST_VAAPI_DISPLAY_CONTEXT_TYPE_NAME[] = "gst.vaapi.Display";
+    static const char GST_VAAPI_DISPLAY_CONTEXT_FIELD_NAME[] = "gst.vaapi.Display.GObject";
 
     return queryDisplayInternal(element->sinkpad, GST_VAAPI_DISPLAY_CONTEXT_TYPE_NAME,
-                                GST_VAAPI_DISPLAY_CONTEXT_TYPE_NAME);
+                                GST_VAAPI_DISPLAY_CONTEXT_FIELD_NAME);
 }
 
 #else
