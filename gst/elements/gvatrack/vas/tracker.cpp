@@ -106,6 +106,7 @@ Tracker::Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_ty
     std::vector<std::string> full_device = Utils::splitString(gva_track->device, '.');
     auto backend = backendType(full_device[0]);
 
+#ifdef ENABLE_VAAPI
     const bool use_gpu_so =
         backend == vas::BackendType::GPU && (tracking_type == vas::ot::TrackingType::ZERO_TERM ||
                                              tracking_type == vas::ot::TrackingType::ZERO_TERM_COLOR_HISTOGRAM);
@@ -117,7 +118,9 @@ Tracker::Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_ty
     } else {
         builder = std::unique_ptr<vas::ot::ObjectTracker::Builder>(new vas::ot::ObjectTracker::Builder());
     }
-
+#else
+    builder = std::unique_ptr<vas::ot::ObjectTracker::Builder>(new vas::ot::ObjectTracker::Builder());
+#endif
     builder->input_image_format = ConvertFormat(gva_track->info->finfo->format);
 
     // Initialize with defaults
@@ -161,12 +164,16 @@ Tracker::Tracker(const GstGvaTrack *gva_track, vas::ot::TrackingType tracking_ty
     }
 
     builder->platform_config = std::move(cfg);
+#ifdef ENABLE_VAAPI
     if (use_gpu_so) {
         // TODO: Need to get va display
         // object_tracker = builder.Build(va_context.DisplayRaw(), tracker_type);
     } else {
+#endif
         object_tracker = builder->Build(tracker_type);
+#ifdef ENABLE_VAAPI
     }
+#endif
 }
 
 void Tracker::track(GstBuffer *buffer) {
