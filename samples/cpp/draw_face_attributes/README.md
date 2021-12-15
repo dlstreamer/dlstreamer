@@ -25,6 +25,7 @@ The sample uses by default the following pre-trained models from OpenVINO™ Too
 ```sh
 ./build_and_run.sh [INPUT_VIDEO]
 ```
+> **NOTE**: For CentOS you need to install cmake3 before running script: yum install cmake3
 
 The script `build_and_run.sh` compiles the C++ sample into subfolder under `$HOME/intel/dl_streamer`, then runs the executable file.
 

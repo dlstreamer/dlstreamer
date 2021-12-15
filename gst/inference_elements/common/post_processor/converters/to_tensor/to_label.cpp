@@ -14,6 +14,7 @@
 
 #include <gst/gst.h>
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <string>
@@ -35,6 +36,19 @@ TensorsTable ToLabelConverter::convert(const OutputBlobs &output_blobs) const {
                 throw std::invalid_argument("Output blob is empty.");
             }
             const std::string layer_name = blob_iter.first;
+
+            // get buffer and its size from classification_result
+            const float *data = reinterpret_cast<const float *>(blob->GetData());
+            if (not data)
+                throw std::invalid_argument("Output blob data is nullptr");
+
+            const size_t size = blob->GetSize();
+
+            const auto &labels_raw = getLabels();
+            if (labels_raw.empty()) {
+                throw std::invalid_argument("Failed to get list of classification labels.");
+            }
+
             for (size_t frame_index = 0; frame_index < batch_size; ++frame_index) {
                 GVA::Tensor classification_result = createTensor();
 
@@ -43,75 +57,54 @@ TensorsTable ToLabelConverter::convert(const OutputBlobs &output_blobs) const {
                                                  BlobToMetaConverter::getModelName().c_str(), layer_name.c_str(),
                                                  batch_size, frame_index);
 
-                std::string method =
-                    classification_result.has_field("method") ? classification_result.get_string("method") : "";
-                bool bMax = method == "max";
-                bool bCompound = method == "compound";
-                bool bIndex = method == "index";
+                // FIXME: then c++17 avaliable
+                const auto item = get_data_by_batch_index(data, size, batch_size, frame_index);
+                const float *item_data = item.first;
+                const size_t item_data_size = item.second;
 
-                const auto &blob = blob_iter.second;
-
-                // get buffer and its size from classification_result
-                const float *data = reinterpret_cast<const float *>(blob->GetData());
-                if (not data)
-                    throw std::invalid_argument("Output blob data is nullptr");
-
-                size_t data_size = blob->GetSize();
-
-                // TODO: create method as func to call it in depends of name
-                if (!bMax && !bCompound && !bIndex)
-                    bMax = true;
-
-                auto labels_raw = getLabels();
-                if (labels_raw.empty()) {
-                    throw std::invalid_argument("Failed to get list of classification labels.");
+                if (!bIndex && labels_raw.size() != (bCompound ? 2 : 1) * item_data_size) {
+                    throw std::invalid_argument("Wrong number of classification labels.");
                 }
 
-                if (!bIndex) {
-                    if (labels_raw.size() > (bCompound ? 2 : 1) * data_size) {
-                        throw std::invalid_argument("Wrong number of classification labels.");
-                    }
-                }
                 if (bMax) {
-                    int index;
-                    float confidence;
-                    find_max_element_index(data, labels_raw.size(), index, confidence);
-                    classification_result.set_string("label", labels_raw[index]);
+                    auto max_elem = std::max_element(item_data, item_data + item_data_size);
+                    auto index = std::distance(item_data, max_elem);
+                    classification_result.set_string("label", labels_raw.at(index));
                     classification_result.set_int("label_id", index);
-                    classification_result.set_double("confidence", confidence);
+                    classification_result.set_double("confidence", *max_elem);
                 } else if (bCompound) {
                     std::string string;
                     double threshold = classification_result.has_field("threshold")
                                            ? classification_result.get_double("threshold")
                                            : 0.5;
                     double confidence = 0;
-                    for (guint j = 0; j < (labels_raw.size()) / 2; j++) {
+                    for (size_t j = 0; j < item_data_size; j++) {
                         std::string label;
-                        if (data[j] >= threshold) {
-                            label = labels_raw[j * 2];
-                        } else if (data[j] > 0) {
-                            label = labels_raw[j * 2 + 1];
+                        if (item_data[j] >= threshold) {
+                            label = labels_raw.at(j * 2);
+                        } else if (item_data[j] > 0) {
+                            label = labels_raw.at(j * 2 + 1);
                         }
                         if (!label.empty()) {
                             if (!string.empty() and !isspace(string.back()))
                                 string += " ";
                             string += label;
                         }
-                        if (data[j] >= confidence)
-                            confidence = data[j];
+                        if (item_data[j] >= confidence)
+                            confidence = item_data[j];
                     }
                     classification_result.set_string("label", string);
                     classification_result.set_double("confidence", confidence);
                 } else if (bIndex) {
                     std::string string;
                     int max_value = 0;
-                    for (guint j = 0; j < data_size; j++) {
-                        int value = (int)data[j];
-                        if (value < 0 || (guint)value >= labels_raw.size())
+                    for (size_t j = 0; j < item_data_size; j++) {
+                        int value = static_cast<int>(item_data[j]);
+                        if (value < 0 || static_cast<size_t>(value) >= labels_raw.size())
                             break;
                         if (value > max_value)
                             max_value = value;
-                        string += labels_raw[value];
+                        string += labels_raw.at(value);
                     }
                     if (max_value) {
                         classification_result.set_string("label", string);
@@ -122,13 +115,13 @@ TensorsTable ToLabelConverter::convert(const OutputBlobs &output_blobs) const {
                                            ? classification_result.get_double("threshold")
                                            : 0.5;
                     double confidence = 0;
-                    for (guint j = 0; j < labels_raw.size(); j++) {
-                        if (data[j] >= threshold) {
-                            classification_result.set_string("label", labels_raw[j]);
+                    for (size_t j = 0; j < item_data_size; j++) {
+                        if (item_data[j] >= threshold) {
+                            classification_result.set_string("label", labels_raw.at(j));
                             classification_result.set_double("confidence", confidence);
                         }
-                        if (data[j] >= confidence)
-                            confidence = data[j];
+                        if (item_data[j] >= confidence)
+                            confidence = item_data[j];
                     }
                 }
 
@@ -146,16 +139,4 @@ TensorsTable ToLabelConverter::convert(const OutputBlobs &output_blobs) const {
     }
 
     return tensors_table;
-}
-
-void ToLabelConverter::find_max_element_index(const float *array, int len, int &index, float &value) const {
-    ITT_TASK(__FUNCTION__);
-    index = 0;
-    value = array[0];
-    for (int i = 1; i < len; i++) {
-        if (array[i] > value) {
-            index = i;
-            value = array[i];
-        }
-    }
 }

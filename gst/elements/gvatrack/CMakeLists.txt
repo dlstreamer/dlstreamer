@@ -16,12 +16,22 @@ pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/vas/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/vas/tracker.cpp
 )
 file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/vas/*.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/vas/mapped_mat.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/vas/tracker.h
 )
+
+if (${ENABLE_VAAPI})
+    list(APPEND MAIN_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/vas/tracker_gpu_loader.cpp
+    )
+    list(APPEND MAIN_HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/vas/tracker_gpu_loader.h
+    )
+endif()
 
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
 set_target_lib_version(${TARGET_NAME})

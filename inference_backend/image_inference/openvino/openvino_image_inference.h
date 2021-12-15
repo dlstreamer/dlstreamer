@@ -94,19 +94,20 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::mutex flush_mutex;
 
   private:
+    void FreeRequest(std::shared_ptr<BatchRequest> request);
     InferenceEngine::RemoteContext::Ptr CreateRemoteContext(const std::string &device);
-    bool doNeedImagePreProcessing();
+    bool DoNeedImagePreProcessing() const;
     void SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img,
                                const InferenceBackend::InputImageLayerDesc::Ptr &pre_proc_info,
                                const InferenceBackend::ImageTransformationParams::Ptr image_transform_info);
     void BypassImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img, size_t batch_size);
-    void setCompletionCallback(std::shared_ptr<BatchRequest> &batch_request);
+    void SetCompletionCallback(std::shared_ptr<BatchRequest> &batch_request);
     void
     ApplyInputPreprocessors(std::shared_ptr<BatchRequest> &request,
                             const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors);
-    void setBlobsToInferenceRequest(const std::map<std::string, InferenceEngine::TensorDesc> &layers,
+    void SetBlobsToInferenceRequest(const std::map<std::string, InferenceEngine::TensorDesc> &layers,
                                     std::shared_ptr<BatchRequest> &batch_request,
                                     InferenceBackend::Allocator *allocator);
     std::unique_ptr<WrapImageStrategy::General>

@@ -21,7 +21,7 @@ option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" OFF)
 
 set(VERSION_MAJOR 1)
 set(VERSION_MINOR 5)
-set(VERSION_PATCH 2)
+set(VERSION_PATCH 3)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")

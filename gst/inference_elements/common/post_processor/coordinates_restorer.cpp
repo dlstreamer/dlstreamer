@@ -151,14 +151,7 @@ void ROICoordinatesRestorer::getCoordinates(GstStructure *detection_tensor, cons
 
 void ROICoordinatesRestorer::restore(TensorsTable &tensors_batch, const InferenceFrames &frames) {
     try {
-
-        if (frames.empty()) {
-            throw std::invalid_argument("There are no inference frames");
-        }
-
-        if (frames.size() != tensors_batch.size())
-            throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                                   std::to_string(tensors_batch.size()) + " / " + std::to_string(frames.size()));
+        checkInferenceFramesAndTensorsTable(frames, tensors_batch);
 
         for (size_t i = 0; i < frames.size(); ++i) {
             const auto &frame = *frames[i].get();
@@ -216,14 +209,7 @@ void KeypointsCoordinatesRestorer::restoreActualCoordinates(const InferenceFrame
 
 void KeypointsCoordinatesRestorer::restore(TensorsTable &tensors, const InferenceFrames &frames) {
     try {
-
-        if (frames.empty()) {
-            throw std::invalid_argument("There are no inference frames");
-        }
-
-        if (frames.size() != tensors.size())
-            throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                                   std::to_string(tensors.size()) + " / " + std::to_string(frames.size()));
+        checkInferenceFramesAndTensorsTable(frames, tensors);
 
         for (size_t i = 0; i < frames.size(); ++i) {
             const auto &frame = *frames[i].get();
