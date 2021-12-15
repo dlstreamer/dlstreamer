@@ -9,11 +9,14 @@ EXIT_FAILURE=1
 EXIT_WRONG_ARG=2
 INSTALL_PACKAGE_TYPE=
 AVAILABLE_TYPES=("devel" "runtime")
-REQUIRED_DRIVER_VERSION="21.19.19792"
+REQUIRED_DRIVER_VERSION="21.29.20389"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 UPGRADE_DRIVER=OFF
 UNINSTALL_DRIVER=OFF
 DPCPP_VERSION="2021.2.0"
+
+GFX_VERSION=""
+GRAPHICS_REPOSITORY="deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu focal main"
 
 print_help()
 {
@@ -92,18 +95,10 @@ _install_packages()
 
 _check_distro_version()
 {
-    if [[ $DISTRO == ubuntu ]]; then
-        UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}")
-        if [[ $UBUNTU_VERSION != '18.04' && $UBUNTU_VERSION != '20.04' ]]; then
-            echo
-            echo "Error: This package can be installed only on Ubuntu 18.04 or Ubuntu 20.04."
-            echo "More info https://software.intel.com/content/www/us/en/develop/articles/intel-oneapi-dpcpp-system-requirements" >&2
-            echo "Installation of Intel® oneAPI DPC++ Compiler interrupted"
-            exit $EXIT_FAILURE
-        fi
-    else
+    UBUNTU_VERSION=$(grep -m1 'VERSION_ID' /etc/os-release | grep -Eo "[0-9]{2}.[0-9]{2}")
+    if [[ $UBUNTU_VERSION != '20.04' ]]; then
         echo
-        echo "Error: Installation of this package is supported only on Ubuntu 18.04 or Ubuntu 20.04."
+        echo "Error: Installation of this package is supported only on Ubuntu 20.04."
         echo "Installation of Intel® oneAPI DPC++ Compiler interrupted"
         exit $EXIT_FAILURE
     fi
@@ -113,30 +108,25 @@ distro_init()
 {
     if [[ -f /etc/lsb-release ]]; then
         DISTRO="ubuntu"
+        _check_distro_version
     else
         echo "Unsupported OS ${DISTRO}"
         exit $EXIT_WRONG_ARG
     fi
-
-    _check_distro_version
-}
-
-verify_checksum()
-{
-    curl -L -O "https://github.com/intel/compute-runtime/releases/download/$REQUIRED_DRIVER_VERSION/ww19.sum"
-    sha256sum -c ww19.sum
 }
 
 uninstall_user_mode()
 {
+    add-apt-repository --remove "$GRAPHICS_REPOSITORY"
+
     echo "Looking for previously installed user-mode driver..."
 
-    PACKAGES=("intel-gmmlib"
-              "intel-igc-core"
-              "intel-igc-opencl"
-              "intel-opencl"
+    PACKAGES=("intel-opencl"
+              "intel-opencl-icd"
               "intel-ocloc"
-              "intel-level-zero-gpu")
+              "intel-gmmlib"
+              "intel-igc-core"
+              "intel-igc-opencl")
 
     for package in "${PACKAGES[@]}"; do
         found_package=$(dpkg-query -W -f='${binary:Package}\n' "${package}")
@@ -166,108 +156,58 @@ uninstall_summary()
     echo
 }
 
-download_packages()
-{
-    _install_packages "curl"
-
-    mkdir -p "$SCRIPT_DIR/neo"
-    cd "$SCRIPT_DIR/neo" || exit
-
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-gmmlib_21.1.2_amd64.deb
-    curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.7181/intel-igc-core_1.0.7181_amd64.deb
-    curl -L -O https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.7181/intel-igc-opencl_1.0.7181_amd64.deb
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-opencl_21.19.19792_amd64.deb
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-ocloc_21.19.19792_amd64.deb
-    curl -L -O https://github.com/intel/compute-runtime/releases/download/21.19.19792/intel-level-zero-gpu_1.1.19792_amd64.deb
-
-    verify_checksum
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: checksums do not match for the downloaded packages"
-        echo "       Please check your Internet connection and make sure you have enough disk space or fix the problem manually and try again."
-        exit $EXIT_FAILURE
-    fi
-}
-
-_deploy_deb()
-{
-    cmd="dpkg -i $1"
-    echo "$cmd"
-    eval "$cmd"
-}
-
-install_user_mode()
-{
-    echo "Installing user mode driver..."
-
-    _deploy_deb "intel*.deb"
-    if [[ $? -ne 0 ]]; then
-        echo "ERROR: failed to install rpms $cmd error"  >&2
-        echo "Make sure you have enough disk space or fix the problem manually and try again." >&2
-        exit $EXIT_FAILURE
-    fi
-
-    # exit from $SCRIPT_DIR/neo folder
-    cd - || exit
-
-    # clean it up
-    rm -rf "$SCRIPT_DIR/neo"
-}
-
-add_user_to_video_group()
-{
-    local real_user
-    real_user=$(logname 2>/dev/null || echo "${SUDO_USER:-${USER}}")
-    echo
-    echo "Adding $real_user to the video group..."
-    usermod -a -G video "$real_user"
-    if [[ $? -ne 0 ]]; then
-        echo "WARNING: unable to add $real_user to the video group" >&2
-    fi
-    echo "Adding $real_user to the render group..."
-    usermod -a -G render "$real_user"
-    if [[ $? -ne 0 ]]; then
-        echo "WARNING: unable to add $real_user to the render group" >&2
-    fi
-}
-
 install_driver()
-{
-    uninstall_user_mode
-    download_packages
-    install_user_mode
-    add_user_to_video_group
+{   
+    add-apt-repository --remove "$GRAPHICS_REPOSITORY"
 
-    echo
-    echo "Installation of Intel® GPU driver $REQUIRED_DRIVER_VERSION completed successfully."
-    echo
-    echo "Next steps:"
-    echo "Add OpenCL users to the video and render group: 'sudo usermod -a -G video,render USERNAME'"
-    echo "   e.g. if the user running OpenCL host applications is foo, run: sudo usermod -a -G video,render foo"
-    echo "   Current user has been already added to the video and render group"
-    echo
-}
-
-check_specific_generation()
-{
-    echo "Checking processor generation..."
-    specific_generation=$(grep -m1 'model name' /proc/cpuinfo | grep -E "i[357]-1[01][0-9]{2,4}N?G[147R]E?")
-    if [[ -z "$specific_generation" && "$UPGRADE_DRIVER" != 'ON' ]]; then
+    openvino_dir="/opt/intel/openvino_2021"
+    sudo -E ${openvino_dir}/install_dependencies/install_NEO_OCL_driver.sh -d ${REQUIRED_DRIVER_VERSION} -y
+    if [[ $? -ne 0 ]]; then
         echo
-        echo "Warning: Intel® oneAPI DPC++ Compiler needs Intel® GPU driver $REQUIRED_DRIVER_VERSION or higher."
-        echo "Warning: Your generation Intel® Core™ processor is older than 10th generation Intel® Core™ processor (formerly Ice Lake) or 11th generation Intel® Core™ processor (formerly Tiger Lake)."
-        echo "The newest version of Intel® GPU driver may cause performance degradation of inference in your platform."
-        echo "If you agree and want to continue, please run script again with --upgrade_driver parameter. In this case Intel® GPU driver will be upgraded automatically."
-        exit
+        echo "Error occurred while installing Intel® GPU driver via install_NEO_OCL_driver.sh"
+        echo "Plese try to run install_NEO_OCL_driver.sh script manually from OpenVINO directory to install required Intel® GPU driver."
+        exit $EXIT_FAILURE
     fi
 }
 
 check_current_driver()
 {
-    gfx_version=$(apt show intel-opencl | grep Version)
-    gfx_version="$(echo -e "${gfx_version}" | sed -e 's/^Version[[:space:]]*\:[[:space:]]*//')"
-    if [[ -z $gfx_version || $gfx_version < "$REQUIRED_DRIVER_VERSION" ]]; then
-        echo
-        echo "Warning: Intel® GPU driver $REQUIRED_DRIVER_VERSION will be installed."
+    if dpkg -s intel-opencl > /dev/null 2>&1; then
+        GFX_VERSION=$(dpkg -s intel-opencl | grep Version)
+    elif dpkg -s intel-opencl-icd > /dev/null 2>&1; then
+        GFX_VERSION=$(dpkg -s intel-opencl-icd | grep Version)
+    fi
+
+    GFX_VERSION="$(echo -e "${GFX_VERSION}" | grep -Eo "[0-9]{2,3}\.[0-9]{2,3}\.[0-9]{3,6}")"
+}
+
+check_agreement()
+{
+    if [ "$UPGRADE_DRIVER" == "ON" ]; then
+        return 0
+    fi
+
+    echo
+    echo "OpenCL™ Driver $REQUIRED_DRIVER_VERSION is required to be installed."
+    echo "But another one is installed in your system."
+    echo "It's necessary to upgrade OpenCL™ Driver up to $REQUIRED_DRIVER_VERSION to continue installation."
+    echo "Otherwise, this installation will be interrupted."
+    while true; do
+        read -p "Are you agree to upgrade OpenCL™ Driver up to $REQUIRED_DRIVER_VERSION? (y/n): " yn
+        case $yn in
+            [Yy]*) return 0  ;;
+            [Nn]*) exit $EXIT_FAILURE ;;
+        esac
+    done
+}
+
+check_installation_possibility()
+{
+    check_current_driver
+
+    # install NEO OCL driver if the current driver version < REQUIRED_DRIVER_VERSION
+    if [[ -z $GFX_VERSION || ! "$(printf '%s\n' "$REQUIRED_DRIVER_VERSION" "$GFX_VERSION" | sort -V | head -n 1)" = "$REQUIRED_DRIVER_VERSION" ]]; then
+        check_agreement
         install_driver
     fi
 }
@@ -284,26 +224,12 @@ check_root_access()
 
 choose_proper_packages()
 {
+    PREREQUISITES="sudo wget gpg-agent software-properties-common"
     if [[ $INSTALL_PACKAGE_TYPE == 'runtime' ]]; then
-        PREREQUISITES="wget gpg-agent software-properties-common"
-        LEVEL_ZERO_PACKAGES="level-zero intel-level-zero-gpu"
         DPCPP_PACKAGE="intel-oneapi-compiler-dpcpp-cpp-runtime-$DPCPP_VERSION"
     elif [[ $INSTALL_PACKAGE_TYPE == 'devel' ]]; then
-        PREREQUISITES="wget gpg-agent software-properties-common ocl-icd-opencl-dev opencl-headers"
-
-        if [[ $UBUNTU_VERSION == '18.04' ]]; then
-            LEVEL_ZERO_PACKAGES="level-zero-devel intel-level-zero-gpu"
-        elif [[ $UBUNTU_VERSION == '20.04' ]]; then
-            LEVEL_ZERO_PACKAGES="level-zero-dev intel-level-zero-gpu"
-        fi
-
+        LEVEL_ZERO_PACKAGES="level-zero-dev"
         DPCPP_PACKAGE="intel-oneapi-compiler-dpcpp-cpp-$DPCPP_VERSION"
-    fi
-
-    if [[ $UBUNTU_VERSION == '18.04' ]]; then
-        GRAPHICS_REPOSITORY="deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu bionic main"
-    elif [[ $UBUNTU_VERSION == '20.04' ]]; then
-        GRAPHICS_REPOSITORY="deb [arch=amd64] https://repositories.intel.com/graphics/ubuntu focal main"
     fi
 }
 
@@ -340,9 +266,9 @@ install_dpcpp()
 
 install()
 {
-    choose_proper_packages
-    install_prerequisites
-    install_level_zero
+    if [[ $INSTALL_PACKAGE_TYPE == 'devel' ]]; then
+        install_level_zero
+    fi
     install_dpcpp
 }
 
@@ -366,8 +292,9 @@ main()
         uninstall_user_mode
         uninstall_summary
     else
-        check_specific_generation
-        check_current_driver
+        choose_proper_packages
+        install_prerequisites
+        check_installation_possibility
         install
         install_summary
     fi

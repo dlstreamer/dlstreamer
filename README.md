@@ -41,9 +41,9 @@ GStreamer is an open source framework licensed under LGPL. See [license terms](h
 
 ## Getting Started
 * Start here: [Install Guide](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
-* [DL Streamer Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/GStreamer%20Video%20Analytics%20Tutorial)
+* [DL Streamer Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial)
 * Webinars:
-    * Introduction to DL Streamer: [Ready, Steady, Stream: Introducing Intel® Distribution of OpenVINO™ toolkit Deep Learning Streamer](https://techdecoded.intel.io/essentials/ready-steady-stream-introducing-intel-distribution-of-openvino-toolkit-deep-learning-streamer/#gs.nuybc3)
+    * Introduction to DL Streamer: [Ready, Steady, Stream: Introducing Intel® Distribution of OpenVINO™ toolkit Deep Learning Streamer](https://software.seek.intel.com/openvino-streamer-webinar)
     * Audio event detection synchronized with video based object detection using DL Streamer: [AI Beyond Computer Vision with the Intel® Distribution of OpenVINO™ toolkit](https://techdecoded.intel.io/essentials/ai-beyond-computer-vision-with-the-intel-distribution-of-openvino-toolkit)
 * YouTube Videos:
     * [Introduction to video analytics pipeline using DL Streamer](https://www.youtube.com/watch?v=fWhPV_IqDy0)
@@ -55,7 +55,7 @@ GStreamer is an open source framework licensed under LGPL. See [license terms](h
 For additional documentation, please see [wiki](https://github.com/openvinotoolkit/dlstreamer_gst/wiki) and don't miss the documentation indexed on the right side of the wiki home page.
 
 ## Develop in the Cloud
-Try DL Streamer with [Intel<sup>&reg;</sup> DevCloud](https://devcloud.intel.com/edge/get_started/devcloud/). You can build your pipeline, test and optimize for free. With an Intel<sup>®</sup> DevCloud account, you get 120 days of access to the latest Intel<sup>®</sup> hardware — CPUs, GPUs, FPGAs. No software downloads. No configuration steps. No installations. Check out [DL Stramer Tutorial on Intel<sup>&reg;</sup> DevCloud](https://devcloud.intel.com/edge/advanced/advanced_tutorials/).
+Try DL Streamer with [Intel<sup>&reg;</sup> DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html). You can build your pipeline, test and optimize for free. With an Intel<sup>®</sup> DevCloud account, you get 120 days of access to the latest Intel<sup>®</sup> hardware — CPUs, GPUs, FPGAs. No software downloads. No configuration steps. No installations. Check out [Tutorials on Intel<sup>&reg;</sup> DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/learn/tutorials.html?s=Newest).
 
 ## Other Useful Links
 * [Video Analytics Serving](https://github.com/intel/video-analytics-serving): Video Analytics Serving is a python package and microservice for deploying optimized media analytics pipelines. It supports pipelines defined in DL Streamer and provides APIs to discover, start, stop, customize and monitor pipeline execution.

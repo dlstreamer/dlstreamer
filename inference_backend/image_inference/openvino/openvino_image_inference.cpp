@@ -216,11 +216,12 @@ std::string getErrorMsg(InferenceEngine::StatusCode code) {
     return std::string("UNKNOWN_IE_STATUS_CODE");
 }
 
-void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest> &batch_request) {
+void OpenVINOImageInference::SetCompletionCallback(std::shared_ptr<BatchRequest> &batch_request) {
+    assert(batch_request && "Batch request is null");
+
     auto completion_callback = [this, batch_request](InferenceEngine::InferRequest, InferenceEngine::StatusCode code) {
         try {
             ITT_TASK("completion_callback_lambda");
-            size_t buffer_size = batch_request->buffers.size();
 
             if (code != InferenceEngine::StatusCode::OK) {
                 std::string msg = "Inference request completion callback failed with InferenceEngine::StatusCode: " +
@@ -232,10 +233,7 @@ void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest>
                 this->WorkingFunction(batch_request);
             }
 
-            batch_request->buffers.clear();
-            this->freeRequests.push(batch_request);
-            this->requests_processing_ -= buffer_size;
-            this->request_processed_.notify_all();
+            FreeRequest(batch_request);
         } catch (const std::exception &e) {
             std::string msg = "Failed in inference request completion callback:\n" + Utils::createNestedErrorMsg(e);
             GVA_ERROR(msg.c_str());
@@ -246,7 +244,7 @@ void OpenVINOImageInference::setCompletionCallback(std::shared_ptr<BatchRequest>
             completion_callback);
 }
 
-void OpenVINOImageInference::setBlobsToInferenceRequest(
+void OpenVINOImageInference::SetBlobsToInferenceRequest(
     const std::map<std::string, InferenceEngine::TensorDesc> &layers, std::shared_ptr<BatchRequest> &batch_request,
     Allocator *allocator) {
     for (const auto &layer : layers) {
@@ -325,9 +323,9 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
         for (int i = 0; i < nireq; i++) {
             std::shared_ptr<BatchRequest> batch_request = std::make_shared<BatchRequest>();
             batch_request->infer_request = executable_network.CreateInferRequestPtr();
-            setCompletionCallback(batch_request);
+            SetCompletionCallback(batch_request);
             if (allocator) {
-                setBlobsToInferenceRequest(layers, batch_request, allocator);
+                SetBlobsToInferenceRequest(layers, batch_request, allocator);
             }
             freeRequests.push(batch_request);
         }
@@ -336,6 +334,14 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to construct OpenVINOImageInference"));
     }
+}
+
+void OpenVINOImageInference::FreeRequest(std::shared_ptr<BatchRequest> request) {
+    const size_t buffer_size = request->buffers.size();
+    request->buffers.clear();
+    freeRequests.push(request);
+    requests_processing_ -= buffer_size;
+    request_processed_.notify_all();
 }
 
 InferenceEngine::RemoteContext::Ptr OpenVINOImageInference::CreateRemoteContext(const std::string &device) {
@@ -427,7 +433,7 @@ void OpenVINOImageInference::BypassImageProcessing(const std::string &input_name
     }
 }
 
-bool OpenVINOImageInference::doNeedImagePreProcessing() {
+bool OpenVINOImageInference::DoNeedImagePreProcessing() const {
     return pre_processor.get() != nullptr;
 }
 
@@ -440,7 +446,7 @@ void OpenVINOImageInference::ApplyInputPreprocessors(
 
         std::string layer_name = preprocessor.second->name;
         if (preprocessor.first == KEY_image) {
-            if (!doNeedImagePreProcessing()) {
+            if (!DoNeedImagePreProcessing()) {
                 if (preprocessor.second->input_image_preroc_params)
                     if (preprocessor.second->input_image_preroc_params->isDefined())
                         GVA_WARNING(
@@ -494,7 +500,7 @@ void OpenVINOImageInference::SubmitImage(
     auto request = freeRequests.pop();
 
     try {
-        if (doNeedImagePreProcessing()) {
+        if (DoNeedImagePreProcessing()) {
             SubmitImageProcessing(
                 image_layer, request, image,
                 getImagePreProcInfo(input_preprocessors), // contain operations order for Custom Image PreProcessing
@@ -602,8 +608,27 @@ void OpenVINOImageInference::Flush() {
 
     while (requests_processing_ != 0) {
         auto request = freeRequests.pop();
+
         if (request->buffers.size() > 0) {
-            request->infer_request->StartAsync();
+            try {
+                // WA: Fill non-complete batch with last element. Can be removed once supported in OV
+                if (batch_size > 1 && !DoNeedImagePreProcessing()) {
+                    for (int i = request->blob.size(); i < batch_size; i++)
+                        request->blob.push_back(request->blob.back());
+
+                    auto blob = InferenceEngine::make_shared_blob<InferenceEngine::BatchedBlob>(request->blob);
+                    request->infer_request->SetBlob(image_layer, blob);
+                    request->blob.clear();
+                }
+
+                request->infer_request->StartAsync();
+            } catch (const std::exception &e) {
+                std::string err("Couldn't start inferece on flush: ");
+                err += e.what();
+                GVA_ERROR(err.c_str());
+                this->handleError(request->buffers);
+                FreeRequest(request);
+            }
         } else {
             freeRequests.push(request);
         }

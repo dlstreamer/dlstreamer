@@ -33,7 +33,14 @@ TensorsTable ToTextConverter::convert(const OutputBlobs &output_blobs) const {
                 throw std::invalid_argument("Output blob is empty");
             }
 
+            const float *data = reinterpret_cast<const float *>(blob->GetData());
+            if (not data)
+                throw std::invalid_argument("Output blob data is nullptr");
+
+            const size_t data_size = blob->GetSize();
+
             const std::string layer_name = blob_iter.first;
+
             for (size_t frame_index = 0; frame_index < batch_size; ++frame_index) {
                 GVA::Tensor classification_result = createTensor();
 
@@ -42,20 +49,16 @@ TensorsTable ToTextConverter::convert(const OutputBlobs &output_blobs) const {
                                                  BlobToMetaConverter::getModelName().c_str(), layer_name.c_str(),
                                                  batch_size, frame_index);
 
-                const float *data = reinterpret_cast<const float *>(blob->GetData());
-                if (not data)
-                    throw std::invalid_argument("Output blob data is nullptr");
+                const auto item = get_data_by_batch_index(data, data_size, batch_size, frame_index);
+                const float *item_data = item.first;
+                const size_t item_size = item.second;
 
-                size_t data_size = blob->GetSize();
-
-                double scale = classification_result.get_double("tensor_to_text_scale", 1.0);
-                int precision = classification_result.get_int("tensor_to_text_precision", 2);
                 std::stringstream stream;
                 stream << std::fixed << std::setprecision(precision);
-                for (size_t i = 0; i < data_size; ++i) {
+                for (size_t i = 0; i < item_size; ++i) {
                     if (i)
                         stream << ", ";
-                    stream << data[i] * scale;
+                    stream << item_data[i] * scale;
                 }
                 classification_result.set_string("label", stream.str());
 

@@ -20,8 +20,9 @@
 namespace post_processing {
 
 class ToLabelConverter : public BlobToTensorConverter {
-  private:
-    void find_max_element_index(const float *array, int len, int &index, float &value) const;
+    bool bMax = false;
+    bool bCompound = false;
+    bool bIndex = false;
 
   public:
     ToLabelConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
@@ -29,6 +30,17 @@ class ToLabelConverter : public BlobToTensorConverter {
         : BlobToTensorConverter(model_name, input_image_info, std::move(model_proc_output_info), labels) {
         if (!raw_tesor_copying->enabled(RawTensorCopyingToggle::id))
             GVA_WARNING(RawTensorCopyingToggle::deprecation_message.c_str());
+
+        GstStructure *s = getModelProcOutputInfo().get();
+        const std::string method = gst_structure_get_string(s, "method");
+
+        bMax = method == "max";
+        bCompound = method == "compound";
+        bIndex = method == "index";
+
+        // TODO: create method as func to call it in depends of name
+        if (!bMax && !bCompound && !bIndex)
+            bMax = true;
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;

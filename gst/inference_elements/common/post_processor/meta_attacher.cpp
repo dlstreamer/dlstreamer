@@ -42,13 +42,7 @@ MetaAttacher::Ptr MetaAttacher::create(int inference_type, int inference_region,
 }
 
 void ROIToFrameAttacher::attach(const TensorsTable &tensors, InferenceFrames &frames) {
-    if (frames.empty()) {
-        throw std::invalid_argument("There are no inference frames");
-    }
-
-    if (frames.size() != tensors.size())
-        throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                               std::to_string(tensors.size()) + " / " + std::to_string(frames.size()));
+    checkInferenceFramesAndTensorsTable(frames, tensors);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         const auto &frame = frames[i];
@@ -85,13 +79,7 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, InferenceFrames &fr
 }
 
 void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, InferenceFrames &frames) {
-    if (frames.empty()) {
-        throw std::invalid_argument("There are no inference frames");
-    }
-
-    if (frames.size() != tensors_batch.size())
-        throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                               std::to_string(tensors_batch.size()) + " / " + std::to_string(frames.size()));
+    checkInferenceFramesAndTensorsTable(frames, tensors_batch);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         GstBuffer **writable_buffer = &frames[i]->buffer;
@@ -112,13 +100,7 @@ void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, InferenceF
 }
 
 void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, InferenceFrames &frames) {
-    if (frames.empty()) {
-        throw std::invalid_argument("There are no inference frames.");
-    }
-
-    if (frames.size() != tensors_batch.size())
-        throw std::logic_error("Size of the metadata array does not match the size of the inference frames: " +
-                               std::to_string(tensors_batch.size()) + " / " + std::to_string(frames.size()));
+    checkInferenceFramesAndTensorsTable(frames, tensors_batch);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         GstBuffer *buffer = frames[i]->buffer;
