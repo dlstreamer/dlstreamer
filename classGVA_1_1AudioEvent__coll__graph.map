@@ -1,0 +1,5 @@
+<map id="GVA::AudioEvent" name="GVA::AudioEvent">
+<area shape="rect" id="node1" title="This class represents audio event &#45; object describing audio event detection result (segment) and cont..." alt="" coords="111,95,241,121"/>
+<area shape="rect" id="node2" href="$structGstGVAAudioEventMeta.html" title=" " alt="" coords="5,5,184,32"/>
+<area shape="rect" id="node3" href="$classGVA_1_1Tensor.html" title="This class represents tensor &#45; map&#45;like storage for inference result information, such as output blob..." alt="" coords="208,5,307,32"/>
+</map>

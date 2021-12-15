@@ -1,0 +1,4 @@
+<map id="GVA::RegionOfInterest" name="GVA::RegionOfInterest">
+<area shape="rect" id="node1" title="This class represents region of interest &#45; object describing detection result (bounding box) and cont..." alt="" coords="5,95,172,121"/>
+<area shape="rect" id="node2" href="$classGVA_1_1Tensor.html" title="This class represents tensor &#45; map&#45;like storage for inference result information, such as output blob..." alt="" coords="39,5,138,32"/>
+</map>
