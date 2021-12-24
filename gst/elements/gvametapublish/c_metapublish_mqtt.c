@@ -5,7 +5,11 @@
  ******************************************************************************/
 #include "c_metapublish_mqtt.h"
 #ifdef PAHO_INC
-#include <uuid/uuid.h>
+
+#ifndef WIN32
+#include<uuid / uuid.h>
+#include <sys/random.h>
+#endif
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_meta_publish_debug_category);
 #define GST_CAT_DEFAULT gst_gva_meta_publish_debug_category
@@ -36,10 +40,15 @@ static gboolean metapublish_mqtt_method_start(MetapublishMethod *self, GstGvaMet
     mp_mqtt->connection_attempt = 1;
     mp_mqtt->sleep_time = 1;
     if (!gvametapublish->mqtt_client_id) {
+        char *uuid = g_malloc(37 * sizeof(char)); // 36 character UUID string plus terminating character
+#ifdef WIN32
+        uuid = "my_client ";
+#else
         uuid_t binuuid;
         uuid_generate_random(binuuid);
-        char *uuid = g_malloc(37 * sizeof(char)); // 36 character UUID string plus terminating character
         uuid_unparse(binuuid, uuid);
+#endif // WIN32     
+        printf("**  MQTT Client ID is : %s  ** \n", uuid);
         gvametapublish->mqtt_client_id = uuid;
     }
     MQTTAsync_create(mp_mqtt->client, gvametapublish->address, gvametapublish->mqtt_client_id,
@@ -76,6 +85,7 @@ static gboolean metapublish_mqtt_method_publish(MetapublishMethod *self, GstGvaM
     message.payload = json_message;
     message.payloadlen = (gint)strlen(message.payload);
     message.retained = FALSE;
+    message.qos = 2;
     gint c;
     // TODO Validate message is JSON
     MQTTAsync_responseOptions ro = MQTTAsync_responseOptions_initializer;
