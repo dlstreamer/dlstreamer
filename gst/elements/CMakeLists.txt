@@ -103,8 +103,8 @@ PRIVATE
         gvametapublish
 )
 if (MQTT)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPAHO_INC ")
-        target_link_libraries(${TARGET_NAME} PRIVATE paho-mqtt3a uuid)
+        target_link_libraries(${TARGET_NAME} PRIVATE ${MQTT}/../paho-mqtt3a.lib uuid)
+	    target_include_directories(${TARGET_NAME} PRIVATE ${MQTT}/../../include)
         message("MQTT support will be available in metapublish element")
 else()
         message("MQTT support will not be available. Ensure required libraries (Paho MQTT) are installed, and rebuild plugin with -DMQTT=1 before attempting to use MQTT")
