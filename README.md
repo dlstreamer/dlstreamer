@@ -5,7 +5,7 @@
 
 This repository is a home to Deep Learning (DL) Streamer. DL Streamer is a streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines. It ensures pipeline interoperability and provides optimized media, and inference operations using Intel<sup>®</sup> Distribution of OpenVINO<sup>™</sup> Toolkit Inference Engine backend, across Intel<sup>®</sup> architecture - CPU, iGPU and Intel<sup>®</sup> Movidius<sup>™</sup> VPU. DL Streamer prebuilt binaries can be installed with the Intel<sup>®</sup> Distribution of OpenVINO<sup>™</sup> Toolkit installer.
 
-Here's the canonical video analytics pipeline consturctued using DL Streamer. It performs detection and classification operations on a video stream, using face detection and emotion classification deep learning models. The results of this pipeline are demoed in the above video clip:
+Here's the canonical video analytics pipeline constructed using DL Streamer. It performs detection and classification operations on a video stream, using face detection and emotion classification deep learning models. The results of this pipeline are demoed in the above video clip:
 ```sh
 gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! xvimagesink sync=false
 ```
@@ -15,7 +15,6 @@ The complete solution leverages:
 * GStreamer* plugins for input and output such as media files and real-time streaming from camera or network
 * Video decode and encode plugins, either CPU optimized plugins or GPU-accelerated plugins [based on VAAPI](https://github.com/GStreamer/gstreamer-vaapi)
 * Deep Learning models converted from training frameworks TensorFlow*, Caffe* etc. from Open Model Zoo
-And, the following elements in the DL Streamer repository:
 
 In addition, the solution uses the following Deep Learning-specific elements, also available in this repository:
 * Inference plugins leveraging [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) for high-performance inference using deep learning models
