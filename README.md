@@ -77,4 +77,5 @@ Report bugs and requests [on the issues page](https://github.com/openvinotoolkit
 Pull requests aren't monitored, so if you have bug fix or an idea to improve this project, post a description on the [issues page](https://github.com/openvinotoolkit/dlstreamer_gst/issues).
 
 ---
+
 \* Other names and brands may be claimed as the property of others.
