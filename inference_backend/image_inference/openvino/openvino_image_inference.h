@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -29,13 +29,13 @@ struct General;
 class OpenVINOImageInference : public InferenceBackend::ImageInference {
   public:
     OpenVINOImageInference(const InferenceBackend::InferenceConfig &config, InferenceBackend::Allocator *allocator,
-                           void *display, CallbackFunc callback, ErrorHandlingFunc error_handler,
+                           dlstreamer::ContextPtr context, CallbackFunc callback, ErrorHandlingFunc error_handler,
                            InferenceBackend::MemoryType memory_type);
 
     virtual ~OpenVINOImageInference();
 
     virtual void
-    SubmitImage(const InferenceBackend::Image &image, IFrameBase::Ptr user_data,
+    SubmitImage(IFrameBase::Ptr frame,
                 const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) override;
 
     virtual const std::string &GetModelName() const override;
@@ -67,7 +67,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     void WorkingFunction(const std::shared_ptr<BatchRequest> &request);
 
     InferenceBackend::Allocator *allocator;
-    void *display;
+    dlstreamer::ContextPtr context_;
     InferenceBackend::MemoryType memory_type;
     CallbackFunc callback;
     ErrorHandlingFunc handleError;
@@ -95,7 +95,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
   private:
     void FreeRequest(std::shared_ptr<BatchRequest> request);
-    InferenceEngine::RemoteContext::Ptr CreateRemoteContext(const std::string &device);
+    InferenceEngine::RemoteContext::Ptr CreateRemoteContext(const InferenceBackend::InferenceConfig &config);
     bool DoNeedImagePreProcessing() const;
     void SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img,

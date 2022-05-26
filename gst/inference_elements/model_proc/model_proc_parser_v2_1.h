@@ -11,7 +11,7 @@
 #include "inference_backend/logger.h"
 
 class ModelProcParserV2_1 : public ModelProcParserV2 {
-  private:
+  protected:
     std::tuple<std::string, GstStructure *> parseProcessingItem(const nlohmann::basic_json<> &proc_item) override {
         const std::string def_layer_name = "ANY";
         std::string layer_name(def_layer_name);
@@ -49,9 +49,8 @@ class ModelProcParserV2_1 : public ModelProcParserV2 {
             g_value_unset(&gvalue);
         }
         if (layer_name == def_layer_name) {
-            const std::string msg =
-                "\"layer_name\" field has not been set. Its value will be defined as " + def_layer_name;
-            GVA_WARNING(msg.c_str());
+            GVA_WARNING("The 'layer_name' field has not been set. Its value will be defined as %s",
+                        def_layer_name.c_str());
         }
 
         return std::make_tuple(layer_name, s);

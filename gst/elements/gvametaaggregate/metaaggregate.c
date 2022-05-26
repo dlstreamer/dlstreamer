@@ -55,6 +55,10 @@ GstFlowReturn aggregate_metas(GstGvaMetaAggregate *magg, GstBuffer *outbuf) {
         GST_ERROR("Nullptr src pad during meta aggregate. Meta won't be aggregated");
         return GST_FLOW_ERROR;
     }
+    if (!outbuf) {
+        GST_ERROR("Ouput buffer is null. Meta won't be aggregated");
+        return GST_FLOW_ERROR;
+    }
 
     GList *first_sink_pad_it = GST_ELEMENT(magg)->sinkpads;
     for (GList *l = first_sink_pad_it->next; l; l = l->next) {
@@ -75,7 +79,7 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
     GstMeta *meta = NULL;
     gpointer state = NULL;
     GstStructure *detection = NULL;
-    if (!sink_pad || !src_pad_video_info)
+    if (!buf || !sink_pad || !src_pad_video_info)
         return FALSE;
 
     GstVideoInfo *sink_pad_video_info = &sink_pad->info;
@@ -94,6 +98,7 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
             GstVideoRegionOfInterestMeta *output_meta = gst_buffer_add_video_region_of_interest_meta(
                 buf, g_quark_to_string(original_roi_meta->roi_type), original_roi_meta->x, original_roi_meta->y,
                 original_roi_meta->w, original_roi_meta->h);
+            output_meta->id = original_roi_meta->id;
 
             for (GList *l = original_roi_meta->params; l; l = l->next) {
                 GstStructure *s = GST_STRUCTURE(l->data);

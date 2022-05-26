@@ -49,12 +49,16 @@ typedef struct _GvaBaseInference {
     guint cpu_streams;
     guint gpu_streams;
     gchar *ie_config;
+    gchar *pre_proc_config;
     gchar *allocator_name;
     gchar *pre_proc_type;
     gchar *device_extensions;
     gchar *object_class;
+    gchar *labels;
 
     // other fields
+    struct GvaBaseInferencePrivate *priv;
+
     InferenceType type;
     GstVideoInfo *info;
     CapsFeature caps_feature;

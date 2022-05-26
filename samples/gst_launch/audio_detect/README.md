@@ -9,9 +9,9 @@ This sample builds a GStreamer pipeline using the following elements
 * `filesrc` or `urisourcebin`
 * `decodebin` for audio decoding
 * `audioresample`, `audioconvert` and `audiomixer` for converting and resizing audio input
-* [gvaaudiodetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaaudiodetect) for audio event detection using ACLNet
-* [gvametaconvert](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametaconvert) for converting ACLNet detection results into JSON for further processing and display
-* [gvametapublish](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvametapublish) for printing detection results to stdout
+* [gvaaudiodetect](https://dlstreamer.github.io/elements/gvaaudiodetect.html) for audio event detection using ACLNet
+* [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) for converting ACLNet detection results into JSON for further processing and display
+* [gvametapublish](https://dlstreamer.github.io/elements/gvametapublish.html) for printing detection results to stdout
 * `fakesink` for terminating the pipeline
 
 ## Model

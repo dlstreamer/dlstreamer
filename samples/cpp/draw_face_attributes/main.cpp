@@ -1,16 +1,21 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include <algorithm>
+#ifdef __linux__
 #include <dirent.h>
+#else
+#include <filesystem>
+#endif
+#include <stdio.h>
+#include <stdlib.h>
+
 #include <gio/gio.h>
 #include <gst/gst.h>
 #include <opencv2/opencv.hpp>
-#include <stdio.h>
-#include <stdlib.h>
 
 #include "draw_axes.h"
 #include "gst/videoanalytics/video_frame.h"
@@ -19,7 +24,23 @@ using namespace std;
 
 #define UNUSED(x) (void)(x)
 
-std::vector<std::string> SplitString(const std::string input, char delimiter = ':') {
+#ifdef _WIN32
+const char os_pathsep(';');
+#else
+const char os_pathsep(':');
+#endif
+
+std::string ToUpperCase(std::string str) {
+    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
+    return str;
+}
+
+std::string FixPath(std::string path) {
+    std::replace(path.begin(), path.end(), '\\', '/');
+    return path;
+}
+
+std::vector<std::string> SplitString(const std::string input, char delimiter = os_pathsep) {
     std::vector<std::string> tokens;
     std::string token;
     std::istringstream tokenStream(input);
@@ -29,7 +50,8 @@ std::vector<std::string> SplitString(const std::string input, char delimiter = '
     return tokens;
 }
 
-void ExploreDir(std::string search_dir, const std::string &model_name, std::vector<std::string> &result) {
+#ifdef __linux__
+void ExploreDir(const std::string &search_dir, const std::string &model_name, std::vector<std::string> &result) {
     if (auto dir_handle = opendir(search_dir.c_str())) {
         while (auto file_handle = readdir(dir_handle)) {
             if ((!file_handle->d_name) || (file_handle->d_name[0] == '.'))
@@ -45,6 +67,14 @@ void ExploreDir(std::string search_dir, const std::string &model_name, std::vect
         closedir(dir_handle);
     }
 }
+#else
+void ExploreDir(const std::string &search_dir, const std::string &model_name, std::vector<std::string> &result) {
+    for (const auto &dir_entry : std::filesystem::recursive_directory_iterator(search_dir)) {
+        if (dir_entry.path().filename() == model_name)
+            result.push_back(dir_entry.path().string());
+    }
+}
+#endif
 
 std::vector<std::string> FindModel(const std::vector<std::string> &search_dirs, const std::string &model_name) {
     std::vector<std::string> result = {};
@@ -52,11 +82,6 @@ std::vector<std::string> FindModel(const std::vector<std::string> &search_dirs, 
         ExploreDir(dir + "/", model_name, result);
     }
     return result;
-}
-
-std::string to_upper_case(std::string str) {
-    std::transform(str.begin(), str.end(), str.begin(), ::toupper);
-    return str;
 }
 
 std::map<std::string, std::string> FindModels(const std::vector<std::string> &search_dirs,
@@ -69,12 +94,13 @@ std::map<std::string, std::string> FindModels(const std::vector<std::string> &se
             throw std::runtime_error("Can't find file for model: " + model_name);
         result[model_name] = model_paths.front();
         // The path to the model must contain the precision (/FP32/ or /INT8/)
-        for (auto &model_path : model_paths)
+        for (auto &model_path : model_paths) {
             // TODO extract precision from xml file
-            if (to_upper_case(model_path).find(to_upper_case(precision)) != std::string::npos) {
+            if (ToUpperCase(model_path).find(ToUpperCase(precision)) != std::string::npos) {
                 result[model_name] = model_path;
                 break;
             }
+        }
     }
     return result;
 }
@@ -92,11 +118,11 @@ const std::vector<std::string> default_classification_model_names = {
     "facial-landmarks-35-adas-0002.xml", "age-gender-recognition-retail-0013.xml",
     "emotions-recognition-retail-0003.xml", "head-pose-estimation-adas-0001.xml"};
 
-gchar const *detection_model = NULL;
-gchar const *classification_models = NULL;
+gchar const *detection_model = nullptr;
+gchar const *classification_models = nullptr;
 
-gchar const *input_file = NULL;
-gchar const *extension = NULL;
+gchar const *input_file = nullptr;
+gchar const *extension = nullptr;
 gchar const *device = "CPU";
 gchar const *model_precision = "FP32";
 gint batch_size = 1;
@@ -231,50 +257,66 @@ int main(int argc, char *argv[]) {
     // If video file is not passed as an argument, an attempt will be made to use
     // camera
     gchar const *video_source = NULL;
-    std::string input_str;
     if (input_file) {
-        input_str = (input_file);
+        std::string input_str = input_file;
+#ifdef __linux__
         if (input_str.find("/dev/video") != std::string::npos) {
-            video_source = "v4l2src device";
+            video_source = g_strdup_printf("v4l2src device=%s", input_file);
+#else
+        if (input_str.find("?\\\\usb\\#") != std::string::npos) {
+            video_source = g_strdup_printf("ksvideosrc device-path=%s", input_file);
+#endif
         } else if (input_str.find("://") != std::string::npos) {
-            video_source = "urisourcebin buffer-size=4096 uri";
+            video_source = g_strdup_printf("urisourcebin buffer-size=4096 uri=%s", input_file);
         } else {
-            video_source = "filesrc location";
+            video_source = g_strdup_printf("filesrc location=%s", FixPath(input_str).c_str());
         }
     } else {
-        input_file = "/dev/video0";
-        video_source = "v4l2src device";
+#ifdef __linux__
+        video_source = "v4l2src device=/dev/video0";
+#else
+        video_source = "ksvideosrc";
+#endif
     }
+
     if (env_models_path.empty()) {
         throw std::runtime_error("Enviroment variable MODELS_PATH is not set");
     }
+
     std::map<std::string, std::string> model_paths;
-    std::string classify_str = "";
     if (detection_model == NULL) {
         for (const auto &model_to_path :
              FindModels(SplitString(env_models_path), default_detection_model_names, model_precision))
             model_paths.emplace(model_to_path);
-        detection_model = g_strdup(model_paths["face-detection-adas-0001.xml"].c_str());
+        detection_model = g_strdup(FixPath(model_paths["face-detection-adas-0001.xml"]).c_str());
     }
+    std::vector<std::string> classification_model_paths;
     if (classification_models == NULL) {
         for (const auto &model_to_path :
              FindModels(SplitString(env_models_path), default_classification_model_names, model_precision))
-            classify_str += "gvainference model=" + model_to_path.second + " device=" + device +
-                            " batch-size=" + std::to_string(batch_size) + " inference-region=roi-list ! queue ! ";
+            classification_model_paths.push_back(model_to_path.second);
+    } else {
+        classification_model_paths = SplitString(classification_models, ',');
     }
+
+    std::string classify_str = "";
+    for (const auto &path : classification_model_paths)
+        classify_str += "gvainference model=" + FixPath(path) + " device=" + device +
+                        " batch-size=" + std::to_string(batch_size) + " inference-region=roi-list ! queue ! ";
 
     gchar const *preprocess_pipeline = "decodebin ! videoconvert n-threads=4 ! videoscale n-threads=4 ";
     gchar const *capfilter = "video/x-raw,format=BGRA";
-    gchar const *sink = no_display ? "identity signal-handoffs=false ! fakesink sync=false"
-                                   : "fpsdisplaysink video-sink=xvimagesink sync=false";
+    gchar const *sink =
+        no_display ? "identity signal-handoffs=false ! fakesink sync=false" : "autovideosink sync=false";
 
     // Build the pipeline
-    auto launch_str = g_strdup_printf("%s=%s ! %s ! capsfilter caps=\"%s\" ! "
-                                      "gvadetect model=%s device=%s batch-size=%d ! queue ! "
-                                      "%s"
-                                      "gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! %s",
-                                      video_source, input_file, preprocess_pipeline, capfilter, detection_model, device,
-                                      batch_size, classify_str.c_str(), sink);
+    auto launch_str = g_strdup_printf(
+        "%s ! %s ! capsfilter caps=\"%s\" ! "
+        "gvadetect model=%s device=%s batch-size=%d ! queue ! "
+        "%s"
+        "gvawatermark name=gvawatermark ! capsfilter caps=\"%s\" ! videoconvert n-threads=4 ! gvafpscounter ! %s",
+        video_source, preprocess_pipeline, capfilter, detection_model, device, batch_size, classify_str.c_str(),
+        capfilter, sink);
     g_print("PIPELINE: %s \n", launch_str);
     GstElement *pipeline = gst_parse_launch(launch_str, NULL);
     g_free(launch_str);
@@ -284,7 +326,7 @@ int main(int argc, char *argv[]) {
     auto pad = gst_element_get_static_pad(gvawatermark, "src");
     // The provided callback 'pad_probe_callback' is called for every state that
     // matches GST_PAD_PROBE_TYPE_BUFFER to probe buffers
-    gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, pad_probe_callback, NULL, NULL);
+    gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, pad_probe_callback, nullptr, nullptr);
     gst_object_unref(pad);
 
     // Start playing
@@ -298,8 +340,8 @@ int main(int argc, char *argv[]) {
     GstMessage *msg = gst_bus_poll(bus, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_EOS), -1);
 
     if (msg && GST_MESSAGE_TYPE(msg) == GST_MESSAGE_ERROR) {
-        GError *err = NULL;
-        gchar *dbg_info = NULL;
+        GError *err = nullptr;
+        gchar *dbg_info = nullptr;
 
         gst_message_parse_error(msg, &err, &dbg_info);
         g_printerr("ERROR from element %s: %s\n", GST_OBJECT_NAME(msg->src), err->message);

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -13,6 +13,7 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
+find_IE_package()
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
@@ -52,7 +53,10 @@ set_compile_flags(${TARGET_NAME})
 
 # FIXME: there are some debug information that are removed for released build type
 # FIXME: hence it marked as error
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+endif()
+
 target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
@@ -70,10 +74,11 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    ${GSTVIDEO_LDFLAGS}
-    ${GSTALLOC_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
+    ${GSTVIDEO_LIBRARIES}
+    ${GSTALLOC_LIBRARIES}
     ${OpenCV_LIBS}
+    dlstreamer_gst
     common
     image_inference
     image_inference_openvino
@@ -83,6 +88,7 @@ PRIVATE
     json-hpp
     json-schema-validator
 PUBLIC
+    ${InferenceEngine_LIBRARIES}
     runtime_feature_toggling
     common
 )

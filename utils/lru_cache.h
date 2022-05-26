@@ -1,10 +1,14 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2020-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#pragma once
+
 #include <list>
+#include <stdexcept>
+#include <string>
 #include <unordered_map>
 
 template <typename Key_T, typename Value_T>

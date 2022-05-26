@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -55,6 +55,12 @@ static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 #define MIN_JSON_INDENT -1
 #define MAX_JSON_INDENT 10
 
+// Enum value names
+#define UNKNOWN_VALUE_NAME "unknown"
+
+#define FORMAT_JSON_NAME "json"
+#define FORMAT_DUMP_DETECTION_NAME "dump-detection"
+
 enum {
     PROP_0,
     PROP_FORMAT,
@@ -66,6 +72,17 @@ enum {
     PROP_JSON_INDENT
 };
 
+static const gchar *format_type_to_string(GstGVAMetaconvertFormatType format) {
+    switch (format) {
+    case GST_GVA_METACONVERT_JSON:
+        return FORMAT_JSON_NAME;
+    case GST_GVA_METACONVERT_DUMP_DETECTION:
+        return FORMAT_DUMP_DETECTION_NAME;
+    default:
+        return UNKNOWN_VALUE_NAME;
+    }
+}
+
 /* class initialization */
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaMetaConvert, gst_gva_meta_convert, GST_TYPE_BASE_TRANSFORM,
@@ -75,8 +92,8 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaMetaConvert, gst_gva_meta_convert, GST_TYPE_BASE_T
 GType gst_gva_metaconvert_get_format(void) {
     static GType gva_metaconvert_format_type = 0;
     static const GEnumValue format_types[] = {
-        {GST_GVA_METACONVERT_JSON, "Conversion to GstGVAJSONMeta", "json"},
-        {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection to GST debug log", "dump-detection"},
+        {GST_GVA_METACONVERT_JSON, "Conversion to GstGVAJSONMeta", FORMAT_JSON_NAME},
+        {GST_GVA_METACONVERT_DUMP_DETECTION, "Dump detection to GST debug log", FORMAT_DUMP_DETECTION_NAME},
         {0, NULL, NULL}};
 
     if (!gva_metaconvert_format_type) {
@@ -361,7 +378,7 @@ static gboolean gst_gva_meta_convert_set_caps(GstBaseTransform *trans, GstCaps *
         gst_audio_info_from_caps(gvametaconvert->audio_info, incaps);
     }
 #endif
-    else if (g_strrstr(name, "application")) {
+    else if (g_strrstr(name, "other")) {
         if (!gvametaconvert->info) {
             gvametaconvert->info = gst_video_info_new();
         }
@@ -378,6 +395,14 @@ static gboolean gst_gva_meta_convert_start(GstBaseTransform *trans) {
     GstGvaMetaConvert *gvametaconvert = GST_GVA_META_CONVERT(trans);
 
     GST_DEBUG_OBJECT(gvametaconvert, "start");
+
+    GST_INFO_OBJECT(gvametaconvert,
+                    "%s parameters:\n -- Format: %s\n -- Add tensor data: %s\n -- Source: %s\n -- Tags: %s\n "
+                    "-- Add empty detection results: %s\n -- Signal handoffs: %s\n -- Json indent: %d\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvametaconvert)), format_type_to_string(gvametaconvert->format),
+                    gvametaconvert->add_empty_detection_results ? "true" : "false", gvametaconvert->source,
+                    gvametaconvert->tags, gvametaconvert->add_empty_detection_results ? "true" : "false",
+                    gvametaconvert->signal_handoffs ? "true" : "false", gvametaconvert->json_indent);
 
     return TRUE;
 }

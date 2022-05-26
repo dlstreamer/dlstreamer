@@ -1,12 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2021-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "gstgvavideototensor")
+set(TARGET_NAME "gvavideototensor")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
@@ -45,10 +45,10 @@ PUBLIC
     gvacommon
 PRIVATE
     ${GLIB2_LIBRARIES}
-    ${GSTVIDEO_LDFLAGS}
+    ${GSTVIDEO_LIBRARIES}
     pre_proc
-    opencv_pre_proc
     utils
+    gvatypes
 )
 
 if(${ENABLE_VAAPI})

@@ -23,7 +23,7 @@ ImagePreprocessorType getPreProcType(const std::map<std::string, std::string> &b
 
 ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_type, const InferenceConfig &config,
                                                 Allocator *allocator, CallbackFunc callback,
-                                                ErrorHandlingFunc error_handler, VaApiDisplayPtr va_display) {
+                                                ErrorHandlingFunc error_handler, dlstreamer::ContextPtr context) {
     bool async_mode = false;
     // Resulted memory type that will be used for inference
     MemoryType memory_type_to_use = MemoryType::ANY;
@@ -39,8 +39,8 @@ ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_ty
         async_mode = true;
 
         // The display must present.
-        if (!va_display)
-            throw std::invalid_argument("VA display is invalid");
+        if (!context)
+            throw std::invalid_argument("Null context provided (VAAPIContext is expected)");
 
         ImagePreprocessorType preproc_type = getPreProcType(config.at(KEY_BASE));
         switch (preproc_type) {
@@ -61,14 +61,13 @@ ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_ty
         throw std::invalid_argument("Unsupported memory type");
     }
 
-    auto ov_inference = std::make_shared<OpenVINOImageInference>(config, allocator, va_display.get(), callback,
-                                                                 error_handler, memory_type_to_use);
+    auto ov_inference = std::make_shared<OpenVINOImageInference>(config, allocator, context, callback, error_handler,
+                                                                 memory_type_to_use);
 
     ImageInference::Ptr result_inference;
     if (async_mode) {
 #ifdef ENABLE_VAAPI
-        constexpr uint32_t THREAD_POOL_SIZE = 5;
-        result_inference = std::make_shared<ImageInferenceAsync>(THREAD_POOL_SIZE, va_display, std::move(ov_inference));
+        result_inference = std::make_shared<ImageInferenceAsync>(config, context, std::move(ov_inference));
 #endif
     } else {
         result_inference = std::move(ov_inference);

@@ -6,7 +6,7 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "gstgvatensortometa")
+set(TARGET_NAME "gvatensortometa")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.16 REQUIRED)
@@ -18,13 +18,18 @@ file(GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/*.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/to_roi/blob_to_roi_converter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/to_roi/ov_default.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/to_tensor/*.cpp
 )
 
 file(GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/common/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/*.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/*.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/to_roi/blob_to_roi_converter.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/to_roi/ov_default.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/post_processor/converters/to_tensor/*.hpp
 )
 
@@ -50,8 +55,8 @@ PUBLIC
 PRIVATE
     json-schema-validator
     ${GLIB2_LIBRARIES}
-    ${GSTBASE_LDFLAGS}
-    ${GSTREAMER_LDFLAGS}
+    ${GSTBASE_LIBRARIES}
+    ${GSTREAMER_LIBRARIES}
     inference_backend
     gvacommon
     utils

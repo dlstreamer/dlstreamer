@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,18 +9,20 @@
 #include "gstgvatrack.h"
 #include "itracker.h"
 #include "tracker_types.h"
+#include <dlstreamer/buffer_mapper.h>
+#include <dlstreamer/context.h>
 
 #include <functional>
-#include <gst/video/video.h>
 #include <map>
-#include <string>
 
 class TrackerFactory {
   public:
-    using TrackerCreator = std::function<ITracker *(const GstGvaTrack *gva_track)>;
+    using TrackerCreator = std::function<ITracker *(const GstGvaTrack *gva_track, dlstreamer::BufferMapperPtr mapper,
+                                                    dlstreamer::ContextPtr context)>;
     TrackerFactory() = delete;
     static bool Register(const GstGvaTrackingType, TrackerCreator);
-    static ITracker *Create(const GstGvaTrack *gva_track);
+    static ITracker *Create(const GstGvaTrack *gva_track, dlstreamer::BufferMapperPtr mapper,
+                            dlstreamer::ContextPtr context);
 
   private:
     static bool RegisterAll();

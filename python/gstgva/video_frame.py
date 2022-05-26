@@ -99,6 +99,7 @@ class VideoFrame:
                 "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h), stacklevel=2)
 
         video_roi_meta = GstVideo.buffer_add_video_region_of_interest_meta(self.__buffer, label, x, y, w, h)
+        video_roi_meta.id = libgst.gst_util_seqnum_next()
         roi = RegionOfInterest(ctypes.cast(hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)).contents)
 
         tensor = roi.add_tensor("detection")

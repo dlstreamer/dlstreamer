@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,19 +25,9 @@ VaApiContext::VaApiContext(VADisplay va_display) : _display(va_display) {
     assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
 }
 
-VaApiContext::VaApiContext(VaApiDisplayPtr va_display_ptr)
-    : _display_storage(va_display_ptr), _display(va_display_ptr.get()) {
-
-    create_config_and_contexts();
-    create_supported_pixel_formats();
-
-    assert(_va_config_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAConfigID.");
-    assert(_va_context_id != VA_INVALID_ID && "Failed to initalize VaApiContext. Expected valid VAContextID.");
-}
-
-VaApiContext::VaApiContext(const std::string &device) {
-    _display_storage = vaApiCreateVaDisplay(Utils::getRelativeGpuDeviceIndex(device));
-    _display = VaDpyWrapper::fromHandle(_display_storage.get());
+VaApiContext::VaApiContext(dlstreamer::ContextPtr va_display_context)
+    : _display_storage(va_display_context),
+      _display(va_display_context->handle(dlstreamer::VAAPIContext::va_display_id)) {
 
     create_config_and_contexts();
     create_supported_pixel_formats();

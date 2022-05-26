@@ -6,12 +6,12 @@
 
 #pragma once
 
-#include "inference_backend/image.h"
+#include <dlstreamer/fourcc.h>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <unordered_map>
 
-using Color = cv::Scalar_<u_int8_t>;
+using Color = cv::Scalar_<uint8_t>;
 
 namespace std {
 
@@ -70,5 +70,5 @@ class RGBtoYUVColorConverter : public ColorConverter {
                                    std::unordered_map<Color, Color> &yuv_colors, double (&matrix)[3][3]);
 };
 
-std::shared_ptr<ColorConverter> create_color_converter(InferenceBackend::FourCC format,
+std::shared_ptr<ColorConverter> create_color_converter(dlstreamer::FourCC format,
                                                        const std::vector<Color> &rgb_color_table, double Kr, double Kb);

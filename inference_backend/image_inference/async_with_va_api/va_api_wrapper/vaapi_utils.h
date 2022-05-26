@@ -1,11 +1,13 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
+#include "dlstreamer/vaapi/context.h"
+#include "inference_backend/image.h"
 #include "inference_backend/logger.h"
 #include "so_loader.h"
 
@@ -87,18 +89,25 @@ class VaDpyWrapper final {
         return *drvCtx()->vtable;
     }
 
+    int currentSubDevice() const;
+
   private:
     VADisplay _dpy = nullptr;
 };
 
-using VaApiDisplayPtr = std::shared_ptr<void>;
-/** Creates and initializes VADisplay using relative device index. */
-VaApiDisplayPtr vaApiCreateVaDisplay(uint32_t relative_device_index);
+/**
+ * @brief Creates a context object using specified device.
+ * Internally creates and initializes VADisplay.
+ *
+ * @param relative_device_index - relative DRI render device index
+ * @return dlstreamer::VAAPIContextPtr - created context object
+ */
+dlstreamer::VAAPIContextPtr vaApiCreateVaDisplay(uint32_t relative_device_index = 0);
 
 /**
  * Singleton class to handle VaApiLibBinderImpl.
  * Multiple instances of VaApiLibBinderImpl is not needed.
- * Static modifier is used to simplify the usage and avoid crutches.
+ * Static modifier is used to simplify the usage and avoid workarounds.
  */
 class VaApiLibBinder {
   public:

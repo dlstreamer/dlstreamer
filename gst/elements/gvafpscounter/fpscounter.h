@@ -1,16 +1,21 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
+#include "named_pipe.h"
+
 #include <chrono>
+#include <functional>
 #include <gst/video/video.h>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <string>
+#include <thread>
 
 class FpsCounter {
   public:
@@ -56,4 +61,34 @@ class AverageFpsCounter : public FpsCounter {
     std::mutex mutex;
 
     void PrintFPS(FILE *output, double sec);
+};
+
+class WritePipeFpsCounter : public FpsCounter {
+  public:
+    WritePipeFpsCounter(const char *pipe_name);
+    bool NewFrame(const std::string &element_name, FILE *output) override;
+    void EOS(FILE *) override {
+    }
+
+  protected:
+    std::unique_ptr<NamedPipe> pipe;
+    std::string pid;
+};
+
+class ReadPipeFpsCounter : public FpsCounter {
+  public:
+    ReadPipeFpsCounter(const char *pipe_name, std::function<void(const char *)> new_message,
+                       std::function<void(void)> pipe_completed);
+    ~ReadPipeFpsCounter();
+    bool NewFrame(const std::string &, FILE *) override {
+        return true;
+    }
+    void EOS(FILE *) override {
+    }
+
+  protected:
+    std::unique_ptr<NamedPipe> pipe;
+    std::thread thread;
+    std::function<void(const char *)> new_message_callback;
+    std::function<void(void)> pipe_completion_callback;
 };

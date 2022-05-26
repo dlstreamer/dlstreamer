@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "frame_wrapper.h"
 #include "inference_backend/image_inference.h"
 
 #include <gst/video/gstvideometa.h>
@@ -15,13 +16,15 @@
 #include <string>
 #include <vector>
 
-class InferenceFrame;
-
 namespace post_processing {
 
 using TensorsTable = std::vector<std::vector<GstStructure *>>;
 using OutputBlobs = std::map<std::string, InferenceBackend::OutputBlob::Ptr>;
-using InferenceFrames = std::vector<std::shared_ptr<InferenceFrame>>;
+// <layer_name, blob_dims>
+using ModelOutputsInfo = std::map<std::string, std::vector<size_t>>;
+
+enum class ConverterType { TO_ROI, TO_TENSOR, RAW };
+enum class AttachType { TO_FRAME, TO_ROI, FOR_MICRO /* remove workaround when moved to micro elements */ };
 
 struct ModelImageInputInfo {
     size_t width = 0;
@@ -31,7 +34,7 @@ struct ModelImageInputInfo {
     int memory_type = -1;
 };
 
-void checkInferenceFramesAndTensorsTable(const InferenceFrames &frames, const TensorsTable &tensors);
+void checkFramesAndTensorsTable(const FramesWrapper &frames, const TensorsTable &tensors);
 
 /**
  * Compares to tensors_batch of type GstVideoRegionOfInterestMeta by roi_type and coordinates.
@@ -41,7 +44,7 @@ void checkInferenceFramesAndTensorsTable(const InferenceFrames &frames, const Te
  *
  * @return true if given tensors_batch are equal, false otherwise.
  */
-inline bool sameRegion(const GstVideoRegionOfInterestMeta *left, const GstVideoRegionOfInterestMeta *right) {
+inline bool sameRegion(const GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInterestMeta *right) {
     return left->roi_type == right->roi_type && left->x == right->x && left->y == right->y && left->w == right->w &&
            left->h == right->h;
 }

@@ -1,15 +1,29 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "tracker_factory.h"
 #include "config.h"
 
-#ifdef ENABLE_VAS_TRACKER
-#include "vas/tracker.h"
-#endif
+#include "tracker_factory.h"
+
+#include "tracker.h"
+
+vas::ColorFormat gstVideoFmtToVasColorFmt(GstVideoFormat format) {
+    switch (format) {
+    case GST_VIDEO_FORMAT_BGRx:
+    case GST_VIDEO_FORMAT_BGRA:
+        return vas::ColorFormat::BGRX;
+    case GST_VIDEO_FORMAT_NV12:
+        return vas::ColorFormat::NV12;
+    case GST_VIDEO_FORMAT_I420:
+        return vas::ColorFormat::I420;
+    case GST_VIDEO_FORMAT_BGR:
+    default:
+        return vas::ColorFormat::BGR;
+    }
+}
 
 std::map<GstGvaTrackingType, TrackerFactory::TrackerCreator> TrackerFactory::registred_trackers;
 
@@ -21,20 +35,21 @@ bool TrackerFactory::RegisterAll() {
 
     bool result = true;
 
-#ifdef ENABLE_VAS_TRACKER
-    auto create_vas_tracker = [](const GstGvaTrack *gva_track, TrackingType tracking_type) -> ITracker * {
-        return new VasWrapper::Tracker(gva_track, tracking_type);
+    auto create_vas_tracker = [](const GstGvaTrack *gva_track, TrackingType tracking_type,
+                                 dlstreamer::BufferMapperPtr mapper, dlstreamer::ContextPtr context) -> ITracker * {
+        const vas::ColorFormat color_fmt = gstVideoFmtToVasColorFmt(gva_track->info->finfo->format);
+        const std::string cfg = gva_track->tracking_config ? gva_track->tracking_config : std::string();
+        return new VasWrapper::Tracker(gva_track->device, tracking_type, color_fmt, cfg, std::move(mapper),
+                                       std::move(context));
     };
 
-    result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM,
-                                       std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_KCFVAR));
-    result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM,
-                                       std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_COLOR_HISTOGRAM));
+    result &=
+        TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM,
+                                 std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_COLOR_HISTOGRAM, _2, _3));
     result &= TrackerFactory::Register(GstGvaTrackingType::SHORT_TERM_IMAGELESS,
-                                       std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_IMAGELESS));
+                                       std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_IMAGELESS, _2, _3));
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS,
-                                       std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_IMAGELESS));
-#endif
+                                       std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_IMAGELESS, _2, _3));
 
     return result;
 }
@@ -49,10 +64,14 @@ bool TrackerFactory::Register(const GstGvaTrackingType tracking_type, TrackerCre
     return false;
 }
 
-ITracker *TrackerFactory::Create(const GstGvaTrack *gva_track) {
+ITracker *TrackerFactory::Create(const GstGvaTrack *gva_track, dlstreamer::BufferMapperPtr mapper,
+                                 dlstreamer::ContextPtr context) {
+    if (!gva_track)
+        throw std::invalid_argument("GvaTrack instance is null");
+
     auto tracker_it = registred_trackers.find(gva_track->tracking_type);
     if (tracker_it != registred_trackers.end())
-        return tracker_it->second(gva_track);
+        return tracker_it->second(gva_track, std::move(mapper), std::move(context));
 
     return nullptr;
 }

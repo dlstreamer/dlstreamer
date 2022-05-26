@@ -6,7 +6,8 @@
 
 #include "gva_utils.h"
 
-#include "inference_backend/logger.h"
+#include <inference_backend/image.h>
+#include <inference_backend/logger.h>
 
 #include <cassert>
 #include <string>

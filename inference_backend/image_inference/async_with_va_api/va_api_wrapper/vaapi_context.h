@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -19,8 +19,7 @@ namespace InferenceBackend {
 class VaApiContext {
   public:
     explicit VaApiContext(VADisplay va_display);
-    explicit VaApiContext(VaApiDisplayPtr va_display_ptr);
-    explicit VaApiContext(const std::string &device = "GPU");
+    explicit VaApiContext(dlstreamer::ContextPtr va_display_context);
 
     ~VaApiContext();
 
@@ -32,7 +31,7 @@ class VaApiContext {
     bool IsPixelFormatSupported(int format) const;
 
   private:
-    std::shared_ptr<void> _display_storage;
+    dlstreamer::ContextPtr _display_storage;
     VaDpyWrapper _display;
     VAConfigID _va_config_id = VA_INVALID_ID;
     VAContextID _va_context_id = VA_INVALID_ID;

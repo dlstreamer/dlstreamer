@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,54 +10,55 @@
 #include "inference_impl.h"
 #include "utils.h"
 #include <assert.h>
+#include <set>
 
 struct InferenceRefs {
-    unsigned int numRefs = 0;
-    std::list<GvaBaseInference *> elementsToInit;
-    GvaBaseInference *masterElement = nullptr;
+    std::set<GvaBaseInference *> refs;
     InferenceImpl *proxy = nullptr;
     GstVideoFormat videoFormat = GST_VIDEO_FORMAT_UNKNOWN;
+    CapsFeature capsFeature = ANY_CAPS_FEATURE;
 };
 
 static std::map<std::string, InferenceRefs *> inference_pool_;
 static std::mutex inference_pool_mutex_;
 
+std::string capsFeatureString(CapsFeature newCapsFeature);
+std::string get_inference_key(GvaBaseInference *base_inference) {
+    return std::string(base_inference->model_instance_id) + "_" + capsFeatureString(base_inference->caps_feature);
+}
+
 #define COPY_GSTRING(_DST, _SRC)                                                                                       \
     g_free(_DST);                                                                                                      \
     _DST = g_strdup(_SRC);
 
+void addBaseInferenceToInfRes(InferenceRefs *infRefs, GvaBaseInference *base_inference) {
+    infRefs->refs.insert(base_inference);
+    GST_INFO_OBJECT(base_inference, "increment numref: refs size = %lu\n", infRefs->refs.size());
+}
+
+InferenceRefs *registerElementUnlocked(GvaBaseInference *base_inference) {
+    std::string name = get_inference_key(base_inference);
+    GST_INFO_OBJECT(base_inference, "key: %s\n", name.c_str());
+    auto it = inference_pool_.find(name);
+    if (it == inference_pool_.end()) {
+        InferenceRefs *infRefs = new InferenceRefs();
+        addBaseInferenceToInfRes(infRefs, base_inference);
+        inference_pool_[name] = infRefs;
+        return infRefs;
+    }
+    InferenceRefs *infRefs = it->second;
+    if (!infRefs) {
+        throw std::runtime_error("'infRefs' is set to NULL.");
+    }
+    addBaseInferenceToInfRes(infRefs, base_inference);
+    return infRefs;
+}
+
 gboolean registerElement(GvaBaseInference *base_inference) {
+    assert(base_inference != nullptr && "Expected a valid pointer to gva_base_inference");
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        std::string name(base_inference->model_instance_id);
-
-        auto it = inference_pool_.find(name);
-        if (it == inference_pool_.end()) {
-            std::unique_ptr<InferenceRefs> infRefs(new InferenceRefs);
-            ++infRefs->numRefs;
-            infRefs->proxy = nullptr;
-            if (base_inference->model) {
-                // save master element to indicate that this element has full properties set
-                infRefs->masterElement = base_inference;
-            } else {
-                // lazy initialization
-                infRefs->elementsToInit.push_back(base_inference);
-            }
-            inference_pool_.insert({name, infRefs.release()});
-        } else {
-            InferenceRefs *infRefs = it->second;
-            if (!infRefs) {
-                throw std::runtime_error("'infRefs' is set to NULL.");
-            }
-            ++infRefs->numRefs;
-            if (base_inference->model) {
-                // save master element to indicate that this element has full properties set
-                infRefs->masterElement = base_inference;
-            } else {
-                // lazy initialization
-                infRefs->elementsToInit.push_back(base_inference);
-            }
-        }
+        registerElementUnlocked(base_inference);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference based element registration failed"),
                           ("%s", Utils::createNestedErrorMsg(e).c_str()));
@@ -67,8 +68,8 @@ gboolean registerElement(GvaBaseInference *base_inference) {
 }
 
 void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem, InferenceImpl *inference_impl) {
+    assert(targetElem);
     assert(masterElem);
-    targetElem->inference = inference_impl;
 
     COPY_GSTRING(targetElem->model, masterElem->model);
     COPY_GSTRING(targetElem->device, masterElem->device);
@@ -83,48 +84,83 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     COPY_GSTRING(targetElem->allocator_name, masterElem->allocator_name);
     COPY_GSTRING(targetElem->pre_proc_type, masterElem->pre_proc_type);
     COPY_GSTRING(targetElem->object_class, masterElem->object_class);
+    COPY_GSTRING(targetElem->labels, masterElem->labels);
     // no need to copy model_instance_id because it should match already.
 }
 
 void initExistingElements(InferenceRefs *infRefs) {
-    if (not infRefs->masterElement) {
+    GvaBaseInference *master = nullptr;
+    for (auto elem : infRefs->refs) {
+        if (elem->model && *elem->model != 0) {
+            master = elem;
+            break;
+        }
+    }
+
+    if (!master) {
         throw std::logic_error("There is no master inference element. Please, check if all of mandatory parameters are "
                                "set, for example 'model'.");
     }
-    for (auto elem : infRefs->elementsToInit) {
-        fillElementProps(elem, infRefs->masterElement, infRefs->proxy);
+
+    for (auto elem : infRefs->refs) {
+        if (elem != master)
+            fillElementProps(elem, master, infRefs->proxy);
     }
 }
 
-void check_image_formats_same(GstVideoFormat &existing_format, const GstVideoFormat &received_format) {
-    if (existing_format == GST_VIDEO_FORMAT_UNKNOWN)
-        existing_format = received_format;
-    else if (existing_format != received_format) {
+std::string capsFeatureString(CapsFeature newCapsFeature) {
+    switch (newCapsFeature) {
+    case ANY_CAPS_FEATURE:
+        return "ANY";
+    case SYSTEM_MEMORY_CAPS_FEATURE:
+        return "System";
+    case VA_SURFACE_CAPS_FEATURE:
+        return "VASurface";
+    case DMA_BUF_CAPS_FEATURE:
+        return "DMABuf";
+    }
+    return "";
+}
+
+void initInferenceProps(InferenceRefs &inferenceRefs, GstVideoFormat newFormat, CapsFeature newCapsFeature) {
+    if (inferenceRefs.videoFormat == GST_VIDEO_FORMAT_UNKNOWN)
+        inferenceRefs.videoFormat = newFormat;
+    if (inferenceRefs.capsFeature == CapsFeature::ANY_CAPS_FEATURE)
+        inferenceRefs.capsFeature = newCapsFeature;
+}
+
+void check_inference_props_same(const InferenceRefs &inferenceRefs, GstVideoFormat newFormat,
+                                CapsFeature newCapsFeature) {
+    if (inferenceRefs.videoFormat != newFormat || inferenceRefs.capsFeature != newCapsFeature) {
         std::string err_msg =
-            "All image formats for the same model-instance-id in multichannel mode must be the same. The current image "
-            "format of this inference element in caps is " +
-            std::string(gst_video_format_to_string(received_format)) +
+            "All image formats and memoryType for the same model-instance-id in multichannel mode must be the same."
+            " The current image "
+            "format and memory type of this inference element in caps is " +
+            std::string(gst_video_format_to_string(newFormat)) + " and " + capsFeatureString(newCapsFeature) +
             " , but the first one accepted in another inference element is " +
-            std::string(gst_video_format_to_string(existing_format)) +
+            std::string(gst_video_format_to_string(inferenceRefs.videoFormat)) + " and " +
+            capsFeatureString(inferenceRefs.capsFeature) +
             ". Try converting video frames to one image format in each channel in front of inference elements using "
-            "various converters, or use different model-instance-id for each channel";
+            "various converters, or use different model-instance-id for each channel"
+            "try to fixate format and memory type using capsfilter";
         throw std::logic_error(err_msg);
     }
 }
 
 InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
     try {
+        if (!base_inference)
+            throw std::invalid_argument("GvaBaseInference is null");
+
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        std::string name(base_inference->model_instance_id);
-
         InferenceRefs *infRefs = nullptr;
-        auto it = inference_pool_.find(name);
+        std::string name = get_inference_key(base_inference);
+        GST_INFO_OBJECT(base_inference, "key: %s\n", name.c_str());
+        infRefs = registerElementUnlocked(base_inference);
 
-        // Current base_inference element with base_inference->inference-id has not been registered
-        assert(it != inference_pool_.end());
+        initInferenceProps(*infRefs, base_inference->info->finfo->format, base_inference->caps_feature);
+        check_inference_props_same(*infRefs, base_inference->info->finfo->format, base_inference->caps_feature);
 
-        infRefs = it->second;
-        check_image_formats_same(infRefs->videoFormat, base_inference->info->finfo->format);
         // if base_inference is not master element, it will get all master element's properties here
         initExistingElements(infRefs);
 
@@ -133,7 +169,7 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
 
         return infRefs->proxy;
     } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference plugin intitialization failed"),
+        GST_ELEMENT_ERROR(base_inference, LIBRARY, INIT, ("base_inference plugin initialization failed"),
                           ("%s", Utils::createNestedErrorMsg(e).c_str()));
         return nullptr;
     }
@@ -142,15 +178,16 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
 void release_inference_instance(GvaBaseInference *base_inference) {
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        std::string name(base_inference->model_instance_id);
+        std::string name = get_inference_key(base_inference);
+        GST_INFO_OBJECT(base_inference, "key: %s\n", name.c_str());
 
         auto it = inference_pool_.find(name);
         if (it == inference_pool_.end())
             return;
 
         InferenceRefs *infRefs = it->second;
-        auto refcounter = --infRefs->numRefs;
-        if (refcounter == 0) {
+        infRefs->refs.erase(base_inference);
+        if (infRefs->refs.empty()) {
             delete infRefs->proxy;
             delete infRefs;
             inference_pool_.erase(name);
@@ -160,90 +197,3 @@ void release_inference_instance(GvaBaseInference *base_inference) {
                           ("%s", Utils::createNestedErrorMsg(e).c_str()));
     }
 }
-
-GstFlowReturn frame_to_base_inference(GvaBaseInference *base_inference, GstBuffer *buf) {
-    if (!base_inference || !base_inference->inference) {
-        GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
-                          ("empty inference instance"));
-        return GST_BASE_TRANSFORM_FLOW_DROPPED;
-    }
-
-    GstFlowReturn status;
-    try {
-        status = ((InferenceImpl *)base_inference->inference)->TransformFrameIp(base_inference, buf);
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, STREAM, FAILED, ("base_inference failed on frame processing"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-        status = GST_FLOW_ERROR;
-    }
-
-    return status;
-}
-
-void base_inference_sink_event(GvaBaseInference *base_inference, GstEvent *event) {
-    try {
-        if (base_inference->inference) {
-            ((InferenceImpl *)base_inference->inference)->SinkEvent(event);
-        }
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, CORE, EVENT, ("base_inference failed while handling sink"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-    }
-}
-
-void flush_inference(GvaBaseInference *base_inference) {
-    if (!base_inference || !base_inference->inference) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
-                          ("empty inference instance"));
-        return;
-    }
-
-    try {
-        ((InferenceImpl *)base_inference->inference)->FlushInference();
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on stop"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-    }
-}
-
-void update_inference_object_classes(GvaBaseInference *base_inference) {
-    if (!base_inference) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on object classes updating"),
-                          ("empty base_inference instance"));
-        return;
-    }
-    if (!base_inference->inference) {
-        GST_ELEMENT_INFO(base_inference, CORE, STATE_CHANGE, ("object classes update was not completed"),
-                         ("empty inference instance: retry will be performed once instance will be acquired"));
-        return;
-    }
-
-    try {
-        ((InferenceImpl *)base_inference->inference)->UpdateObjectClasses(base_inference);
-    } catch (const std::exception &e) {
-        GST_ELEMENT_ERROR(base_inference, CORE, STATE_CHANGE, ("base_inference failed on object classes updating"),
-                          ("%s", Utils::createNestedErrorMsg(e).c_str()));
-    }
-}
-
-gboolean is_roi_size_valid(GstVideoRegionOfInterestMeta *roi_meta) {
-    return roi_meta->w > 1 && roi_meta->h > 1;
-}
-
-bool is_roi_inference_needed(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
-                             GstVideoRegionOfInterestMeta *roi) {
-    InferenceImpl *inference = gva_base_inference->inference;
-    assert(inference);
-
-    if (!is_roi_size_valid(roi))
-        return false;
-    // Check if object-class is the same as roi class label
-    if (not inference->FilterObjectClass(roi))
-        return false;
-
-    if (gva_base_inference->specific_roi_filter)
-        return gva_base_inference->specific_roi_filter(gva_base_inference, current_num_frame, buffer, roi);
-    return true;
-}
-
-FilterROIFunction IS_ROI_INFERENCE_NEEDED = is_roi_inference_needed;

@@ -7,24 +7,30 @@
 #include "jsonconverter.h"
 #include "gva_utils.h"
 #include "video_frame.h"
-#include <iomanip>
-#include <iostream>
-#include <nlohmann/json.hpp>
+#include <utils.h>
 
 #ifdef AUDIO
 #include "audioconverter.h"
 #endif
 #include "convert_tensor.h"
 
+#include <nlohmann/json.hpp>
+
+#include <iomanip>
+#include <iostream>
+
 using json = nlohmann::json;
 
 GST_DEBUG_CATEGORY_STATIC(gst_json_converter_debug);
 #define GST_CAT_DEFAULT gst_json_converter_debug
 
+namespace {
 /**
  * @return JSON object which contains parameters such as resolution, timestamp, source and tags.
  */
 json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    assert(converter && buffer && "Expected valid pointers GstGvaMetaConvert and GstBuffer");
+
     json res = json::object();
     GstSegment converter_segment = converter->base_gvametaconvert.segment;
     GstClockTime timestamp = gst_segment_to_stream_time(&converter_segment, GST_FORMAT_TIME, buffer->pts);
@@ -33,7 +39,7 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     if (converter->source)
         res["source"] = converter->source;
     if (timestamp != G_MAXUINT64)
-        res["timestamp"] = timestamp - converter_segment.time;
+        res["timestamp"] = timestamp;
     if (converter->tags && json::accept(converter->tags))
         res["tags"] = json::parse(converter->tags);
     return res;
@@ -44,6 +50,8 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
  * Also contains ROIs classification results if any.
  */
 json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    assert(converter && buffer && "Expected valid pointers GstGvaMetaConvert and GstBuffer");
+
     json res = json::array();
     GVA::VideoFrame video_frame(buffer, converter->info);
     for (GVA::RegionOfInterest &roi : video_frame.regions()) {
@@ -60,6 +68,7 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         jobject.push_back({"y", roi._meta()->y});
         jobject.push_back({"w", roi._meta()->w});
         jobject.push_back({"h", roi._meta()->h});
+        jobject.push_back({"region_id", roi.region_id()});
 
         if (id != 0)
             jobject.push_back({"id", id});
@@ -71,7 +80,7 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         }
         for (GList *l = roi._meta()->params; l; l = g_list_next(l)) {
 
-            GstStructure *s = (GstStructure *)l->data;
+            GstStructure *s = GST_STRUCTURE(l->data);
             const gchar *s_name = gst_structure_get_name(s);
             if (strcmp(s_name, "detection") == 0) {
                 double xminval;
@@ -142,6 +151,8 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
  * @return JSON array which contains raw tensor metas from frame.
  */
 json convert_frame_tensors(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    assert(converter && buffer && "Expected valid pointers GstGvaMetaConvert and GstBuffer");
+
     GVA::VideoFrame video_frame(buffer, converter->info);
     const std::vector<GVA::Tensor> tensors = video_frame.tensors();
     json array = json::array();
@@ -157,6 +168,8 @@ json convert_frame_tensors(GstGvaMetaConvert *converter, GstBuffer *buffer) {
  * @return JSON object which contains full-frame attributes and full-frame classification results from frame.
  */
 json convert_frame_classification(GstGvaMetaConvert *converter, GstBuffer *buffer) {
+    assert(converter && buffer && "Expected valid pointers GstGvaMetaConvert and GstBuffer");
+
     GVA::VideoFrame video_frame(buffer, converter->info);
     const std::vector<GVA::Tensor> tensors = video_frame.tensors();
     /* check if there is any full-frame classification tensors attached to the buffer */
@@ -201,8 +214,21 @@ json convert_frame_classification(GstGvaMetaConvert *converter, GstBuffer *buffe
     return jobject;
 }
 
+} // namespace
+
 gboolean to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     GST_DEBUG_CATEGORY_INIT(gst_json_converter_debug, "jsonconverter", 0, "JSON converter");
+
+    if (!converter) {
+        GST_ERROR("Failed convert to json: GvaMetaConvert is null");
+        return FALSE;
+    }
+
+    if (!buffer) {
+        GST_ERROR_OBJECT(converter, "Failed convert to json: GstBuffer is null");
+        return FALSE;
+    }
+
     try {
         if (converter->info) {
             json jframe = get_frame_data(converter, buffer);
@@ -248,7 +274,7 @@ gboolean to_json(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         }
 #endif
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(converter, "%s", e.what());
+        GST_ERROR_OBJECT(converter, "%s", Utils::createNestedErrorMsg(e).c_str());
         return FALSE;
     }
     return TRUE;

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2021-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -29,12 +29,20 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    gstgvaactionrecognitionbin
-    gstgvatensoracc
-    gstgvatensorinference
-    gstgvatensortometa
-    gstgvavideototensor
+    ${GSTREAMER_LIBRARIES}
+    gvaactionrecognitionbin
+    gvainferencebin
+    gvadetectbin
+    gvaclassifybin
+    gvafilter
+    gvahistory
+    gvatensoracc
+    gvatensorconverter
+    gvatensortometa
+    gvavideototensor
+    gvadrop
+    gvatypes
+    gvacommon
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

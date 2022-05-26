@@ -23,8 +23,8 @@ void ExtractDetectionResults(AudioInferenceFrame *frame, AudioInferenceOutput *i
             const float *tensor_array = reinterpret_cast<const float *>(blob_iter.second.first->GetData());
             int tensor_size = blob_iter.second.second;
 
-            int index = std::max_element(tensor_array, tensor_array + tensor_size) - tensor_array;
-            std::map<uint, std::pair<std::string, float>> labels = infOutput->model_proc.at(layer_name);
+            int index = std::distance(tensor_array, std::max_element(tensor_array, tensor_array + tensor_size));
+            std::map<uint32_t, std::pair<std::string, float>> labels = infOutput->model_proc.at(layer_name);
             auto itr = labels.find(index);
             if (itr != labels.end()) {
                 float confidence = tensor_array[index];

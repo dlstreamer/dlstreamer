@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -53,6 +53,16 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaPython, gst_gva_python, GST_TYPE_BASE_TRANSFORM,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_python_debug_category, "gvapython", 0,
                                                 "debug category for gvapython element"));
 
+gboolean gst_gva_python_propose_allocation(GstBaseTransform *trans, GstQuery *decide_query, GstQuery *query) {
+    UNUSED(decide_query);
+    UNUSED(trans);
+    if (query) {
+        gst_query_add_allocation_meta(query, GST_VIDEO_META_API_TYPE, NULL);
+        return TRUE;
+    }
+    return FALSE;
+}
+
 static void gst_gva_python_class_init(GstGvaPythonClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
     GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS(klass);
@@ -73,6 +83,7 @@ static void gst_gva_python_class_init(GstGvaPythonClass *klass) {
     base_transform_class->set_caps = GST_DEBUG_FUNCPTR(gst_gva_python_set_caps);
     base_transform_class->transform = NULL;
     base_transform_class->transform_ip = GST_DEBUG_FUNCPTR(gst_gva_python_transform_ip);
+    base_transform_class->propose_allocation = GST_DEBUG_FUNCPTR(gst_gva_python_propose_allocation);
 
     g_object_class_install_property(gobject_class, PROP_MODULE,
                                     g_param_spec_string("module", "Python module name", "Python module name",
@@ -200,6 +211,13 @@ static gboolean gst_gva_python_start(GstBaseTransform *trans) {
     }
     argument_string = get_arguments_string(gvapython->args);
     keyword_argument_string = get_arguments_string(gvapython->kwargs);
+
+    GST_INFO_OBJECT(gvapython,
+                    "%s parameters:\n -- Module: %s\n -- Class: %s\n -- Function: %s\n -- Arg: %s\n "
+                    "-- Keyword Arg: %s\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvapython)), gvapython->module_name, gvapython->class_name,
+                    gvapython->function_name, argument_string, keyword_argument_string);
+
     if (keyword_argument_string && argument_string) {
         gvapython->python_callback =
             create_python_callback(gvapython->module_name, gvapython->class_name, gvapython->function_name,
@@ -208,9 +226,11 @@ static gboolean gst_gva_python_start(GstBaseTransform *trans) {
 
     if (!gvapython->python_callback) {
         GST_ELEMENT_ERROR(trans, LIBRARY, INIT, ("Error creating Python callback"),
-                          ("Module: %s\n Class: %s\n Function: %s\n Arg: %s\nKeyword Arg: %s\n", gvapython->module_name,
-                           gvapython->class_name, gvapython->function_name, argument_string, keyword_argument_string));
+                          ("Module: %s\n Class: %s\n Function: %s\n Arg: %s\n Keyword Arg: %s\n",
+                           gvapython->module_name, gvapython->class_name, gvapython->function_name, argument_string,
+                           keyword_argument_string));
     }
+
     g_free(argument_string);
     g_free(keyword_argument_string);
     return gvapython->python_callback != NULL;

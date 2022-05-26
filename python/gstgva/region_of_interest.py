@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2021 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -145,3 +145,8 @@ class RegionOfInterest(object):
     # @param roi_meta VideoRegionOfInterestMeta containing bounding box information and tensors
     def __init__(self, roi_meta: VideoRegionOfInterestMeta):
         self.__roi_meta = roi_meta
+
+    ## @brief Get region ID
+    # @return Region id as an int. Can be a positive or negative integer, but never zero.
+    def region_id(self):
+        return self.__roi_meta.id

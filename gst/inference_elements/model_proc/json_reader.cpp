@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,7 +9,7 @@
 void JsonReader::read(const std::string &file_path) {
     std::ifstream input_file(file_path);
     if (not input_file)
-        std::throw_with_nested(std::runtime_error("Model-proc file '" + file_path + "' was not found"));
+        throw std::runtime_error("Model-proc file '" + file_path + "' was not found");
 
     input_file >> file_contents;
     input_file.close();
@@ -68,9 +68,9 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value, const 
         // TODO: need to be implemented in case of nested dict
         case nlohmann::json::value_t::object: {
             g_value_init(&gvalue, GST_TYPE_STRUCTURE);
-            json obj = (json)value;
+            json obj = static_cast<json>(value);
             GstStructure *s = gst_structure_new_empty(key);
-            for (json::const_iterator it = obj.begin(); it != obj.end(); ++it) {
+            for (auto it = obj.begin(); it != obj.end(); ++it) {
                 const std::string &key = it.key();
                 auto value = it.value();
                 GValue gvalue = JsonReader::convertToGValue(value, key.c_str());

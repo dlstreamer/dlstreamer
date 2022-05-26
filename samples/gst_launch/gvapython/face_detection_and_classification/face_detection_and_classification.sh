@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -12,7 +12,7 @@ INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pos
 DEVICE=${2:-CPU}
 
 if [[ $3 == "display" ]] || [[ -z $3 ]]; then
-  SINK_ELEMENT="gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
+  SINK_ELEMENT="gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
 elif [[ $3 == "fps" ]]; then
   SINK_ELEMENT="gvafpscounter ! fakesink async=false "
 else
@@ -54,4 +54,4 @@ $SINK_ELEMENT"
 
 echo ${PIPELINE}
 PYTHONPATH=$PYTHONPATH:$(dirname "$0")/../../../../python \
-${PIPELINE}
+$PIPELINE

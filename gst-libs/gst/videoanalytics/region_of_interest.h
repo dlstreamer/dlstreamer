@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -151,13 +151,23 @@ class RegionOfInterest {
         _tensors.reserve(g_list_length(meta->params));
 
         for (GList *l = meta->params; l; l = g_list_next(l)) {
-            GstStructure *s = (GstStructure *)l->data;
+            GstStructure *s = GST_STRUCTURE(l->data);
             if (not gst_structure_has_name(s, "object_id")) {
                 _tensors.emplace_back(s);
                 if (_tensors.back().is_detection())
                     _detection = &_tensors.back();
             }
         }
+    }
+
+    /**
+     * @brief Access RegionOfInterest ID
+     * Use this method to get RegionOfInterest ID. ID is generated with "GVA::VideoFrame::add_region()" call.
+     * Region ID can be a positive or negative integer, but never zero.
+     * @return ID field value
+     */
+    int region_id() {
+        return _gst_meta->id;
     }
 
     /**

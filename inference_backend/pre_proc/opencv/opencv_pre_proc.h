@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,7 +15,8 @@ class OpenCV_VPP : public ImagePreprocessor {
 
     // PreProc interface
     void Convert(const Image &src, Image &dst, const InputImageLayerDesc::Ptr &pre_proc_info,
-                 const ImageTransformationParams::Ptr &image_transform_info, bool bAllocateDestination);
+                 const ImageTransformationParams::Ptr &image_transform_info, bool make_planar = true,
+                 bool allocate_destination = false);
     void ReleaseImage(const Image &);
 };
 

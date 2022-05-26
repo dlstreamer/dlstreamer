@@ -10,6 +10,7 @@
 
 #include <functional>
 #include <memory>
+#include <stdexcept>
 
 class SharedObject {
   public:

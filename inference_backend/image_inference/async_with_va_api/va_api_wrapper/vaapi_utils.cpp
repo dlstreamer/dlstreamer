@@ -6,8 +6,13 @@
 
 #include <assert.h>
 #include <fcntl.h>
+#include <glob.h>
+#include <string.h>
 #include <unistd.h>
+
+#include <scope_guard.h>
 #include <vaapi_utils.h>
+
 namespace internal {
 
 VaApiLibBinderImpl::VaApiLibBinderImpl() {
@@ -40,11 +45,11 @@ std::function<const char *(VAStatus)> VaApiLibBinderImpl::StatusToStrFunc() {
 namespace {
 
 static void message_callback_error(void * /*user_ctx*/, const char *message) {
-    GVA_ERROR(message);
+    GVA_ERROR("%s", message);
 }
 
 static void message_callback_info(void * /*user_ctx*/, const char *message) {
-    GVA_INFO(message);
+    GVA_INFO("%s", message);
 }
 
 /**
@@ -72,36 +77,66 @@ void initializeVaDisplay(VaDpyWrapper display) {
 
 } // namespace
 
-VaApiDisplayPtr vaApiCreateVaDisplay(uint32_t relative_device_index) {
-    constexpr uint32_t SYSTEM_DEV_ID = 128;
-    std::string device_path = "/dev/dri/renderD" + std::to_string(SYSTEM_DEV_ID + relative_device_index);
+dlstreamer::VAAPIContextPtr vaApiCreateVaDisplay(uint32_t relative_device_index) {
+    static const char *DEV_DRI_RENDER_PATTERN = "/dev/dri/renderD*";
 
-    int dri_file_descriptor = open(device_path.c_str(), O_RDWR);
-    // add errno
-    if (!dri_file_descriptor) {
-        throw std::runtime_error("Error opening " + device_path);
+    glob_t globbuf;
+    globbuf.gl_offs = 0;
+
+    int ret = glob(DEV_DRI_RENDER_PATTERN, GLOB_ERR, NULL, &globbuf);
+    auto globbuf_sg = makeScopeGuard([&] { globfree(&globbuf); });
+
+    if (ret != 0) {
+        throw std::runtime_error("Can't access render devices at /dev/dri. glob error " + std::to_string(ret));
+    }
+
+    if (relative_device_index >= globbuf.gl_pathc) {
+        throw std::runtime_error("There is no device with index " + std::to_string(relative_device_index));
+    }
+
+    int dri_file_descriptor = open(globbuf.gl_pathv[relative_device_index], O_RDWR);
+    if (dri_file_descriptor < 0) {
+        int err = errno;
+        throw std::runtime_error("Error opening " + std::string(globbuf.gl_pathv[relative_device_index]) + ": " +
+                                 strerror(err));
     }
 
     VADisplay display = VaApiLibBinder::get().GetDisplayDRM(dri_file_descriptor);
     initializeVaDisplay(VaDpyWrapper::fromHandle(display));
 
-    auto deleter = [dri_file_descriptor](void *display) {
-        VAStatus vastatus = VaApiLibBinder::get().Terminate(display);
-        if (vastatus != VA_STATUS_SUCCESS) {
-            auto error_message = std::string("VA Display termination failed with code ") + std::to_string(vastatus);
-            GVA_WARNING(error_message.c_str())
+    auto deleter = [dri_file_descriptor](dlstreamer::VAAPIContext *context) {
+        VADisplay display = context->va_display();
+        VAStatus va_status = VaApiLibBinder::get().Terminate(display);
+        if (va_status != VA_STATUS_SUCCESS) {
+            GVA_ERROR("VA Display termination failed with code: %d", va_status);
         }
         int status = close(dri_file_descriptor);
         if (status != 0) {
-            auto error_message = std::string("DRI file descriptor closing failed with code ") + std::to_string(status);
-            GVA_WARNING(error_message.c_str())
+            GVA_WARNING("DRI file descriptor closing failed with code: %d", status);
         }
+        delete context;
     };
 
-    return VaApiDisplayPtr(display, deleter);
+    return {new dlstreamer::VAAPIContext(display), deleter};
 }
 
 internal::VaApiLibBinderImpl &VaApiLibBinder::get() {
     static internal::VaApiLibBinderImpl instance;
     return instance;
+}
+
+int VaDpyWrapper::currentSubDevice() const {
+#if VA_CHECK_VERSION(1, 12, 0)
+    VADisplayAttribValSubDevice reg;
+    VADisplayAttribute reg_attr;
+    reg_attr.type = VADisplayAttribType::VADisplayAttribSubDevice;
+    if (drvVtable().vaGetDisplayAttributes(drvCtx(), &reg_attr, 1) == VA_STATUS_SUCCESS) {
+        reg.value = reg_attr.value;
+        if (reg.bits.sub_device_count > 0)
+            return static_cast<int>(reg.bits.current_sub_device);
+    }
+#else
+    GVA_WARNING("Current version of libva doesn't support sub-device API, version 2.12 or higher is required");
+#endif
+    return -1;
 }

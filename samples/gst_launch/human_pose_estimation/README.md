@@ -10,10 +10,10 @@ This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) uses for full-frame inference and post-processing of OpenPose's output
-* [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for points and theirs connections visualization
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) uses for full-frame inference and post-processing of OpenPose's output
+* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 
@@ -53,4 +53,4 @@ The sample
 or prints out fps if you set SINK_ELEMENT = fps
 
 ## See also
-* [DL Streamer samples](../../README.md)
+* [Samples overview](../../README.md)

@@ -25,7 +25,9 @@ set_compile_flags(${TARGET_NAME})
 
 # FIXME: there are some debug information that are removed for release build type
 # FIXME: hence it marked as error
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-parameter)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-parameter)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
@@ -40,3 +42,8 @@ PUBLIC
 PRIVATE
         ngraph::ngraph
 )
+
+if (${ENABLE_VAAPI} AND ${InferenceEngine_VERSION} VERSION_GREATER_EQUAL "2022.1.0")
+        add_definitions(-DENABLE_GPU_TILE_AFFINITY)
+        target_link_libraries(${TARGET_NAME} PUBLIC va_api_wrapper)
+endif()

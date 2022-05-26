@@ -1,27 +1,30 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include <assert.h>
 
-#include <gst/gst.h>
-
 #include "config.h"
 
 #include <cldnn/cldnn_config.hpp>
 #include <gpu/gpu_params.hpp>
 #include <ie_compound_blob.h>
+#include <ie_plugin_config.hpp>
 
-#include <gva_custom_meta.hpp>
+#include <safe_arithmetic.hpp>
+#include <utils.h>
 
+#include <inference_backend/logger.h>
+
+#ifdef ENABLE_GPU_TILE_AFFINITY
+#include "vaapi_utils.h"
+#endif
 #include "tensor_inference.hpp"
 
 /* TODO: move to file for utilities, e.g. create file in common */
 namespace {
-
-constexpr short FP32_BYTES = 4;
 
 // FIXME: copypaste function, get rid of it
 std::string get_message(InferenceEngine::StatusCode code) {
@@ -71,18 +74,6 @@ std::string get_message(InferenceEngine::StatusCode code) {
     }
 }
 
-std::map<std::string, std::string> parse_config(const std::string &s, char rec_delim = ',', char kv_delim = '=') {
-    std::string key, val;
-    std::istringstream iss(s);
-    std::map<std::string, std::string> m;
-
-    while (std::getline(std::getline(iss, key, kv_delim) >> std::ws, val, rec_delim)) {
-        m.emplace(std::move(key), std::move(val));
-    }
-
-    return m;
-}
-
 } /* anonymous namespace */
 
 TensorInference::TensorInference(const std::string &model_path) {
@@ -96,35 +87,76 @@ TensorInference::TensorInference(const std::string &model_path) {
     if (layout == InferenceEngine::Layout::NHWC || layout == InferenceEngine::Layout::NCHW) {
         inputs_info.second->setPrecision(InferenceEngine::Precision::U8);
     }
+
+    for (const auto &info : _network.getInputsInfo())
+        _input_info.emplace_back(TensorLayerDesc::FromIeDesc(info.second->getTensorDesc(), info.first));
+    for (const auto &info : _network.getOutputsInfo())
+        _output_info.emplace_back(TensorLayerDesc::FromIeDesc(info.second->getTensorDesc(), info.first));
+    std::transform(_output_info.begin(), _output_info.end(), std::back_inserter(_output_sizes),
+                   [](const TensorLayerDesc &desc) { return desc.size; });
+}
+
+TensorInference::~TensorInference() {
+    // TODO: manual request pool cleanup to reset completion callback which stores ptr to our request (cyclic dep?)
+    while (_free_requests.size() > 0) {
+        auto p = _free_requests.pop();
+        p->infer_req->SetCompletionCallback(nullptr);
+    }
 }
 
 void TensorInference::Init(const std::string &device, size_t num_requests, const std::string &ie_config,
                            const PreProcInfo &preproc, const ImageInfo &image) {
+    std::lock_guard<std::mutex> lock(_init_mutex);
+
     if (_is_initialized) {
         return;
     }
 
     ConfigurePreProcessing(preproc, image);
 
-    if (_vaapi_surface_sharing_enabled && device != "GPU")
+    if (_vaapi_surface_sharing_enabled && (device.find("GPU") == std::string::npos))
         throw std::runtime_error("Surface sharing is supported only on GPU device plugin");
 
-    auto inference_config = parse_config(ie_config);
+    auto inference_config = Utils::stringToMap(ie_config);
+    if (device == "CPU") {
+        /* set cpu_throughput_streamer to auto */
+        if (inference_config.find("CPU_THROUGHPUT_STREAMS") == inference_config.end()) {
+            inference_config["CPU_THROUGHPUT_STREAMS"] = "CPU_THROUGHPUT_AUTO";
+        }
+    } else if (device == "GPU") {
+        if (inference_config.find("GPU_THROUGHPUT_STREAMS") == inference_config.end()) {
+            inference_config["GPU_THROUGHPUT_STREAMS"] = "GPU_THROUGHPUT_AUTO";
+        }
+    }
+
+    GVA_INFO("Loading network ...");
 #ifdef ENABLE_VAAPI
     if (_vaapi_surface_sharing_enabled) {
-        if (!_image_info.va_display)
+        using namespace InferenceEngine;
+
+        if (!preproc.va_display)
             throw std::runtime_error("Can't create GPU context: VADisplay is null");
 
         InferenceEngine::ParamMap context_params = {
-            {InferenceEngine::GPU_PARAM_KEY(CONTEXT_TYPE), InferenceEngine::GPU_PARAM_VALUE(VA_SHARED)},
-            {InferenceEngine::GPU_PARAM_KEY(VA_DEVICE),
-             static_cast<InferenceEngine::gpu_handle_param>(_image_info.va_display)}};
-        auto context = _ie.CreateContext(device, context_params);
+            {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+            {GPU_PARAM_KEY(VA_DEVICE), static_cast<InferenceEngine::gpu_handle_param>(preproc.va_display)}};
+
+        if (device == "GPU.x") {
+#ifdef ENABLE_GPU_TILE_AFFINITY
+            VaDpyWrapper dpyWrapper(preproc.va_display);
+            int tile_id = dpyWrapper.currentSubDevice();
+            // If tile_id is -1 (single-tile GPU is used or the driver doesn't support this feature)
+            // then GPU plugin will choose the device and tile on its own and there will be no affinity
+            context_params.insert({GPU_PARAM_KEY(TILE_ID), tile_id});
+#else
+            GVA_WARNING("Current version of OpenVINO™ toolkit doesn't support tile affinity, version 2022.1 or higher "
+                        "is required");
+#endif
+        }
+        auto context = _ie.CreateContext("GPU", context_params);
         // This is a temporary workround to provide a compound blob instead of a remote one
         inference_config[InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] =
             InferenceEngine::PluginConfigParams::YES;
-        // Surface sharing works only with GPU_THROUGHPUT_STREAMS equal to default value ( = 1)
-        inference_config.erase("GPU_THROUGHPUT_STREAMS");
         _executable_net = _ie.LoadNetwork(_network, context, inference_config);
     } else {
 #endif
@@ -132,6 +164,15 @@ void TensorInference::Init(const std::string &device, size_t num_requests, const
 #ifdef ENABLE_VAAPI
     }
 #endif
+    GVA_INFO("Loading network -> OK");
+
+    if (num_requests == 0) {
+        /* executable_network.GetMetric(...).as<size_t>() results in an error and the default
+         * value is returned, which causes the perf degradation. We should use unsigned int here */
+        num_requests = _executable_net.GetMetric(InferenceEngine::Metrics::METRIC_OPTIMAL_NUMBER_OF_INFER_REQUESTS)
+                           .as<unsigned int>() +
+                       1; // One additional for pre-processing parallelization with inference
+    }
 
     for (size_t i = 0; i < num_requests; ++i) {
         Request::Ptr request = std::make_shared<Request>();
@@ -144,118 +185,60 @@ void TensorInference::Init(const std::string &device, size_t num_requests, const
         _free_requests.push(request);
     }
 
+    _num_requests = num_requests;
     _is_initialized = true;
+}
+
+bool TensorInference::IsInitialized() const {
+    std::lock_guard<std::mutex> lock(_init_mutex);
+    return _is_initialized;
 }
 
 void TensorInference::ConfigurePreProcessing(const PreProcInfo &preproc, const ImageInfo &image) {
     assert(!_is_initialized);
 
-    if (!image) {
-        return;
-    }
-
     auto inputs_info = *_network.getInputsInfo().begin();
     inputs_info.second->getPreProcess().setResizeAlgorithm(preproc.resize_alg);
     inputs_info.second->getPreProcess().setColorFormat(preproc.color_format);
+
+    if (!image) {
+        GVA_INFO("TensorInference: external pre-processing");
+
+        // TODO: find better way to understand pre-process type
+        if (preproc.va_display) {
+            // inputs_info.second->setLayout(InferenceEngine::Layout::NCHW);
+            _vaapi_surface_sharing_enabled = true;
+            GVA_INFO("TensorInference: VAAPI surface sharing");
+        }
+        return;
+    }
     _image_info = image;
     _pre_proc_info = preproc;
 
     if (image.memory_type == InferenceBackend::MemoryType::SYSTEM) {
         _ie_preproc_enabled = true;
-    } else {
-        _vaapi_surface_sharing_enabled = true;
+        GVA_INFO("TensorInference: IE pre-processing: ");
     }
 }
 
-TensorInference::TensorInputInfo TensorInference::GetTensorInputInfo() const {
-    // Lazy init
-    if (_input_info)
-        return _input_info;
-
-    // TODO: there may be multiple inputs and outputs ?
-    for (auto p : _network.getInputsInfo()) {
-        auto tensor_description = p.second->getTensorDesc();
-        _input_info.precision = tensor_description.getPrecision();
-        _input_info.layout = tensor_description.getLayout();
-        _input_info.dims = tensor_description.getDims();
-
-        switch (_input_info.layout) {
-        case InferenceEngine::Layout::NHWC:
-            _input_info.height = _input_info.dims[1];
-            _input_info.width = _input_info.dims[2];
-            _input_info.channels = _input_info.dims[3];
-            break;
-        case InferenceEngine::Layout::NCHW:
-            _input_info.channels = _input_info.dims[1];
-            _input_info.height = _input_info.dims[2];
-            _input_info.width = _input_info.dims[3];
-            break;
-        case InferenceEngine::Layout::CHW:
-            _input_info.channels = _input_info.dims[0];
-            _input_info.height = _input_info.dims[1];
-            _input_info.width = _input_info.dims[2];
-            break;
-        case InferenceEngine::Layout::NC:
-            _input_info.channels = _input_info.dims[1];
-            break;
-        default:
-            break;
-        }
-    }
-
-    if (!_input_info)
-        throw std::runtime_error("Couldn't get image inputs information for model!");
-
+const std::vector<TensorLayerDesc> &TensorInference::GetTensorInputInfo() const {
     return _input_info;
 }
 
-// TODO: very similar method as for inputInfo
-TensorInference::TensorOutputInfo TensorInference::GetTensorOutputInfo() const {
-    // Lazy init
-    if (_output_info)
-        return _output_info;
-
-    for (auto p : _network.getOutputsInfo()) {
-        auto tensor_description = p.second->getTensorDesc();
-        _output_info.precision = tensor_description.getPrecision();
-        _output_info.layout = tensor_description.getLayout();
-        _output_info.dims = tensor_description.getDims();
-
-        switch (_output_info.layout) {
-        case InferenceEngine::Layout::NHWC:
-            _output_info.height = _output_info.dims[1];
-            _output_info.width = _output_info.dims[2];
-            _output_info.channels = _output_info.dims[3];
-            break;
-        case InferenceEngine::Layout::NCHW:
-            _output_info.channels = _output_info.dims[1];
-            _output_info.height = _output_info.dims[2];
-            _output_info.width = _output_info.dims[3];
-            break;
-        case InferenceEngine::Layout::CHW:
-            _output_info.channels = _output_info.dims[0];
-            _output_info.height = _output_info.dims[1];
-            _output_info.width = _output_info.dims[2];
-            break;
-        case InferenceEngine::Layout::NC:
-            _output_info.channels = _output_info.dims[1];
-            break;
-        default:
-            break;
-        }
-
-        for (const auto &i : _output_info.dims)
-            _output_info.size *= i;
-
-        if (_output_info.precision == InferenceEngine::Precision::FP32) {
-            _output_info.size *= FP32_BYTES;
-        }
-    }
-
-    if (!_output_info)
-        throw std::runtime_error("Couldn't get image outputs information for model!");
-
+const std::vector<TensorLayerDesc> &TensorInference::GetTensorOutputInfo() const {
     return _output_info;
+}
+
+const std::vector<size_t> &TensorInference::GetTensorOutputSizes() const {
+    return _output_sizes;
+}
+
+std::string TensorInference::GetModelName() const {
+    return _network.getName();
+}
+
+size_t TensorInference::GetRequestsNum() const {
+    return _num_requests;
 }
 
 /**
@@ -266,8 +249,8 @@ TensorInference::TensorOutputInfo TensorInference::GetTensorOutputInfo() const {
  * @param user_callback - callback called on inference completion
  */
 void TensorInference::InferAsync(const std::shared_ptr<FrameData> input, std::shared_ptr<FrameData> output,
-                                 CompletionCallback completion_callback) {
-    Request::Ptr req = PrepareRequest(input, output);
+                                 CompletionCallback completion_callback, const RoiRect &roi) {
+    Request::Ptr req = PrepareRequest(input, output, roi);
     req->completion_callback = completion_callback;
 
     req->infer_req->StartAsync();
@@ -280,17 +263,29 @@ void TensorInference::InferAsync(const std::shared_ptr<FrameData> input, std::sh
  * @param output_mem - memory where output blob will be set
  */
 TensorInference::Request::Ptr TensorInference::PrepareRequest(const std::shared_ptr<FrameData> input,
-                                                              std::shared_ptr<FrameData> output) {
+                                                              std::shared_ptr<FrameData> output, const RoiRect &roi) {
+    TensorInference::Request::Ptr request;
+    {
+        ITT_TASK("Waiting free request");
+        request = _free_requests.pop();
+    }
 
-    auto request = _free_requests.pop();
-
-    SetInputBlob(request, input);
+    SetInputBlob(request, input, roi);
     SetOutputBlob(request, output);
 
     return request;
 }
 
-void TensorInference::SetInputBlob(TensorInference::Request::Ptr request, const std::shared_ptr<FrameData> frame_data) {
+bool TensorInference::IsRunning() const {
+    return _free_requests.size() < _num_requests;
+}
+
+void TensorInference::SetInputBlob(TensorInference::Request::Ptr request, const std::shared_ptr<FrameData> frame_data,
+                                   const RoiRect &roi) {
+    ITT_TASK("PREPARE INPUT BLOB");
+    if (!frame_data)
+        throw std::invalid_argument("Failed to set input buffer: FrameData is null");
+
     InferenceEngine::Blob::Ptr blob;
     // TODO: Will we handle multiple inputs info ??
     auto first_input_info = *_network.getInputsInfo().begin();
@@ -299,50 +294,69 @@ void TensorInference::SetInputBlob(TensorInference::Request::Ptr request, const 
         blob = this->MakeNV12VaapiBlob(frame_data);
     } else {
         auto tensor_desc = first_input_info.second->getTensorDesc();
-
-        if (_ie_preproc_enabled) {
-            tensor_desc.setLayout(InferenceEngine::Layout::NHWC);
-            tensor_desc.setDims(
-                {1, static_cast<uint32_t>(_image_info.channels), _image_info.height, _image_info.width});
+        switch (_pre_proc_info.color_format) {
+        case InferenceEngine::I420:
+            blob = MakeI420Blob(frame_data, tensor_desc, roi);
+            break;
+        case InferenceEngine::NV12:
+            blob = MakeNV12Blob(frame_data, tensor_desc, roi);
+            break;
+        default:
+            blob = MakeBGRBlob(frame_data, tensor_desc, roi);
+            break;
         }
-
-        blob = this->MakeBlob(tensor_desc, frame_data->GetPlane(0));
     }
 
     request->infer_req->SetBlob(first_input_info.first, blob);
 }
 
 void TensorInference::SetOutputBlob(TensorInference::Request::Ptr request, std::shared_ptr<FrameData> frame_data) {
-    // TODO: Will we handle multiple outputs info ??
-    auto first_output_info = *_network.getOutputsInfo().begin();
-    auto tensor_desc = first_output_info.second->getTensorDesc();
+    ITT_TASK("PREPARE OUTPUT BLOB");
+    if (!frame_data)
+        throw std::invalid_argument("Failed to set output buffer: FrameData is null");
 
-    InferenceEngine::Blob::Ptr blob = this->MakeBlob(tensor_desc, frame_data->GetPlane(0));
+    // TODO: More accurate way to handle multiple outputs
+    const auto &outputs = _network.getOutputsInfo();
+    assert(outputs.size() == frame_data->GetPlanesNum() && "Model outputs and frame data planes don't match");
 
-    request->infer_req->SetBlob(first_output_info.first, blob);
+    auto index = 0u;
+    for (const auto &p : outputs) {
+        auto tensor_desc = p.second->getTensorDesc();
+        auto blob = MakeBlob(tensor_desc, frame_data->GetPlane(index));
+        request->infer_req->SetBlob(p.first, blob);
+        index++;
+    }
 }
 
-InferenceEngine::Blob::Ptr TensorInference::MakeBlob(const InferenceEngine::TensorDesc &tensor_desc, uint8_t *data) {
-    auto precision = tensor_desc.getPrecision();
+InferenceEngine::Blob::Ptr TensorInference::MakeBlob(const InferenceEngine::TensorDesc &tensor_desc,
+                                                     uint8_t *data) const {
+    assert(data && "Expected valid data pointer");
 
+    using namespace InferenceEngine;
+
+    auto precision = tensor_desc.getPrecision();
     switch (precision) {
     case InferenceEngine::Precision::U8:
-        return InferenceEngine::make_shared_blob<uint8_t>(tensor_desc, data);
+        return InferenceEngine::make_shared_blob<PrecisionTrait<Precision::U8>::value_type>(tensor_desc, data);
     case InferenceEngine::Precision::FP32:
-        return InferenceEngine::make_shared_blob<float>(tensor_desc, reinterpret_cast<float *>(data));
+        return InferenceEngine::make_shared_blob<PrecisionTrait<Precision::FP32>::value_type>(
+            tensor_desc, reinterpret_cast<PrecisionTrait<Precision::FP32>::value_type *>(data));
+    case InferenceEngine::Precision::I32:
+        return InferenceEngine::make_shared_blob<PrecisionTrait<Precision::I32>::value_type>(
+            tensor_desc, reinterpret_cast<PrecisionTrait<Precision::I32>::value_type *>(data));
     default:
         throw std::invalid_argument("Failed to create Blob: InferenceEngine::Precision " + std::to_string(precision) +
                                     " is not supported");
     }
 }
 
-InferenceEngine::Blob::Ptr TensorInference::MakeNV12VaapiBlob(const std::shared_ptr<FrameData> frame_data) {
+InferenceEngine::Blob::Ptr TensorInference::MakeNV12VaapiBlob(const std::shared_ptr<FrameData> &frame_data) const {
+    assert(frame_data && "Expected valid FrameData pointer");
 #ifdef ENABLE_VAAPI
     using namespace InferenceEngine;
 
     assert(_executable_net.GetContext() && "Invalid remote context, can't create surface");
-    const uint32_t VASURFACE_INVALID_ID = 0xffffffff;
-    const auto va_surface_id = frame_data->GetVaMemInfo().va_surface_id;
+    const auto va_surface_id = frame_data->GetVaSurfaceID();
     if (va_surface_id == VASURFACE_INVALID_ID)
         throw std::runtime_error("Incorrect VA surface");
 
@@ -369,12 +383,125 @@ InferenceEngine::Blob::Ptr TensorInference::MakeNV12VaapiBlob(const std::shared_
 #endif
 }
 
+InferenceEngine::Blob::Ptr TensorInference::MakeNV12Blob(const std::shared_ptr<FrameData> &frame_data,
+                                                         InferenceEngine::TensorDesc /*tensor_desc*/,
+                                                         const RoiRect &roi) const {
+    using namespace InferenceEngine;
+    std::vector<size_t> NHWC = {0, 2, 3, 1};
+    std::vector<size_t> dimOffsets = {0, 0, 0, 0};
+    const size_t imageWidth = safe_convert<size_t>(frame_data->GetWidth());
+    const size_t imageHeight = safe_convert<size_t>(frame_data->GetHeight());
+    BlockingDesc memY(
+        {1, imageHeight, imageWidth, 1}, NHWC, 0, dimOffsets,
+        {frame_data->GetOffset(1) + frame_data->GetStride(0) * imageHeight / 2, frame_data->GetStride(0), 1, 1});
+    BlockingDesc memUV(
+        {1, imageHeight / 2, imageWidth / 2, 2}, NHWC, 0, dimOffsets,
+        {frame_data->GetOffset(1) + frame_data->GetStride(0) * imageHeight / 2, frame_data->GetStride(1), 1, 1});
+    TensorDesc planeY(InferenceEngine::Precision::U8, {1, 1, imageHeight, imageWidth}, memY);
+    TensorDesc planeUV(InferenceEngine::Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, memUV);
+
+    auto blobY = MakeBlob(planeY, frame_data->GetPlane(0));
+    auto blobUV = MakeBlob(planeUV, frame_data->GetPlane(1));
+    if (!blobY || !blobUV)
+        throw std::runtime_error("Failed to create blob for Y or UV plane");
+
+    if (roi) {
+        ROI crop_roi_y({
+            0,
+            safe_convert<size_t>(((roi.x & 0x1) ? roi.x - 1 : roi.x)),
+            safe_convert<size_t>(((roi.y & 0x1) ? roi.y - 1 : roi.y)),
+            safe_convert<size_t>(((roi.w & 0x1) ? roi.w - 1 : roi.w)),
+            safe_convert<size_t>(((roi.h & 0x1) ? roi.h - 1 : roi.h)),
+        });
+        ROI crop_roi_uv({0, safe_convert<size_t>(roi.x / 2), safe_convert<size_t>(roi.y / 2),
+                         safe_convert<size_t>(roi.w / 2), safe_convert<size_t>(roi.h / 2)});
+
+        blobY = make_shared_blob(blobY, crop_roi_y);
+        blobUV = make_shared_blob(blobUV, crop_roi_uv);
+    }
+
+    return make_shared_blob<NV12Blob>(blobY, blobUV);
+}
+
+InferenceEngine::Blob::Ptr TensorInference::MakeI420Blob(const std::shared_ptr<FrameData> &frame_data,
+                                                         InferenceEngine::TensorDesc /*tensor_desc*/,
+                                                         const RoiRect &roi) const {
+    using namespace InferenceEngine;
+    std::vector<size_t> NHWC = {0, 2, 3, 1};
+    std::vector<size_t> dimOffsets = {0, 0, 0, 0};
+    const size_t image_width = static_cast<size_t>(frame_data->GetWidth());
+    const size_t image_height = static_cast<size_t>(frame_data->GetHeight());
+    BlockingDesc memY(
+        {1, image_height, image_width, 1}, NHWC, 0, dimOffsets,
+        {frame_data->GetOffset(1) + image_height * frame_data->GetStride(0) / 2, frame_data->GetStride(0), 1, 1});
+    BlockingDesc memU(
+        {1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets,
+        {frame_data->GetOffset(1) + image_height * frame_data->GetStride(0) / 2, frame_data->GetStride(1), 1, 1});
+    BlockingDesc memV(
+        {1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets,
+        {frame_data->GetOffset(1) + image_height * frame_data->GetStride(0) / 2, frame_data->GetStride(2), 1, 1});
+
+    TensorDesc Y_plane_desc(InferenceEngine::Precision::U8, {1, 1, image_height, image_width}, memY);
+    TensorDesc U_plane_desc(InferenceEngine::Precision::U8, {1, 1, image_height / 2, image_width / 2}, memU);
+    TensorDesc V_plane_desc(InferenceEngine::Precision::U8, {1, 1, image_height / 2, image_width / 2}, memV);
+    if (frame_data->GetPlanesNum() < 3)
+        throw std::invalid_argument("Planes number for I420 image is less than 3");
+
+    auto Y_plane_blob = MakeBlob(Y_plane_desc, frame_data->GetPlane(0));
+    auto U_plane_blob = MakeBlob(U_plane_desc, frame_data->GetPlane(1));
+    auto V_plane_blob = MakeBlob(V_plane_desc, frame_data->GetPlane(2));
+    if (!Y_plane_blob || !U_plane_blob || !V_plane_blob)
+        throw std::runtime_error("Failed to create blob for Y, or U, or V plane");
+
+    if (roi) {
+        ROI Y_roi({
+            0,
+            safe_convert<size_t>(((roi.x & 0x1) ? roi.x - 1 : roi.x)),
+            safe_convert<size_t>(((roi.y & 0x1) ? roi.y - 1 : roi.y)),
+            safe_convert<size_t>(((roi.w & 0x1) ? roi.w - 1 : roi.w)),
+            safe_convert<size_t>(((roi.h & 0x1) ? roi.h - 1 : roi.h)),
+        });
+        ROI U_V_roi({0, safe_convert<size_t>(roi.x / 2), safe_convert<size_t>(roi.y / 2),
+                     safe_convert<size_t>(roi.w / 2), safe_convert<size_t>(roi.h / 2)});
+
+        Y_plane_blob = make_shared_blob(Y_plane_blob, Y_roi);
+        U_plane_blob = make_shared_blob(U_plane_blob, U_V_roi);
+        V_plane_blob = make_shared_blob(V_plane_blob, U_V_roi);
+    }
+
+    return make_shared_blob<I420Blob>(Y_plane_blob, U_plane_blob, V_plane_blob);
+}
+
+InferenceEngine::Blob::Ptr TensorInference::MakeBGRBlob(const std::shared_ptr<FrameData> &frame_data,
+                                                        InferenceEngine::TensorDesc tensor_desc,
+                                                        const RoiRect &roi) const {
+    if (_ie_preproc_enabled) {
+        tensor_desc.setLayout(InferenceEngine::Layout::NHWC);
+        tensor_desc.setDims({1, static_cast<uint32_t>(_image_info.channels), _image_info.height, _image_info.width});
+    }
+
+    auto blob = MakeBlob(tensor_desc, frame_data->GetPlane(0));
+    if (roi) {
+        InferenceEngine::ROI blob_roi({0, (size_t)roi.x, (size_t)roi.y, (size_t)roi.w, (size_t)roi.h});
+        blob = InferenceEngine::make_shared_blob(blob, blob_roi);
+    }
+    return blob;
+}
+
 void TensorInference::onInferCompleted(Request::Ptr request, InferenceEngine::StatusCode code) {
     std::string error;
     if (code != InferenceEngine::StatusCode::OK) {
         error = "Return status: " + get_message(code);
     }
-
     request->completion_callback(error);
     _free_requests.push(request);
+    _request_processed.notify_all();
+}
+
+void TensorInference::Flush() {
+    // because Flush can execute by several threads for one InferenceImpl instance
+    // it must be synchronous.
+    std::unique_lock<std::mutex> flush_lk(_flush_mutex);
+    // wait_for unlocks flush_mutex until we get notify
+    _request_processed.wait_for(flush_lk, std::chrono::seconds(1), [this] { return !IsRunning(); });
 }

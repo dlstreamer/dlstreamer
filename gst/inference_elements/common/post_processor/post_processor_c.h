@@ -8,7 +8,11 @@
 
 #include <processor_types.h>
 
+#ifdef __cplusplus
+class InferenceImpl;
+#else  /* __cplusplus */
 typedef struct InferenceImpl InferenceImpl;
+#endif /* __cplusplus */
 
 #ifdef __cplusplus
 extern "C" {

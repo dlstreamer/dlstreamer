@@ -21,9 +21,7 @@
 namespace post_processing {
 
 class YOLOBaseConverter : public BlobToROIConverter {
-  protected:
-    const std::vector<float> anchors;
-
+  public:
     struct OutputLayerShapeConfig {
         const size_t classes_number;
         const size_t cells_number_x;
@@ -33,7 +31,7 @@ class YOLOBaseConverter : public BlobToROIConverter {
         const size_t one_bbox_blob_size;
         const size_t common_cells_number;
         const size_t one_scale_bboxes_blob_size;
-        const size_t requied_blob_size;
+        const size_t required_blob_size;
 
         enum Index : size_t { X = 0, Y = 1, W = 2, H = 3, CONFIDENCE = 4, FIRST_CLASS_PROB = 5 };
         OutputLayerShapeConfig() = delete;
@@ -44,35 +42,60 @@ class YOLOBaseConverter : public BlobToROIConverter {
               one_bbox_blob_size(classes_number + 5), // classes prob + x, y, w, h, confidence
               common_cells_number(cells_number_x * cells_number_y),
               one_scale_bboxes_blob_size(one_bbox_blob_size * common_cells_number),
-              requied_blob_size(one_scale_bboxes_blob_size * bbox_number_on_cell) {
+              required_blob_size(one_scale_bboxes_blob_size * bbox_number_on_cell) {
         }
     };
+    enum class OutputDimsLayout { NCxCyB, NBCxCy, CxCyB, BCxCy, NO };
 
+    struct Initializer {
+        std::vector<float> anchors;
+        OutputLayerShapeConfig output_shape_info;
+        bool do_cls_softmax;
+        bool output_sigmoid_activation;
+
+        OutputDimsLayout output_dims_layout;
+    };
+
+  protected:
+    static constexpr size_t default_downsample_degree = 32;
+
+    const std::vector<float> anchors;
     const OutputLayerShapeConfig output_shape_info;
     const bool do_cls_softmax;
     const bool output_sigmoid_activation;
+
+    const OutputDimsLayout output_dims_layout;
 
     inline float sigmoid(float x) const {
         return 1 / (1 + std::exp(-x));
     }
 
+    static OutputDimsLayout getLayoutFromDims(const ModelOutputsInfo &outputs_info, const std::vector<float> &anchors,
+                                              size_t classes);
+    static size_t tryAutomaticConfigWithDims(const std::vector<size_t> &dims, OutputDimsLayout layout, size_t boxes,
+                                             size_t classes, std::pair<size_t, size_t> &cells);
+    static std::pair<std::vector<size_t>, size_t> getMinBlobDims(const ModelOutputsInfo &outputs_info);
+
+    virtual void parseOutputBlob(const float *blob_data, const std::vector<size_t> &blob_dims, size_t blob_size,
+                                 std::vector<DetectedObject> &objects) const = 0;
+
   public:
-    YOLOBaseConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                      GstStructureUniquePtr model_proc_output_info, const std::vector<std::string> &labels,
-                      double confidence_threshold, std::vector<float> anchors, double iou_threshold,
-                      OutputLayerShapeConfig output_shape_info, bool do_cls_softmax, bool output_sigmoid_activation)
-        : BlobToROIConverter(model_name, input_image_info, std::move(model_proc_output_info), labels,
-                             confidence_threshold, true, iou_threshold),
-          anchors(anchors), output_shape_info(output_shape_info), do_cls_softmax(do_cls_softmax),
-          output_sigmoid_activation(output_sigmoid_activation) {
+    YOLOBaseConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold,
+                      const YOLOBaseConverter::Initializer &yolo_initializer)
+        : BlobToROIConverter(std::move(initializer), confidence_threshold, true, iou_threshold),
+          anchors(yolo_initializer.anchors), output_shape_info(yolo_initializer.output_shape_info),
+          do_cls_softmax(yolo_initializer.do_cls_softmax),
+          output_sigmoid_activation(yolo_initializer.output_sigmoid_activation),
+          output_dims_layout(yolo_initializer.output_dims_layout) {
     }
     virtual ~YOLOBaseConverter() = default;
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
+    TensorsTable convert(const OutputBlobs &output_blobs) const;
 
-    static BlobToMetaConverter::Ptr create(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                                           GstStructureUniquePtr model_proc_output_info,
-                                           const std::vector<std::string> &labels, const std::string &converter_name,
-                                           double confidence_thresholds);
+    static bool tryAutomaticConfig(const ModelImageInputInfo &input_info, const ModelOutputsInfo &outputs_info,
+                                   OutputDimsLayout dims_layout, size_t classes, const std::vector<float> &anchors,
+                                   std::pair<size_t, size_t> &cells, size_t &boxes);
+    static BlobToMetaConverter::Ptr create(BlobToMetaConverter::Initializer initializer,
+                                           const std::string &converter_name, double confidence_thresholds);
 };
 } // namespace post_processing

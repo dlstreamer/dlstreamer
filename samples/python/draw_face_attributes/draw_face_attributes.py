@@ -1,11 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2018-2020 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 from gstgva import VideoFrame, util
 import sys
+import os
 import numpy
 import cv2
 from argparse import ArgumentParser
@@ -41,22 +42,25 @@ def frame_callback(frame: VideoFrame):
             labels = []
             rect = roi.rect()
             for tensor in roi.tensors():
-                data = tensor.data()
                 if "align_fc3" == tensor.layer_name():
+                    data = tensor.data()
                     lm_color = (255, 0, 0)
                     for i in range(0, len(data), 2):
                         x = int(rect.x + rect.w * data[i])
                         y = int(rect.y + rect.h * data[i + 1])
                         cv2.circle(mat, (x, y), int(
                             1 + 0.02 * rect.w), lm_color, -1)
-                if "prob" == tensor.layer_name():
+                elif "prob" == tensor.layer_name():
+                    data = tensor.data()
                     if data[1] > 0.5:
                         labels.append("M")
                     else:
                         labels.append("F")
-                if "age_conv3" == tensor.layer_name():
+                elif "age_conv3" == tensor.layer_name():
+                    data = tensor.data()
                     labels.append(str(int(data[0] * 100)))
-                if "prob_emotion" == tensor.layer_name():
+                elif "prob_emotion" == tensor.layer_name():
+                    data = tensor.data()
                     emotions = ["neutral", "happy", "sad", "surprise", "anger"]
                     index = numpy.argmax(data)
                     labels.append(emotions[index])
@@ -84,16 +88,14 @@ def create_launch_string():
     else:
         source = "filesrc location"
 
-    return "{}={} ! decodebin ! \
+    return f"{source}={args.input} ! decodebin ! \
     videoconvert n-threads=4 ! capsfilter caps=\"video/x-raw,format=BGRx\" ! \
-    gvadetect model={} device=CPU ! queue ! \
-    gvainference model={} device=CPU inference-region=roi-list ! queue ! \
-    gvainference model={} device=CPU inference-region=roi-list ! queue ! \
-    gvainference model={} device=CPU inference-region=roi-list ! queue ! \
+    gvadetect model={args.detection_model} device=CPU ! queue ! \
+    gvainference model={args.classification_model1} device=CPU inference-region=roi-list ! queue ! \
+    gvainference model={args.classification_model2} device=CPU inference-region=roi-list ! queue ! \
+    gvainference model={args.classification_model3} device=CPU inference-region=roi-list ! queue ! \
     gvawatermark name=gvawatermark ! videoconvert n-threads=4 ! \
-    fpsdisplaysink video-sink=xvimagesink sync=false".format(source, args.input, args.detection_model,
-                                                             args.classification_model1, args.classification_model2,
-                                                             args.classification_model3)
+    gvafpscounter ! autovideosink sync=false"
 
 
 def glib_mainloop():

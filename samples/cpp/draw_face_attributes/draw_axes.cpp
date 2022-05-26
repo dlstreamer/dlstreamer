@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  * Reused 2 functions from interactive_face_detection_demo
@@ -11,8 +11,6 @@
  ******************************************************************************/
 
 #include "draw_axes.h"
-#include <stdio.h>
-#include <stdlib.h>
 
 cv::Mat buildCameraMatrix(int cx, int cy, float focalLength) {
     cv::Mat cameraMatrix = cv::Mat::zeros(3, 3, CV_32F);

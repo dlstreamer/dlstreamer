@@ -1,11 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "renderer_cpu.h"
 
+#include <inference_backend/buffer_mapper.h>
 #include <opencv2/gapi/render/render.hpp>
 
 namespace {
@@ -32,16 +33,15 @@ cv::Point2i calc_point_for_u_v_planes(cv::Point2i pt) {
 
 } // namespace
 
-void RendererCPU::buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &map_context,
-                             GstVideoInfo *info) {
-    gva_buffer_map(buffer, image, map_context, info, _memory_type, GST_MAP_READWRITE);
+RendererCPU::~RendererCPU() {
 }
 
-void RendererCPU::buffer_unmap(BufferMapContext &map_context) {
-    gva_buffer_unmap(map_context);
+dlstreamer::BufferPtr RendererCPU::buffer_map(dlstreamer::BufferPtr buffer) {
+    auto result = _buffer_mapper->map(buffer, dlstreamer::AccessMode::READ_WRITE);
+    return result;
 }
 
-void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims, uint64_t) {
+void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
     for (auto &p : prims) {
         switch (p.index()) {
         case gapidraw::Prim::index_of<gapidraw::Line>(): {
@@ -90,7 +90,8 @@ void RendererI420::draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rec
     cv::Mat &v = mats[2];
 
     const cv::Point2i top_left = rect.rect.tl();
-    const cv::Point2i bottom_right = rect.rect.br();
+    // align with gapidraw::render behavior
+    const cv::Point2i bottom_right = rect.rect.br() - cv::Point2i(1, 1);
 
     const int thick = calc_thick_for_u_v_planes(rect.thick);
     cv::rectangle(u, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right), rect.color[1],
@@ -147,7 +148,8 @@ void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rec
     cv::Mat &u_v = mats[1];
 
     const cv::Point2i top_left = rect.rect.tl();
-    const cv::Point2i bottom_right = rect.rect.br();
+    // align with gapidraw::render behavior
+    const cv::Point2i bottom_right = rect.rect.br() - cv::Point2i(1, 1);
 
     cv::rectangle(u_v, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right),
                   {rect.color[1], rect.color[2]}, calc_thick_for_u_v_planes(rect.thick));
@@ -187,6 +189,6 @@ void RendererNV12::draw_line(std::vector<cv::Mat> &mats, gapidraw::Line line) {
     cv::line(u_v, pos1_u_v, pos2_u_v, {line.color[1], line.color[2]}, calc_thick_for_u_v_planes(line.thick));
 }
 
-void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims, uint64_t) {
+void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
     gapidraw::render(image_planes[0], prims);
 }

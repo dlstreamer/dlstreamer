@@ -1,9 +1,7 @@
 {
-    "json_schema_version": "2.0.0",
+    "json_schema_version": "2.2.0",
     "input_preproc": [
         {
-            "format": "image",
-            "layer_name": "Input3",
             "params": {
                 "color_space": "GRAYSCALE",
                 "resize": "no-aspect-ratio"
@@ -12,7 +10,7 @@
     ],
     "output_postproc": [
         {
-            "converter": "tensor_to_label",
+            "converter": "label",
             "method": "max",
             "labels": [
                 "neutral",

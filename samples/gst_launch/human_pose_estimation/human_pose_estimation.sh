@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2021-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -11,7 +11,7 @@ INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/face-dem
 DEVICE=${2:-CPU}
 
 if [[ $3 == "display" ]] || [[ -z $3 ]]; then
-  SINK_ELEMENT="gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false"
+  SINK_ELEMENT="gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
 elif [[ $3 == "fps" ]]; then
   SINK_ELEMENT="gvafpscounter ! fakesink async=false "
 else
@@ -43,4 +43,4 @@ gvaclassify model=$HPE_MODEL_PATH model-proc=$HPE_MODEL_PROC device=$DEVICE infe
 $SINK_ELEMENT"
 
 echo ${PIPELINE}
-${PIPELINE}
+$PIPELINE

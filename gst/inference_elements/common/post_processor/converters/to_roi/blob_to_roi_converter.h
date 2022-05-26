@@ -31,7 +31,7 @@ class BlobToROIConverter : public BlobToMetaConverter {
         std::string label;
 
         DetectedObject(double x, double y, double w, double h, double confidence, size_t label_id,
-                       const std::string &label, double h_scale = 1.f, double w_scale = 1.f,
+                       const std::string &label, double w_scale = 1.f, double h_scale = 1.f,
                        bool relative_to_center = false)
             : confidence(confidence), label_id(label_id), label(label) {
             if (relative_to_center) {
@@ -81,18 +81,16 @@ class BlobToROIConverter : public BlobToMetaConverter {
   public:
     BlobToROIConverter() = delete;
 
-    BlobToROIConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                       GstStructureUniquePtr model_proc_output_info, const std::vector<std::string> &labels,
-                       double confidence_threshold, bool need_nms, double iou_threshold)
-        : BlobToMetaConverter(model_name, input_image_info, std::move(model_proc_output_info), labels),
-          confidence_threshold(confidence_threshold), need_nms(need_nms), iou_threshold(iou_threshold) {
+    BlobToROIConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, bool need_nms,
+                       double iou_threshold)
+        : BlobToMetaConverter(std::move(initializer)), confidence_threshold(confidence_threshold), need_nms(need_nms),
+          iou_threshold(iou_threshold) {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
 
-    static BlobToMetaConverter::Ptr create(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                                           GstStructureUniquePtr model_proc_output_info,
-                                           const std::vector<std::string> &labels, const std::string &converter_name);
+    static BlobToMetaConverter::Ptr create(BlobToMetaConverter::Initializer initializer,
+                                           const std::string &converter_name);
     static const size_t min_dims_size = 2;
 };
 

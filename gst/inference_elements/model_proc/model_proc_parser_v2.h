@@ -9,6 +9,12 @@
 #include "model_proc_parser.h"
 
 class ModelProcParserV2 : public ModelProcParser {
+  protected:
+    void parseLayerNameAndFormat(ModelInputProcessorInfo::Ptr preprocessor, const nlohmann::json &proc_item) {
+        preprocessor->layer_name = proc_item.at("layer_name");
+        preprocessor->format = proc_item.at("format");
+    }
+
   public:
     std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc(const nlohmann::json &input_preproc) final {
         std::vector<ModelInputProcessorInfo::Ptr> preproc_desc;
@@ -16,8 +22,9 @@ class ModelProcParserV2 : public ModelProcParser {
 
         for (const auto &proc_item : input_preproc) {
             ModelInputProcessorInfo::Ptr preprocessor = std::make_shared<ModelInputProcessorInfo>();
-            preprocessor->layer_name = proc_item.at("layer_name");
-            preprocessor->format = proc_item.at("format");
+
+            parseLayerNameAndFormat(preprocessor, proc_item);
+
             preprocessor->precision = (preprocessor->format == "image") ? "U8" : "FP32";
             if (proc_item.find("precision") != proc_item.cend())
                 preprocessor->precision = proc_item.at("precision");

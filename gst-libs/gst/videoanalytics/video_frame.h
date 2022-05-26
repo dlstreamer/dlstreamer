@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,6 +26,7 @@
 #include <vector>
 
 #include <gst/gstbuffer.h>
+#include <gst/gstutils.h>
 #include <gst/video/gstvideometa.h>
 #include <gst/video/video.h>
 
@@ -214,6 +215,7 @@ class VideoFrame {
 
         GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
             buffer, label.c_str(), double_to_uint(_x), double_to_uint(_y), double_to_uint(_w), double_to_uint(_h));
+        meta->id = gst_util_seqnum_next();
 
         // Add detection tensor
         GstStructure *detection =
@@ -276,7 +278,8 @@ class VideoFrame {
     void remove_tensor(const Tensor &tensor) {
         GstGVATensorMeta *meta = NULL;
         gpointer state = NULL;
-        while ((meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state))) {
+        GType meta_api_type = g_type_from_name("GstGVATensorMetaAPI");
+        while ((meta = (GstGVATensorMeta *)gst_buffer_iterate_meta_filtered(buffer, &state, meta_api_type))) {
             if (meta->data == tensor._structure) {
                 if (!gst_buffer_is_writable(buffer))
                     throw std::runtime_error("Buffer is not writable.");

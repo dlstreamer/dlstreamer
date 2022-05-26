@@ -19,16 +19,15 @@ class ImagePreprocessor {
     virtual ~ImagePreprocessor() = default;
 
     virtual void Convert(const Image &src, Image &dst, const InputImageLayerDesc::Ptr &pre_proc_info = nullptr,
-                         const ImageTransformationParams::Ptr &image_transform_info = nullptr,
-                         bool bAllocateDestination = false) = 0;
-    virtual void ReleaseImage(const Image &dst) = 0; // to be called if Convert called with bAllocateDestination = true
+                         const ImageTransformationParams::Ptr &image_transform_info = nullptr, bool make_planar = true,
+                         bool allocate_destination = false) = 0;
+    virtual void ReleaseImage(const Image &dst) = 0; // to be called if Convert called with allocate_destination = true
 
   protected:
-    bool doNeedPreProcessing(const Image &src, Image &dst);
-    bool doNeedCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info);
+    bool needPreProcessing(const Image &src, Image &dst);
+    bool needCustomImageConvert(const InputImageLayerDesc::Ptr &pre_proc_info);
 };
 
-int GetPlanesCount(int fourcc);
 Image ApplyCrop(const Image &src);
 
 ImagePreprocessor *CreatePreProcOpenCV();

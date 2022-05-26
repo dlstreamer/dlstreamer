@@ -1,15 +1,13 @@
 # gstreamer-vaapi-patches
 
-There are three LGPL-licensed patches for gstreamer-vaapi plugins:
-
-* vasurface_qdata.patch \
-Patch allows other MIT-licences plugins to extract VASurfaceID and VADisplay from GstBuffer created by VAAPI plugins. Which is meant to enable VA-API preprocessor of inference elements.
-
-* video-format-mapping.patch \
-Patch to improve the mapping between VA and GST formats. The new map will be generated dynamically, based on the query result of ab image format in VA driver. Also consider the ambiguity of RGB color format in LSB mode.
+Intel® Deep Learning Streamer (Intel® DL Streamer) has a LGPL-licensed patch for gstreamer-vaapi plugins:
 
 * dma-vaapiencode.patch \
 Patch enables DMA memory input in VAAPI elements thus expanding its capabilities.
+
+GStreamer has a `Peek VADisplay and VaSurface` patch for gstreamer-vaapi plugins:
+
+* The [patch](https://gitlab.freedesktop.org/gstreamer/gstreamer-vaapi/-/merge_requests/435.patch) is based on gstreamer-vaapi merge request [#435](https://gitlab.freedesktop.org/gstreamer/gstreamer-vaapi/-/merge_requests/435). It allows other MIT-licences plugins to obtain `VADisplay` from `GstContext` created by VAAPI elements. It also allows to get `VASurfaceID` from `GstBuffer` created by VAAPI elements. This patch is required to enable VAAPI preprocessor of inference elements.
 
 ## How to use these patches
 
@@ -18,7 +16,7 @@ To build gstreamer-vaapi with these patches you have to proceed following steps:
 1. Install *meson* and *ninja*. We need them to configure and build gstreamer-vaapi project
 
 ```sh
-pip3 install meson ninja
+python3 -m pip install meson ninja
 ```
 
 2. Create working directory:
@@ -33,18 +31,17 @@ mkdir -p $HOME/mygst-vaapi
 cd $HOME/mygst-vaapi
 ```
 
-4. Download patches (usually, you can take last version of file from `master`-branch of DL Streamer's repository)
+4. Download patches (usually, you can take last version of file from `master`-branch of Intel DL Streamer's repository)
 
 ```sh
-wget https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/vasurface_qdata.patch
-wget https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/dma-vaapiencode.patch
-wget https://raw.githubusercontent.com/opencv/gst-video-analytics/master/patches/gstreamer-vaapi/video-format-mapping.patch
+curl -sSL https://gitlab.freedesktop.org/gstreamer/gstreamer-vaapi/-/merge_requests/435.patch -o gst-vaapi-peek-vadisplay.patch
+curl -sSL https://raw.githubusercontent.com/openvinotoolkit/dlstreamer_gst/master/patches/gstreamer-vaapi/dma-vaapiencode.patch -o dma-vaapiencode.patch
 ```
 
 5. Download appropriate version of gstreamer-vaapi's sources (e.g. 1.18.4)
 
 ```sh
-wget https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-1.18.4.tar.xz
+curl -sSL https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-1.18.4.tar.xz -o gstreamer-vaapi-1.18.4.tar.xz
 ```
 
 6. Unpack downloaded archive
@@ -62,8 +59,7 @@ cd gstreamer-vaapi-1.18.4
 8. Apply patches
 
 ```sh
-patch -p1 < ../vasurface_qdata.patch
-patch -p1 < ../video-format-mapping.patch
+patch -p1 < ../gst-vaapi-peek-vadisplay.patch
 patch -p1 < ../dma-vaapiencode.patch
 ```
 
@@ -122,4 +118,4 @@ gst-inspect-1.0 vaapi
 
 ## VAAPI preprocessing backend
 
-To enable VAAPI preprocessing backend you have to pass to cmake that configures `gst-video-analytics` following parameter `-DENABLE_VAAPI=ON`
+To enable VAAPI preprocessing backend you have to pass to cmake that configures `dl_streamer` following parameter `-DENABLE_VAAPI=ON`

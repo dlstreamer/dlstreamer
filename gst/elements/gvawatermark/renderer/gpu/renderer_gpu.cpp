@@ -1,14 +1,15 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "renderer_gpu.h"
 
+#include "buffer_mapper/dma_to_usm.h"
 #include "dpcpp_draw.h"
 #include "inference_backend/logger.h"
-#include "usm_buffer_map.h"
+#include <dlstreamer/usm/context.h>
 
 #include <level_zero/ze_api.h>
 
@@ -25,53 +26,6 @@
 #include <utility>
 
 using namespace gpu::draw;
-
-void RendererNV12::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                                uint64_t drm_format_modifier) {
-    ITT_TASK(__FUNCTION__);
-    draw_prims_on_mask(prims);
-
-    sycl::event e0 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[0], 0, gpu::dpcpp::SubsampligParams{4, 4, 4},
-                                     drm_format_modifier);
-    sycl::event e1 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[1], 1, gpu::dpcpp::SubsampligParams{4, 2, 0},
-                                     drm_format_modifier);
-
-    e0.wait();
-    e1.wait();
-
-    clear_mask();
-};
-
-void RendererI420::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                                uint64_t drm_format_modifier) {
-    ITT_TASK(__FUNCTION__);
-    draw_prims_on_mask(prims);
-    sycl::event e0 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[0], 0, gpu::dpcpp::SubsampligParams{4, 4, 4},
-                                     drm_format_modifier);
-    sycl::event e1 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[1], 1, gpu::dpcpp::SubsampligParams{4, 2, 0},
-                                     drm_format_modifier);
-    sycl::event e2 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[2], 2, gpu::dpcpp::SubsampligParams{4, 2, 0},
-                                     drm_format_modifier);
-
-    e0.wait();
-    e1.wait();
-    e2.wait();
-
-    clear_mask();
-}
-
-void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims,
-                               uint64_t drm_format_modifier) {
-    ITT_TASK(__FUNCTION__);
-    draw_prims_on_mask(prims);
-
-    sycl::event e0 = gpu::dpcpp::mix(*queue, mask.get(), image_planes[0], 0, gpu::dpcpp::SubsampligParams{4, 4, 4},
-                                     drm_format_modifier);
-
-    e0.wait();
-
-    clear_mask();
-}
 
 gpu::dpcpp::Rect RendererGPU::prepare_rectangle(gapidraw::Rect rect, int &max_side) {
     rect.rect.x = rect.rect.x & ~1;
@@ -143,6 +97,31 @@ std::vector<gpu::dpcpp::Text> RendererGPU::prepare_text(const gapidraw::Text &dr
     return tmp_texts;
 }
 
+gpu::dpcpp::Line RendererGPU::prepare_line(const gapidraw::Line &line) {
+    gpu::dpcpp::Line l;
+    l.x0 = line.pt1.x;
+    l.y0 = line.pt1.y;
+    l.x1 = line.pt2.x;
+    l.y1 = line.pt2.y;
+    l.color = Color(line.color);
+
+    const int dx = l.x1 - l.x0;
+    const int dy = l.y1 - l.y0;
+    l.steep = abs(dy) > abs(dx);
+    bool swap = false;
+    if (l.steep)
+        swap = dy < 0;
+    else
+        swap = dx < 0;
+
+    if (swap) {
+        std::swap(l.x0, l.x1);
+        std::swap(l.y0, l.y1);
+    }
+
+    return l;
+}
+
 void RendererGPU::malloc_device_prims(int prim_type, uint32_t size) {
     switch (prim_type) {
     case gapidraw::Prim::index_of<gapidraw::Rect>(): {
@@ -178,21 +157,24 @@ void RendererGPU::malloc_device_prims(int prim_type, uint32_t size) {
     }
 }
 
-void RendererGPU::draw_prims_on_mask(std::vector<gapidraw::Prim> &prims) {
+void RendererRGB::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
     ITT_TASK(__FUNCTION__);
 
     std::vector<gpu::dpcpp::Rect> tmp_rectangles;
     std::vector<gpu::dpcpp::Circle> tmp_circles;
-    std::vector<gpu::dpcpp::Line> tmp_lines;
+    std::vector<gpu::dpcpp::Line> tmp_lines_hi;
+    std::vector<gpu::dpcpp::Line> tmp_lines_low;
     tmp_rectangles.reserve(prims.size());
     tmp_circles.reserve(prims.size());
-    tmp_lines.reserve(prims.size());
+    tmp_lines_hi.reserve(prims.size());
+    tmp_lines_low.reserve(prims.size());
 
     std::vector<gpu::dpcpp::Text> tmp_texts;
     auto rect_max_side = 0;
     auto text_max_width = 0;
     auto text_max_height = 0;
     auto max_radius = 0;
+    auto lines_think = 0; // Thikness of lines
 
     for (const auto &p : prims) {
         switch (p.index()) {
@@ -214,79 +196,75 @@ void RendererGPU::draw_prims_on_mask(std::vector<gapidraw::Prim> &prims) {
             break;
         }
         case gapidraw::Prim::index_of<gapidraw::Line>(): {
-            const auto &line = cv::util::get<gapidraw::Line>(p);
-            tmp_lines.emplace_back(std::pair(line, Color(line.color)));
+            auto line = prepare_line(cv::util::get<gapidraw::Line>(p));
+            if (line.steep)
+                tmp_lines_hi.emplace_back(line);
+            else
+                tmp_lines_low.emplace_back(line);
+            if (!lines_think)
+                lines_think = cv::util::get<gapidraw::Line>(p).thick;
             break;
         }
         default:
             throw std::runtime_error("Unsupported primitive type");
         }
     }
-    sycl::event e0, e1, e2, e3;
-
-    mask_clear_event.wait();
+    sycl::event e0, e1, e2, e3, e4;
     if (!tmp_rectangles.empty()) {
         uint32_t rectangles_size = tmp_rectangles.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Rect>(), rectangles_size);
         queue->memcpy(rectangles.get(), tmp_rectangles.data(), rectangles_size * sizeof(gpu::dpcpp::Rect)).wait();
-        e0 = gpu::dpcpp::renderRectangles(*queue, image_width, mask.get(), rectangles.get(), rectangles_size,
-                                          rect_max_side);
+        e0 = gpu::dpcpp::renderRectangles(*queue, image_planes[0], rectangles.get(), rectangles_size, rect_max_side);
     }
 
     if (!tmp_circles.empty()) {
         uint32_t circles_size = tmp_circles.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Circle>(), circles_size);
         queue->memcpy(circles.get(), tmp_circles.data(), tmp_circles.size() * sizeof(gpu::dpcpp::Circle)).wait();
-        e1 = gpu::dpcpp::renderCircles(*queue, image_width, mask.get(), circles.get(), circles_size, max_radius);
+        e1 = gpu::dpcpp::renderCircles(*queue, image_planes[0], circles.get(), circles_size, max_radius);
     }
 
-    if (!tmp_lines.empty()) {
-        uint32_t lines_size = tmp_lines.size();
+    if (!tmp_lines_low.empty() || !tmp_lines_hi.empty()) {
+        const uint32_t lines_size = tmp_lines_low.size() + tmp_lines_hi.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Line>(), lines_size);
-        queue->memcpy(lines.get(), tmp_lines.data(), tmp_lines.size() * sizeof(gpu::dpcpp::Line)).wait();
-        e3 =
-            gpu::dpcpp::renderLines(*queue, image_width, mask.get(), lines.get(), lines_size, tmp_lines[0].first.thick);
+
+        auto hi_offset = tmp_lines_low.size() * sizeof(gpu::dpcpp::Line);
+        // "Low" lines are placed first in the array and "high" lines follows.
+        e3 = queue->memcpy(lines.get(), tmp_lines_low.data(), tmp_lines_low.size() * sizeof(gpu::dpcpp::Line));
+        e4 =
+            queue->memcpy(lines.get() + hi_offset, tmp_lines_hi.data(), tmp_lines_hi.size() * sizeof(gpu::dpcpp::Line));
+        sycl::event::wait({e3, e4});
+
+        e3 = gpu::dpcpp::renderLinesLow(*queue, image_planes[0], lines.get(), tmp_lines_low.size(), lines_think);
+        e4 = gpu::dpcpp::renderLinesHi(*queue, image_planes[0], lines.get() + hi_offset, tmp_lines_hi.size(),
+                                       lines_think);
     }
 
     if (!tmp_texts.empty()) {
         uint32_t texts_size = tmp_texts.size();
         malloc_device_prims(gapidraw::Prim::index_of<gapidraw::Text>(), texts_size);
         queue->memcpy(texts.get(), tmp_texts.data(), tmp_texts.size() * sizeof(gpu::dpcpp::Text)).wait();
-        e2 = gpu::dpcpp::renderTexts(*queue, image_width, mask.get(), texts.get(), texts_size, text_max_height,
-                                     text_max_width);
+        e2 = gpu::dpcpp::renderTexts(*queue, image_planes[0], texts.get(), texts_size, text_max_height, text_max_width);
     }
-    e0.wait();
-    e1.wait();
-    e2.wait();
-    e3.wait();
+
+    sycl::event::wait({e0, e1, e2, e3, e4});
 }
 
-void RendererGPU::buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &,
-                             GstVideoInfo *info) {
-    image = buffer_mapper->map(buffer, info, GST_MAP_READWRITE);
+dlstreamer::BufferPtr RendererGPU::buffer_map(dlstreamer::BufferPtr buffer) {
+    return buffer_mapper->map(buffer, dlstreamer::AccessMode::READ_WRITE);
 }
 
-void RendererGPU::buffer_unmap(BufferMapContext &) {
-    buffer_mapper->unmap();
-}
-
-void RendererGPU::clear_mask() {
-    mask_clear_event = queue->fill(mask.get(), 0, image_height * image_width * sizeof(gpu::dpcpp::MaskedPixel));
-}
-
-RendererGPU::RendererGPU(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type,
-                         int image_width, int image_height)
-    : Renderer(color_converter, memory_type), image_width(image_width), image_height(image_height) {
+RendererGPU::RendererGPU(std::shared_ptr<ColorConverter> color_converter,
+                         dlstreamer::BufferMapperPtr input_buffer_mapper, int image_width, int image_height)
+    : Renderer(color_converter), image_width(image_width), image_height(image_height) {
     queue = std::make_shared<sycl::queue>(sycl::gpu_selector());
-    buffer_mapper = std::shared_ptr<BufferMapper>(new UsmBufferMapper(queue));
-    int alloc_size = image_height * image_width;
-    mask = gpu_unique_ptr<gpu::dpcpp::MaskedPixel>(sycl::malloc_device<gpu::dpcpp::MaskedPixel>(alloc_size, *queue),
-                                                   [this](gpu::dpcpp::MaskedPixel *mask) { sycl::free(mask, *queue); });
-    queue->fill(mask.get(), 0, alloc_size * sizeof(gpu::dpcpp::MaskedPixel)).wait();
+    auto ze_context = queue->get_context().get_native<sycl::backend::level_zero>();
+    auto ze_device = queue->get_device().get_native<sycl::backend::level_zero>();
+    buffer_mapper = std::make_shared<dlstreamer::BufferMapperDmaToUsm>(
+        std::move(input_buffer_mapper), std::make_shared<dlstreamer::UsmContext>(ze_device, ze_context));
 }
 
 RendererGPU::~RendererGPU() {
-    mask_clear_event.wait();
     for (auto &t : text_storage)
         if (t.second.map)
             sycl::free(t.second.map, *queue);

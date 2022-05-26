@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "post_processor/blob_to_meta_converter.h"
+#include "blob_to_tensor_converter.h"
 
 #include "inference_backend/image_inference.h"
 
@@ -21,9 +21,7 @@ namespace post_processing {
 
 class RawDataCopyConverter : public BlobToTensorConverter {
   public:
-    RawDataCopyConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                         GstStructureUniquePtr model_proc_output_info, const std::vector<std::string> &labels)
-        : BlobToTensorConverter(model_name, input_image_info, std::move(model_proc_output_info), labels) {
+    RawDataCopyConverter(BlobToMetaConverter::Initializer initializer) : BlobToTensorConverter(std::move(initializer)) {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;

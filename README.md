@@ -1,80 +1,63 @@
-# [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) - DL Streamer repository
+# Intel® Deep Learning Streamer (Intel® DL Streamer)
 
 ## Overview
 <div align="center"><img src="intro.gif" width=900/></div>
 
-This repository is a home to Deep Learning (DL) Streamer. DL Streamer is a streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines. It ensures pipeline interoperability and provides optimized media, and inference operations using Intel<sup>®</sup> Distribution of OpenVINO<sup>™</sup> Toolkit Inference Engine backend, across Intel<sup>®</sup> architecture - CPU, iGPU and Intel<sup>®</sup> Movidius<sup>™</sup> VPU. DL Streamer prebuilt binaries can be installed with the Intel<sup>®</sup> Distribution of OpenVINO<sup>™</sup> Toolkit installer.
+[Intel® Deep Learning Streamer](https://dlstreamer.github.io) (**Intel® DL Streamer**) is an open-source streaming media analytics framework, based on [GStreamer*](https://gstreamer.freedesktop.org) multimedia framework, for creating complex media analytics pipelines for the Cloud or at the Edge.
 
-Here's the canonical video analytics pipeline consturctued using DL Streamer. It performs detection and classification operations on a video stream, using face detection and emotion classification deep learning models. The results of this pipeline are demoed in the above video clip:
-```sh
-gst-launch-1.0 filesrc location=cut.mp4 ! decodebin ! videoconvert ! gvadetect model=face-detection-adas-0001.xml ! gvaclassify model=emotions-recognition-retail-0003.xml model-proc=emotions-recognition-retail-0003.json ! gvawatermark ! xvimagesink sync=false
-```
+**Media analytics** is the analysis of audio & video streams to detect, classify, track, identify and count objects, events and people. The analyzed results can be used to take actions, coordinate events, identify patterns and gain insights across multiple domains: retail store and events facilities analytics, warehouse and parking management, industrial inspection, safety and regulatory compliance, security monitoring, and many other.
 
-The complete solution leverages:
-* Open source GStreamer* framework for pipeline management
-* GStreamer* plugins for input and output such as media files and real-time streaming from camera or network
-* Video decode and encode plugins, either CPU optimized plugins or GPU-accelerated plugins [based on VAAPI](https://github.com/GStreamer/gstreamer-vaapi)
-* Deep Learning models converted from training frameworks TensorFlow*, Caffe* etc. from Open Model Zoo
-And, the following elements in the DL Streamer repository:
+## Backend libraries
+Intel DL Streamer is optimized for performance and functional interoperability between GStreamer* plugins built on various backend libraries
+* Inference plugins use [OpenVINO™ inference engine](https://docs.openvino.ai) optimized for Intel CPU, GPU and VPU platforms
+* Video decode and encode plugins utilize [GPU-acceleration based on VA-API](https://github.com/GStreamer/gstreamer-vaapi)
+* Image processing plugins based on [OpenCV](https://opencv.org/) and [DPC++](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/oneapi-programming-model/data-parallel-c-dpc.html)
+* Hundreds other [GStreamer* plugins](https://gstreamer.freedesktop.org/documentation/plugins_doc.html) built on various open-source libraries for media input and output, muxing and demuxing, decode and encode
 
-In addition, the solution uses the following Deep Learning-specific elements, also available in this repository:
-* Inference plugins leveraging [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) for high-performance inference using deep learning models
-* Visualization of the inference results, with bounding boxes and labels of detected objects, on top of video stream
+[This page](https://dlstreamer.github.io/elements/elements.html) contains list of Intel DL Streamer elements provided in this repository.
 
-Please refer to [Elements](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Elements) for the complete DL Streamer elements list.
+## Installation
+Please refer to [Install Guide](https://dlstreamer.github.io/get_started/install/install_guide_ubuntu.html) for installation options
+1. Install APT packages
+2. Run Docker image
+3. Compile from source code
+4. Build Docker image from source code
 
+## Samples
+[Samples](https://github.com/dlstreamer/dlstreamer/tree/master/samples) available for C/C++ and Python programming, and as gst-launch command lines and scripts. 
 
-## License
-The GStreamer Video Analytics Plugin, part of [OpenVINO<sup>&#8482;</sup> Toolkit](https://software.intel.com/en-us/openvino-toolkit) - DL Streamer, is licensed under the [MIT license](LICENSE).
+## NN models
+Intel DL Streamer supports NN models in OpenVINO™ IR and ONNX* formats:
+* Refer to [OpenVINO™ Model Optimizer](<https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>) how to convert model into OpenVINO™ IR format 
+* Refer to training frameworks documentation how to export model into ONNX* format
 
-GStreamer is an open source framework licensed under LGPL. See [license terms](https://gstreamer.freedesktop.org/documentation/frequently-asked-questions/licensing.html?gi-language=c). You are solely responsible for determining if your use of Gstreamer requires any additional licenses.  Intel is not responsible for obtaining any such licenses, nor liable for any licensing fees due, in connection with your use of Gstreamer
+Or you can start from over 70 pre-trained models in [OpenVINO™ Open Model Zoo](https://docs.openvino.ai/latest/omz_models_group_intel.html) and corresponding model-proc files (pre- and post-processing specification) in [/opt/intel/dlstreamer/samples/model_proc](https://github.com/dlstreamer/dlstreamer/tree/master/samples/model_proc) folder.
+These models include object detection, object classification, human pose detection, sound classification, semantic segmentation, and other use cases on SSD, MobileNet, YOLO, Tiny YOLO, EfficientDet, ResNet, FasterRCNN and other backbones.
 
-## Prerequisites
-### Hardware
-* Refer to [OpenVINO<sup>™</sup> Toolkit Hardware](https://software.intel.com/content/www/us/en/develop/tools/openvino-toolkit/hardware.html) sections - Intel<sup>®</sup> Processors, Intel<sup>®</sup> Processor Graphics and Intel<sup>®</sup> Movidius<sup>™</sup> Vision Processing Unit (VPU)
-* On platforms with Intel Gen graphics, see the gstreamer-vaapi for [hardware accelerated video decode and encode requirements](https://github.com/GStreamer/gstreamer-vaapi)
-
-### Software
-* Intel<sup>®</sup> Distribution of OpenVINO<sup>&#8482;</sup> Toolkit Release 2021.4
-* GStreamer* framework 1.16.2 or above (recommended version is 1.18.4)
-* Operating system: Ubuntu 18.04, Ubuntu 20.04, CentOS 7
-
-## Getting Started
-* Start here: [Install Guide](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Install-Guide)
-* [DL Streamer Tutorial](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/DL-Streamer-Tutorial)
-* Webinars:
-    * Introduction to DL Streamer: [Ready, Steady, Stream: Introducing Intel® Distribution of OpenVINO™ toolkit Deep Learning Streamer](https://software.seek.intel.com/openvino-streamer-webinar)
-    * Audio event detection synchronized with video based object detection using DL Streamer: [AI Beyond Computer Vision with the Intel® Distribution of OpenVINO™ toolkit](https://techdecoded.intel.io/essentials/ai-beyond-computer-vision-with-the-intel-distribution-of-openvino-toolkit)
-* YouTube Videos:
-    * [Introduction to video analytics pipeline using DL Streamer](https://www.youtube.com/watch?v=fWhPV_IqDy0)
-    * [DL Streamer video analytcs pipeline samples](https://www.youtube.com/watch?v=EqHznsUR1sE)
-    * [DL Streamer tracking element](https://youtu.be/z4Heorhg3tM)
-* Samples:
-    * [command-line](samples/gst_launch), [C++](samples/cpp/draw_face_attributes) and [Python](samples/python/draw_face_attributes/) samples.
-
-For additional documentation, please see [wiki](https://github.com/openvinotoolkit/dlstreamer_gst/wiki) and don't miss the documentation indexed on the right side of the wiki home page.
-
-## Develop in the Cloud
-Try DL Streamer with [Intel<sup>&reg;</sup> DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html). You can build your pipeline, test and optimize for free. With an Intel<sup>®</sup> DevCloud account, you get 120 days of access to the latest Intel<sup>®</sup> hardware — CPUs, GPUs, FPGAs. No software downloads. No configuration steps. No installations. Check out [Tutorials on Intel<sup>&reg;</sup> DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/learn/tutorials.html?s=Newest).
+## Reporting Bugs and Feature Requests
+Report bugs and requests [on the issues page](https://github.com/dlstreamer/dlstreamer/issues)
 
 ## Other Useful Links
-* [Video Analytics Serving](https://github.com/intel/video-analytics-serving): Video Analytics Serving is a python package and microservice for deploying optimized media analytics pipelines. It supports pipelines defined in DL Streamer and provides APIs to discover, start, stop, customize and monitor pipeline execution.
-* The reference media analytics applications, provided by [Open Visual Cloud](https://01.org/openvisualcloud), that leverage DL Streamer elements:
-    *  [Smart City - Traffic and Stadium Management](https://github.com/OpenVisualCloud/Smart-City-Sample)
+* [Get Started](https://dlstreamer.github.io/get_started/get_started_index.html)
+* [Developer Guide](https://dlstreamer.github.io/dev_guide/dev_guide_index.html)
+* [API Reference](https://dlstreamer.github.io/api_ref/api_reference.html)
+* Webinars:
+    * Introduction to Intel DL Streamer: [Ready, Steady, Stream: Introducing Intel® Distribution of OpenVINO™ toolkit Deep Learning Streamer](https://www.intel.com/content/www/us/en/developer/videos/ready-steady-stream-openvino-toolkit-dl-streamer.html#gs.hwyufz)
+    * Audio event detection synchronized with video based object detection using Intel DL Streamer: [AI Beyond Computer Vision with the Intel® Distribution of OpenVINO™ toolkit](https://techdecoded.intel.io/essentials/ai-beyond-computer-vision-with-the-intel-distribution-of-openvino-toolkit)
+* YouTube Videos:
+    * [Introduction to video analytics pipeline using Intel DL Streamer](https://www.youtube.com/watch?v=fWhPV_IqDy0)
+    * [Intel DL Streamer video analytcs pipeline samples](https://www.youtube.com/watch?v=EqHznsUR1sE)
+    * [Intel DL Streamer tracking element](https://youtu.be/z4Heorhg3tM)
+* The reference media analytics applications, provided by [Open Visual Cloud](https://01.org/openvisualcloud), that leverage Intel DL Streamer elements:
+    * [Smart City - Traffic and Stadium Management](https://github.com/OpenVisualCloud/Smart-City-Sample)
     * [Intelligent Ad Insertion](https://github.com/OpenVisualCloud/Ad-Insertion-Sample)
-* [Intel<sup>®</sup> Edge Software Hub](https://www.intel.com/content/www/us/en/edge-computing/edge-software-hub.html) packages that include DL Streamer:
+* Try Intel DL Streamer with [Intel<sup>&reg;</sup> DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/overview.html):
+    * You can build your pipeline, test and optimize for free. With an Intel<sup>®</sup> DevCloud account, you get 120 days of access to the latest Intel<sup>®</sup> hardware — CPUs, GPUs, VPUs.
+    * No software downloads. No configuration steps. No installations. Check out [Tutorials on Intel<sup>&reg;</sup> DevCloud](https://www.intel.com/content/www/us/en/developer/tools/devcloud/edge/learn/tutorials.html?s=Newest).
+* [Intel<sup>®</sup> Edge Software Hub](https://www.intel.com/content/www/us/en/edge-computing/edge-software-hub.html) packages that include Intel DL Streamer:
 
     * [Edge Insights for Vision](https://software.intel.com/content/www/us/en/develop/topics/iot/edge-solutions/vision-recipes.html)
     * [Edge Insights for Industrial](https://software.intel.com/content/www/us/en/develop/topics/iot/edge-solutions/industrial-recipes.html)
-
-
-
-## Reporting Bugs and Feature Requests
-Report bugs and requests [on the issues page](https://github.com/openvinotoolkit/dlstreamer_gst/issues)
-
-
-## How to contribute
-Pull requests aren't monitored, so if you have bug fix or an idea to improve this project, post a description on the [issues page](https://github.com/openvinotoolkit/dlstreamer_gst/issues).
 
 ---
 

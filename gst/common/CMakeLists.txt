@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -18,12 +18,10 @@ pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.c
-        ${CMAKE_CURRENT_SOURCE_DIR}/buffer_map/*.cpp
         )
 
 file (GLOB MAIN_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/buffer_map/*.h
         )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -41,15 +39,16 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${GSTREAMER_LDFLAGS}
-        ${GSTVIDEO_LDFLAGS}
+        ${GSTREAMER_LIBRARIES}
+        ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}
+        dlstreamer_gst
         logger
         gstvideoanalyticsmeta
         json-hpp
         utils
 PRIVATE
-        ${GSTALLOC_LDFLAGS}
+        ${GSTALLOC_LIBRARIES}
 )
 
 if(${ENABLE_VAAPI})

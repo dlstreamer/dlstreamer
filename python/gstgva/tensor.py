@@ -35,9 +35,61 @@ class Tensor:
 
     ## @brief This enum describes model layer precision
     class PRECISION(Enum):
-        ANY = 0
-        FP32 = 10
-        U8 = 40
+        UNSPECIFIED = 255 # Unspecified value. Used by default
+        FP32 = 10         # 32bit floating point value
+        FP16 = 11         # 16bit floating point value, 5 bit for exponent, 10 bit for mantisa
+        BF16 = 12         # 16bit floating point value, 8 bit for exponent, 7 bit for mantis
+        FP64 = 13         # 64bit floating point value
+        Q78 = 20          # 16bit specific signed fixed point precision
+        I16 = 30          # 16bit signed integer value
+        U4 = 39           # 4bit unsigned integer value
+        U8 = 40           # 8bit unsigned integer value
+        I4 = 49           # 4bit signed integer value
+        I8 = 50           # 8bit signed integer value
+        U16 = 60          # 16bit unsigned integer value
+        I32 = 70          # 32bit signed integer value
+        U32 = 74          # 32bit unsigned integer value
+        I64 = 72          # 64bit signed integer value
+        U64 = 73          # 64bit unsigned integer value
+        BIN = 71          # 1bit integer value
+        BOOL = 41         # 8bit bool type
+        CUSTOM = 80        # custom precision has it's own name and size of elements
+
+    __precision_str = {
+        PRECISION.UNSPECIFIED: "UNSPECIFIED",
+        PRECISION.FP32: "FP32",
+        PRECISION.FP16: "FP16",
+        PRECISION.BF16: "BF16",
+        PRECISION.FP64: "FP64",
+        PRECISION.Q78: "Q78",
+        PRECISION.I16: "I16",
+        PRECISION.U4: "U4",
+        PRECISION.U8: "U8",
+        PRECISION.I4: "I4",
+        PRECISION.I8: "I8",
+        PRECISION.U16: "U16",
+        PRECISION.I32: "I32",
+        PRECISION.U32: "U32",
+        PRECISION.I64: "I64",
+        PRECISION.U64: "U64",
+        PRECISION.BIN: "BIN",
+        PRECISION.BOOL: "BOOL",
+        PRECISION.CUSTOM: "CUSTOM"
+    }
+
+    __precision_numpy_dtype = {
+        PRECISION.FP16: numpy.float16,
+        PRECISION.FP32: numpy.float32,
+        PRECISION.FP64: numpy.float64,
+        PRECISION.I8: numpy.int8,
+        PRECISION.I16: numpy.int16,
+        PRECISION.I32: numpy.int32,
+        PRECISION.I64: numpy.int64,
+        PRECISION.U8: numpy.uint8,
+        PRECISION.U16: numpy.uint16,
+        PRECISION.U32: numpy.uint32,
+        PRECISION.U64: numpy.uint64
+    }
 
     ## @brief This enum describes model layer layout
     class LAYOUT(Enum):
@@ -52,12 +104,12 @@ class Tensor:
         return self["dims"]
 
     ## @brief Get inference results blob precision
-    #  @return PRECISION, PRECISION.ANY if can't be read
+    #  @return PRECISION, PRECISION.UNSPECIFIED if can't be read
     def precision(self) -> PRECISION:
         try:
             return self.PRECISION(self["precision"])
         except:
-            return self.PRECISION.ANY
+            return self.PRECISION.UNSPECIFIED
 
     ## @brief Get inference result blob layout
     #  @return LAYOUT, LAYOUT.ANY if can't be read
@@ -70,22 +122,19 @@ class Tensor:
     ## @brief Get raw inference result blob data
     #  @return numpy.ndarray of values representing raw inference data, None if data can't be read
     def data(self) -> numpy.ndarray:
-        precision = self.precision()
-        if precision == self.PRECISION.FP32:
-            view = numpy.float32
-        elif precision == self.PRECISION.U8:
-            view = numpy.uint8
-        else:
-            return None
+        precision = self.__precision_numpy_dtype[self.precision()]
+
         gvalue = libgst.gst_structure_get_value(
             self.__structure, 'data_buffer'.encode('utf-8'))
+
         if gvalue:
             gvariant = libgobject.g_value_get_variant(gvalue)
             nbytes = ctypes.c_size_t()
             data_ptr = libgobject.g_variant_get_fixed_array(
                 gvariant, ctypes.byref(nbytes), 1)
             array_type = ctypes.c_ubyte * nbytes.value
-            return numpy.ctypeslib.as_array(array_type.from_address(data_ptr)).view(dtype=view)
+            return numpy.ctypeslib.as_array(array_type.from_address(data_ptr)).view(dtype=precision)
+
         return None
 
     ## @brief Get name as a string
@@ -237,13 +286,7 @@ class Tensor:
     ## @brief Get inference results blob precision as a string
     #  @return precision as a string, "UNSPECIFIED" if can't be read
     def precision_as_string(self) -> str:
-        precision = self.precision()
-        if precision == self.PRECISION.U8:
-            return "U8"
-        elif precision == self.PRECISION.FP32:
-            return "FP32"
-        else:
-            return "UNSPECIFIED"
+        return self.__precision_str[self.precision()]
 
     ## @brief Set label. It will raise exception if called for detection Tensor
     #  @param label label name as a string
@@ -263,21 +306,6 @@ class Tensor:
     #  @return True if tensor contains detection results, False otherwise
     def is_detection(self) -> bool:
         return self.name() == "detection"
-
-    ## @brief Set list of labels used as lookup table for label_id.
-    #  @deprecated This function and result of calling it should never be used. User application must not expect Tensor to contain labels
-    #  @return Object itself
-    def set_labels(self, labels: List[str]):
-        warn("set_labels method is deprecated and will be removed in future")
-        arr = GObject.ValueArray.new(len(labels))
-        gvalue = GObject.Value()
-        gvalue.init(GObject.TYPE_STRING)
-        for label in labels:
-            gvalue.set_string(label)
-            arr.append(gvalue)
-
-        self.__structure.set_array("labels", arr)
-        return self
 
     ## @brief Construct Tensor instance from C-style GstStructure
     #  @param structure C-style pointer to GstStructure to create Tensor instance from.

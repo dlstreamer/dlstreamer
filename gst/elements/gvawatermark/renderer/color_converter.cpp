@@ -63,22 +63,21 @@ void RGBtoYUVColorConverter::convert_colors_rgb_to_yuv(double Kr, double Kb, con
     }
 }
 
-std::shared_ptr<ColorConverter> create_color_converter(InferenceBackend::FourCC format,
-                                                       const std::vector<Color> &rgb_color_table, double Kr,
-                                                       double Kb) {
+std::shared_ptr<ColorConverter>
+create_color_converter(dlstreamer::FourCC format, const std::vector<Color> &rgb_color_table, double Kr, double Kb) {
     switch (format) {
-    case InferenceBackend::FOURCC_BGRA:
-    case InferenceBackend::FOURCC_BGRX:
-    case InferenceBackend::FOURCC_BGR:
+    case dlstreamer::FOURCC_BGR:
+    case dlstreamer::FOURCC_BGRX:
+    case dlstreamer::FOURCC_BGRP:
         return std::make_shared<RGBtoBGRColorConverter>(RGBtoBGRColorConverter(rgb_color_table));
-    case InferenceBackend::FOURCC_RGBA:
-    case InferenceBackend::FOURCC_RGBX:
-    case InferenceBackend::FOURCC_RGB:
+    case dlstreamer::FOURCC_RGB:
+    case dlstreamer::FOURCC_RGBX:
+    case dlstreamer::FOURCC_RGBP:
         return std::make_shared<SaveOriginalColorConverter>(SaveOriginalColorConverter());
-    case InferenceBackend::FOURCC_NV12:
-    case InferenceBackend::FOURCC_I420:
+    case dlstreamer::FOURCC_NV12:
+    case dlstreamer::FOURCC_I420:
         return std::make_shared<RGBtoYUVColorConverter>(RGBtoYUVColorConverter(rgb_color_table, Kr, Kb));
-    default:
-        throw std::runtime_error("Unsupported format");
     }
+
+    throw std::runtime_error("Unsupported format");
 }

@@ -12,6 +12,8 @@
 
 #include "ipreproc.hpp"
 
+#include <capabilities/types.hpp>
+#include <inference_backend/pre_proc.h>
 #include <memory_type.hpp>
 
 #include <memory>
@@ -22,21 +24,31 @@ class VaApiImagePool;
 class VaApiImage;
 class VaApiContext;
 } // namespace InferenceBackend
-using VaApiDisplayPtr = std::shared_ptr<void>;
 
 class VaapiPreProc : public IPreProc {
   public:
     VaapiPreProc(VaApiDisplayPtr display, GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info,
+                 const InferenceBackend::InputImageLayerDesc::Ptr &pre_proc_info = nullptr,
                  InferenceBackend::FourCC format = InferenceBackend::FourCC::FOURCC_RGBP,
                  InferenceBackend::MemoryType out_memory_type = InferenceBackend::MemoryType::SYSTEM);
     ~VaapiPreProc();
 
-    void process(GstBuffer *in_buffer, GstBuffer *out_buffer) final;
-    void process(GstBuffer *buffer) final;
+    void *displayRaw() const;
+
+    void process(GstBuffer *in_buffer, GstBuffer *out_buffer, GstVideoRegionOfInterestMeta *roi = nullptr) final;
+
+    void flush() final;
+
+    size_t output_size() const final;
+
+    bool need_preprocessing() const final {
+        return true;
+    }
 
   private:
-    GstVideoInfo *_input_video_info;
+    GstVideoInfo *_input_video_info = nullptr;
     TensorCaps _output_tensor_info;
+    InferenceBackend::InputImageLayerDesc::Ptr _pre_proc_info;
     InferenceBackend::MemoryType _out_memory_type;
 
     std::unique_ptr<InferenceBackend::VaApiContext> _va_context;

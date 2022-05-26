@@ -1,15 +1,14 @@
 {
-    "json_schema_version": "2.0.0",
-    "input_preproc": [],
-    "output_postproc": [
-      {
-        "converter": "tensor_to_bbox_atss",
-        "labels" :[
-          "vehicle",
-          "person",
-          "bike"
-        ]
-      }
-    ]
-  }
-
+  "json_schema_version": "2.2.0",
+  "input_preproc": [],
+  "output_postproc": [
+    {
+      "converter": "boxes_labels",
+      "labels": [
+        "vehicle",
+        "person",
+        "bike"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -23,14 +23,16 @@ class VaApiImagePool;
 class VaApiImage;
 class VaApiContext;
 
-typedef void *VaApiDisplay;
 class ImageInferenceAsync : public ImageInference {
   public:
-    ImageInferenceAsync(uint32_t thread_pool_size, VaApiDisplayPtr va_dpy, ImageInference::Ptr inference);
+    constexpr static size_t DEFAULT_THREAD_POOL_SIZE = 5;
+
+    ImageInferenceAsync(const InferenceBackend::InferenceConfig &config, dlstreamer::ContextPtr vadpy_context,
+                        ImageInference::Ptr inference);
 
     ~ImageInferenceAsync() override;
 
-    void SubmitImage(const Image &image, IFrameBase::Ptr user_data,
+    void SubmitImage(IFrameBase::Ptr frame,
                      const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) override;
 
     const std::string &GetModelName() const override;
@@ -57,9 +59,9 @@ class ImageInferenceAsync : public ImageInference {
 
     ImageInference::Ptr _inference;
 
-    ThreadPool _thread_pool;
+    std::unique_ptr<ThreadPool> _thread_pool;
 
-    void SubmitInference(VaApiImage *va_api_image, IFrameBase::Ptr user_data,
+    void SubmitInference(VaApiImage *va_api_image, IFrameBase::Ptr frame,
                          const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors);
 };
 

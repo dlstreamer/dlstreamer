@@ -24,9 +24,9 @@ enum {
     PROP_THRESHOLD,
 };
 
-#define DEFALUT_MIN_THRESHOLD 0.
-#define DEFALUT_MAX_THRESHOLD 1.
-#define DEFALUT_THRESHOLD 0.5
+#define DEFAULT_MIN_THRESHOLD 0.
+#define DEFAULT_MAX_THRESHOLD 1.
+#define DEFAULT_THRESHOLD 0.5
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_detect_debug_category);
 #define GST_CAT_DEFAULT gst_gva_detect_debug_category
@@ -35,8 +35,17 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaDetect, gst_gva_detect, GST_TYPE_GVA_BASE_INFERENC
                         GST_DEBUG_CATEGORY_INIT(gst_gva_detect_debug_category, "gvadetect", 0,
                                                 "debug category for gvadetect element"));
 
+gboolean gst_gva_detect_start(GstBaseTransform *trans) {
+    GstGvaDetect *gvadetect = GST_GVA_DETECT(trans);
+
+    GST_INFO_OBJECT(gvadetect, "%s parameters:\n -- Threshold: %f\n", GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvadetect)),
+                    gvadetect->threshold);
+
+    return GST_BASE_TRANSFORM_CLASS(gst_gva_detect_parent_class)->start(trans);
+}
+
 void gst_gva_detect_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
-    GstGvaDetect *gvadetect = (GstGvaDetect *)(object);
+    GstGvaDetect *gvadetect = GST_GVA_DETECT(object);
 
     GST_DEBUG_OBJECT(gvadetect, "set_property");
 
@@ -51,7 +60,7 @@ void gst_gva_detect_set_property(GObject *object, guint property_id, const GValu
 }
 
 void gst_gva_detect_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
-    GstGvaDetect *gvadetect = (GstGvaDetect *)(object);
+    GstGvaDetect *gvadetect = GST_GVA_DETECT(object);
 
     GST_DEBUG_OBJECT(gvadetect, "get_property");
 
@@ -66,6 +75,10 @@ void gst_gva_detect_get_property(GObject *object, guint property_id, GValue *val
 }
 
 void gst_gva_detect_class_init(GstGvaDetectClass *klass) {
+    GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS(klass);
+
+    base_transform_class->start = gst_gva_detect_start;
+
     GstElementClass *element_class = GST_ELEMENT_CLASS(klass);
 
     gst_element_class_add_pad_template(
@@ -85,7 +98,7 @@ void gst_gva_detect_class_init(GstGvaDetectClass *klass) {
         g_param_spec_float("threshold", "Threshold",
                            "Threshold for detection results. Only regions of interest "
                            "with confidence values above the threshold will be added to the frame",
-                           DEFALUT_MIN_THRESHOLD, DEFALUT_MAX_THRESHOLD, DEFALUT_THRESHOLD,
+                           DEFAULT_MIN_THRESHOLD, DEFAULT_MAX_THRESHOLD, DEFAULT_THRESHOLD,
                            (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
@@ -94,5 +107,5 @@ void gst_gva_detect_init(GstGvaDetect *gvadetect) {
     GST_DEBUG_OBJECT(gvadetect, "%s", GST_ELEMENT_NAME(GST_ELEMENT(gvadetect)));
 
     gvadetect->base_inference.type = GST_GVA_DETECT_TYPE;
-    gvadetect->threshold = DEFALUT_THRESHOLD;
+    gvadetect->threshold = DEFAULT_THRESHOLD;
 }

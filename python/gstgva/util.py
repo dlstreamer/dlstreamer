@@ -168,6 +168,9 @@ libgst.gst_value_array_append_value.restype = None
 libgst.gst_meta_get_info.argtypes = [ctypes.c_char_p]
 libgst.gst_meta_get_info.restype = ctypes.c_void_p
 
+# gst utils
+libgst.gst_util_seqnum_next.restype = ctypes.c_uint
+
 
 def is_vaapi_buffer(_buffer):
     if _buffer is None:
@@ -226,7 +229,7 @@ def gst_buffer_data(_buffer, flags):
 
 
 # libgobject
-libgobject = ctypes.CDLL('libgobject-2.0.so')
+libgobject = ctypes.CDLL("libgobject-2.0.so.0")
 
 
 class GList(ctypes.Structure):
@@ -278,13 +281,12 @@ libgobject.g_value_get_float.argtypes = [G_VALUE_POINTER]
 libgobject.g_value_get_float.restype = ctypes.c_float
 
 # libglib
-libglib = ctypes.CDLL('libglib-2.0.so')
+libglib = ctypes.CDLL("libglib-2.0.so.0")
 libglib.g_strdup.argtypes = [ctypes.c_char_p]
 libglib.g_strdup.restype = ctypes.c_void_p
 
 # libgstvideo
-libgstvideo = ctypes.CDLL("libgstvideo-1.0.so")
-
+libgstvideo = ctypes.CDLL("libgstvideo-1.0.so.0")
 
 # VideoRegionOfInterestMeta
 class VideoRegionOfInterestMeta(ctypes.Structure):

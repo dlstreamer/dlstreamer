@@ -18,6 +18,8 @@
 class ModelProcParser {
   protected:
     virtual std::tuple<std::string, GstStructure *> parseProcessingItem(const nlohmann::basic_json<> &);
+    virtual void parseLayerNameAndFormat(ModelInputProcessorInfo::Ptr preprocessor,
+                                         const nlohmann::json &proc_item) = 0;
 
   public:
     virtual std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc(const nlohmann::json &input_preproc) = 0;

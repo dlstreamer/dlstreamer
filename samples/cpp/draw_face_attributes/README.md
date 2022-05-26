@@ -25,7 +25,6 @@ The sample uses by default the following pre-trained models from OpenVINO™ Too
 ```sh
 ./build_and_run.sh [INPUT_VIDEO]
 ```
-> **NOTE**: For CentOS you need to install cmake3 before running script: yum install cmake3
 
 The script `build_and_run.sh` compiles the C++ sample into subfolder under `$HOME/intel/dl_streamer`, then runs the executable file.
 
@@ -35,6 +34,11 @@ The command-line parameter INPUT_VIDEO allows to change input video and supports
 * web camera device (ex. `/dev/video0`)
 * RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)
 
+> **NOTE**: Execution of ./build_and_run.sh script may need to install build prerequisites: 
+```sh
+sudo apt install cmake make build-essential
+```
+
 ## Sample Output
 
 The sample
@@ -42,4 +46,4 @@ The sample
 * starts the pipeline and visualizes video with bounding boxes around detected faces, facial landmarks points, head pose, and text with classification results (age/gender, emotion) for each detected face
 
 ## See also
-* [DL Streamer samples](../../README.md)
+* [Samples overview](../../README.md)

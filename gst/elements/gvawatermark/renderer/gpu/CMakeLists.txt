@@ -22,10 +22,12 @@ get_filename_component(CMAKE_PARENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PATH)
 
 file (GLOB SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/buffer_mapper/*.cpp
         )
 
 file (GLOB HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/buffer_mapper/*.h
         ${CMAKE_PARENT_SOURCE_DIR}/renderer.h
         )
 

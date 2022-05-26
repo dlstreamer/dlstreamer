@@ -6,15 +6,17 @@
 
 #include "blob_to_meta_converter.h"
 
-#include "converters/to_roi/ssd.h"
-#include "converters/to_roi/yolo_base.h"
+#include "converters/to_roi/blob_to_roi_converter.h"
+#include "converters/to_roi/boxes_labels.h"
+#include "converters/to_roi/detection_output.h"
+#include "converters/to_roi/yolo_v2.h"
+#include "converters/to_roi/yolo_v3.h"
+#include "converters/to_tensor/keypoints_3d.h"
+#include "converters/to_tensor/keypoints_hrnet.h"
+#include "converters/to_tensor/keypoints_openpose.h"
+#include "converters/to_tensor/label.h"
 #include "converters/to_tensor/raw_data_copy.h"
-#include "converters/to_tensor/to_keypoints_3d.h"
-#include "converters/to_tensor/to_keypoints_hrnet.h"
-#include "converters/to_tensor/to_keypoints_openpose.h"
-#include "converters/to_tensor/to_label.h"
-#include "converters/to_tensor/to_text.h"
-#include "copy_blob_to_gststruct.h"
+#include "converters/to_tensor/text.h"
 
 #include "gva_base_inference.h"
 
@@ -23,9 +25,7 @@
 #include <algorithm>
 #include <exception>
 #include <map>
-#include <memory>
 #include <string>
-#include <vector>
 
 using namespace post_processing;
 
@@ -41,22 +41,19 @@ std::string getConverterType(GstStructure *s) {
     return converter_type;
 }
 
-std::string getDefaultTensorName(int inference_type, std::string layer_name) {
+std::string converterTypeToTensorName(ConverterType converter_type, std::string layer_name) {
     // GstStructure name string does not support '\'
     std::replace(layer_name.begin(), layer_name.end(), '\\', ':');
 
-    switch (inference_type) {
-    case GST_GVA_DETECT_TYPE:
+    switch (converter_type) {
+    case ConverterType::TO_ROI:
         return "detection";
-
-    case GST_GVA_INFERENCE_TYPE:
-        return "inference_layer_name:" + layer_name;
-
-    case GST_GVA_CLASSIFY_TYPE:
+    case ConverterType::TO_TENSOR:
         return "classification_layer_name:" + layer_name;
-
+    case ConverterType::RAW:
+        return "inference_layer_name:" + layer_name;
     default:
-        throw std::runtime_error("Invalid inference_type.");
+        throw std::runtime_error("Invalid converter type.");
     }
 }
 void updateTensorNameIfNeeded(GstStructure *s, const std::string &default_name) {
@@ -91,97 +88,78 @@ size_t getKeypointsNumber(GstStructure *s) {
 
     return kepoints_number;
 }
+
+std::string checkOnNameDeprecation(const std::string &converter_name) {
+    const std::unordered_map<std::string, std::string> deprecatedNameToName = {
+        {DetectionOutputConverter::getDepricatedName(), DetectionOutputConverter::getName()},
+        {BoxesLabelsConverter::getDepricatedName(), BoxesLabelsConverter::getName()},
+        {YOLOv2Converter::getDepricatedName(), YOLOv2Converter::getName()},
+        {YOLOv3Converter::getDepricatedName(), YOLOv3Converter::getName()},
+        {LabelConverter::getDepricatedName(), LabelConverter::getName()},
+        {TextConverter::getDepricatedName(), TextConverter::getName()},
+        {KeypointsHRnetConverter::getDepricatedName(), KeypointsHRnetConverter::getName()},
+        {Keypoints3DConverter::getDepricatedName(), Keypoints3DConverter::getName()},
+        {KeypointsOpenPoseConverter::getDepricatedName(), KeypointsOpenPoseConverter::getName()}};
+
+    const auto it = deprecatedNameToName.find(converter_name);
+    if (it != deprecatedNameToName.cend()) {
+        GVA_WARNING("The '%s' - is deprecated converter name. Please use '%s' instead.", converter_name.c_str(),
+                    it->second.c_str());
+        return it->second;
+    }
+
+    return converter_name;
+}
 } // namespace
 
-BlobToMetaConverter::BlobToMetaConverter(const std::string &model_name, const ModelImageInputInfo &input_image_info,
-                                         GstStructureUniquePtr model_proc_output_info,
-                                         const std::vector<std::string> &labels)
-    : model_name(model_name), input_image_info(input_image_info),
-      model_proc_output_info(std::move(model_proc_output_info)), labels(labels) {
+BlobToMetaConverter::BlobToMetaConverter(Initializer initializer)
+    : model_name(initializer.model_name), input_image_info(initializer.input_image_info),
+      outputs_info(initializer.outputs_info), model_proc_output_info(std::move(initializer.model_proc_output_info)),
+      labels(initializer.labels) {
 }
 
-BlobToMetaConverter::Ptr BlobToMetaConverter::create(GstStructure *model_proc_output_info, int inference_type,
-                                                     const ModelImageInputInfo &input_image_info,
-                                                     const std::string &model_name,
-                                                     const std::vector<std::string> &labels,
+BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, ConverterType converter_type,
                                                      const std::string &displayed_layer_name_in_meta) {
-    std::string converter_name = getConverterType(model_proc_output_info);
+    GstStructureUniquePtr &tensor = initializer.model_proc_output_info;
 
-    const std::string default_name = getDefaultTensorName(inference_type, displayed_layer_name_in_meta);
-    GstStructureUniquePtr tensor =
-        GstStructureUniquePtr(gst_structure_new_empty(default_name.c_str()), gst_structure_free);
+    const std::string converter_name = checkOnNameDeprecation(getConverterType(tensor.get()));
+    const std::string default_name = converterTypeToTensorName(converter_type, displayed_layer_name_in_meta);
 
-    if (model_proc_output_info != nullptr)
-        tensor.reset(gst_structure_copy(model_proc_output_info));
+    if (tensor.get() == nullptr) {
+        tensor.reset(gst_structure_new_empty(default_name.c_str()));
+    }
 
     updateTensorNameIfNeeded(tensor.get(), default_name);
 
     gst_structure_set(tensor.get(), "layer_name", G_TYPE_STRING, displayed_layer_name_in_meta.c_str(), "model_name",
-                      G_TYPE_STRING, model_name.c_str(), NULL);
+                      G_TYPE_STRING, initializer.model_name.c_str(), NULL);
 
-    switch (inference_type) {
-    case GST_GVA_DETECT_TYPE: {
-        return BlobToROIConverter::create(model_name, input_image_info, std::move(tensor), labels, converter_name);
-    } break;
-
-    case GST_GVA_INFERENCE_TYPE: {
+    switch (converter_type) {
+    case ConverterType::RAW:
+        if (converter_name == RawDataCopyConverter::getName()) {
+            return BlobToMetaConverter::Ptr(new RawDataCopyConverter(std::move(initializer)));
+        }
+        break;
+    case ConverterType::TO_ROI:
+        return BlobToROIConverter::create(std::move(initializer), converter_name);
+    case ConverterType::TO_TENSOR:
         if (converter_name == RawDataCopyConverter::getName())
-            return BlobToMetaConverter::Ptr(
-                new RawDataCopyConverter(model_name, input_image_info, std::move(tensor), labels));
+            return BlobToMetaConverter::Ptr(new RawDataCopyConverter(std::move(initializer)));
+        else if (converter_name == KeypointsHRnetConverter::getName())
+            return BlobToMetaConverter::Ptr(new KeypointsHRnetConverter(std::move(initializer)));
+        else if (converter_name == Keypoints3DConverter::getName())
+            return BlobToMetaConverter::Ptr(new Keypoints3DConverter(std::move(initializer)));
+        else if (converter_name == KeypointsOpenPoseConverter::getName()) {
+            auto keypoints_number = getKeypointsNumber(tensor.get());
+            return BlobToMetaConverter::Ptr(new KeypointsOpenPoseConverter(std::move(initializer), keypoints_number));
+        } else if (converter_name == LabelConverter::getName())
+            return BlobToMetaConverter::Ptr(new LabelConverter(std::move(initializer)));
+        else if (converter_name == TextConverter::getName())
+            return BlobToMetaConverter::Ptr(new TextConverter(std::move(initializer)));
         else
-            goto NOT_IMPLEMENTD;
-    } break;
-
-    case GST_GVA_CLASSIFY_TYPE: {
-        if (converter_name == RawDataCopyConverter::getName())
-            return BlobToMetaConverter::Ptr(
-                new RawDataCopyConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == ToLabelConverter::getName())
-            return BlobToMetaConverter::Ptr(
-                new ToLabelConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == ToTextConverter::getName())
-            return BlobToMetaConverter::Ptr(
-                new ToTextConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == ToKeypointsHRnetConverter::getName())
-            return BlobToMetaConverter::Ptr(
-                new ToKeypointsHRnetConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == ToKeypoints3DConverter::getName())
-            return BlobToMetaConverter::Ptr(
-                new ToKeypoints3DConverter(model_name, input_image_info, std::move(tensor), labels));
-        else if (converter_name == ToKeypointsOpenPoseConverter::getName())
-            return BlobToMetaConverter::Ptr(new ToKeypointsOpenPoseConverter(
-                model_name, input_image_info, std::move(tensor), labels, getKeypointsNumber(model_proc_output_info)));
-        else
-            goto NOT_IMPLEMENTD;
-    } break;
-
+            throw std::runtime_error("Unsupported converter: " + converter_name);
     default:
-        throw std::runtime_error("Invalid inference_type.");
+        throw std::runtime_error("Invalid converter type.");
     }
-
     return nullptr;
-
-NOT_IMPLEMENTD:
-    throw std::runtime_error("Converter \"" + converter_name + "\" is not implemented.");
 }
-
-GVA::Tensor BlobToTensorConverter::createTensor() const {
-    GstStructure *tensor_data = nullptr;
-    if (getModelProcOutputInfo()) {
-        tensor_data = copy(getModelProcOutputInfo().get(), gst_structure_copy);
-    } else {
-        throw std::runtime_error("Failed to initialize classification result structure: model-proc is null.");
-    }
-    if (!tensor_data) {
-        throw std::runtime_error("Failed to initialize classification result tensor.");
-    }
-
-    return GVA::Tensor(tensor_data);
-}
-
-const std::string BlobToTensorConverter::RawTensorCopyingToggle::id = "disable-tensor-copying";
-const std::string BlobToTensorConverter::RawTensorCopyingToggle::deprecation_message =
-    "In pipelines with gvaclassify, in addition to classification results, a raw inference tensor is added to the "
-    "metadata. This functionality will be removed in future releases. Set environment variable "
-    "ENABLE_GVA_FEATURES=disable-tensor-copying to disable copying to "
-    "frame metadata of raw tensor after inference.";

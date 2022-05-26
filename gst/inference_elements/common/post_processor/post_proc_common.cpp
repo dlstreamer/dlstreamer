@@ -6,7 +6,9 @@
 
 #include "post_proc_common.h"
 
-void post_processing::checkInferenceFramesAndTensorsTable(const InferenceFrames &frames, const TensorsTable &tensors) {
+namespace post_processing {
+
+void checkFramesAndTensorsTable(const FramesWrapper &frames, const TensorsTable &tensors) {
     if (frames.empty())
         throw std::invalid_argument("There are no inference frames");
 
@@ -16,3 +18,5 @@ void post_processing::checkInferenceFramesAndTensorsTable(const InferenceFrames 
         throw std::logic_error("The size of the metadata array is less than the size of the inference frames: " +
                                std::to_string(tensors.size()) + " / " + std::to_string(frames.size()));
 }
+
+} // namespace post_processing

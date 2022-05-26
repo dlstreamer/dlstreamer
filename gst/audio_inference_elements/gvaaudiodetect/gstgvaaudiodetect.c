@@ -46,10 +46,11 @@ void gst_gva_audio_detect_class_init(GvaAudioDetectClass *gvaaudiodetect_class) 
 
 void gst_gva_audio_detect_init(GvaAudioDetect *gvaaudiodetect) {
     GST_DEBUG_OBJECT(gvaaudiodetect, "gst_gva_audio_detect_init");
-    GST_DEBUG_OBJECT(gvaaudiodetect, "%s", GST_ELEMENT_NAME(GST_ELEMENT(gvaaudiodetect)));
-
     if (gvaaudiodetect == NULL)
         return;
+
+    GST_DEBUG_OBJECT(gvaaudiodetect, "%s", GST_ELEMENT_NAME(GST_ELEMENT(gvaaudiodetect)));
+
     gvaaudiodetect->audio_base_inference.pre_proc = GET_NORMALIZED_SAMPLES;
     gvaaudiodetect->audio_base_inference.post_proc = EXTRACT_RESULTS;
     gvaaudiodetect->audio_base_inference.req_sample_size = GET_NUM_OF_SAMPLES_REQUIRED;

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -20,8 +20,6 @@ endif()
 file (GLOB MAIN_SRC
     gvametaconvert/*.cpp
     gvametaconvert/*.c
-    gvametapublish/*.cpp
-    gvametapublish/*.c
     gvafpscounter/*.cpp
     gvafpscounter/*.c
     gvametaaggregate/*.cpp
@@ -34,7 +32,6 @@ file (GLOB MAIN_SRC
 
 file (GLOB MAIN_HEADERS
     gvametaconvert/*.h
-    gvametapublish/*.h
     gvafpscounter/*.h
     gvametaaggregate/*.h
     gvawatermark/*.h
@@ -60,7 +57,6 @@ target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
     gvametaconvert
-    gvametapublish
     gvawatermark
     gvawatermark/renderer
     gvafpscounter
@@ -80,12 +76,12 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
 endif()
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${GSTREAMER_LDFLAGS}
-    ${GSTVIDEO_LDFLAGS}
-    ${GSTALLOC_LDFLAGS}
+    ${GSTREAMER_LIBRARIES}
+    ${GSTVIDEO_LIBRARIES}
+    ${GSTALLOC_LIBRARIES}
     ${OpenCV_LIBS}
+    dlstreamer_gst
     common
-    gvacommon
     image_inference
     image_inference_openvino
     logger
@@ -95,40 +91,24 @@ PRIVATE
 )
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LDFLAGS})
+        target_link_libraries(${TARGET_NAME} PRIVATE ${GSTAUDIO_LIBRARIES})
 endif()
 
 if(${ENABLE_VAAPI})
         target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async)
 endif()
 
-target_include_directories(${TARGET_NAME}
-PRIVATE
-        gvametapublish
-)
-if (MQTT)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DPAHO_INC ")
-        target_link_libraries(${TARGET_NAME} PRIVATE paho-mqtt3a uuid)
-        message("MQTT support will be available in metapublish element")
-else()
-        message("MQTT support will not be available. Ensure required libraries (Paho MQTT) are installed, and rebuild plugin with -DMQTT=1 before attempting to use MQTT")
-endif()
-
-if (KAFKA)
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DKAFKA_INC ")
-        target_link_libraries(${TARGET_NAME} PRIVATE rdkafka)
-        message("Kafka support will be available in metapublish element")
-else()
-        message("Kafka support will not be available. Ensure required libraries (librdkafka) are installed, and rebuild plugin with -DKAFKA=1 before attempting to use Kafka")
-endif()
-
+add_subdirectory(gvametapublish)
 add_subdirectory(gvapython)
-if(${ENABLE_VAS_TRACKER})
-    add_subdirectory(gvatrack)
-endif()
-execute_process(COMMAND which dpcpp RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
-if(status EQUAL 0)
-    add_subdirectory(gvawatermark/renderer/gpu/)
-else()
-    message("GPU target device will not be available in watermark element. Ensure oneAPI DPC++ Compiler is installed.")
+add_subdirectory(gvatrack)
+
+if(UNIX)
+    execute_process(COMMAND which dpcpp RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
+    if(status EQUAL 0)
+        if(${ENABLE_VAAPI})
+            add_subdirectory(gvawatermark/renderer/gpu/)
+        endif()
+    else()
+        message("GPU target device will not be available in watermark element. Ensure oneAPI DPC++ Compiler is installed.")
+    endif()
 endif()

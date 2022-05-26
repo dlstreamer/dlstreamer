@@ -6,8 +6,15 @@
 
 #pragma once
 
+#include "dlstreamer/buffer.h"
+#include "dlstreamer/context.h"
+#include "dlstreamer/fourcc.h"
+
 #include <cstdint>
+#include <memory>
 #include <type_traits>
+
+using VaApiDisplayPtr = dlstreamer::ContextPtr;
 
 namespace {
 template <int a, int b, int c, int d>
@@ -23,16 +30,16 @@ enum class MemoryType { ANY = 0, SYSTEM = 1, DMA_BUFFER = 2, VAAPI = 3, USM_DEVI
 
 enum FourCC {
     FOURCC_RGBP_F32 = 0x07282024,
-    FOURCC_NV12 = fourcc<'N', 'V', '1', '2'>::code,
+    FOURCC_NV12 = dlstreamer::FOURCC_NV12,
     FOURCC_BGRA = fourcc<'B', 'G', 'R', 'A'>::code,
-    FOURCC_BGRX = fourcc<'B', 'G', 'R', 'X'>::code,
-    FOURCC_BGRP = fourcc<'B', 'G', 'R', 'P'>::code,
-    FOURCC_BGR = fourcc<'B', 'G', 'R', ' '>::code,
+    FOURCC_BGRX = dlstreamer::FOURCC_BGRX,
+    FOURCC_BGRP = dlstreamer::FOURCC_BGRP,
+    FOURCC_BGR = dlstreamer::FOURCC_BGR,
     FOURCC_RGBA = fourcc<'R', 'G', 'B', 'A'>::code,
-    FOURCC_RGBX = fourcc<'R', 'G', 'B', 'X'>::code,
-    FOURCC_RGB = fourcc<'R', 'G', 'B', ' '>::code,
-    FOURCC_RGBP = fourcc<'R', 'G', 'B', 'P'>::code,
-    FOURCC_I420 = fourcc<'I', '4', '2', '0'>::code,
+    FOURCC_RGBX = dlstreamer::FOURCC_RGBX,
+    FOURCC_RGB = dlstreamer::FOURCC_RGB,
+    FOURCC_RGBP = dlstreamer::FOURCC_RGBP,
+    FOURCC_I420 = dlstreamer::FOURCC_I420,
     FOURCC_YUV = fourcc<'Y', 'U', 'V', ' '>::code
 };
 
@@ -73,8 +80,13 @@ struct Image {
     uint32_t offsets[MAX_PLANES_NUMBER] = {0, 0, 0, 0};
     Rectangle<uint32_t> rect;
 
+    // Filled in and used by the USMBufferMapper.
+    void *map_context = nullptr;
+
     Image() = default;
 };
+
+using ImagePtr = std::shared_ptr<Image>;
 
 // Map DMA/VAAPI image into system memory
 class ImageMap {

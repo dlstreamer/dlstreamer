@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -20,20 +20,20 @@
 namespace gpu {
 namespace dpcpp {
 
-sycl::event renderRectangles(sycl::queue queue, size_t width, gpu::dpcpp::MaskedPixel *mask,
-                             const gpu::dpcpp::Rect *rectangles, size_t size, size_t max_length);
+sycl::event renderRectangles(sycl::queue queue, cv::Mat &image_plane, const gpu::dpcpp::Rect *rectangles, size_t size,
+                             size_t max_length);
 
-sycl::event renderTexts(sycl::queue queue, size_t width, gpu::dpcpp::MaskedPixel *mask, const gpu::dpcpp::Text *texts,
-                        size_t size, size_t max_height, size_t max_width);
+sycl::event renderTexts(sycl::queue queue, cv::Mat &image_plane, const gpu::dpcpp::Text *texts, size_t size,
+                        size_t max_height, size_t max_width);
 
-sycl::event renderCircles(sycl::queue queue, size_t width, gpu::dpcpp::MaskedPixel *mask,
-                          const gpu::dpcpp::Circle *circles, size_t size, size_t max_radius);
+sycl::event renderCircles(sycl::queue queue, cv::Mat &image_plane, const gpu::dpcpp::Circle *circles, size_t size,
+                          size_t max_radius);
 
-sycl::event renderLines(sycl::queue queue, size_t width, gpu::dpcpp::MaskedPixel *mask, const gpu::dpcpp::Line *lines,
-                        size_t size, size_t thick);
+sycl::event renderLinesLow(sycl::queue queue, cv::Mat &image_plane, const gpu::dpcpp::Line *lines, size_t size,
+                           size_t thick);
 
-sycl::event mix(sycl::queue queue, gpu::dpcpp::MaskedPixel *mask, cv::Mat &image_plane, int plane_index,
-                gpu::dpcpp::SubsampligParams subsampling, uint64_t drm_format_modifier);
+sycl::event renderLinesHi(sycl::queue queue, cv::Mat &image_plane, const gpu::dpcpp::Line *lines, size_t size,
+                          size_t thick);
 
 } // namespace dpcpp
 } // namespace gpu

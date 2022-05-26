@@ -6,6 +6,7 @@
 
 #include "ipreproc.hpp"
 
+#include <capabilities/types.hpp>
 #include <inference_backend/pre_proc.h>
 
 class OpenCVPreProc : public IPreProc {
@@ -13,8 +14,12 @@ class OpenCVPreProc : public IPreProc {
     OpenCVPreProc(GstVideoInfo *input_video_info, const TensorCaps &output_tensor_info,
                   const InferenceBackend::InputImageLayerDesc::Ptr &pre_proc_info = nullptr);
 
-    void process(GstBuffer *in_buffer, GstBuffer *out_buffer) final;
-    void process(GstBuffer *buffer) final;
+    void process(GstBuffer *in_buffer, GstBuffer *out_buffer, GstVideoRegionOfInterestMeta *roi = nullptr) final;
+
+    void flush() final{};
+
+    size_t output_size() const final;
+    bool need_preprocessing() const final;
 
   private:
     GstVideoInfo *_input_video_info;

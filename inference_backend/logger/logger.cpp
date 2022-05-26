@@ -1,27 +1,33 @@
 /*******************************************************************************
- * Copyright (C) 2018-2019 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "inference_backend/logger.h"
 #include "stdio.h"
+#include <sstream>
 #include <string>
 
-static GvaLogFuncPtr inference_log_function = nullptr;
+void default_log_function(int level, const char *file, const char *function, int line, const char *format,
+                          va_list args) {
+    static std::string log_level[] = {"DEFAULT", "ERROR", "WARNING", "FIXME",  "INFO",
+                                      "DEBUG",   "LOG",   "TRACE",   "MEMDUMP"};
+
+    std::stringstream fmt;
+    fmt << log_level[level] << "\t" << file << ':' << line << ':' << function << ": " << format << "\n";
+    vfprintf(stderr, fmt.str().c_str(), args);
+}
+
+static GvaLogFuncPtr inference_log_function = default_log_function;
 
 void set_log_function(GvaLogFuncPtr log_func) {
-    inference_log_function = log_func;
+    if (inference_log_function != log_func)
+        inference_log_function = log_func;
 };
 
-void debug_log(int level, const char *file, const char *function, int line, const char *message) {
-    if (!inference_log_function) {
-        set_log_function(default_log_function);
-    }
-    (*inference_log_function)(level, file, function, line, message);
+void debug_log(int level, const char *file, const char *function, int line, const char *format, ...) {
+    va_list args;
+    va_start(args, format);
+    (*inference_log_function)(level, file, function, line, format, args);
 };
-
-void default_log_function(int level, const char *file, const char *function, int line, const char *message) {
-    std::string log_level[] = {"DEFAULT", "ERROR", "WARNING", "FIXME", "INFO", "DEBUG", "LOG", "TRACE", "MEMDUMP"};
-    fprintf(stderr, "%s \t %s:%i : %s \t %s \n", log_level[level].c_str(), file, line, function, message);
-}

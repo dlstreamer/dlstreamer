@@ -10,11 +10,11 @@ This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert`/`vaapipostproc` for converting video frame into different color formats for system and GPU memory
-* [gvaactionrecognitionbin](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaactionrecognitionbin) for action recognition based on OpenVINO™ Toolkit Inference Engine
-* [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for labels visualization
+* [gvaactionrecognitionbin](https://dlstreamer.github.io/elements/gvaactionrecognitionbin.html) for action recognition based on OpenVINO™ Toolkit Inference Engine
+* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for labels visualization
 * `gvafpscounter` for rendering fps info in terminal
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 
@@ -53,4 +53,4 @@ The sample
 * starts the command and either visualizes video with action text labels or prints out fps if you set SINK_ELEMENT = fps
 
 ## See also
-* [DL Streamer samples](../../README.md)
+* [Samples overview](../../README.md)

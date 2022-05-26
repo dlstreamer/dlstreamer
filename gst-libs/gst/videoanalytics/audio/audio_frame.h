@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -239,7 +239,8 @@ class AudioFrame {
     void remove_tensor(const Tensor &tensor) {
         GstGVATensorMeta *meta = NULL;
         gpointer state = NULL;
-        while ((meta = GST_GVA_TENSOR_META_ITERATE(buffer, &state))) {
+        GType meta_api_type = g_type_from_name("GstGVATensorMetaAPI");
+        while ((meta = (GstGVATensorMeta *)gst_buffer_iterate_meta_filtered(buffer, &state, meta_api_type))) {
             if (meta->data == tensor._structure) {
                 if (!gst_buffer_is_writable(buffer))
                     throw std::runtime_error("Buffer is not writable.");

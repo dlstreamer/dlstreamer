@@ -1,0 +1,144 @@
+---
+face-detection-0200: { model-proc: model_proc/intel/face-detection-0200.json }
+face-detection-0202: { model-proc: model_proc/intel/face-detection-0202.json }
+face-detection-0204: { model-proc: model_proc/intel/face-detection-0204.json }
+face-detection-0205: { model-proc: model_proc/intel/face-detection-0205.json }
+face-detection-0206: { model-proc: model_proc/intel/face-detection-0206.json }
+face-detection-adas-0001: { model-proc: model_proc/intel/face-detection-adas-0001.json }
+face-detection-retail-0004: { model-proc: model_proc/intel/face-detection-retail-0004.json }
+face-detection-retail-0005: { model-proc: model_proc/intel/face-detection-retail-0005.json }
+faster-rcnn-resnet101-coco-sparse-60-0001: { model-proc: model_proc/intel/faster-rcnn-resnet101-coco-sparse-60-0001.json }
+pedestrian-and-vehicle-detector-adas-0001: { model-proc: model_proc/intel/pedestrian-and-vehicle-detector-adas-0001.json }
+pedestrian-detection-adas-0002: { model-proc: model_proc/intel/pedestrian-detection-adas-0002.json }
+person-detection-0200: { model-proc: model_proc/intel/person-detection-0200.json }
+person-detection-0201: { model-proc: model_proc/intel/person-detection-0201.json }
+person-detection-0202: { model-proc: model_proc/intel/person-detection-0202.json }
+person-detection-0203: { model-proc: model_proc/intel/person-detection-0203.json }
+person-detection-asl-0001: { model-proc: model_proc/intel/person-detection-0203.json }
+person-detection-retail-0002: { model-proc: model_proc/intel/person-detection-retail-0002.json }
+person-detection-retail-0013: { model-proc: model_proc/intel/person-detection-retail-0013.json }
+person-vehicle-bike-detection-2000: { model-proc: model_proc/intel/person-vehicle-bike-detection-2000.json }
+person-vehicle-bike-detection-2001: { model-proc: model_proc/intel/person-vehicle-bike-detection-2001.json }
+person-vehicle-bike-detection-2002: { model-proc: model_proc/intel/person-vehicle-bike-detection-2002.json }
+person-vehicle-bike-detection-2003: { model-proc: model_proc/intel/person-vehicle-bike-detection-2003.json }
+person-vehicle-bike-detection-2004: { model-proc: model_proc/intel/person-vehicle-bike-detection-2004.json }
+person-vehicle-bike-detection-crossroad-0078: { model-proc: model_proc/intel/person-vehicle-bike-detection-crossroad-0078.json }
+person-vehicle-bike-detection-crossroad-1016: { model-proc: model_proc/intel/person-vehicle-bike-detection-crossroad-1016.json }
+person-vehicle-bike-detection-crossroad-yolov3-1020: { model-proc: model_proc/intel/person-vehicle-bike-detection-crossroad-yolov3-1020.json }
+product-detection-0001: { model-proc: model_proc/intel/product-detection-0001.json }
+vehicle-detection-0200: { model-proc: model_proc/intel/vehicle-detection-0200.json }
+vehicle-detection-0201: { model-proc: model_proc/intel/vehicle-detection-0201.json }
+vehicle-detection-0202: { model-proc: model_proc/intel/vehicle-detection-0202.json }
+vehicle-detection-adas-0002: { model-proc: model_proc/intel/vehicle-detection-adas-0002.json }
+vehicle-license-plate-detection-barrier-0106: { model-proc: model_proc/intel/vehicle-license-plate-detection-barrier-0106.json }
+yolo-v2-ava-0001: { model-proc: model_proc/intel/yolo-v2-ava-0001.json }
+yolo-v2-ava-sparse-35-0001: { model-proc: model_proc/intel/yolo-v2-ava-sparse-35-0001.json }
+yolo-v2-ava-sparse-70-0001: { model-proc: model_proc/intel/yolo-v2-ava-sparse-70-0001.json }
+yolo-v2-tiny-ava-0001: { model-proc: model_proc/intel/yolo-v2-tiny-ava-0001.json }
+yolo-v2-tiny-ava-sparse-30-0001: { model-proc: model_proc/intel/yolo-v2-tiny-ava-sparse-30-0001.json }
+yolo-v2-tiny-ava-sparse-60-0001: { model-proc: model_proc/intel/yolo-v2-tiny-ava-sparse-60-0001.json }
+yolo-v2-tiny-vehicle-detection-0001: { model-proc: model_proc/intel/yolo-v2-tiny-vehicle-detection-0001.json }
+efficientdet-d0-tf: { labels: labels/coco-91cl.txt }
+efficientdet-d1-tf: { labels: labels/coco-91cl.txt }
+face-detection-retail-0044: { labels: labels/face-bkgr.txt }
+faster_rcnn_inception_resnet_v2_atrous_coco: { model-proc: model_proc/public/preproc-image-info.json, labels: labels/coco-91cl-bkgr.txt }
+faster_rcnn_resnet50_coco: { model-proc: model_proc/public/preproc-image-info.json, labels: labels/coco-91cl-bkgr.txt }
+mobilenet-yolo-v4-syg: { model-proc: model_proc/public/mobilenet-yolo-v4-syg.json }
+pelee-coco: { labels: labels/coco-80cl-bkgr.txt }
+retinanet-tf: { labels: labels/coco-80cl.txt }
+rfcn-resnet101-coco-tf: { model-proc: model_proc/public/preproc-image-info.json, labels: labels/coco-91cl-bkgr.txt }
+ssd300: { labels: labels/voc-20cl-bkgr.txt }
+ssd512: { labels: labels/voc-20cl-bkgr.txt }
+mobilenet-ssd: { labels: labels/voc-20cl-bkgr.txt }
+ssd_mobilenet_v1_coco: { labels: labels/coco-91cl-bkgr.txt }
+ssd_mobilenet_v1_fpn_coco: { labels: labels/coco-91cl-bkgr.txt }
+ssdlite_mobilenet_v2: { labels: labels/coco-91cl-bkgr.txt }
+vehicle-license-plate-detection-barrier-0123: { model-proc: model_proc/public/vehicle-license-plate-detection-barrier-0123.json }
+yolo-v1-tiny-tf: { model-proc: model_proc/public/yolo-v1-tiny-tf.json, labels: labels/voc-20cl.txt }
+yolo-v2-tiny-tf: { model-proc: model_proc/public/yolo-v2-tiny-tf.json, labels: labels/coco-80cl.txt }
+yolo-v2-tf: { model-proc: model_proc/public/yolo-v2-tf.json, labels: labels/coco-80cl.txt }
+yolo-v3-tiny-tf: { model-proc: model_proc/public/yolo-v3-tiny-tf.json, labels: labels/coco-80cl.txt }
+yolo-v3-tf: { model-proc: model_proc/public/yolo-v3-tf.json, labels: labels/coco-80cl.txt }
+yolo-v4-tiny-tf: { model-proc: model_proc/public/yolo-v4-tiny-tf.json, labels: labels/coco-80cl.txt }
+yolo-v4-tf: { model-proc: model_proc/public/yolo-v4-tf.json, labels: labels/coco-80cl.txt }
+age-gender-recognition-retail-0013: { model-proc: model_proc/intel/age-gender-recognition-retail-0013.json }
+emotions-recognition-retail-0003: { model-proc: model_proc/intel/emotions-recognition-retail-0003.json }
+facial-landmarks-35-adas-0002: { }
+head-pose-estimation-adas-0001: { }
+landmarks-regression-retail-0009: { model-proc: model_proc/intel/landmarks-regression-retail-0009.json }
+license-plate-recognition-barrier-0001: { model-proc: model_proc/intel/license-plate-recognition-barrier-0001.json }
+person-attributes-recognition-crossroad-0230: { model-proc: model_proc/intel/person-attributes-recognition-crossroad-0230.json }
+person-attributes-recognition-crossroad-0234: { model-proc: model_proc/intel/person-attributes-recognition-crossroad-0234.json }
+person-attributes-recognition-crossroad-0238: { model-proc: model_proc/intel/person-attributes-recognition-crossroad-0238.json }
+vehicle-attributes-recognition-barrier-0039: { model-proc: model_proc/intel/vehicle-attributes-recognition-barrier-0039.json }
+vehicle-attributes-recognition-barrier-0042: { model-proc: model_proc/intel/vehicle-attributes-recognition-barrier-0042.json }
+weld-porosity-detection-0001: { model-proc: model_proc/intel/weld-porosity-detection-0001.json }
+resnet50-binary-0001: { model-proc: model_proc/intel/resnet50-binary-0001.json }
+resnet18-xnor-binary-onnx-0001: { model-proc: model_proc/intel/resnet18-xnor-binary-onnx-0001.json }
+alexnet: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+anti-spoof-mn3: { model-proc: model_proc/public/anti-spoof-mn3.json }
+densenet-121: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+densenet-121-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+dla-34: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+efficientnet-b0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+efficientnet-b0-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+hbonet-1.0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+hbonet-0.25: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+googlenet-v1: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+googlenet-v1-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+googlenet-v2: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2015.txt }
+googlenet-v2-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+googlenet-v3: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+googlenet-v3-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+googlenet-v4-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+inception-resnet-v2-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+mixnet-l: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+mobilenet-v1-0.25-128: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+mobilenet-v1-1.0-224: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+mobilenet-v1-1.0-224-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+mobilenet-v2: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+mobilenet-v2-1.0-224: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+mobilenet-v2-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+mobilenet-v2-1.4-224: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+mobilenet-v3-small-1.0-224-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+mobilenet-v3-large-1.0-224-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+nfnet-f0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+regnetx-3.2gf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+octave-resnet-26-0.25: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+open-closed-eye-0001: { model-proc: model_proc/public/open-closed-eye-0001.json }
+repvgg-a0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+repvgg-b1: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+repvgg-b3: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+resnest-50-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+resnet-18-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+resnet-34-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+resnet-50-pytorch: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+resnet-50-tf: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012-bkgr.txt }
+rexnet-v1-x1.0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+se-inception: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2015.txt }
+se-resnet-50: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2015.txt }
+se-resnext-50: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2015.txt }
+shufflenet-v2-x0.5: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+shufflenet-v2-x1.0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+squeezenet1.0: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+squeezenet1.1: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+swin-tiny-patch4-window7-224: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+vgg16: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+vgg19: { model-proc: model_proc/public/preproc-aspect-ratio.json, labels: labels/imagenet-2012.txt }
+human-pose-estimation-0001: { model-proc: model_proc/intel/human-pose-estimation-0001.json }
+single-human-pose-estimation-0001: { model-proc: model_proc/public/single-human-pose-estimation-0001.json }
+aclnet: { model-proc: model_proc/public/aclnet.json }
+YOLOv2: { model-proc: model_proc/onnx/yolov2-coco-9.json }
+YOLOv2 Tiny: { model-proc: model_proc/onnx/tinyyolov2-8.json }
+MobileNet: { model-proc: model_proc/onnx/mobilenetv2-7.json }
+FER+ Emotion Recognition: { model-proc: model_proc/onnx/emotion-ferplus-8.json }
+action-recognition-0001: { model-proc: model_proc/intel/action-recognition-0001.json }
+driver-action-recognition-adas-0002: { model-proc: model_proc/intel/driver-action-recognition-adas-0002.json }
+road-segmentation-adas-0001: { model-proc: model_proc/road-segmentation-adas-0001.json }
+semantic-segmentation-adas-0001: { model-proc: model_proc/semantic-segmentation-adas-0001.json }
+icnet-camvid-ava-0001: { model-proc: model_proc/icnet-camvid-ava-0001.json }
+instance-segmentation-security-0083: { model-proc: model_proc/instance-segmentation-security-0083.json }
+instance-segmentation-security-1025: { model-proc: model_proc/instance-segmentation-security-1025.json }
+text-detection-0003: { model-proc: model_proc/text-detection-0003.json }
+horizontal-text-detection-0001: { model-proc: model_proc/intel/horizontal-text-detection-0001.json }
+...

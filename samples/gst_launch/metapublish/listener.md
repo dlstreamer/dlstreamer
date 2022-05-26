@@ -7,7 +7,7 @@ By default the sample will display pretty printed output to stdout. But you may 
 * For FIFO file, create the fifo and tail results in console.
 
 ## MQTT
-Mosquitto provides a docker image to quickly stand up a minimal MQTT broker and client listener.
+Mosquitto provides a Docker image to quickly stand up a minimal MQTT broker and client listener.
 
 Create a listen_mqtt.sh script that looks similar to this:
 ```
@@ -23,7 +23,7 @@ mosquitto_sub -h localhost -t dlstreamer
 ```
 
 ## Kafka
-Bitnami provides docker images to quickly stand up a minimal Kafka broker and client listener.
+Bitnami provides Docker images to quickly stand up a minimal Kafka broker and client listener.
 
 1. Construct a Kafka compose file named docker-compose-kafka.yml.
 ```
@@ -74,7 +74,7 @@ services:
 #listen_kafka.sh
 
 echo "Launching zookeeper and kafka containers with auto-topic creation on a distinct network."
-docker-compose -f docker-compose-kafka.yml up -d
+docker-compose -p metapublish -f docker-compose-kafka.yml up -d
 
 echo "Listening for Kafka messages on 'dlstreamer' topic..."
 # Emit output to console
@@ -93,7 +93,7 @@ OUTPUT_PATHFILE=./dlstreamer.fifo
 rm -f $OUTPUT_PATHFILE
 mkfifo $OUTPUT_PATHFILE
 
-echo "Waiting for DL Streamer to write lines to FIFO: $OUTPUT_PATHFILE"
+echo "Waiting for Intel® Deep Learning Streamer (Intel® DL Streamer) to write lines to FIFO: $OUTPUT_PATHFILE"
 
 # Emit output to console
 tail -f $OUTPUT_PATHFILE

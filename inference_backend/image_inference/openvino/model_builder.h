@@ -41,17 +41,18 @@ struct EntityBuilder {
                   const InferenceBackend::InferenceConfig &config, const std::string &model_path)
         : loader(std::move(loader)), base_config(config.at(InferenceBackend::KEY_BASE)),
           inference_config(config.at(InferenceBackend::KEY_INFERENCE)),
-          layer_precision_config(config.at(InferenceBackend::KEY_LAYER_PRECISION)),
-          layer_type_config(config.at(InferenceBackend::KEY_FORMAT)),
-          batch_size(std::stoi(config.at(InferenceBackend::KEY_BASE).at(InferenceBackend::KEY_BATCH_SIZE))),
+          input_layer_precision_config(config.at(InferenceBackend::KEY_INPUT_LAYER_PRECISION)),
+          layer_format_config(config.at(InferenceBackend::KEY_FORMAT)),
+          batch_size(safe_convert<size_t>(
+              std::stoi(config.at(InferenceBackend::KEY_BASE).at(InferenceBackend::KEY_BATCH_SIZE)))),
           model_path(model_path) {
     }
 
     std::unique_ptr<InferenceBackend::ModelLoader> loader;
     const std::map<std::string, std::string> base_config;
     std::map<std::string, std::string> inference_config;
-    const std::map<std::string, std::string> layer_precision_config;
-    const std::map<std::string, std::string> layer_type_config;
+    const std::map<std::string, std::string> input_layer_precision_config;
+    const std::map<std::string, std::string> layer_format_config;
     const size_t batch_size;
     const std::string model_path;
 };
@@ -64,6 +65,7 @@ struct IrBuilder : EntityBuilder {
     }
 
   private:
+    void checkLayersConfig(const InferenceEngine::InputsDataMap &inputs_info);
     void configureNetworkLayers(const InferenceEngine::InputsDataMap &inputs_info, std::string &image_input_name);
     std::tuple<std::unique_ptr<InferenceBackend::ImagePreprocessor>, InferenceEngine::ExecutableNetwork, std::string>
     createPreProcAndExecutableNetwork_impl(InferenceEngine::CNNNetwork &network) override;

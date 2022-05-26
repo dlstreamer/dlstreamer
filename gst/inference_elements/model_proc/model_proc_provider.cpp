@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,6 +8,7 @@
 #include "model_proc_parser_v1.h"
 #include "model_proc_parser_v2.h"
 #include "model_proc_parser_v2_1.h"
+#include "model_proc_parser_v2_2.h"
 #include "model_proc_schema.h"
 
 void ModelProcProvider::readJsonFile(const std::string &file_path) {
@@ -34,9 +35,11 @@ void ModelProcProvider::createParser(const std::string &schema_version) {
     } else if (schema_version == "2.1.0") {
         validateSchema(MODEL_PROC_SCHEMA_V2_1);
         model_proc_parser = new ModelProcParserV2_1();
+    } else if (schema_version == "2.2.0") {
+        validateSchema(MODEL_PROC_SCHEMA_V2_2);
+        model_proc_parser = new ModelProcParserV2_2();
     } else {
-        std::string err_msg = "Parser for " + schema_version + " version not found";
-        std::throw_with_nested(std::invalid_argument(err_msg));
+        throw std::invalid_argument("Parser for " + schema_version + " version not found");
     }
 }
 

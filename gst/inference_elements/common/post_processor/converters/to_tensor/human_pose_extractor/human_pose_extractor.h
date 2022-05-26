@@ -18,6 +18,7 @@ class HumanPoseExtractor {
   public:
     const size_t keypoints_number;
 
+    enum class ResizeDeviceType { CPU_OCV, GPU_OCV };
     struct HumanPose {
         HumanPose(const std::vector<cv::Point2f> &keypoints = std::vector<cv::Point2f>(), const float &score = 0)
             : keypoints(keypoints), score(score) {
@@ -29,9 +30,9 @@ class HumanPoseExtractor {
 
     using HumanPoses = std::vector<HumanPose>;
 
-    HumanPoseExtractor(size_t);
+    HumanPoseExtractor(size_t, ResizeDeviceType maps_resize_device_type = ResizeDeviceType::CPU_OCV);
 
-    HumanPoseExtractor() = default;
+    HumanPoseExtractor() = delete;
     HumanPoseExtractor(const HumanPoseExtractor &) = default;
     ~HumanPoseExtractor() = default;
 
@@ -59,4 +60,6 @@ class HumanPoseExtractor {
     cv::Size image_size;
     std::string pafs_blob_name;
     std::string heat_maps_blob_name;
+
+    ResizeDeviceType maps_resize_device_type;
 };

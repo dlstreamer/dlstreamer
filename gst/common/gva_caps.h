@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -35,8 +35,11 @@ typedef enum {
     SYSTEM_MEMORY_CAPS_FEATURE,
     VA_SURFACE_CAPS_FEATURE,
     DMA_BUF_CAPS_FEATURE,
+    ANY_CAPS_FEATURE
 } CapsFeature;
 
-__BEGIN_DECLS
+G_BEGIN_DECLS
+
 CapsFeature get_caps_feature(GstCaps *caps);
-__END_DECLS
+
+G_END_DECLS

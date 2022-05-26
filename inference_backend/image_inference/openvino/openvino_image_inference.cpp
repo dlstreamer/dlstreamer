@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,9 +9,9 @@
 #include "config.h"
 #include "inference_backend/logger.h"
 #include "inference_backend/pre_proc.h"
-#include "inference_backend/safe_arithmetic.h"
 #include "model_loader.h"
 #include "openvino_blob_wrapper.h"
+#include "safe_arithmetic.hpp"
 #include "utils.h"
 #include "wrap_image.h"
 
@@ -21,7 +21,11 @@
 #endif
 
 #ifdef ENABLE_VAAPI
+#include <dlstreamer/vaapi/context.h>
 #include <gpu/gpu_params.hpp>
+#ifdef ENABLE_GPU_TILE_AFFINITY
+#include "vaapi_utils.h"
+#endif
 #endif
 
 #include <ie_compound_blob.h>
@@ -29,13 +33,11 @@
 
 #include <chrono>
 #include <functional>
-#include <regex>
 #include <stdio.h>
 #include <thread>
 
 #include <core_singleton.h>
 
-namespace IE = InferenceEngine;
 using namespace InferenceBackend;
 
 namespace {
@@ -69,6 +71,8 @@ inline std::vector<std::string> split(const std::string &s, char delimiter) {
 
 std::tuple<InferenceEngine::Blob::Ptr, InferenceBackend::Allocator::AllocContext *>
 allocateBlob(const InferenceEngine::TensorDesc &tensor_desc, Allocator *allocator) {
+    assert(allocator && "Allocator is null");
+
     try {
         void *buffer_ptr = nullptr;
         InferenceBackend::Allocator::AllocContext *alloc_context = nullptr;
@@ -99,24 +103,28 @@ allocateBlob(const InferenceEngine::TensorDesc &tensor_desc, Allocator *allocato
 size_t optimalNireq(const InferenceEngine::ExecutableNetwork &executable_network) {
     size_t nireq = 0;
     try {
-        nireq = executable_network.GetMetric(IE::Metrics::METRIC_OPTIMAL_NUMBER_OF_INFER_REQUESTS).as<unsigned int>() +
+        /* executable_network.GetMetric(...).as<size_t>() results in an error and the default
+         * value is returned, which causes the perf degradation. We should use unsigned int here */
+        nireq = executable_network.GetMetric(InferenceEngine::Metrics::METRIC_OPTIMAL_NUMBER_OF_INFER_REQUESTS)
+                    .as<unsigned int>() +
                 1; // One additional for pre-processing parallelization with inference
-        std::string msg = "Setting the optimal number of inference requests: nireq=" + std::to_string(nireq);
-        GVA_INFO(msg.c_str());
+        GVA_INFO("Setting the optimal number of inference requests: nireq=%lu", nireq);
     } catch (const std::exception &e) {
-        std::string err = std::string("Failed to get optimal number of inference requests: ") + e.what() +
-                          std::string("\nNumber of inference requests will fallback to 1");
-        GVA_ERROR(err.c_str());
+        GVA_ERROR(
+            "Failed to get optimal number of inference requests: %s\nNumber of inference requests will fallback to 1",
+            e.what());
         return 1;
     }
     return nireq;
 }
 
 template <class T>
-Image FillImage(const IE::Blob::Ptr &blob, const IE::SizeVector &dims, const size_t index) {
+Image FillImage(const InferenceEngine::Blob::Ptr &blob, const InferenceEngine::SizeVector &dims, const size_t index) {
+    assert(blob && "IE Blob is null");
+
     Image image = Image();
-    image.width = dims[3];
-    image.height = dims[2];
+    image.width = safe_convert<uint32_t>(dims[3]);
+    image.height = safe_convert<uint32_t>(dims[2]);
     if (index >= dims[0]) {
         throw std::out_of_range("Image index is out of range in batch blob");
     }
@@ -135,21 +143,23 @@ Image FillImage(const IE::Blob::Ptr &blob, const IE::SizeVector &dims, const siz
     return image;
 }
 
-Image MapBlobBufferToImage(IE::Blob::Ptr blob, size_t batch_index) {
-    GVA_DEBUG(__FUNCTION__);
+Image MapBlobBufferToImage(InferenceEngine::Blob::Ptr blob, size_t batch_index) {
+    GVA_DEBUG("enter");
     ITT_TASK(__FUNCTION__);
+    assert(blob && "IE Blob is null");
+
     auto desc = blob->getTensorDesc();
     auto dims = desc.getDims();
-    if (desc.getLayout() != IE::Layout::NCHW) {
+    if (desc.getLayout() != InferenceEngine::Layout::NCHW) {
         throw std::runtime_error("Unsupported layout");
     }
     Image image = Image();
     switch (desc.getPrecision()) {
-    case IE::Precision::FP32:
+    case InferenceEngine::Precision::FP32:
         image = FillImage<float>(blob, desc.getDims(), batch_index);
         image.format = FourCC::FOURCC_RGBP_F32;
         break;
-    case IE::Precision::U8:
+    case InferenceEngine::Precision::U8:
         image = FillImage<uint8_t>(blob, desc.getDims(), batch_index);
         image.format = FourCC::FOURCC_RGBP;
         break;
@@ -158,6 +168,19 @@ Image MapBlobBufferToImage(IE::Blob::Ptr blob, size_t batch_index) {
         break;
     }
     return image;
+}
+
+const InputImageLayerDesc::Ptr
+getImagePreProcInfo(const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
+    const auto image_it = input_preprocessors.find("image");
+    if (image_it != input_preprocessors.cend()) {
+        const auto description = image_it->second;
+        if (description) {
+            return description->input_image_preroc_params;
+        }
+    }
+
+    return nullptr;
 }
 
 } // namespace
@@ -224,10 +247,7 @@ void OpenVINOImageInference::SetCompletionCallback(std::shared_ptr<BatchRequest>
             ITT_TASK("completion_callback_lambda");
 
             if (code != InferenceEngine::StatusCode::OK) {
-                std::string msg = "Inference request completion callback failed with InferenceEngine::StatusCode: " +
-                                  std::to_string(code) + "\n\t";
-                msg += getErrorMsg(code);
-                GVA_ERROR(msg.c_str());
+                GVA_ERROR("Inference request failed with code: %d (%s)", code, getErrorMsg(code).c_str());
                 this->handleError(batch_request->buffers);
             } else {
                 this->WorkingFunction(batch_request);
@@ -235,8 +255,8 @@ void OpenVINOImageInference::SetCompletionCallback(std::shared_ptr<BatchRequest>
 
             FreeRequest(batch_request);
         } catch (const std::exception &e) {
-            std::string msg = "Failed in inference request completion callback:\n" + Utils::createNestedErrorMsg(e);
-            GVA_ERROR(msg.c_str());
+            GVA_ERROR("An error occurred at inference request completion callback:\n%s",
+                      Utils::createNestedErrorMsg(e).c_str());
         }
     };
     batch_request->infer_request
@@ -279,15 +299,15 @@ OpenVINOImageInference::CreateWrapImageStrategy(MemoryType memory_type, const st
 }
 
 OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::InferenceConfig &config, Allocator *allocator,
-                                               void *display, CallbackFunc callback, ErrorHandlingFunc error_handler,
-                                               MemoryType memory_type)
-    : allocator(allocator), display(display), memory_type(memory_type),
+                                               dlstreamer::ContextPtr context, CallbackFunc callback,
+                                               ErrorHandlingFunc error_handler, MemoryType memory_type)
+    : allocator(allocator), context_(context), memory_type(memory_type), callback(callback), handleError(error_handler),
       batch_size(std::stoi(config.at(KEY_BASE).at(KEY_BATCH_SIZE))), requests_processing_(0U) {
 
     try {
         const std::map<std::string, std::string> &base_config = config.at(KEY_BASE);
 
-        InferenceEngine::RemoteContext::Ptr remote_context = CreateRemoteContext(base_config.at(KEY_DEVICE));
+        InferenceEngine::RemoteContext::Ptr remote_context = CreateRemoteContext(config);
 
         const std::string &model = base_config.at(KEY_MODEL);
         builder = ModelLoader::is_compile_model(model)
@@ -296,8 +316,6 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
         if (not builder)
             throw std::runtime_error("Failed to create DL model loader");
         network = builder->createNetwork();
-        this->callback = callback;
-        this->handleError = error_handler;
         nireq = std::stoi(base_config.at(KEY_NIREQ));
 
         InferenceEngine::ExecutableNetwork executable_network;
@@ -317,7 +335,7 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
         }
 
         if (nireq == 0) {
-            nireq = optimalNireq(executable_network);
+            nireq = safe_convert<int>(optimalNireq(executable_network));
         }
 
         for (int i = 0; i < nireq; i++) {
@@ -344,8 +362,10 @@ void OpenVINOImageInference::FreeRequest(std::shared_ptr<BatchRequest> request) 
     request_processed_.notify_all();
 }
 
-InferenceEngine::RemoteContext::Ptr OpenVINOImageInference::CreateRemoteContext(const std::string &device) {
+InferenceEngine::RemoteContext::Ptr
+OpenVINOImageInference::CreateRemoteContext(const InferenceBackend::InferenceConfig &config) {
     InferenceEngine::RemoteContext::Ptr remote_context;
+    const std::string &device = config.at(KEY_BASE).at(KEY_DEVICE);
 
 #ifdef ENABLE_VPUX
     std::string vpu_device_name;
@@ -371,14 +391,64 @@ InferenceEngine::RemoteContext::Ptr OpenVINOImageInference::CreateRemoteContext(
 #endif
 
 #ifdef ENABLE_VAAPI
-    const bool is_gpu_device = device.find("GPU") != device.npos;
-    if (is_gpu_device && memory_type == MemoryType::VAAPI) {
-        if (!display)
+    const bool is_gpu_device = device.rfind("GPU", 0) == 0;
+    // There are 3 possible scenarios:
+    // 1. memory_type == VAAPI: we are going to use the surface sharing mode and we have to provide
+    // VADisplay to GPU plugin so it can work with VaSurfaces that we are going to submit via BLOBs.
+    // 2.1. memory_type == SYSTEM and display is available: VAAPI serves only as pre-processing and
+    // we don't have to provide VADisplay to the plugin in such case. However, by providing VADisplay,
+    // we can make sure that the plugin will choose the same GPU for inference as for decoding by
+    // vaapi elements.
+    // 2.2. memory_type == SYSTEM and display is not available: user chose to perform decode on CPU
+    // and inference on GPU. IE pre-processing is used in this case.
+    // In cases 1 and 2.1 we don't need to specify GPU number (GPU.0, GPU.1) to achieve device affinity.
+    // In case 2.2 user may choose desired GPU for inference. Currently matching GPU ID to actual
+    // hardware is not possible due to OpenVINO™ API lacking.
+    if (is_gpu_device && (memory_type == MemoryType::VAAPI || memory_type == MemoryType::SYSTEM)) {
+        if (context_) {
+            using namespace InferenceEngine;
+
+            // TODO: Bug in OpenVINO™ 2021.4.X. Caused by using GPU_THROUGHPUT_STREAMS=GPU_THROUGHPUT_AUTO.
+            // During CreateContext() call, IE creates queues for each of GPU_THROUGHPUT_STREAMS. By
+            // default GPU_THROUGHPUT_STREAMS is set to 1, so IE creates only 1 queue. Then, during
+            // LoadNetwork() call we pass GPU_THROUGHPUT_STREAMS=GPU_THROUGHPUT_AUTO and GPU plugin may
+            // set number of streams to more than 1 (for example, 2). Then for each of the streams (2)
+            // GPU plugin tries to get IE queue, but fails because number of streams is greater than
+            // number of created queues.
+            // Because of that user may get an error:
+            //     Unable to create network with stream_id=1
+            // Workaround for this is to set GPU_THROUGHPUT_STREAMS to IE prior to CreateContext() call.
+            auto &ie_config = config.at(KEY_INFERENCE);
+            auto it = ie_config.find(KEY_GPU_THROUGHPUT_STREAMS);
+            if (it != ie_config.end())
+                IeCoreSingleton::Instance().SetConfig({*it}, "GPU");
+
+            auto vaapi_ctx = std::dynamic_pointer_cast<dlstreamer::VAAPIContext>(context_);
+            if (!vaapi_ctx)
+                throw std::runtime_error("Invalid context type has been provided");
+
+            InferenceEngine::ParamMap contextParams = {
+                {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
+                {GPU_PARAM_KEY(VA_DEVICE), static_cast<InferenceEngine::gpu_handle_param>(vaapi_ctx->va_display())}};
+
+            // GPU tile affinity
+            if (device == "GPU.x") {
+#ifdef ENABLE_GPU_TILE_AFFINITY
+                VaDpyWrapper dpyWrapper(vaapi_ctx->va_display());
+                int tile_id = dpyWrapper.currentSubDevice();
+                // If tile_id is -1 (single-tile GPU is used or the driver doesn't support this feature)
+                // then GPU plugin will choose the device and tile on its own and there will be no affinity
+                contextParams.insert({GPU_PARAM_KEY(TILE_ID), tile_id});
+#else
+                GVA_WARNING("Current version of OpenVINO™ toolkit doesn't support tile affinity, version 2022.1 or "
+                            "higher is required");
+#endif
+            }
+
+            remote_context = IeCoreSingleton::Instance().CreateContext("GPU", contextParams);
+        } else if (memory_type == MemoryType::VAAPI) {
             throw std::runtime_error("Display must be provided for GPU device with vaapi-surface-sharing backend");
-        InferenceEngine::ParamMap contextParams = {
-            {IE::GPU_PARAM_KEY(CONTEXT_TYPE), IE::GPU_PARAM_VALUE(VA_SHARED)},
-            {IE::GPU_PARAM_KEY(VA_DEVICE), static_cast<IE::gpu_handle_param>(display)}};
-        remote_context = IeCoreSingleton::Instance().CreateContext(device, contextParams);
+        }
     }
 #else
     UNUSED(device);
@@ -440,27 +510,19 @@ bool OpenVINOImageInference::DoNeedImagePreProcessing() const {
 void OpenVINOImageInference::ApplyInputPreprocessors(
     std::shared_ptr<BatchRequest> &request, const std::map<std::string, InputLayerDesc::Ptr> &input_preprocessors) {
     ITT_TASK(__FUNCTION__);
+    assert(request && "Batch request is null");
+
     for (const auto &preprocessor : input_preprocessors) {
         if (preprocessor.second == nullptr)
             continue;
 
-        std::string layer_name = preprocessor.second->name;
+        std::string layer_name = (inputs.size() == 1) ? image_layer : preprocessor.second->name;
         if (preprocessor.first == KEY_image) {
-            if (!DoNeedImagePreProcessing()) {
-                if (preprocessor.second->input_image_preroc_params)
-                    if (preprocessor.second->input_image_preroc_params->isDefined())
-                        GVA_WARNING(
-                            "The \"pre-process-backend\" was chosen that does not involve a custom preprocessing "
-                            "algorithm. Check the description of the pre-processor in the model-proc file and the "
-                            "element "
-                            "\"pre-process-backend\" property.");
+            if (!DoNeedImagePreProcessing())
                 continue;
-            }
-            if (inputs.size() == 1)
-                layer_name = image_layer;
         }
         if (inputs.count(layer_name)) {
-            IE::Blob::Ptr ie_blob = request->infer_request->GetBlob(layer_name);
+            InferenceEngine::Blob::Ptr ie_blob = request->infer_request->GetBlob(layer_name);
             InputBlob::Ptr blob = std::make_shared<OpenvinoInputBlob>(ie_blob);
             preprocessor.second->preprocessor(blob);
         } else {
@@ -469,60 +531,41 @@ void OpenVINOImageInference::ApplyInputPreprocessors(
     }
 }
 
-const InputImageLayerDesc::Ptr
-getImagePreProcInfo(const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
-    const auto image_it = input_preprocessors.find("image");
-    if (image_it != input_preprocessors.cend()) {
-        const auto description = image_it->second;
-        if (description) {
-            return description->input_image_preroc_params;
-        }
-    }
-
-    return nullptr;
-}
-
-const InferenceBackend::ImageTransformationParams::Ptr
-getImageTransformationParams(OpenVINOImageInference::IFrameBase::Ptr user_data) {
-    if (user_data)
-        return user_data->GetImageTransformationParams();
-    return nullptr;
-}
-
 void OpenVINOImageInference::SubmitImage(
-    const Image &image, IFrameBase::Ptr user_data,
-    const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
-    GVA_DEBUG(__FUNCTION__);
+    IFrameBase::Ptr frame, const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
+    GVA_DEBUG("enter");
     ITT_TASK(__FUNCTION__);
+
+    if (!frame)
+        throw std::invalid_argument("Invalid frame provided");
 
     std::unique_lock<std::mutex> lk(requests_mutex_);
     ++requests_processing_;
-    auto request = freeRequests.pop();
+    std::shared_ptr<BatchRequest> request = freeRequests.pop();
 
     try {
         if (DoNeedImagePreProcessing()) {
             SubmitImageProcessing(
-                image_layer, request, image,
+                image_layer, request, *frame->GetImage(),
                 getImagePreProcInfo(input_preprocessors), // contain operations order for Custom Image PreProcessing
-                getImageTransformationParams(
-                    user_data) // during CIPP will be filling of crop and aspect-ratio parameters
+                frame->GetImageTransformationParams() // during CIPP will be filling of crop and aspect-ratio parameters
             );
             // After running this function self-managed image memory appears, and the old image memory can be released
-            user_data->SetImage(nullptr);
+            frame->SetImage(nullptr);
         } else {
-            BypassImageProcessing(image_layer, request, image, batch_size);
+            BypassImageProcessing(image_layer, request, *frame->GetImage(), safe_convert<size_t>(batch_size));
         }
 
         ApplyInputPreprocessors(request, input_preprocessors);
 
-        request->buffers.push_back(user_data);
+        request->buffers.push_back(frame);
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Pre-processing was failed."));
     }
 
     try {
         // start inference asynchronously if enough buffers for batching
-        if (request->buffers.size() >= (size_t)batch_size) {
+        if (request->buffers.size() >= safe_convert<size_t>(batch_size)) {
             request->infer_request->StartAsync();
         } else {
             freeRequests.push_front(request);
@@ -537,7 +580,7 @@ const std::string &OpenVINOImageInference::GetModelName() const {
 }
 
 size_t OpenVINOImageInference::GetNireq() const {
-    return nireq;
+    return safe_convert<size_t>(nireq);
 }
 
 void OpenVINOImageInference::GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
@@ -597,7 +640,7 @@ std::map<std::string, std::vector<size_t>> OpenVINOImageInference::GetModelOutpu
 }
 
 void OpenVINOImageInference::Flush() {
-    GVA_DEBUG(__FUNCTION__);
+    GVA_DEBUG("enter");
     ITT_TASK(__FUNCTION__);
 
     // because Flush can execute by several threads for one InferenceImpl instance
@@ -623,9 +666,7 @@ void OpenVINOImageInference::Flush() {
 
                 request->infer_request->StartAsync();
             } catch (const std::exception &e) {
-                std::string err("Couldn't start inferece on flush: ");
-                err += e.what();
-                GVA_ERROR(err.c_str());
+                GVA_ERROR("Couldn't start inferece on flush: %s", e.what());
                 this->handleError(request->buffers);
                 FreeRequest(request);
             }
@@ -653,7 +694,9 @@ void OpenVINOImageInference::Close() {
 }
 
 void OpenVINOImageInference::WorkingFunction(const std::shared_ptr<BatchRequest> &request) {
-    GVA_DEBUG(__FUNCTION__);
+    GVA_DEBUG("enter");
+    assert(request);
+
     std::map<std::string, OutputBlob::Ptr> output_blobs;
     for (auto output : outputs) {
         const std::string &name = output.first;

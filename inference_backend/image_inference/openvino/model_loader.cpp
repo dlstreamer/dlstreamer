@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,6 +15,7 @@
 
 #include <cldnn/cldnn_config.hpp>
 
+#include <array>
 #include <fstream>
 
 #include "core_singleton.h"
@@ -24,12 +25,16 @@ using namespace InferenceBackend;
 namespace {
 
 bool IsNetworkWithDynamicInputShapes(InferenceEngine::CNNNetwork &network) {
-    InferenceEngine::ICNNNetwork::InputShapes input_shapes = network.getInputShapes();
-    if (input_shapes.empty())
-        throw std::invalid_argument("There are no input shapes");
+    auto inputs_info = network.getInputsInfo();
+    if (inputs_info.empty())
+        throw std::invalid_argument("There are no inputs info");
 
-    for (const auto &input_shape : input_shapes) {
-        if (input_shape.second.empty())
+    auto has_zeros = [](const InferenceEngine::SizeVector &vec) {
+        return std::any_of(vec.cbegin(), vec.cend(), [](size_t e) { return e == 0; });
+    };
+
+    for (const auto &info : inputs_info) {
+        if (has_zeros(info.second->getInputData()->getDims()))
             return true;
     }
 
@@ -38,6 +43,16 @@ bool IsNetworkWithDynamicInputShapes(InferenceEngine::CNNNetwork &network) {
 
 inline bool isReshapeNeeded(bool reshape, size_t batch_size, size_t reshape_width, size_t reshape_height) {
     return ((reshape) && ((batch_size > 1) || reshape_width || reshape_height));
+}
+
+inline bool isReshapeCompleted(const InferenceEngine::OutputsDataMap &res_outputs,
+                               const std::map<std::string, InferenceEngine::SizeVector> &orig_dims) {
+    for (const auto &res_out : res_outputs) {
+        if (orig_dims.at(res_out.first) == res_out.second->getDims())
+            return false;
+    }
+
+    return true;
 }
 
 void FillInputShape(InferenceEngine::SizeVector &input_shape, InferenceEngine::Layout layout, size_t batch_size,
@@ -84,8 +99,8 @@ std::tuple<size_t, size_t> GetDimsFromInputDynamicShape(InferenceEngine::CNNNetw
                                  " network with all dynamic dimensions in input shape. Specify the input dimensions in "
                                  "'batch-size', 'reshape-width' and 'reshape-height' parameters");
 
-    size_t height = part_shape[2].get_length();
-    size_t width = part_shape[3].get_length();
+    size_t height = safe_convert<size_t>(part_shape[2].get_length());
+    size_t width = safe_convert<size_t>(part_shape[3].get_length());
 
     return std::make_tuple(width, height);
 }
@@ -115,6 +130,13 @@ void ReshapeNetwork(InferenceEngine::CNNNetwork &network, size_t batch_size, siz
         if (input_shapes.size() > 1)
             throw std::runtime_error("Reshape does not support models with multiple input shapes");
 
+        std::map<std::string, InferenceEngine::SizeVector> original_dims;
+        for (const auto &output_info : network.getOutputsInfo()) {
+            original_dims[output_info.first] = output_info.second->getDims();
+        }
+        if (original_dims.empty())
+            throw std::invalid_argument("Output layers info is absent for model");
+
         std::string input_name;
         InferenceEngine::SizeVector input_shape;
         std::tie(input_name, input_shape) = *input_shapes.begin();
@@ -129,6 +151,11 @@ void ReshapeNetwork(InferenceEngine::CNNNetwork &network, size_t batch_size, siz
 
         input_shapes[input_name] = input_shape;
         network.reshape(input_shapes);
+
+        // check batching support by the current model
+        if (batch_size > 1 && !isReshapeCompleted(network.getOutputsInfo(), original_dims))
+            throw std::runtime_error("Model output info didn't change after reshaping. Perhaps " + network.getName() +
+                                     " model does not support batching");
     } catch (const std::exception &e) {
         std::throw_with_nested(std::runtime_error("Failed to reshape network '" + network.getName() + "'"));
     }
@@ -215,26 +242,15 @@ std::string IrModelLoader::name(const NetworkReferenceWrapper &network) {
 InferenceEngine::ExecutableNetwork IrModelLoader::import(InferenceEngine::CNNNetwork &network, const std::string &,
                                                          const std::map<std::string, std::string> &base_config,
                                                          const std::map<std::string, std::string> &inference_config) {
-
-    if (base_config.count(KEY_DEVICE) == 0)
-        throw std::runtime_error("Inference device is not specified");
-    const std::string &device = base_config.at(KEY_DEVICE);
     InferenceEngine::ExecutableNetwork executable_network;
 
     if (_remote_ctx) {
-        // This is a workround to provide a compound blob instead of a remote one
-        std::map<std::string, std::string> config_copy = inference_config;
-        if (device.find("GPU") != device.npos) {
-            config_copy[InferenceEngine::CLDNNConfigParams::KEY_CLDNN_NV12_TWO_INPUTS] =
-                InferenceEngine::PluginConfigParams::YES;
-
-            // TODO: Surface sharing works only with GPU_THROUGHPUT_STREAMS equal to default value ( = 1)
-            GVA_WARNING("Erasing GPU_THROUGHPUT_STREAMS from Inference Engine config in surface sharing case");
-            config_copy.erase(KEY_GPU_THROUGHPUT_STREAMS);
-        }
-
-        executable_network = IeCoreSingleton::Instance().LoadNetwork(network, _remote_ctx, config_copy);
+        executable_network = IeCoreSingleton::Instance().LoadNetwork(network, _remote_ctx, inference_config);
     } else {
+        if (base_config.count(KEY_DEVICE) == 0)
+            throw std::runtime_error("Inference device is not specified");
+        const std::string &device = base_config.at(KEY_DEVICE);
+
         executable_network = IeCoreSingleton::Instance().LoadNetwork(network, device, inference_config);
     }
 

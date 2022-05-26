@@ -1,12 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2021-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "gstgvatensorinference")
+set(TARGET_NAME "dlstreamer_openvino")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.16 REQUIRED)
@@ -22,7 +22,8 @@ file(GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
 )
 
-add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
+set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -40,7 +41,17 @@ PUBLIC
 PRIVATE
     gvacommon
     ${GLIB2_LIBRARIES}
-    ${GSTBASE_LDFLAGS}
-    ${GSTREAMER_LDFLAGS}
+    ${GSTBASE_LIBRARIES}
+    ${GSTREAMER_LIBRARIES}
     utils
+    common
+    gvatypes
 )
+
+if (${ENABLE_VAAPI} AND ${InferenceEngine_VERSION} VERSION_GREATER_EQUAL "2022.1.0")
+    add_definitions(-DENABLE_GPU_TILE_AFFINITY)
+    target_link_libraries(${TARGET_NAME} PUBLIC va_api_wrapper)
+endif()
+
+
+install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

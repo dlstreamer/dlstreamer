@@ -10,6 +10,5 @@
 #cmakedefine ENABLE_VAAPI
 #cmakedefine ENABLE_VPUX
 #cmakedefine ENABLE_ITT
-#cmakedefine ENABLE_VAS_TRACKER
 
 #endif

@@ -1,6 +1,6 @@
 # Vehicle and Pedestrian Tracking Sample (gst-launch command line)
 
-This sample demonstrates [gvatrack](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvatrack) element and object tracking capabilities on example of person and vehicle tracking. Object tracking increases performance by running inference on object detection and classification models less frequently (not every frame).
+This sample demonstrates [gvatrack](https://dlstreamer.github.io/elements/gvatrack.html) element and object tracking capabilities on example of person and vehicle tracking. Object tracking increases performance by running inference on object detection and classification models less frequently (not every frame).
 
 ## How It Works
 The sample utilizes GStreamer command-line tool `gst-launch-1.0` which can build and run GStreamer pipeline described in a string format.
@@ -16,17 +16,17 @@ Overall this sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvadetect](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvadetect) for person and vehicle detection based on OpenVINO™ Toolkit Inference Engine
-* [gvatrack](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvatrack) for tracking objects
-* [gvaclassify](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvaclassify) inserted into pipeline twice for person and vehicle classification
-* [gvawatermark](https://github.com/openvinotoolkit/dlstreamer_gst/wiki/gvawatermark) for bounding boxes and labels visualization
-* `fpsdisplaysink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `fpsdisplaysink` element disables real-time synchronization so pipeline runs as fast as possible
+* [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) for person and vehicle detection based on OpenVINO™ Toolkit Inference Engine
+* [gvatrack](https://dlstreamer.github.io/elements/gvatrack.html) for tracking objects
+* [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) inserted into pipeline twice for person and vehicle classification
+* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for bounding boxes and labels visualization
+* `autovideosink` for rendering output video into screen
+> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 ## Models
 
 The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
-* __person-vehicle-bike-detection-2004__ is primary detection network for detecting persons, vehicles and bikes
+*   __person-vehicle-bike-detection-2004__ is primary detection network for detecting persons, vehicles and bikes
 *   __person-attributes-recognition-crossroad-0230__ classifies person attributes
 *   __vehicle-attributes-recognition-barrier-0039__ classifies vehicle attributes
 
@@ -57,9 +57,9 @@ If parameter is not specified, the sample by default streams video example from 
     * display - render (default)
     * fps - FPS only
 5. [TRACKING_TYPE] to specify tracking type. 
-    Tracking types available are short-term(default), short-term-imageless, zero-term, zero-term-imageless.
+    Tracking types available are short-term-imageless, zero-term, zero-term-imageless.
     For more information on tracking types and their difference, please turn to
-    https://github.com/openvinotoolkit/dlstreamer_gst/wiki/Object-tracking.
+    https://dlstreamer.github.io/dev_guide/object_tracking.html.
 
 ## Sample Output
 
@@ -68,4 +68,4 @@ The sample
 * starts the command and visualizes video with bounding boxes around detected objects and text with classification results (color, type and others) for each detected object or prints out fps if you set SINK_ELEMENT = fps
 
 ## See also
-* [DL Streamer samples](../../README.md)
+* [Samples overview](../../README.md)

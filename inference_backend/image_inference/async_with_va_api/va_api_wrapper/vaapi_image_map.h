@@ -12,10 +12,10 @@
 
 namespace InferenceBackend {
 
-class VaApiImageMap_SytemMemory : public ImageMap {
+class VaApiImageMap_SystemMemory : public ImageMap {
   public:
-    VaApiImageMap_SytemMemory();
-    ~VaApiImageMap_SytemMemory();
+    VaApiImageMap_SystemMemory();
+    ~VaApiImageMap_SystemMemory();
 
     Image Map(const Image &image) override;
     void Unmap() override;
@@ -25,10 +25,10 @@ class VaApiImageMap_SytemMemory : public ImageMap {
     VAImage va_image;
 };
 
-class VaApiImageMap_VASurafce : public ImageMap {
+class VaApiImageMap_VASurface : public ImageMap {
   public:
-    VaApiImageMap_VASurafce();
-    ~VaApiImageMap_VASurafce();
+    VaApiImageMap_VASurface();
+    ~VaApiImageMap_VASurface();
 
     Image Map(const Image &image) override;
     void Unmap() override;

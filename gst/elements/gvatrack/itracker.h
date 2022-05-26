@@ -1,14 +1,16 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
-#include <gst/gst.h>
+#include <dlstreamer/buffer.h>
+#include <video_frame.h>
 
-struct ITracker {
+class ITracker {
+  public:
     virtual ~ITracker() = default;
-    virtual void track(GstBuffer *buffer) = 0;
+    virtual void track(dlstreamer::BufferPtr buffer, GVA::VideoFrame &frame_meta) = 0;
 };

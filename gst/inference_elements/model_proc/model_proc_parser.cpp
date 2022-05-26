@@ -52,8 +52,7 @@ std::tuple<std::string, GstStructure *> ModelProcParser::parseProcessingItem(con
         g_value_unset(&gvalue);
     }
     if (layer_name == def_layer_name) {
-        const std::string msg = "\"layer_name\" field has not been set. Its value will be defined as " + def_layer_name;
-        GVA_WARNING(msg.c_str());
+        GVA_WARNING("The 'layer_name' field has not been set. Its value will be defined as %s", def_layer_name.c_str());
     }
 
     return std::make_tuple(layer_name, s);

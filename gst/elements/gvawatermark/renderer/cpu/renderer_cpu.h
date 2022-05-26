@@ -6,28 +6,30 @@
 
 #pragma once
 
+#include "dlstreamer/buffer_mapper.h"
 #include "renderer.h"
 
 class RendererCPU : public Renderer {
   public:
-    RendererCPU(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type)
-        : Renderer(color_converter, memory_type) {
+    RendererCPU(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr buffer_mapper)
+        : Renderer(color_converter), _buffer_mapper(std::move(buffer_mapper)) {
     }
+    ~RendererCPU();
 
   protected:
-    void buffer_map(GstBuffer *buffer, InferenceBackend::Image &image, BufferMapContext &map_context,
-                    GstVideoInfo *info) override;
-    void buffer_unmap(BufferMapContext &map_context) override;
+    dlstreamer::BufferPtr buffer_map(dlstreamer::BufferPtr buffer) override;
+
+    dlstreamer::BufferMapperPtr _buffer_mapper;
 };
 
 class RendererYUV : public RendererCPU {
   public:
-    RendererYUV(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type)
-        : RendererCPU(color_converter, memory_type) {
+    RendererYUV(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr buffer_mapper)
+        : RendererCPU(color_converter, std::move(buffer_mapper)) {
     }
 
   protected:
-    void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims, uint64_t) override;
+    void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) override;
 
     virtual void draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rect) = 0;
     virtual void draw_circle(std::vector<cv::Mat> &mats, gapidraw::Circle circle) = 0;
@@ -39,8 +41,8 @@ class RendererYUV : public RendererCPU {
 
 class RendererI420 : public RendererYUV {
   public:
-    RendererI420(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type)
-        : RendererYUV(color_converter, memory_type) {
+    RendererI420(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr buffer_mapper)
+        : RendererYUV(color_converter, std::move(buffer_mapper)) {
     }
 
   protected:
@@ -52,8 +54,8 @@ class RendererI420 : public RendererYUV {
 
 class RendererNV12 : public RendererYUV {
   public:
-    RendererNV12(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type)
-        : RendererYUV(color_converter, memory_type) {
+    RendererNV12(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr buffer_mapper)
+        : RendererYUV(color_converter, std::move(buffer_mapper)) {
     }
 
   protected:
@@ -65,10 +67,10 @@ class RendererNV12 : public RendererYUV {
 
 class RendererBGR : public RendererCPU {
   public:
-    RendererBGR(std::shared_ptr<ColorConverter> color_converter, InferenceBackend::MemoryType memory_type)
-        : RendererCPU(color_converter, memory_type) {
+    RendererBGR(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr buffer_mapper)
+        : RendererCPU(color_converter, std::move(buffer_mapper)) {
     }
 
   protected:
-    void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims, uint64_t) override;
+    void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) override;
 };

@@ -11,9 +11,9 @@
 #include "classification_history.h"
 #include "gstgvaclassify.h"
 #include "gva_base_inference.h"
-#include "inference_backend/safe_arithmetic.h"
 #include "inference_impl.h"
 #include "region_of_interest.h"
+#include "safe_arithmetic.hpp"
 #include "utils.h"
 
 #include <inference_backend/image_inference.h>
@@ -27,7 +27,7 @@ using namespace InferenceBackend;
 
 bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint64 current_num_frame,
                                GstBuffer * /* buffer */, GstVideoRegionOfInterestMeta *roi) {
-    GstGvaClassify *gva_classify = (GstGvaClassify *)gva_base_inference;
+    GstGvaClassify *gva_classify = GST_GVA_CLASSIFY(gva_base_inference);
     assert(gva_classify->classification_history != NULL);
 
     // Check is object recently classified

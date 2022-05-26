@@ -27,9 +27,9 @@ typedef struct _GvaAudioBaseInference {
     gchar *model;
     gchar *model_proc;
     gchar *device;
-    int dma_fd; // used if VPUX remote blob enabled
 
     // other fields
+    int dma_fd; // used if VPUX remote blob enabled
     gboolean values_checked;
     guint sample_length;
     OpenVINOAudioInference *inf_handle;
