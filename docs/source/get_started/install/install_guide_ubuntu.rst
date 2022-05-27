@@ -458,7 +458,7 @@ With all dependencies installed, proceed to build Intel® DL Streamer:
    # OpenVINO™ Toolkit environment
    source /opt/intel/openvino_2022/setupvars.sh
    # GStreamer environment
-   source /opt/intel/dlstreamer/gstreamer/gstreamer-setupvars.sh
+   source /opt/intel/dlstreamer/gstreamer/setupvars.sh
    # Intel® oneAPI DPC++/C++ Compiler environment (if installed)
    # source /opt/intel/oneapi/compiler/latest/env/vars.sh
 
