@@ -10,7 +10,7 @@ set (TARGET_NAME "gvapython")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
 find_package(PythonLibs 3.4)
 

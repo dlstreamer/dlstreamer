@@ -9,9 +9,9 @@ cmake_minimum_required(VERSION 3.1)
 set(TARGET_NAME "gvahistory")
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.16 REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
-pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTBASE gstreamer-base-1.0>=1.18 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
+pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.18 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 file(GLOB MAIN_SRC

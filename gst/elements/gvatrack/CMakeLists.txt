@@ -10,7 +10,7 @@ set (TARGET_NAME "gvatrack")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
 
 file (GLOB_RECURSE MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR} *.c *.cpp

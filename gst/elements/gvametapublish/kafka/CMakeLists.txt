@@ -10,7 +10,7 @@ set (TARGET_NAME "gvametapublishkafka")
 
 find_package(PkgConfig REQUIRED)
 find_library(KAFKA rdkafka++ REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
 
 
 file (GLOB MAIN_SRC

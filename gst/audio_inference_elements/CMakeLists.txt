@@ -9,7 +9,7 @@ cmake_minimum_required (VERSION 3.1)
 set (TARGET_NAME "gstaudioanalytics")
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 
 file (GLOB MAIN_SRC

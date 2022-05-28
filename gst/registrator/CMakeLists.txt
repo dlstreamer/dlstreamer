@@ -9,7 +9,7 @@ cmake_minimum_required (VERSION 3.1)
 set (TARGET_NAME "gstvideoanalytics")
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
 
 file (GLOB MAIN_SRC
     register_elements.cpp

@@ -15,7 +15,7 @@ set (TARGET_NAME "gpurenderer")
 find_package(OpenCV REQUIRED core gapi)
 find_package(PkgConfig REQUIRED)
 
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
 pkg_search_module(VA va libva REQUIRED)
 
 get_filename_component(CMAKE_PARENT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR} PATH)

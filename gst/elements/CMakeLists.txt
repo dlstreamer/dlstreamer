@@ -10,11 +10,11 @@ set (TARGET_NAME "elements")
 
 find_package(OpenCV REQUIRED core imgproc gapi)
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
-pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTREAMER gstreamer-1.0>=1.18 REQUIRED)
+pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.18 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
-        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.16 REQUIRED)
+        pkg_check_modules(GSTAUDIO gstreamer-audio-1.0>=1.18 REQUIRED)
 endif()
 
 file (GLOB MAIN_SRC
