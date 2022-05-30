@@ -82,6 +82,55 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
 
     size_t input_width = getModelInputImageInfo().width;
     size_t input_height = getModelInputImageInfo().height;
+
+    if (do_transpose) {
+        const size_t side_n = blob_dims[1];
+        const size_t side_c = blob_dims[4];
+
+        for (size_t obj_ind = 0; obj_ind < side_n * side_w * side_h; ++obj_ind) {
+            int index_j = obj_ind / (side_n * side_h);
+            int index_mi = obj_ind % (side_n * side_h);
+            int index_m = index_mi / side_n;
+            int index_i = index_mi % side_n;
+            int index_mji = index_m * side_c + index_j * side_c * side_h + index_i * side_c * side_h * side_w;
+            int index_confidence = 4 + index_mji;
+            float confidence = sigmoid(blob_data[index_confidence]);
+
+            if (confidence < confidence_threshold)
+                continue;
+            for (size_t j = 5; j < side_c; ++j){
+                int index_label = j + index_mji;
+                float class_probabilities = confidence * sigmoid(blob_data[index_label]);
+                if (class_probabilities > confidence_threshold) {
+                    size_t cells = side_w;
+                    size_t row = obj_ind / (cells * output_shape_info.bbox_number_on_cell);
+                    size_t col = (obj_ind - row * cells * output_shape_info.bbox_number_on_cell) / output_shape_info.bbox_number_on_cell;
+                    size_t n = (obj_ind - row * cells * output_shape_info.bbox_number_on_cell) % output_shape_info.bbox_number_on_cell;
+
+                    int index_x = 0 + index_mji;
+                    float x = static_cast<float>((col + 2 * sigmoid(blob_data[index_x]) - 0.5f)) / side_w * input_width;
+		    int index_y = 1 + index_mji;
+                    float y = static_cast<float>((row + 2 * sigmoid(blob_data[index_y]) - 0.5f)) / side_h * input_height;
+                    size_t anchor_offset = 2 * mask[0];
+                    int index_h = 3 + index_mji;
+                    float height_t = 2.0f * sigmoid(blob_data[index_h]);
+                    float height = height_t * height_t * anchors[anchor_offset + 2 * n + 1];
+                    int index_w = 2 + index_mji;
+                    float width_t = 2.0f * sigmoid(blob_data[index_w]);
+                    float width  = width_t * width_t * anchors[anchor_offset + 2 * n];
+
+                    int label = j - 5;
+
+                    DetectedObject bbox(x, y, width, height, class_probabilities, label,
+                                BlobToMetaConverter::getLabelByLabelId(label), 1.0f / input_width,
+                                1.0f / input_height, true);
+                    objects.push_back(bbox);
+                }
+            }
+        }
+        return;
+    }
+
     const size_t side_square = side_w * side_h;
 
     for (size_t i = 0; i < side_square; ++i) {
@@ -138,20 +187,36 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
             const float raw_w = blob_data[bbox_index + 2 * side_square];
             const float raw_h = blob_data[bbox_index + 3 * side_square];
 
-            const float x =
+            if (do_double_sigmoid) {
+                const float x = static_cast<float>(col + 2 * sigmoid(raw_x) - 0.5 ) / side_w * input_width;
+                const float y = static_cast<float>(row + 2 * sigmoid(raw_y) - 0.5 ) / side_h * input_height;
+
+                const size_t anchor_offset = 2 * mask[0];
+                const float width_t = 2.0f * sigmoid(raw_w);
+                const float width = width_t * width_t * anchors[anchor_offset + 2 * bbox_cell_num];
+                const float height_t = 2.0f * sigmoid(raw_h);
+                const float height = height_t * height_t * anchors[anchor_offset + 2 * bbox_cell_num + 1];
+
+                DetectedObject bbox(x, y, width, height, confidence, bbox_class.first,
+                                    BlobToMetaConverter::getLabelByLabelId(bbox_class.first), 1.0f / input_width,
+                                    1.0f / input_height, true);
+                objects.push_back(bbox);
+            } else {
+                const float x =
                 static_cast<float>(col + (output_sigmoid_activation ? sigmoid(raw_x) : raw_x)) / side_w * input_width;
-            const float y =
+                const float y =
                 static_cast<float>(row + (output_sigmoid_activation ? sigmoid(raw_y) : raw_y)) / side_h * input_height;
 
-            // TODO: check if index in array range
-            const size_t anchor_offset = 2 * mask[0];
-            const float width = std::exp(raw_w) * anchors[anchor_offset + 2 * bbox_cell_num];
-            const float height = std::exp(raw_h) * anchors[anchor_offset + 2 * bbox_cell_num + 1];
+                // TODO: check if index in array range
+                const size_t anchor_offset = 2 * mask[0];
+                const float width = std::exp(raw_w) * anchors[anchor_offset + 2 * bbox_cell_num];
+                const float height = std::exp(raw_h) * anchors[anchor_offset + 2 * bbox_cell_num + 1];
 
-            DetectedObject bbox(x, y, width, height, confidence, bbox_class.first,
-                                BlobToMetaConverter::getLabelByLabelId(bbox_class.first), 1.0f / input_width,
-                                1.0f / input_height, true);
-            objects.push_back(bbox);
+                DetectedObject bbox(x, y, width, height, confidence, bbox_class.first,
+                                    BlobToMetaConverter::getLabelByLabelId(bbox_class.first), 1.0f / input_width,
+                                    1.0f / input_height, true);
+                objects.push_back(bbox);
+            }
         }
     }
 }

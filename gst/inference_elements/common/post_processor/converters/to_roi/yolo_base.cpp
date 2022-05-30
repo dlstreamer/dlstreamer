@@ -136,6 +136,24 @@ bool getOutputSigmoidActivation(GstStructure *s) {
     return do_coords_sgmd;
 }
 
+bool getDoTranspose(GstStructure *s) {
+    gboolean do_transpose = FALSE;
+    if (gst_structure_has_field(s, "do_transpose")) {
+        gst_structure_get_boolean(s, "do_transpose", &do_transpose);
+    }
+
+    return do_transpose;
+}
+
+bool getOutputDoubleSigmoidActivation(GstStructure *s) {
+    gboolean do_double_sigmoid = FALSE;
+    if (gst_structure_has_field(s, "output_double_sigmoid_activation")) {
+        gst_structure_get_boolean(s, "output_double_sigmoid_activation", &do_double_sigmoid);
+    }
+
+    return do_double_sigmoid;
+}
+
 } // namespace
 
 size_t YOLOBaseConverter::tryAutomaticConfigWithDims(const std::vector<size_t> &dims, OutputDimsLayout layout,
@@ -273,6 +291,8 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(BlobToMetaConverter::Initiali
         const auto iou_threshold = getIOUThreshold(model_proc_output_info);
         const auto do_cls_softmax = getDoClsSoftmax(model_proc_output_info);
         const auto output_sigmoid_activation = getOutputSigmoidActivation(model_proc_output_info);
+        const auto do_transpose = getDoTranspose(model_proc_output_info);
+        const auto do_double_sigmoid = getOutputDoubleSigmoidActivation(model_proc_output_info);
 
         std::pair<size_t, size_t> cells_number = getCellsNumber(model_proc_output_info);
         size_t bbox_number_on_cell = getBboxNumberOnCell(model_proc_output_info);
@@ -301,7 +321,7 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(BlobToMetaConverter::Initiali
         OutputLayerShapeConfig output_shape_info(classes_number, cells_number.first, cells_number.second,
                                                  bbox_number_on_cell);
         YOLOBaseConverter::Initializer yolo_initializer = {anchors, output_shape_info, do_cls_softmax,
-                                                           output_sigmoid_activation, dims_layout};
+                                                           output_sigmoid_activation, do_transpose, do_double_sigmoid, dims_layout};
 
         if (converter_name == YOLOv2Converter::getName()) {
             YOLOv2Converter::checkModelProcOutputs(cells_number, bbox_number_on_cell, classes_number, outputs_info,

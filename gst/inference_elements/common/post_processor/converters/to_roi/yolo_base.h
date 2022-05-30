@@ -52,6 +52,8 @@ class YOLOBaseConverter : public BlobToROIConverter {
         OutputLayerShapeConfig output_shape_info;
         bool do_cls_softmax;
         bool output_sigmoid_activation;
+        bool do_transpose;
+        bool do_double_sigmoid;
 
         OutputDimsLayout output_dims_layout;
     };
@@ -63,6 +65,8 @@ class YOLOBaseConverter : public BlobToROIConverter {
     const OutputLayerShapeConfig output_shape_info;
     const bool do_cls_softmax;
     const bool output_sigmoid_activation;
+    const bool do_transpose;
+    const bool do_double_sigmoid;
 
     const OutputDimsLayout output_dims_layout;
 
@@ -86,6 +90,8 @@ class YOLOBaseConverter : public BlobToROIConverter {
           anchors(yolo_initializer.anchors), output_shape_info(yolo_initializer.output_shape_info),
           do_cls_softmax(yolo_initializer.do_cls_softmax),
           output_sigmoid_activation(yolo_initializer.output_sigmoid_activation),
+          do_transpose(yolo_initializer.do_transpose),
+          do_double_sigmoid(yolo_initializer.do_double_sigmoid),
           output_dims_layout(yolo_initializer.output_dims_layout) {
     }
     virtual ~YOLOBaseConverter() = default;
