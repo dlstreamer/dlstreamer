@@ -493,7 +493,7 @@ gboolean MetaAggregatePrivate::sinkEvent(GstAggregatorPad *pad, GstEvent *event)
         break;
     }
 
-#if (GST_VERSION_MAJOR >= 1) && (GST_VERSION_MINOR >= 18)
+#if GST_CHECK_VERSION(1, 18, 0)
     /* It is needed, otherwise timestamps might be incorrect */
     // gst_aggregator_update_segment is available starting from 1.18
     case GST_EVENT_SEGMENT: {
