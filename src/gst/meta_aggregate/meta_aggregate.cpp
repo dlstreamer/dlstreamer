@@ -493,9 +493,9 @@ gboolean MetaAggregatePrivate::sinkEvent(GstAggregatorPad *pad, GstEvent *event)
         break;
     }
 
+#if GST_CHECK_VERSION(1, 18, 0)
     /* It is needed, otherwise timestamps might be incorrect */
     // gst_aggregator_update_segment is available starting from 1.18
-#if 1
     case GST_EVENT_SEGMENT: {
         if (strcmp(GST_OBJECT_NAME(pad), "sink") == 0) {
             const GstSegment *segment;
@@ -608,8 +608,6 @@ static void meta_aggregate_class_init(MetaAggregateClass *klass) {
                                              const GstCaps *caps) {
         return GST_META_AGGREGATE(aggregator)->impl->createNewPad(templ, req_name, caps);
     };
-
-    gstaggregator_class->negotiate = NULL;
 
     // gstaggregator_class->flush = GST_DEBUG_FUNCPTR(metaaggregate_flush);
     // gstaggregator_class->get_next_time = GST_DEBUG_FUNCPTR(metaaggregate_get_next_time);
