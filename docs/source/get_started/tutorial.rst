@@ -285,7 +285,7 @@ Object detection pipeline using Web camera:
 
 .. code:: sh
 
-   # Change <pat-to-video> below by your web camera device path
+   # Change <path-to-device> below to your web camera device path
    gst-launch-1.0 \
    v4l2src device=<path-to-device> ! decodebin ! \
    gvadetect model=${DETECTION_MODEL} model_proc=${DETECTION_MODEL_PROC} device=CPU ! queue ! \
@@ -304,7 +304,7 @@ Object detection pipeline using RTSP URI:
 
 .. code:: sh
 
-   # Change <RTSP_uri> below by your RTSP URL
+   # Change <RTSP_uri> below to your RTSP URL
    gst-launch-1.0 \
    urisourcebin uri=<RTSP_uri> ! decodebin ! \
    gvadetect model=${DETECTION_MODEL} model_proc=${DETECTION_MODEL_PROC} device=CPU ! queue ! \
