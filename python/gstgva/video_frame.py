@@ -184,7 +184,7 @@ class VideoFrame:
                 elif is_yuv_format:
                     # In some cases image size after mapping can be larger than expected image size.
                     # One of the reasons can be vaapi decoder which appends lines to the end of an image
-                    # so the height is multiple of 16. So we need to return an image that has the same
+                    # so the height and width are multiple of 16. So we need to return an image that has the same
                     # resolution as in video_info. That's why we drop extra lines added by decoder.
                     yield self.__repack_video_frame(data)
                 else:
@@ -215,31 +215,65 @@ class VideoFrame:
                 'VideoFrame.__repack_video_frame: Unsupported number of planes {}'.format(n_planes))
 
         h, w = self.__video_info.height, self.__video_info.width
+        # h and w must to be mutiple of 2
+        h = (h + 1) // 2 * 2
+        w = (w + 1) // 2 * 2
         stride = self.__video_info.stride[0]
         bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
-        input_h = int(len(data) / (w * bytes_per_pix) / 1.5)
+        planes = []
 
-        planes = [numpy.ndarray((h, w, bytes_per_pix),
-                                buffer=data, dtype=numpy.uint8)]
-        offset = stride * input_h
-        stride = self.__video_info.stride[1]
+        y_plane = numpy.ndarray((h, stride , bytes_per_pix),
+                                buffer=data, dtype=numpy.uint8)
+        # remove the padding data
+        y_plane = y_plane[:, :w]
+        planes.append(y_plane)
 
+        offset = self.__video_info.offset[1]
         if n_planes == 2:
+            stride = self.__video_info.stride[1]
             uv_plane = self.__extract_plane(ctypes.addressof(
-                data) + offset, stride * input_h // 2, (h // 2, w, bytes_per_pix))
+                data) + offset, stride * h // 2, (h // 2, stride, bytes_per_pix))
+            uv_plane = uv_plane[:, :w]
             planes.append(uv_plane)
         else:
-            shape = (h // 4, w, bytes_per_pix)
+            # The layout of the video buffer 
+            # ----------------------------------------------
+            # | Y_data             	     |padding      |
+            # |                              |             |
+            # |                              |             |
+            # |                              |             | 
+            # ----------------------------------------------
+            # | padding                                    |
+            # ----------------------------------------------
+            # | U_data       |padding |
+            # |              |        |
+            # -------------------------
+            # | padding               |
+            # -------------------------
+            # | V_data       |padding |
+            # |              |        |
+            # -------------------------
+            # | padding               |
+            # -------------------------
+            u_stride = self.__video_info.stride[1]
+            u_shape_with_padding = (h // 2, u_stride, bytes_per_pix)
+            # u_plane with padding data
             u_plane = self.__extract_plane(ctypes.addressof(
-                data) + offset, stride * input_h // 2, shape)
-
-            offset += stride * input_h // 2
-            stride = self.__video_info.stride[2]
-
-            v_plane = self.__extract_plane(ctypes.addressof(
-                data) + offset, stride * input_h // 2, shape)
-
+                data) + offset, u_stride * (h // 2), u_shape_with_padding)
+            # remove padding data
+            u_plane = u_plane[:, :w // 2]
+            u_plane = u_plane.reshape((h // 4, w, bytes_per_pix))
             planes.append(u_plane)
+ 
+            offset = self.__video_info.offset[2]
+            v_stride = self.__video_info.stride[2]
+            v_shape_with_padding = (h // 2, v_stride, bytes_per_pix)
+            # v_plane with padding data
+            v_plane = self.__extract_plane(ctypes.addressof(
+                data) + offset, v_stride * (h // 2), v_shape_with_padding)
+            # remove padding data
+            v_plane = v_plane[:, :w // 2]
+            v_plane = v_plane.reshape((h // 4, w, bytes_per_pix))
             planes.append(v_plane)
 
         return numpy.concatenate(planes)
