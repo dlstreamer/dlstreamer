@@ -1,26 +1,7 @@
-From 6a1439a4d7f167e371714a62c9d010a50825204f Mon Sep 17 00:00:00 2001
-From: He Junyan <junyan.he@intel.com>
-Date: Thu, 8 Sep 2022 11:28:03 +0800
-Subject: [PATCH] support more DMA in vaapi plugins.
-
----
- .../gst/vaapi/gstvaapibufferproxy_priv.h      | 10 ++-
- .../gst-libs/gst/vaapi/gstvaapidisplay.h      |  1 +
- .../gst-libs/gst/vaapi/gstvaapifilter.c       | 25 +++++-
- .../gst-libs/gst/vaapi/gstvaapifilter.h       |  3 +-
- .../gst/vaapi/gstvaapidecode.c                |  5 +-
- .../gst/vaapi/gstvaapipluginbase.c            | 26 ------
- .../gst/vaapi/gstvaapipluginbase.h            |  9 ---
- .../gst/vaapi/gstvaapipluginutil.c            |  8 +-
- .../gst/vaapi/gstvaapipluginutil.h            |  2 +-
- .../gst/vaapi/gstvaapipostproc.c              | 81 ++++++++++---------
- .../tests/internal/test-filter.c              |  3 +-
- 11 files changed, 85 insertions(+), 88 deletions(-)
-
-diff --git a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
+diff --git a/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h b/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
 index 445201deac..a0a7a11f96 100644
---- a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
-+++ b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
+--- a/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
++++ b/gst-libs/gst/vaapi/gstvaapibufferproxy_priv.h
 @@ -66,8 +66,14 @@ struct _GstVaapiBufferProxy {
    GDestroyNotify        destroy_func;
    gpointer              destroy_data;
@@ -38,10 +19,10 @@ index 445201deac..a0a7a11f96 100644
  };
  
  G_GNUC_INTERNAL
-diff --git a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapidisplay.h b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapidisplay.h
+diff --git a/gst-libs/gst/vaapi/gstvaapidisplay.h b/gst-libs/gst/vaapi/gstvaapidisplay.h
 index 2ca9bd31f4..54b18ddbcd 100644
---- a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapidisplay.h
-+++ b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapidisplay.h
+--- a/gst-libs/gst/vaapi/gstvaapidisplay.h
++++ b/gst-libs/gst/vaapi/gstvaapidisplay.h
 @@ -26,6 +26,7 @@
  #define GST_VAAPI_DISPLAY_H
  
@@ -50,11 +31,11 @@ index 2ca9bd31f4..54b18ddbcd 100644
  #include <gst/gst.h>
  #include <gst/vaapi/gstvaapitypes.h>
  #include <gst/vaapi/gstvaapiprofile.h>
-diff --git a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.c b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.c
-index def30634fa..5fe3701e6f 100644
---- a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.c
-+++ b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.c
-@@ -1845,6 +1845,10 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
+diff --git a/gst-libs/gst/vaapi/gstvaapifilter.c b/gst-libs/gst/vaapi/gstvaapifilter.c
+index f040a691b0..22d1739b41 100644
+--- a/gst-libs/gst/vaapi/gstvaapifilter.c
++++ b/gst-libs/gst/vaapi/gstvaapifilter.c
+@@ -1843,6 +1843,10 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
  /**
   * gst_vaapi_filter_get_formats:
   * @filter: a #GstVaapiFilter
@@ -65,7 +46,7 @@ index def30634fa..5fe3701e6f 100644
   *
   * Determines the set of supported source or target formats for video
   * processing.  The caller owns an extra reference to the resulting
-@@ -1854,12 +1858,31 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
+@@ -1852,12 +1856,31 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
   * Return value: the set of supported target formats for video processing.
   */
  GArray *
@@ -98,10 +79,10 @@ index def30634fa..5fe3701e6f 100644
    if (filter->attribs->formats)
      return g_array_ref (filter->attribs->formats);
    return NULL;
-diff --git a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.h b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.h
+diff --git a/gst-libs/gst/vaapi/gstvaapifilter.h b/gst-libs/gst/vaapi/gstvaapifilter.h
 index fcc968f076..e236b7d4f0 100644
---- a/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.h
-+++ b/subprojects/gstreamer-vaapi/gst-libs/gst/vaapi/gstvaapifilter.h
+--- a/gst-libs/gst/vaapi/gstvaapifilter.h
++++ b/gst-libs/gst/vaapi/gstvaapifilter.h
 @@ -211,7 +211,8 @@ gst_vaapi_filter_process (GstVaapiFilter * filter,
      GstVaapiSurface * src_surface, GstVaapiSurface * dst_surface, guint flags);
  
@@ -112,21 +93,29 @@ index fcc968f076..e236b7d4f0 100644
  
  gboolean
  gst_vaapi_filter_set_format (GstVaapiFilter * filter, GstVideoFormat format);
-diff --git a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapidecode.c b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapidecode.c
-index 578e68bdf1..b923eb17fe 100644
---- a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapidecode.c
-+++ b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapidecode.c
-@@ -270,8 +270,7 @@ gst_vaapidecode_ensure_allowed_srcpad_caps (GstVaapiDecode * decode)
-         gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_DMABUF));
-   }
+diff --git a/gst/vaapi/gstvaapidecode.c b/gst/vaapi/gstvaapidecode.c
+index c60571b631..9d5eba77fe 100644
+--- a/gst/vaapi/gstvaapidecode.c
++++ b/gst/vaapi/gstvaapidecode.c
+@@ -261,8 +261,15 @@ gst_vaapidecode_ensure_allowed_srcpad_caps (GstVaapiDecode * decode)
+       gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_VAAPI_SURFACE));
+ 
  #if (USE_GLX || USE_EGL)
++  if (gst_vaapi_mem_type_supports (mem_types,
++          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF) ||
++      gst_vaapi_mem_type_supports (mem_types,
++          GST_VAAPI_BUFFER_MEMORY_TYPE_DMA_BUF2)) {
++    dma_caps = gst_caps_copy (base_caps);
++    gst_caps_set_features_simple (dma_caps,
++        gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_DMABUF));
++  }
 -  if (!GST_VAAPI_PLUGIN_BASE_SRC_PAD_CAN_DMABUF (decode)
 -      && gst_vaapi_display_has_opengl (GST_VAAPI_PLUGIN_BASE_DISPLAY (decode))) {
 +  if (gst_vaapi_display_has_opengl (GST_VAAPI_PLUGIN_BASE_DISPLAY (decode))) {
      gltexup_caps = gst_caps_from_string (GST_VAAPI_MAKE_GLTEXUPLOAD_CAPS);
      if (gltexup_caps) {
        gst_vaapi_caps_set_width_and_height_range (base_caps, min_width,
-@@ -546,8 +545,6 @@ is_src_allocator_dmabuf (GstVaapiDecode * decode)
+@@ -537,8 +536,6 @@ is_src_allocator_dmabuf (GstVaapiDecode * decode)
  {
    GstVaapiPluginBase *const plugin = GST_VAAPI_PLUGIN_BASE (decode);
  
@@ -135,10 +124,10 @@ index 578e68bdf1..b923eb17fe 100644
    return
        gst_vaapi_is_dmabuf_allocator (GST_VAAPI_PLUGIN_BASE_SRC_PAD_ALLOCATOR
        (plugin));
-diff --git a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.c b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.c
+diff --git a/gst/vaapi/gstvaapipluginbase.c b/gst/vaapi/gstvaapipluginbase.c
 index a670e976e5..98bdebbf3d 100644
---- a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.c
-+++ b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.c
+--- a/gst/vaapi/gstvaapipluginbase.c
++++ b/gst/vaapi/gstvaapipluginbase.c
 @@ -1017,7 +1017,6 @@ gst_vaapi_plugin_base_decide_allocation (GstVaapiPluginBase * plugin,
        if (gst_structure_get (params, "gst.gl.GstGLContext", GST_TYPE_GL_CONTEXT,
                &gl_context, NULL) && gl_context) {
@@ -179,10 +168,10 @@ index a670e976e5..98bdebbf3d 100644
  static void
  _init_performance_debug (void)
  {
-diff --git a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.h b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.h
+diff --git a/gst/vaapi/gstvaapipluginbase.h b/gst/vaapi/gstvaapipluginbase.h
 index 94aa296f25..9182ed46d4 100644
---- a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.h
-+++ b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginbase.h
+--- a/gst/vaapi/gstvaapipluginbase.h
++++ b/gst/vaapi/gstvaapipluginbase.h
 @@ -89,8 +89,6 @@ typedef struct _GstVaapiPadPrivate GstVaapiPadPrivate;
    (GST_VAAPI_PLUGIN_BASE_SRC_PAD_PRIVATE(plugin)->caps)
  #define GST_VAAPI_PLUGIN_BASE_SRC_PAD_INFO(plugin) \
@@ -213,10 +202,10 @@ index 94aa296f25..9182ed46d4 100644
  G_GNUC_INTERNAL
  gboolean
  gst_vaapi_plugin_copy_va_buffer (GstVaapiPluginBase * plugin,
-diff --git a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.c b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.c
+diff --git a/gst/vaapi/gstvaapipluginutil.c b/gst/vaapi/gstvaapipluginutil.c
 index 0c47b75afc..2e2c78a385 100644
---- a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.c
-+++ b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.c
+--- a/gst/vaapi/gstvaapipluginutil.c
++++ b/gst/vaapi/gstvaapipluginutil.c
 @@ -348,9 +348,7 @@ gst_vaapi_find_gl_context (GstElement * element)
  
    gst_vaapi_find_gl_local_context (element, &plugin->gl_context);
@@ -239,10 +228,10 @@ index 0c47b75afc..2e2c78a385 100644
      dma_caps = gst_caps_copy (raw_caps);
      gst_caps_set_features_simple (dma_caps,
          gst_caps_features_from_string (GST_CAPS_FEATURE_MEMORY_DMABUF));
-diff --git a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.h b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.h
+diff --git a/gst/vaapi/gstvaapipluginutil.h b/gst/vaapi/gstvaapipluginutil.h
 index 236ccd3a0e..9eb52342bd 100644
---- a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.h
-+++ b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipluginutil.h
+--- a/gst/vaapi/gstvaapipluginutil.h
++++ b/gst/vaapi/gstvaapipluginutil.h
 @@ -117,7 +117,7 @@ gst_vaapi_caps_feature_contains (const GstCaps * caps,
  
  #define GST_VAAPI_MAKE_DMABUF_CAPS                                      \
@@ -252,10 +241,10 @@ index 236ccd3a0e..9eb52342bd 100644
  
  G_GNUC_INTERNAL
  gboolean
-diff --git a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipostproc.c b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipostproc.c
-index 790521c9eb..3e4faf9ea7 100644
---- a/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipostproc.c
-+++ b/subprojects/gstreamer-vaapi/gst/vaapi/gstvaapipostproc.c
+diff --git a/gst/vaapi/gstvaapipostproc.c b/gst/vaapi/gstvaapipostproc.c
+index 4fa79e5120..7accac7fa0 100644
+--- a/gst/vaapi/gstvaapipostproc.c
++++ b/gst/vaapi/gstvaapipostproc.c
 @@ -38,6 +38,7 @@
  #include <gst/video/video.h>
  
@@ -275,16 +264,15 @@ index 790521c9eb..3e4faf9ea7 100644
  /* *INDENT-ON* */
  
  /* *INDENT-OFF* */
-@@ -74,7 +77,7 @@ static const char gst_vaapipostproc_src_caps_str[] =
+@@ -74,6 +77,7 @@ static const char gst_vaapipostproc_src_caps_str[] =
  #endif
    GST_VIDEO_CAPS_MAKE (GST_VAAPI_FORMATS_ALL) ", "
-   GST_CAPS_INTERLACED_MODES "; "
--  GST_VAAPI_MAKE_DMABUF_CAPS;
-+  GST_VIDEO_CAPS_MAKE_WITH_FEATURES (GST_CAPS_FEATURE_MEMORY_DMABUF, GST_VAAPI_FORMATS_ALL);
+   GST_CAPS_INTERLACED_MODES;
++  GST_VAAPI_MAKE_DMABUF_CAPS;
  /* *INDENT-ON* */
  
  /* *INDENT-OFF* */
-@@ -287,7 +290,8 @@ gst_vaapipostproc_ensure_filter_caps (GstVaapiPostproc * postproc)
+@@ -286,7 +290,8 @@ gst_vaapipostproc_ensure_filter_caps (GstVaapiPostproc * postproc)
    }
  
    if (!postproc->filter_formats) {
@@ -294,7 +282,7 @@ index 790521c9eb..3e4faf9ea7 100644
      if (!postproc->filter_formats)
        return FALSE;
    }
-@@ -1292,50 +1296,51 @@ gst_vaapipostproc_update_src_caps (GstVaapiPostproc * postproc, GstCaps * caps,
+@@ -1291,50 +1296,51 @@ gst_vaapipostproc_update_src_caps (GstVaapiPostproc * postproc, GstCaps * caps,
  static gboolean
  ensure_allowed_sinkpad_caps (GstVaapiPostproc * postproc)
  {
@@ -379,7 +367,7 @@ index 790521c9eb..3e4faf9ea7 100644
  }
  
  /* Fixup output caps so that to reflect the supported set of pixel formats */
-@@ -1380,9 +1385,7 @@ expand_allowed_srcpad_caps (GstVaapiPostproc * postproc, GstCaps * caps)
+@@ -1379,9 +1385,7 @@ expand_allowed_srcpad_caps (GstVaapiPostproc * postproc, GstCaps * caps)
    }
    g_value_unset (&value);
  
@@ -390,10 +378,10 @@ index 790521c9eb..3e4faf9ea7 100644
        && gl_upload_meta_idx > -1) {
      gst_caps_remove_structure (caps, gl_upload_meta_idx);
    }
-diff --git a/subprojects/gstreamer-vaapi/tests/internal/test-filter.c b/subprojects/gstreamer-vaapi/tests/internal/test-filter.c
+diff --git a/tests/internal/test-filter.c b/tests/internal/test-filter.c
 index 650af220e6..dbe47c10ba 100644
---- a/subprojects/gstreamer-vaapi/tests/internal/test-filter.c
-+++ b/subprojects/gstreamer-vaapi/tests/internal/test-filter.c
+--- a/tests/internal/test-filter.c
++++ b/tests/internal/test-filter.c
 @@ -188,7 +188,8 @@ dump_operations (GstVaapiFilter * filter)
  static void
  dump_formats (GstVaapiFilter * filter)
@@ -404,6 +392,3 @@ index 650af220e6..dbe47c10ba 100644
    guint i;
  
    if (!formats)
--- 
-2.25.1
-
