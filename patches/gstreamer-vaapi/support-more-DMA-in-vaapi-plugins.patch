@@ -264,10 +264,12 @@ index 4fa79e5120..7accac7fa0 100644
  /* *INDENT-ON* */
  
  /* *INDENT-OFF* */
-@@ -74,6 +77,7 @@ static const char gst_vaapipostproc_src_caps_str[] =
+@@ -73,7 +76,8 @@ static const char gst_vaapipostproc_src_caps_str[] =
+   GST_VAAPI_MAKE_GLTEXUPLOAD_CAPS "; "
  #endif
    GST_VIDEO_CAPS_MAKE (GST_VAAPI_FORMATS_ALL) ", "
-   GST_CAPS_INTERLACED_MODES "; "
+-  GST_CAPS_INTERLACED_MODES;
++  GST_CAPS_INTERLACED_MODES "; "
 +  GST_VAAPI_MAKE_DMABUF_CAPS;
  /* *INDENT-ON* */
  
