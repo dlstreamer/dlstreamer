@@ -20,6 +20,18 @@ else
   exit
 fi
 
+if [[ $DEVICE == "CPU" ]]; then
+  CONVERTER="videoconvert ! video/x-raw,format=BGRx"
+  PREPROC_BACKEND="opencv"
+elif [[ $DEVICE == "GPU" ]]; then
+  CONVERTER="vaapipostproc ! video/x-raw\(memory:VASurface\)"
+  PREPROC_BACKEND="vaapi-surface-sharing"
+else
+  echo Error wrong value for DEVICE parameter
+  echo Possible values: CPU, GPU
+  exit
+fi
+
 HPE_MODEL=human-pose-estimation-0001
 
 
@@ -38,7 +50,7 @@ PROC_PATH() {
 HPE_MODEL_PATH=${MODELS_PATH}/intel/${HPE_MODEL}/FP32/${HPE_MODEL}.xml
 HPE_MODEL_PROC=$(PROC_PATH $HPE_MODEL)
 
-PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! \
+PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! $CONVERTER ! \
 gvaclassify model=$HPE_MODEL_PATH model-proc=$HPE_MODEL_PROC device=$DEVICE inference-region=full-frame ! queue ! \
 $SINK_ELEMENT"
 
