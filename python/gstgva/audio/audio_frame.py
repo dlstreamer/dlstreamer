@@ -47,8 +47,7 @@ class AudioFrame:
         if audio_info:
             self.__audio_info = audio_info
         elif caps:
-            self.__audio_info = GstAudio.AudioInfo()
-            self.__audio_info.from_caps(caps)
+            self.__audio_info = GstAudio.AudioInfo.new_from_caps(caps)
         else:
             raise RuntimeError("One of audio_info or caps is required")
 

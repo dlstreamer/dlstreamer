@@ -15,9 +15,9 @@ pkg_check_modules(PYGOBJECT pygobject-3.0)
 find_package(PythonLibs 3.4)
 
 if (NOT PYGOBJECT_FOUND OR NOT PYTHONLIBS_FOUND)
+    message("Python library not found, skipping gvapython build")
     return()
 endif()
-
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.c
@@ -29,7 +29,6 @@ file (GLOB MAIN_HEADERS
 )
 
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
-set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}

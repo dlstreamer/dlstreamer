@@ -419,19 +419,19 @@ class ObjectTracker::Builder {
     bool tracking_per_class;
 
     /**
-     * Platform configuration
-     * You can set various configuraions
-     * for each platform such as CPU, KMB, and TBH using predefined configurations
-     * @n
-     * For Parallelization in KCFVAR
-mode, use key "max_num_threads" to set the maximum number of threads. Consult the following format
-     * @code platform_config["max_num_threads"] = "2"; // set maximum number of threads(concurrency level) to 2 @endcode
-     * @n
-     * Default value is 1
-     * if value >=1, set value as the number of threads to process OT in parallel mode
-     * if value >= Number of available cores OR value is -1, limit concurrency level to maximum available logical cores
-     * otherwise: @exception Invalid input
-     */
+     * Platform configuration
+     * You can set various configuraions
+     * for each platform such as CPU, KMB, and TBH using predefined configurations
+     * @n
+     * For Parallelization in KCFVAR mode, use key "max_num_threads" to set the maximum number of threads. Consult the
+     * following format
+     * @code platform_config["max_num_threads"] = "2"; // set maximum number of threads(concurrency level) to 2 @endcode
+     * @n
+     * Default value is 1
+     * if value >=1, set value as the number of threads to process OT in parallel mode
+     * if value >= Number of available cores OR value is -1, limit concurrency level to maximum available logical cores
+     * otherwise: @exception Invalid input
+     */
     std::map<std::string, std::string> platform_config;
 };
 

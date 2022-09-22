@@ -15,6 +15,8 @@
 #include <gst/gst.h>
 
 #include <algorithm>
+#include <cstdint>
+#include <iostream>
 #include <map>
 #include <memory>
 #include <string>
@@ -24,7 +26,9 @@ using namespace post_processing;
 using namespace InferenceBackend;
 
 namespace {
-void max_method(const float *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
+
+template <typename DataType>
+void max_method(const DataType *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
     auto max_elem = std::max_element(data, data + size);
     auto index = std::distance(data, max_elem);
     result.set_string("label", labels.at(index));
@@ -32,7 +36,8 @@ void max_method(const float *data, size_t size, const std::vector<std::string> &
     result.set_double("confidence", *max_elem);
 }
 
-void soft_max_method(const float *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
+template <typename DataType>
+void soft_max_method(const DataType *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
     auto max_confidence = std::max_element(data, data + size);
     std::vector<float> sftm_arr(size);
     float sum = 0;
@@ -52,7 +57,8 @@ void soft_max_method(const float *data, size_t size, const std::vector<std::stri
     result.set_double("confidence", *max_elem);
 }
 
-void compound_method(const float *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
+template <typename DataType>
+void compound_method(const DataType *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
     std::string result_label;
     double threshold = result.get_double("threshold", 0.5);
     double confidence = 0;
@@ -75,11 +81,18 @@ void compound_method(const float *data, size_t size, const std::vector<std::stri
     result.set_double("confidence", confidence);
 }
 
-void index_method(const float *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
+template <typename DataType>
+void index_method([[maybe_unused]] const DataType *data, size_t size, const std::vector<std::string> &labels,
+                  GVA::Tensor &result) {
     std::string result_label;
     int max_value = 0;
     for (size_t j = 0; j < size; j++) {
-        int value = safe_convert<int>(data[j]);
+
+        int value = 0;
+        if constexpr (std::is_same<int, DataType>::value)
+            value = data[j];
+        else
+            value = safe_convert<int>(data[j]);
         if (value < 0 || static_cast<size_t>(value) >= labels.size())
             break;
         if (value > max_value)
@@ -121,6 +134,61 @@ LabelConverter::LabelConverter(BlobToMetaConverter::Initializer initializer)
     }
 }
 
+template <typename T>
+void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name, InferenceBackend::OutputBlob::Ptr blob,
+                                   TensorsTable &tensors_table) const {
+    const auto &labels_raw = getLabels();
+    const size_t batch_size = getModelInputImageInfo().batch_size;
+    if (labels_raw.empty()) {
+        throw std::invalid_argument("Failed to get list of classification labels.");
+    }
+    auto labels_raw_size = labels_raw.size();
+    const size_t size = blob->GetSize();
+
+    for (size_t frame_index = 0; frame_index < batch_size; ++frame_index) {
+        GVA::Tensor classification_result = createTensor();
+
+        if (!raw_tensor_copying->enabled(RawTensorCopyingToggle::id))
+            CopyOutputBlobToGstStructure(blob, classification_result.gst_structure(),
+                                         BlobToMetaConverter::getModelName().c_str(), layer_name.c_str(), batch_size,
+                                         frame_index);
+
+        // FIXME: then c++17 avaliable
+        const auto item = get_data_by_batch_index<T>(data, size, batch_size, frame_index);
+        const T *item_data = item.first;
+        const size_t item_data_size = item.second;
+
+        if (_method != Method::Index && labels_raw_size > (_method == Method::Compound ? 2 : 1) * item_data_size) {
+            throw std::invalid_argument("Wrong number of classification labels.");
+        }
+
+        switch (_method) {
+        case Method::SoftMax:
+            soft_max_method<T>(item_data, item_data_size, labels_raw, classification_result);
+            break;
+        case Method::Compound:
+            compound_method<T>(item_data, item_data_size, labels_raw, classification_result);
+            break;
+        case Method::Index:
+            index_method<T>(item_data, item_data_size, labels_raw, classification_result);
+            break;
+        case Method::Max:
+            max_method<T>(item_data, item_data_size, labels_raw, classification_result);
+            break;
+        default:
+            throw std::runtime_error("Unknown method for 'to label' converter");
+        }
+
+        /* tensor_id - In different GStreamer versions tensors_batch are attached to the buffer in a different
+         * order. */
+        /* type - To identify classification tensors among others. */
+        /* element_id - To identify model_instance_id. */
+        gst_structure_set(classification_result.gst_structure(), "tensor_id", G_TYPE_INT,
+                          safe_convert<int>(frame_index), "type", G_TYPE_STRING, "classification_result", NULL);
+        tensors_table[frame_index].push_back(classification_result.gst_structure());
+    }
+}
+
 TensorsTable LabelConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
@@ -129,68 +197,25 @@ TensorsTable LabelConverter::convert(const OutputBlobs &output_blobs) const {
         tensors_table.resize(batch_size);
 
         for (const auto &blob_iter : output_blobs) {
+            const std::string layer_name = blob_iter.first;
             OutputBlob::Ptr blob = blob_iter.second;
             if (not blob) {
                 throw std::invalid_argument("Output blob is empty.");
             }
-            const std::string layer_name = blob_iter.first;
 
-            // get buffer and its size from classification_result
-            const float *data = reinterpret_cast<const float *>(blob->GetData());
-            if (not data)
+            if (blob->GetData() == nullptr)
                 throw std::invalid_argument("Output blob data is nullptr");
 
-            const size_t size = blob->GetSize();
-
-            const auto &labels_raw = getLabels();
-            if (labels_raw.empty()) {
-                throw std::invalid_argument("Failed to get list of classification labels.");
-            }
-            auto labels_raw_size = labels_raw.size();
-
-            for (size_t frame_index = 0; frame_index < batch_size; ++frame_index) {
-                GVA::Tensor classification_result = createTensor();
-
-                if (!raw_tensor_copying->enabled(RawTensorCopyingToggle::id))
-                    CopyOutputBlobToGstStructure(blob, classification_result.gst_structure(),
-                                                 BlobToMetaConverter::getModelName().c_str(), layer_name.c_str(),
-                                                 batch_size, frame_index);
-
-                // FIXME: then c++17 avaliable
-                const auto item = get_data_by_batch_index(data, size, batch_size, frame_index);
-                const float *item_data = item.first;
-                const size_t item_data_size = item.second;
-
-                if (_method != Method::Index &&
-                    labels_raw_size > (_method == Method::Compound ? 2 : 1) * item_data_size) {
-                    throw std::invalid_argument("Wrong number of classification labels.");
-                }
-
-                switch (_method) {
-                case Method::SoftMax:
-                    soft_max_method(item_data, item_data_size, labels_raw, classification_result);
-                    break;
-                case Method::Compound:
-                    compound_method(item_data, item_data_size, labels_raw, classification_result);
-                    break;
-                case Method::Index:
-                    index_method(item_data, item_data_size, labels_raw, classification_result);
-                    break;
-                case Method::Max:
-                    max_method(item_data, item_data_size, labels_raw, classification_result);
-                    break;
-                default:
-                    throw std::runtime_error("Unknown method for 'to label' converter");
-                }
-
-                /* tensor_id - In different GStreamer versions tensors_batch are attached to the buffer in a different
-                 * order. */
-                /* type - To identify classification tensors among others. */
-                /* element_id - To identify model_instance_id. */
-                gst_structure_set(classification_result.gst_structure(), "tensor_id", G_TYPE_INT,
-                                  safe_convert<int>(frame_index), "type", G_TYPE_STRING, "classification_result", NULL);
-                tensors_table[frame_index].push_back(classification_result.gst_structure());
-            }
+            // get buffer and its size from classification_result
+            if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP32)
+                ExecuteMethod<float>(reinterpret_cast<const float *>(blob->GetData()), layer_name, blob, tensors_table);
+            else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP64)
+                ExecuteMethod<double>(reinterpret_cast<const double *>(blob->GetData()), layer_name, blob,
+                                      tensors_table);
+            else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::I32)
+                ExecuteMethod<int>(reinterpret_cast<const int *>(blob->GetData()), layer_name, blob, tensors_table);
+            else
+                throw std::runtime_error("Unsupported data type");
         }
     } catch (const std::exception &e) {
         GVA_ERROR("An error occurred in the label converter: %s", e.what());

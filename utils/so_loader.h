@@ -70,7 +70,7 @@ class SharedObject {
      * @throw throw std::runtime_error when specified function is not found.
      */
     template <typename FuncProto, typename... Args>
-    auto invoke(const std::string &function_name, Args &&... args) -> typename std::function<FuncProto>::result_type {
+    auto invoke(const std::string &function_name, Args &&...args) -> typename std::function<FuncProto>::result_type {
         auto func = getFunction<FuncProto>(function_name);
         return func(std::forward<Args>(args)...);
     }

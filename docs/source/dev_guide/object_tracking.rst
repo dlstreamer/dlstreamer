@@ -4,7 +4,7 @@ Object Tracking
 Object tracking types
 ---------------------
 
-Object tracking element :doc:`gvatrack <../elements/gvatrack>` typically inserted into
+Object tracking element is :doc:`gvatrack <../elements/gvatrack>` typically inserted into a
 video analytics pipeline right after object detection element
 :doc:`gvadetect <../elements/gvadetect>` and can work in the following modes as
 specified by property *tracking-type*:
@@ -22,17 +22,17 @@ specified by property *tracking-type*:
      - <= 5
      - Yes
      - No
-     - Assigns unique id to objects and generates object position on frames object detection was skipped, by extrapolati ng object trajectory on previous frames. Fast algorithm without access to image data.
+     - Assigns a unique id to objects and generates object position for frames on which object detection was skipped. Fast algorithm that extrapolates object trajectory from previous frame(s) without access to image data.
    * - zero‑ term
      - 1 (every frame)
      - Yes
      - Yes
-     - Assigns unique id to objects, requires object detection run every frame. Takes into account object trajectory as well as color histogram of object image data.
+     - Assigns a unique id to objects, and requires object detection run on every frame. Takes into account object trajectory as well as a color histogram of object image data.
    * - zero‑term‑imageless
      - 1 (every frame)
      - Yes
      - No
-     - Assigns unique id to objects, requires object detection run every frame. Fastest algorithm as based on comparing object coordinates on current frame with objects trajectory on previous frames.
+     - Assigns a unique id to objects, and requires object detection run on every frame. Fastest algorithm as based on comparing object coordinates on current frame with objects trajectory on previous frames.
 
 Additional configuration
 ------------------------
@@ -63,8 +63,8 @@ Maximum number of objects
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Configurable via ``max_num_objects`` parameter. It specifies the maximum
-number of the objects that the object tracker will track. On devices
-with less computing power, tracking smaller number of objects can reduce
+number of objects that the object tracker will track. On devices
+with less computing power, tracking a smaller number of objects can reduce
 compute and increase throughput.
 
 Example:
@@ -85,7 +85,7 @@ How to read object unique id
 ----------------------------
 
 The following code example iterates all objects detected or tracked on
-current frame and prints object unique id and bounding box coordinates
+the current frame and prints object unique id and bounding box coordinates
 
 ::
 

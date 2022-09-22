@@ -6,83 +6,84 @@ Model Preparation
 
 Video Analytics GStreamer plugins utilize
 `Intel® Distribution of OpenVINO™ Toolkit <https://software.intel.com/en-us/openvino-toolkit>`__
-as back-end for high efficiency inference on Intel CPU and accelerators
+as a back-end for high efficiency-inference on Intel® CPU and accelerators
 (GPU, VPU, FPGA) and require CNN model to be converted from training
-framework format (ex, Tensorflow or Caffe) into format optimized for
-inference on target device. The model format used by OpenVINO™ Toolkit
-consists of two files - .xml: Small file with description of the network
+framework format (e.g., TensorFlow or Caffe) into a format optimized for
+inference on the target device. The model format used by OpenVINO™ Toolkit
+consists of two files - .xml: A small file with a description of the network
 topology in XML language - .bin: Binary file (potentially big) with
-model weights Also such format can be called as Intermediate
+model weights Also such format can be called Intermediate
 Representation (IR) format.
 
 You can either:
 
-#. Choose model(s) from extensive set of pre-trained models available in
+#. Choose model(s) from the extensive set of pre-trained models available in
    `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__ (already in IR format)
+
 #. Use `Model Optimizer from OpenVINO™ Toolkit <https://software.intel.com/en-us/articles/OpenVINO-ModelOptimizer>`__ 
-   tool for converting your model from training framework format (ex, Tensorflow) into IR format
+   tool for converting your model from training framework format (e.g., TensorFlow) into IR format
 
-In case of pre-trained model from Open Model Zoo, consider handy tool
+When using a pre-trained model from Open Model Zoo, consider using the
 `Model Downloader <https://docs.openvino.ai/latest/omz_tools_downloader.html>`__
-to facilitate model downloading process.
+ tool to facilitate the model downloading process.
 
-In case of converting custom model, you can optionally utilize
+In the case of converting a custom model, you can optionally utilize the 
 `Post-Training Optimization Toolkit <https://docs.openvino.ai/latest/pot_README.html>`__
-for converting the model into performance efficient and more
+for converting the model into a performance efficient, and more
 hardware-friendly representation, for example quantize from 32-bit
-floating point precision into 8-bit integer precision. This gives
+floating point-precision into 8-bit integer precision. This gives a
 significant performance boost (up to 4x) on some hardware platforms
-including CPU, with only minor accuracy drop.
+including the CPU, with only a minor accuracy drop.
 
-If you prefer graphical UI over command-line tools, consider web-based
-tool `Deep Learning Workbench <https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html>`__
-which provides all the functionality mentioned below and more in
+If you prefer graphical UI over command-line tools, consider the web-based
+`Deep Learning Workbench <https://docs.openvino.ai/latest/workbench_docs_Workbench_DG_Introduction.html>`__
+tool which provides all the functionality mentioned below and more in a
 web-browser graphical interface
 
 * download pre-trained model 
-* convert model from training framework format
-* dequantize into INT8 precision with accuracy checking 
+* convert a model from training framework format
+* quantize into INT8 precision with accuracy checking 
 * profile per-layer performance
 * tune hyper parameters for throughput vs latency tradeoff
 
 2. Model pre- and post-processing specification file
 ----------------------------------------------------
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) plugins are capable to
-optionally perform certain pre- and post-processing operations before/after inference.
+Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework plugins are capable of
+optionally performing certain pre- and post-processing operations before/after inference.
 
-Pre- and post-processing are configured with so called “model-proc”
+Pre- and post-processing are configured with the “model-proc”
 file. Its format and all possible pre- and post-processing configuration
-parameters are described in `model-proc description <model_proc_file>`__
+parameters are described on the `model-proc description <model_proc_file>`__
 page.
 
-**Pre-processing** is an input data transformation into appropriate form
-which a neural network expects it to be. Since Intel DL Streamer mostly
+**Pre-processing** is an input data transformation into an appropriate form
+which a neural network expects it to be. Since Pipeline Framework mostly
 supports Convolutional Neural Networks, most pre-processing actions are
-performed under images. Intel DL Streamer provides several pre-processing
+performed under images. Pipeline Framework provides several pre-processing
 back-ends depending on your use case.
 
-**To use one of them, set pre-process-backend property of inference
+**To use one of them, set the pre-process-backend property of the inference
 element to one from the table below.**
 
-**Default behavior**: If the property is not set, Intel DL Streamer will pick
+**Default behavior**: If the property is not set, Pipeline Framework will pick
 ``ie`` if system memory is used in pipeline, ``vaapi`` - for GPU memory
 (VASurface and DMABuf).
 
 .. list-table::
    :widths: 25, 50, 25, 25
    :header-rows: 1
-   
+
    * - pre-process-backend
      - Description
      - Memory type in pipeline
      - Configurable with model-proc?
    * - ie
-     - Short for "Inference Engine". It resizes an image with bilinear algorithm and sets color format which is deduced from current media. All that's done with capabilities provided by Inference Engine from OpenVINO™ Toolkit.
+     - Short for "Inference Engine". It resizes an image with a bilinear algorithm and sets color format which is deduced from current media. All that's done with capabilities provided by Inference Engine from OpenVINO™ Toolkit.
      - System
      - No
    * - opencv
-     - All power of OpenCV is leveraged for input image pre-processing. Provides wide variety of operations that can be performed on image.
+     - All power of OpenCV is leveraged for input image pre-processing. Provides a wide variety of operations that can be performed on image.
      - System
      - Yes
    * - vaapi
@@ -137,3 +138,8 @@ The following diagram illustrates overall workflow
 .. figure:: gst_va_developer_flow.png
    :alt: gst_va_developer_flow
 
+
+.. toctree::
+   :maxdepth: 2
+
+   yolov5_model_preparation

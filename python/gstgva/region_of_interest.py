@@ -105,12 +105,19 @@ class RegionOfInterest(object):
 
     ## @brief Add new Tensor (inference result) to the RegionOfInterest.
     # @param name Name for the tensor.
+    # @param tensor (optional) Tensor object.
     # This function does not take ownership of tensor passed, but only copies its contents
     # @return just created Tensor object, which can be filled with tensor information further
-    def add_tensor(self, name: str = "") -> Tensor:
-        tensor = libgst.gst_structure_new_empty(name.encode('utf-8'))
-        libgstvideo.gst_video_region_of_interest_meta_add_param(self.meta(), tensor)
-        return Tensor(tensor)
+    def add_tensor(self, name: str = "", tensor: Tensor = None) -> Tensor:
+        tensor_structure = None
+        if tensor:
+            tensor_structure = libgst.gst_structure_copy(tensor._Tensor__structure)
+            if name != "":
+                libgst.gst_structure_set_name(tensor_structure, name.encode('utf-8'))
+        else:
+            tensor_structure = libgst.gst_structure_new_empty(name.encode('utf-8'))
+        libgstvideo.gst_video_region_of_interest_meta_add_param(self.meta(), tensor_structure)
+        return Tensor(tensor_structure)
 
     ## @brief Get VideoRegionOfInterestMeta containing bounding box information and tensors (inference results).
     # Tensors are represented as GstStructures added to GstVideoRegionOfInterestMeta.params

@@ -21,14 +21,15 @@ namespace post_processing {
 
 class BoxesLabelsScoresConverter : public BlobToROIConverter {
   private:
+    static constexpr size_t batched_model_dimentions_size = 3;
     static constexpr size_t bbox_size_coordinates_confidence = 5;
     static constexpr size_t bbox_size_coordinates = 4;
     static const std::string boxes_layer_name;
 
   protected:
-    void parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &boxes_blob,
+    void parseOutputBlob(const float *boxes_data, const std::vector<size_t> &blob_dims,
                          const InferenceBackend::OutputBlob::Ptr &labels_scores_blob,
-                         DetectedObjectsTable &objects_table, const ModelImageInputInfo &model_input_image_info,
+                         std::vector<DetectedObject> &objects, const ModelImageInputInfo &model_input_image_info,
                          double roi_scale) const;
 
     virtual InferenceBackend::OutputBlob::Ptr getLabelsScoresBlob(const OutputBlobs &) const = 0;

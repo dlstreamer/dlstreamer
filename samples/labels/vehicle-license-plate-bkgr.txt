@@ -1,3 +1,0 @@
-__background__
-vehicle
-license_plate

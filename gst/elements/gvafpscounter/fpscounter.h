@@ -26,41 +26,26 @@ class FpsCounter {
 
 class IterativeFpsCounter : public FpsCounter {
   public:
-    IterativeFpsCounter(unsigned interval, bool print_each_stream = true)
-        : interval(interval), print_each_stream(print_each_stream) {
+    IterativeFpsCounter(unsigned starting_frame, unsigned interval, bool average)
+        : starting_frame(starting_frame), interval(interval), average(average), print_each_stream(true),
+          total_frames(0), eos_result_reported(false) {
     }
     bool NewFrame(const std::string &element_name, FILE *output) override;
-    void EOS(FILE *) override {
-    }
+    void EOS(FILE *) override;
 
   protected:
+    unsigned starting_frame;
     unsigned interval;
+    bool average;
     bool print_each_stream;
-    std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
-    std::map<std::string, int> num_frames;
-    std::mutex mutex;
-
-    void PrintFPS(FILE *output, double sec);
-};
-
-class AverageFpsCounter : public FpsCounter {
-  public:
-    AverageFpsCounter(unsigned skipped_frames)
-        : skipped_frames(skipped_frames), total_frames(0), result_reported(false) {
-    }
-
-    bool NewFrame(const std::string &element_name, FILE *) override;
-    void EOS(FILE *output) override;
-
-  protected:
-    unsigned skipped_frames;
     unsigned total_frames;
-    bool result_reported;
+    std::chrono::time_point<std::chrono::high_resolution_clock> init_time;
     std::chrono::time_point<std::chrono::high_resolution_clock> last_time;
     std::map<std::string, int> num_frames;
     std::mutex mutex;
+    bool eos_result_reported;
 
-    void PrintFPS(FILE *output, double sec);
+    void PrintFPS(FILE *output, double sec, bool eos = false);
 };
 
 class WritePipeFpsCounter : public FpsCounter {

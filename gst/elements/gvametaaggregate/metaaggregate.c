@@ -23,10 +23,13 @@ gboolean roi_meta_scale(GstVideoRegionOfInterestMeta *roi_meta, const GstVideoIn
     }
 
     gdouble x_min, x_max, y_min, y_max, w, h;
-    gst_structure_get_double(detection, "x_min", &x_min);
-    gst_structure_get_double(detection, "x_max", &x_max);
-    gst_structure_get_double(detection, "y_min", &y_min);
-    gst_structure_get_double(detection, "y_max", &y_max);
+    if (!gst_structure_get_double(detection, "x_min", &x_min) ||
+        !gst_structure_get_double(detection, "x_max", &x_max) ||
+        !gst_structure_get_double(detection, "y_min", &y_min) ||
+        !gst_structure_get_double(detection, "y_max", &y_max)) {
+        GST_ERROR("roi_meta_scale: error getting bbox coordinates");
+        return FALSE;
+    }
     w = x_max - x_min;
     h = y_max - y_min;
 

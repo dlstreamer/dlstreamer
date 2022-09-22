@@ -41,9 +41,11 @@ bool BoxesLabelsScoresConverter::isValidModelAdditionalOutput(
 
     if (!model_outputs_info.count(additional_layer_name))
         return false;
-
     const std::vector<size_t> &boxes_dims = model_outputs_info.at(boxes_layer_name);
     size_t max_proposal_count = boxes_dims[0];
+    if (boxes_dims.size() == batched_model_dimentions_size) {
+        max_proposal_count = boxes_dims[1];
+    }
 
     const std::vector<size_t> &scores_dims = model_outputs_info.at(additional_layer_name);
     if (max_proposal_count != scores_dims[0])
@@ -62,19 +64,14 @@ BoxesLabelsScoresConverter::getBboxCoordinates(const float *bbox_data, size_t wi
     return std::make_tuple(bbox_x, bbox_y, bbox_w, bbox_h);
 }
 
-void BoxesLabelsScoresConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &boxes_blob,
+void BoxesLabelsScoresConverter::parseOutputBlob(const float *boxes_data, const std::vector<size_t> &boxes_dims,
                                                  const InferenceBackend::OutputBlob::Ptr &labels_scores_blob,
-                                                 DetectedObjectsTable &objects_table,
+                                                 std::vector<DetectedObject> &objects,
                                                  const ModelImageInputInfo &model_input_image_info,
                                                  double roi_scale) const {
-    if (!boxes_blob)
-        throw std::invalid_argument("Output blob is nullptr.");
-
-    const float *boxes_data = reinterpret_cast<const float *>(boxes_blob->GetData());
     if (!boxes_data)
         throw std::invalid_argument("Output blob data is nullptr.");
 
-    const auto &boxes_dims = boxes_blob->GetDims();
     size_t boxes_dims_size = boxes_dims.size();
 
     if (boxes_dims_size < BlobToROIConverter::min_dims_size)
@@ -91,6 +88,10 @@ void BoxesLabelsScoresConverter::parseOutputBlob(const InferenceBackend::OutputB
             std::to_string(BoxesLabelsScoresConverter::bbox_size_coordinates_confidence) + " are supported.");
 
     size_t max_proposal_count = boxes_dims[0];
+    if (boxes_dims_size == batched_model_dimentions_size) {
+        max_proposal_count = boxes_dims[1];
+    }
+
     for (size_t i = 0; i < max_proposal_count; ++i) {
 
         const float *bbox_data = boxes_data + i * object_size;
@@ -121,7 +122,7 @@ void BoxesLabelsScoresConverter::parseOutputBlob(const InferenceBackend::OutputB
         }
 
         DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, confidence, label_id, getLabelByLabelId(label_id));
-        objects_table[0].push_back(bbox);
+        objects.push_back(bbox);
     }
 }
 
@@ -129,18 +130,22 @@ TensorsTable BoxesLabelsScoresConverter::convert(const OutputBlobs &output_blobs
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
-        DetectedObjectsTable objects_table(model_input_image_info.batch_size);
+        size_t batch_size = model_input_image_info.batch_size;
+        DetectedObjectsTable objects_table(batch_size);
         const auto &detection_result = getModelProcOutputInfo();
 
         if (detection_result == nullptr)
             throw std::invalid_argument("detection_result tensor is nullptr");
         double roi_scale = 1.0;
         gst_structure_get_double(detection_result.get(), "roi_scale", &roi_scale);
-
         InferenceBackend::OutputBlob::Ptr boxes_blob = output_blobs.at(boxes_layer_name);
         InferenceBackend::OutputBlob::Ptr labels_scores_blob = getLabelsScoresBlob(output_blobs);
-
-        parseOutputBlob(boxes_blob, labels_scores_blob, objects_table, model_input_image_info, roi_scale);
+        for (size_t batch_number = 0; batch_number < batch_size; ++batch_number) {
+            auto &objects = objects_table[batch_number];
+            size_t unbatched_size = boxes_blob->GetSize() / batch_size;
+            parseOutputBlob(reinterpret_cast<const float *>(boxes_blob->GetData()) + unbatched_size * batch_number,
+                            boxes_blob->GetDims(), labels_scores_blob, objects, model_input_image_info, roi_scale);
+        }
 
         return storeObjects(objects_table);
     } catch (const std::exception &e) {

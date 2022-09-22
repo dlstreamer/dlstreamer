@@ -6,8 +6,8 @@
 
 #include "renderer_cpu.h"
 
+#include "render_prim.h"
 #include <inference_backend/buffer_mapper.h>
-#include <opencv2/gapi/render/render.hpp>
 
 namespace {
 template <int n>
@@ -36,30 +36,21 @@ cv::Point2i calc_point_for_u_v_planes(cv::Point2i pt) {
 RendererCPU::~RendererCPU() {
 }
 
-dlstreamer::BufferPtr RendererCPU::buffer_map(dlstreamer::BufferPtr buffer) {
-    auto result = _buffer_mapper->map(buffer, dlstreamer::AccessMode::READ_WRITE);
+dlstreamer::FramePtr RendererCPU::buffer_map(dlstreamer::FramePtr buffer) {
+    auto result = _buffer_mapper->map(buffer, dlstreamer::AccessMode::ReadWrite);
     return result;
 }
 
-void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
+void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<render::Prim> &prims) {
     for (auto &p : prims) {
-        switch (p.index()) {
-        case gapidraw::Prim::index_of<gapidraw::Line>(): {
-            draw_line(image_planes, cv::util::get<gapidraw::Line>(p));
-            break;
-        }
-        case gapidraw::Prim::index_of<gapidraw::Rect>(): {
-            draw_rectangle(image_planes, cv::util::get<gapidraw::Rect>(p));
-            break;
-        }
-        case gapidraw::Prim::index_of<gapidraw::Circle>(): {
-            draw_circle(image_planes, cv::util::get<gapidraw::Circle>(p));
-            break;
-        }
-        case gapidraw::Prim::index_of<gapidraw::Text>(): {
-            draw_text(image_planes, cv::util::get<gapidraw::Text>(p));
-            break;
-        }
+        if (std::holds_alternative<render::Line>(p)) {
+            draw_line(image_planes, std::get<render::Line>(p));
+        } else if (std::holds_alternative<render::Rect>(p)) {
+            draw_rectangle(image_planes, std::get<render::Rect>(p));
+        } else if (std::holds_alternative<render::Circle>(p)) {
+            draw_circle(image_planes, std::get<render::Circle>(p));
+        } else if (std::holds_alternative<render::Text>(p)) {
+            draw_text(image_planes, std::get<render::Text>(p));
         }
     }
 }
@@ -83,14 +74,14 @@ void RendererYUV::draw_rect_y_plane(cv::Mat &y, cv::Point2i pt1, cv::Point2i pt2
     cv::rectangle(y, p1, p2, color, thick);
 }
 
-void RendererI420::draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rect) {
+void RendererI420::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
     check_planes<3>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u = mats[1];
     cv::Mat &v = mats[2];
 
     const cv::Point2i top_left = rect.rect.tl();
-    // align with gapidraw::render behavior
+    // align with render::render behavior
     const cv::Point2i bottom_right = rect.rect.br() - cv::Point2i(1, 1);
 
     const int thick = calc_thick_for_u_v_planes(rect.thick);
@@ -102,7 +93,7 @@ void RendererI420::draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rec
     draw_rect_y_plane(y, top_left, bottom_right, rect.color[0], rect.thick);
 }
 
-void RendererI420::draw_circle(std::vector<cv::Mat> &mats, gapidraw::Circle circle) {
+void RendererI420::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {
     check_planes<3>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u = mats[1];
@@ -114,20 +105,20 @@ void RendererI420::draw_circle(std::vector<cv::Mat> &mats, gapidraw::Circle circ
     cv::circle(v, pos_u_v, circle.radius / 2, circle.color[2], cv::FILLED);
 }
 
-void RendererI420::draw_text(std::vector<cv::Mat> &mats, gapidraw::Text text) {
+void RendererI420::draw_text(std::vector<cv::Mat> &mats, render::Text text) {
     check_planes<3>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u = mats[1];
     cv::Mat &v = mats[2];
 
-    cv::putText(y, text.text, text.org, text.ff, text.fs, text.color[0], text.thick);
+    cv::putText(y, text.text, text.org, text.fonttype, text.fontscale, text.color[0], text.thick);
     cv::Point2i pos_u_v(calc_point_for_u_v_planes(text.org));
     int thick = calc_thick_for_u_v_planes(text.thick);
-    cv::putText(u, text.text, pos_u_v, text.ff, text.fs / 2.0, text.color[1], thick);
-    cv::putText(v, text.text, pos_u_v, text.ff, text.fs / 2.0, text.color[2], thick);
+    cv::putText(u, text.text, pos_u_v, text.fonttype, text.fontscale / 2.0, text.color[1], thick);
+    cv::putText(v, text.text, pos_u_v, text.fonttype, text.fontscale / 2.0, text.color[2], thick);
 }
 
-void RendererI420::draw_line(std::vector<cv::Mat> &mats, gapidraw::Line line) {
+void RendererI420::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     check_planes<3>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u = mats[1];
@@ -142,13 +133,13 @@ void RendererI420::draw_line(std::vector<cv::Mat> &mats, gapidraw::Line line) {
     cv::line(v, pos1_u_v, pos2_u_v, line.color[2], thick);
 }
 
-void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rect) {
+void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
     check_planes<2>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u_v = mats[1];
 
     const cv::Point2i top_left = rect.rect.tl();
-    // align with gapidraw::render behavior
+    // align with render::render behavior
     const cv::Point2i bottom_right = rect.rect.br() - cv::Point2i(1, 1);
 
     cv::rectangle(u_v, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right),
@@ -157,7 +148,7 @@ void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, gapidraw::Rect rec
     draw_rect_y_plane(y, top_left, bottom_right, rect.color[0], rect.thick);
 }
 
-void RendererNV12::draw_circle(std::vector<cv::Mat> &mats, gapidraw::Circle circle) {
+void RendererNV12::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {
     check_planes<2>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u_v = mats[1];
@@ -167,18 +158,18 @@ void RendererNV12::draw_circle(std::vector<cv::Mat> &mats, gapidraw::Circle circ
     cv::circle(u_v, pos_u_v, circle.radius / 2, {circle.color[1], circle.color[2]}, cv::FILLED);
 }
 
-void RendererNV12::draw_text(std::vector<cv::Mat> &mats, gapidraw::Text text) {
+void RendererNV12::draw_text(std::vector<cv::Mat> &mats, render::Text text) {
     check_planes<2>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u_v = mats[1];
 
-    cv::putText(y, text.text, text.org, text.ff, text.fs, text.color[0], text.thick);
+    cv::putText(y, text.text, text.org, text.fonttype, text.fontscale, text.color[0], text.thick);
     cv::Point2i pos_u_v(calc_point_for_u_v_planes(text.org));
-    cv::putText(u_v, text.text, pos_u_v, text.ff, text.fs / 2.0, {text.color[1], text.color[2]},
+    cv::putText(u_v, text.text, pos_u_v, text.fonttype, text.fontscale / 2.0, {text.color[1], text.color[2]},
                 calc_thick_for_u_v_planes(text.thick));
 }
 
-void RendererNV12::draw_line(std::vector<cv::Mat> &mats, gapidraw::Line line) {
+void RendererNV12::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     check_planes<2>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u_v = mats[1];
@@ -189,6 +180,18 @@ void RendererNV12::draw_line(std::vector<cv::Mat> &mats, gapidraw::Line line) {
     cv::line(u_v, pos1_u_v, pos2_u_v, {line.color[1], line.color[2]}, calc_thick_for_u_v_planes(line.thick));
 }
 
-void RendererBGR::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<gapidraw::Prim> &prims) {
-    gapidraw::render(image_planes[0], prims);
+void RendererBGR::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
+    cv::rectangle(mats[0], rect.rect.tl(), rect.rect.br(), rect.color, rect.thick);
+}
+
+void RendererBGR::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {
+    cv::circle(mats[0], circle.center, circle.radius, circle.color, cv::FILLED);
+}
+
+void RendererBGR::draw_text(std::vector<cv::Mat> &mats, render::Text text) {
+    cv::putText(mats[0], text.text, text.org, text.fonttype, text.fontscale, text.color, text.thick);
+}
+
+void RendererBGR::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
+    cv::line(mats[0], line.pt1, line.pt2, line.color, line.thick);
 }

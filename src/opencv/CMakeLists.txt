@@ -4,30 +4,25 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)
 
-find_package(OpenCV COMPONENTS core imgproc highgui)
+find_package(OpenCV COMPONENTS core imgproc)
 
 if (OpenCV_FOUND)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 
-    add_definitions(-DHAVE_OPENCV)
-
+    add_subdirectory(find_contours_opencv)
+    add_subdirectory(object_association_opencv)
     add_subdirectory(tensor_normalize_opencv)
+    add_subdirectory(video_cropscale_opencv)
+    add_subdirectory(watermark_opencv)
+    add_subdirectory(remove_background_opencv)
+    find_package(OpenCL)
+    if (OpenCL_FOUND AND OpenCV_VERSION VERSION_GREATER_EQUAL "4.4")
+        add_definitions(-DDLS_HAVE_OPENCV_UMAT)
+        add_subdirectory(warp_affine_opencv)
+    endif()
 
-    set(TARGET_NAME "dlstreamer_opencv")
-
-    add_library(${TARGET_NAME} SHARED register_elements.cpp)
-    set_target_lib_version(${TARGET_NAME})
-    set_compile_flags(${TARGET_NAME})
-
-    target_link_libraries(${TARGET_NAME}
-    PRIVATE
-        tensor_normalize_opencv
-        ${OpenCV_LIBS}
-        dlstreamer_gst
-        gstvideoanalyticsmeta
-    )
-
-    install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
-
+    add_subdirectory(_plugin/dlstreamer/opencv/elements)
+    add_subdirectory(_gst_plugin)
 endif()

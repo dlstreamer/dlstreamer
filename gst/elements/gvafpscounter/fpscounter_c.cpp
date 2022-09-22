@@ -29,7 +29,7 @@ void fps_counter_create_iterative(const char *intervals) {
         for (const std::string &interval : intervals_list)
             if (not fps_counters.count(interval)) {
                 std::shared_ptr<FpsCounter> fps_counter =
-                    std::shared_ptr<FpsCounter>(new IterativeFpsCounter(std::stoi(interval)));
+                    std::shared_ptr<FpsCounter>(new IterativeFpsCounter(0, std::stoi(interval), false));
                 fps_counters.insert({interval, fps_counter});
             }
     } catch (std::exception &e) {
@@ -37,10 +37,11 @@ void fps_counter_create_iterative(const char *intervals) {
     }
 }
 
-void fps_counter_create_average(unsigned int starting_frame) {
+void fps_counter_create_average(unsigned int starting_frame, unsigned int interval) {
     try {
         if (not fps_counters.count("average"))
-            fps_counters.insert({"average", std::shared_ptr<FpsCounter>(new AverageFpsCounter(starting_frame))});
+            fps_counters.insert(
+                {"average", std::shared_ptr<FpsCounter>(new IterativeFpsCounter(starting_frame, interval, true))});
     } catch (std::exception &e) {
         GVA_ERROR("Error during creation average fpscounter: %s", Utils::createNestedErrorMsg(e).c_str());
     }

@@ -70,6 +70,7 @@ gboolean registerElement(GvaBaseInference *base_inference) {
 void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem, InferenceImpl *inference_impl) {
     assert(targetElem);
     assert(masterElem);
+    UNUSED(inference_impl);
 
     COPY_GSTRING(targetElem->model, masterElem->model);
     COPY_GSTRING(targetElem->device, masterElem->device);

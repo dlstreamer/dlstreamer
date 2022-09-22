@@ -28,7 +28,6 @@ file (GLOB MAIN_HEADERS
 )
 
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
-set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
 
 # FIXME: implicit declaration of tracer functions

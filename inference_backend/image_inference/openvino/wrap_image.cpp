@@ -120,10 +120,10 @@ Blob::Ptr NV12ImageToBlob(const Image &image, const WrapImageStrategy::General &
     std::vector<size_t> dimOffsets = {0, 0, 0, 0};
     const size_t imageWidth = safe_convert<size_t>(image.width);
     const size_t imageHeight = safe_convert<size_t>(image.height);
-    BlockingDesc memY({1, imageHeight, imageWidth, 1}, NHWC, 0, dimOffsets,
-                      {image.offsets[1] + image.stride[0] * imageHeight / 2, image.stride[0], 1, 1});
-    BlockingDesc memUV({1, imageHeight / 2, imageWidth / 2, 2}, NHWC, 0, dimOffsets,
-                       {image.offsets[1] + image.stride[0] * imageHeight / 2, image.stride[1], 2, 1});
+    std::vector<size_t> stridesY = {image.stride[0] * imageHeight, image.stride[0], 1, 1};
+    std::vector<size_t> stridesUV = {image.stride[1] * imageHeight / 2, image.stride[1], 2, 1};
+    BlockingDesc memY({1, imageHeight, imageWidth, 1}, NHWC, 0, dimOffsets, stridesY);
+    BlockingDesc memUV({1, imageHeight / 2, imageWidth / 2, 2}, NHWC, 0, dimOffsets, stridesUV);
     TensorDesc planeY(Precision::U8, {1, 1, imageHeight, imageWidth}, memY);
     TensorDesc planeUV(Precision::U8, {1, 2, imageHeight / 2, imageWidth / 2}, memUV);
 
@@ -164,12 +164,12 @@ Blob::Ptr I420ImageToBlob(const Image &image, const WrapImageStrategy::General &
     std::vector<size_t> dimOffsets = {0, 0, 0, 0};
     const size_t image_width = static_cast<size_t>(image.width);
     const size_t image_height = static_cast<size_t>(image.height);
-    BlockingDesc memY({1, image_height, image_width, 1}, NHWC, 0, dimOffsets,
-                      {image.offsets[1] + image_height * image.stride[0] / 2, image.stride[0], 1, 1});
-    BlockingDesc memU({1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets,
-                      {image.offsets[1] + image_height * image.stride[0] / 2, image.stride[1], 1, 1});
-    BlockingDesc memV({1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets,
-                      {image.offsets[1] + image_height * image.stride[0] / 2, image.stride[2], 1, 1});
+    std::vector<size_t> stridesY = {image.stride[0] * image_height, image.stride[0], 1, 1};
+    std::vector<size_t> stridesU = {image.stride[1] * image_height / 2, image.stride[1], 1, 1};
+    std::vector<size_t> stridesV = {image.stride[2] * image_height / 2, image.stride[2], 1, 1};
+    BlockingDesc memY({1, image_height, image_width, 1}, NHWC, 0, dimOffsets, stridesY);
+    BlockingDesc memU({1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets, stridesU);
+    BlockingDesc memV({1, image_height / 2, image_width / 2, 1}, NHWC, 0, dimOffsets, stridesV);
 
     TensorDesc Y_plane_desc(Precision::U8, {1, 1, image_height, image_width}, memY);
     TensorDesc U_plane_desc(Precision::U8, {1, 1, image_height / 2, image_width / 2}, memU);

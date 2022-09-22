@@ -11,8 +11,8 @@
 #include "config.h"
 #include "utils.h"
 
-#include "dlstreamer/gst/buffer.h"
-#include "dlstreamer/gst/vaapi_context.h"
+#include "dlstreamer/gst/context.h"
+#include "dlstreamer/gst/frame.h"
 #include "inference_backend/buffer_mapper.h"
 #include "inference_impl.h"
 
@@ -93,7 +93,8 @@ enum {
     PROP_DEVICE_EXTENSIONS,
     PROP_INFERENCE_REGION,
     PROP_OBJECT_CLASS,
-    PROP_LABELS
+    PROP_LABELS,
+    PROP_LABELS_FILE
 };
 
 GType gst_gva_base_inference_get_inf_region(void) {
@@ -225,11 +226,9 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     g_object_class_install_property(
         gobject_class, PROP_RESHAPE,
         g_param_spec_boolean("reshape", "Reshape input layer",
-                             "Enable network reshaping.  "
-                             "Use only 'reshape=true' without reshape-width and reshape-height properties "
-                             "if you want to reshape network to the original size of input frames. "
-                             "Note: this feature has a set of limitations. "
-                             "Before use, make sure that your network supports reshaping",
+                             "If true, model input layer will be reshaped to resolution of input frames "
+                             "(no resize operation before inference). "
+                             "Note: this feature has limitations, not all network supports reshaping.",
                              DEFAULT_RESHAPE, param_flags));
 
     g_object_class_install_property(
@@ -248,7 +247,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
             "no-block", "Adaptive inference skipping",
             "(Experimental) Option to help maintain frames per second of incoming stream. Skips inference "
             "on an incoming frame if all inference requests are currently processing outstanding frames",
-            DEFAULT_NO_BLOCK, param_flags));
+            DEFAULT_NO_BLOCK, static_cast<GParamFlags>(param_flags | G_PARAM_DEPRECATED)));
 
     g_object_class_install_property(gobject_class, PROP_NIREQ,
                                     g_param_spec_uint("nireq", "NIReq", "Number of inference requests",
@@ -258,28 +257,23 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     g_object_class_install_property(
         gobject_class, PROP_CPU_THROUGHPUT_STREAMS,
         g_param_spec_uint("cpu-throughput-streams", "CPU-Throughput-Streams",
-                          "Sets the cpu-throughput-streams configuration key for OpenVINO™ Toolkit's "
-                          "cpu device plugin. Configuration allows for multiple inference streams "
-                          "for better performance. Default mode is auto. See OpenVINO™ Toolkit CPU plugin "
-                          "documentation for more details",
+                          "Deprecated. Use ie-config=CPU_THROUGHPUT_STREAMS=<number-streams> instead",
                           DEFAULT_MIN_CPU_THROUGHPUT_STREAMS, DEFAULT_MAX_CPU_THROUGHPUT_STREAMS,
                           DEFAULT_CPU_THROUGHPUT_STREAMS, static_cast<GParamFlags>(param_flags | G_PARAM_DEPRECATED)));
 
     g_object_class_install_property(
         gobject_class, PROP_GPU_THROUGHPUT_STREAMS,
         g_param_spec_uint("gpu-throughput-streams", "GPU-Throughput-Streams",
-                          "Sets the gpu-throughput-streams configuration key for OpenVINO™ Toolkit's "
-                          "gpu device plugin. Configuration allows for multiple inference streams "
-                          "for better performance. Default mode is auto. See OpenVINO™ Toolkit GPU plugin "
-                          "documentation for more details",
+                          "Deprecated. Use ie-config=GPU_THROUGHPUT_STREAMS=<number-streams> instead",
                           DEFAULT_MIN_GPU_THROUGHPUT_STREAMS, DEFAULT_MAX_GPU_THROUGHPUT_STREAMS,
                           DEFAULT_GPU_THROUGHPUT_STREAMS, static_cast<GParamFlags>(param_flags | G_PARAM_DEPRECATED)));
 
     g_object_class_install_property(
         gobject_class, PROP_IE_CONFIG,
         g_param_spec_string("ie-config", "Inference-Engine-Config",
-                            "Comma separated list of KEY=VALUE parameters for Inference Engine configuration", "",
-                            param_flags));
+                            "Comma separated list of KEY=VALUE parameters for Inference Engine configuration. "
+                            "See OpenVINO™ Toolkit documentation for available parameters",
+                            "", param_flags));
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_PROC_CONFIG,
@@ -292,7 +286,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         g_param_spec_string(
             "device-extensions", "ExtensionString",
             "Comma separated list of KEY=VALUE pairs specifying the Inference Engine extension for a device",
-            DEFAULT_DEVICE_EXTENSIONS, param_flags));
+            DEFAULT_DEVICE_EXTENSIONS, static_cast<GParamFlags>(param_flags | G_PARAM_DEPRECATED)));
 
     g_object_class_install_property(
         gobject_class, PROP_INFERENCE_REGION,
@@ -309,10 +303,14 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     g_object_class_install_property(
         gobject_class, PROP_LABELS,
         g_param_spec_string("labels", "Labels",
-                            "Path to file containing model's output layer labels or comma separated list of KEY=VALUE "
-                            "pairs where KEY is name of output layer and VALUE is path to labels file. If provided, "
-                            "labels from model-proc won't be loaded",
-                            DEFAULT_LABELS, param_flags));
+                            "Array of object classes. "
+                            "It could be set as the following example: labels=<label1,label2,label3>",
+                            DEFAULT_LABELS, G_PARAM_WRITABLE));
+
+    g_object_class_install_property(gobject_class, PROP_LABELS_FILE,
+                                    g_param_spec_string("labels-file", "Labels-file",
+                                                        "Path to .txt file containing object classes (one per line)",
+                                                        DEFAULT_LABELS, param_flags));
 }
 
 void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
@@ -542,13 +540,13 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         base_inference->pre_proc_type = g_value_dup_string(value);
         break;
     case PROP_CPU_THROUGHPUT_STREAMS:
-        GST_WARNING("The property <cpu-throughput-streams> is deprecated and should not be used anymore."
-                    "It will be removed in future versions, please use ie-config=CPU_THROUGHPUT_STREAMS=x instead.");
+        GST_WARNING("The property <cpu-throughput-streams> is deprecated and will be removed in future versions, "
+                    "please use ie-config=CPU_THROUGHPUT_STREAMS=x instead.");
         base_inference->cpu_streams = g_value_get_uint(value);
         break;
     case PROP_GPU_THROUGHPUT_STREAMS:
-        GST_WARNING("The property <gpu-throughput-streams> is deprecated and should not be used anymore. "
-                    "It will be removed in future versions, please use ie-config=GPU_THROUGHPUT_STREAMS=x instead.");
+        GST_WARNING("The property <gpu-throughput-streams> is deprecated and will be removed in future versions, "
+                    "please use ie-config=GPU_THROUGHPUT_STREAMS=x instead.");
         base_inference->gpu_streams = g_value_get_uint(value);
         break;
     case PROP_IE_CONFIG:
@@ -572,7 +570,22 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         // It is necessary to update the vector of object classes after possible change of this property
         gva_base_inference_update_object_classes(base_inference);
         break;
-    case PROP_LABELS:
+    case PROP_LABELS: {
+        auto str = g_value_get_string(value);
+        if (str && str[0] == '<') { // if specified as <label1,label2,label3>
+            GValue garr = {};
+            gst_value_deserialize(&garr, str);
+            std::vector<std::string> vec(gst_value_array_get_size(&garr));
+            for (size_t i = 0; i < vec.size(); i++)
+                vec[i] = g_value_get_string((gst_value_array_get_value(&garr, i)));
+            auto vec_str = Utils::join(vec.begin(), vec.end());
+            gva_base_inference_set_labels(base_inference, vec_str.data());
+            g_value_unset(&garr);
+        } else {
+            gva_base_inference_set_labels(base_inference, str);
+        }
+    } break;
+    case PROP_LABELS_FILE:
         gva_base_inference_set_labels(base_inference, g_value_get_string(value));
         break;
     default:
@@ -644,7 +657,7 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_OBJECT_CLASS:
         g_value_set_string(value, base_inference->object_class);
         break;
-    case PROP_LABELS:
+    case PROP_LABELS_FILE:
         g_value_set_string(value, base_inference->labels);
         break;
     default:
@@ -720,7 +733,8 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
 
             // Try to query VADisplay from decoder
             try {
-                base_inference->priv->va_display = std::make_shared<dlstreamer::GSTVAAPIContext>(trans);
+                base_inference->priv->va_display =
+                    std::make_shared<dlstreamer::GSTContextQuery>(trans, dlstreamer::MemoryType::VAAPI);
                 GST_INFO_OBJECT(trans, "Got VADisplay (%p) from query", base_inference->priv->va_display.get());
             } catch (...) {
                 GST_WARNING_OBJECT(trans, "Couldn't query VADisplay from gstreamer-vaapi elements. Possible reason: "

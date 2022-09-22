@@ -1,13 +1,13 @@
 Install Guide RHEL
 ===================
 
-For Red Hat Enterprise Linux 8, Intel® Deep Learning Streamer (Intel® DL Streamer) can be built from the source code provided in this
+For Red Hat Enterprise Linux 8, Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework can be built from the source code provided in this
 repository as Docker image.
 
-Compile Intel DL Streamer as Docker image
+Compile Intel® DL Streamer Pipeline Framework as Docker image
 -----------------------------------------
 
-To be able to create Intel DL Streamer Docker image, **activated RHEL Docker image is required**.
+To be able to create Intel® DL Streamer Pipeline Framework Docker image, **activated RHEL Docker image is required**.
 
 Step 1: Install Docker CE (if not installed)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -54,7 +54,7 @@ the steps above.
 Step 4: Run Docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Some Intel DL Streamer samples use display to render results.
+Some Pipeline Framework samples use display to render results.
 In order to allow connection from Docker container to host X server run the following commands.
 
 .. code:: sh
@@ -100,7 +100,7 @@ the Docker run command:
 - Entrypoint of the Docker is by default ``/opt/intel/dlstreamer/samples``.
 
 
-Inside Docker image you can find Intel DL Streamer samples at the entrypoint.
+Inside Docker image you can find Pipeline Framework samples at the entrypoint.
 Before using the samples, run the script ``download_models.sh`` (located
 in ``samples`` folder) to download the models required for samples.
 

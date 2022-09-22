@@ -1,11 +1,11 @@
 Install Guide Windows (Preview)
 ===============================
 
-Building Intel® Deep Learning Streamer (Intel® DL Streamer) from the source code provided in this
+Building Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework from the source code provided in this
 repository may be performed either on host system or as a Docker image.
 
-Option 1: Compile Intel DL Streamer from sources on host system
----------------------------------------------------------------
+Option 1: Compile Intel DL Streamer Pipeline Framework from sources on host system
+----------------------------------------------------------------------------------
 
 .. note::
    These instructions are verified on Windows 10 Version 1909 and Windows 11 Version 10.0.22000.
@@ -107,10 +107,10 @@ OpenVINO™ Toolkit development environment:
    @REM Setup environment
    "C:\Program Files (x86)\Intel\openvino_2022\setupvars.bat"
 
-Step 4: Build Intel DL Streamer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 4: Build Intel® DL Streamer Pipeline Framework
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-With all dependencies installed, proceed to build Intel DL Streamer:
+With all dependencies installed, proceed to build Pipeline Framework:
 
 .. code:: bat
 
@@ -128,10 +128,10 @@ With all dependencies installed, proceed to build Intel DL Streamer:
    @REM Setup env variables with script
    %USERPROFILE%\intel\dlstreamer_gst\scripts\setup_env.bat
    
-   @REM Verify GStreamer and Intel® DL Streamer plugins are now available
+   @REM Verify GStreamer and Intel® DL Streamer Pipeline Framework plugins are now available
    gst-inspect-1.0 gvadetect
 
-Intel DL Streamer is now ready to use!
+Pipeline Framework is now ready to use!
 
 You can find samples in folder
 ``%USERPROFILE%\intel\dlstreamer_gst\samples``. Before using the
@@ -143,7 +143,7 @@ folder) to download the models required for samples.
    command line. As an option, you can set them in system "Environment
    Variables" settings.
 
-Option 2: Compile Intel DL Streamer as Docker image
+Option 2: Compile Intel® DL Streamer Pipeline Framework as Docker image
 ---------------------------------------------------
 
 Step 1: Install Docker Desktop (if not installed)

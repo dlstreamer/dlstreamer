@@ -10,7 +10,7 @@
 #include <unordered_map>
 
 #include "itracker.h"
-#include <dlstreamer/buffer_mapper.h>
+#include <dlstreamer/base/memory_mapper.h>
 #include <dlstreamer/context.h>
 
 #include <vas/ot.h>
@@ -20,10 +20,10 @@ namespace VasWrapper {
 class Tracker : public ITracker {
   public:
     Tracker(const std::string &device, vas::ot::TrackingType tracking_type, vas::ColorFormat in_color,
-            const std::string &config_kv, dlstreamer::BufferMapperPtr mapper, dlstreamer::ContextPtr context);
+            const std::string &config_kv, dlstreamer::MemoryMapperPtr mapper, dlstreamer::ContextPtr context);
     ~Tracker() = default;
 
-    void track(dlstreamer::BufferPtr buffer, GVA::VideoFrame &frame_meta) override;
+    void track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_meta) override;
 
   private:
     std::unique_ptr<class TrackerBackend> _impl;

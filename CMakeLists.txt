@@ -18,9 +18,8 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Define version
-
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 6)
+set(VERSION_MINOR 7)
 set(VERSION_PATCH 0)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
@@ -36,14 +35,13 @@ set(PLUGIN_VERSION ${PRODUCT_VERSION}.${GIT_INFO})
 # Propagate version to plugins
 
 add_definitions(-DPLUGIN_VERSION="${PLUGIN_VERSION}")
-add_definitions(-DPACKAGE="gst-video-analytics")
-add_definitions(-DPACKAGE_NAME="Intel\(R\) Deep Learning Streamer \(Intel\(R\) DL Streamer\) elements")
+add_definitions(-DPACKAGE="dlstreamer")
+add_definitions(-DPACKAGE_NAME="Intel\(R\) DL Streamer elements")
 add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/dlstreamer/dlstreamer")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
-add_definitions(-DPRODUCT_FULL_NAME="Intel\(R\) Deep Learning Streamer \(Intel\(R\) DL Streamer\)")
+add_definitions(-DPRODUCT_FULL_NAME="Intel\(R\) DL Streamer")
 
 # Helper macros and functions
-
 macro(find_IE_package)
     set(IE_MIN_VERSION "2021.4.0")
     find_package(InferenceEngine REQUIRED)
@@ -55,15 +53,6 @@ macro(find_IE_package)
         endif()
     endif()
 endmacro(find_IE_package)
-
-macro(set_target_lib_version TARGET)
-    set_target_properties(
-        ${TARGET}
-        PROPERTIES
-        SOVERSION ${VERSION_MAJOR}
-        VERSION ${PRODUCT_VERSION}
-    )
-endmacro(set_target_lib_version)
 
 function (set_compile_flags TARGET)
     target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:C>:${C_FLAGS}> $<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>)
@@ -97,7 +86,6 @@ function(download_and_verify URL TARGET TARGET_NAME)
 endfunction(download_and_verify)
 
 # Set output paths
-
 if (NOT(BIN_FOLDER))
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
         set(BIN_FOLDER intel64)
@@ -117,39 +105,25 @@ set (DLSTREAMER_PLUGINS_INSTALL_PATH ${DLSTREAMER_LIBRARIES_INSTALL_PATH}/gstrea
 set (DLSTREAMER_HEADERS_INSTALL_PATH include)
 
 # include and lib folders of this project
-set (DLSTREAMER_BASE_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set (DLSTREAMER_INCLUDE_DIRS ${DLSTREAMER_BASE_INCLUDE_DIR}/gst-libs)
+set (DLSTREAMER_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set (DLSTREAMER_INCLUDE_DIRS ${DLSTREAMER_BASE_DIR}/gst-libs)
 set (DLSTREAMER_LIBRARIES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 # Options
 
 include(CMakeDependentOption)
 
+option(ENABLE_SAMPLES "Parameter to enable samples building" ON)
 cmake_dependent_option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON "UNIX" OFF)
-
 cmake_dependent_option(ENABLE_ITT "Enable ITT for tracing" ON "UNIX AND NOT ${CMAKE_SYSTEM_PROCESSOR} STREQUAL aarch64" OFF)
-
-cmake_dependent_option(ENABLE_VAAPI "Parameter to enable VAAPI for image pre-processing" OFF "UNIX" OFF)
-
-option(ENABLE_VPUX "Enables VPUX specific features" OFF)
-
+cmake_dependent_option(ENABLE_VAAPI "Parameter to enable VAAPI for image pre-processing" ON "UNIX" OFF)
 cmake_dependent_option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF "UNIX" OFF)
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
+option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
+option(ENABLE_VPUX "Enables VPUX specific features" OFF)
+
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
-
-option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
-
-option(ENABLE_SAMPLES "Parameter to enable samples building" ON)
-
-# Identify optional packages
-
-find_package(OpenCL)
-if (OpenCL_FOUND)
-add_definitions(-DDLS_HAVE_OPENCL)
-else()
-message("OpenCL not found. OpenCL-based elements won't be available.")
-endif()
 
 # Define compiler flags
 
@@ -194,6 +168,8 @@ endif()
 
 configure_file(cmake/config.h.in configs/config.h @ONLY)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/configs)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_CONFIG_H")
 
 # Code coverage
 
@@ -207,7 +183,7 @@ link_directories(${GSTREAMER_LIBRARY_DIRS})
 
 # Add subdirectories
 
-add_subdirectory(dlstreamer)
+add_subdirectory(include/dlstreamer)
 if(NOT(WIN32))
     add_subdirectory(src)
 endif()
@@ -219,5 +195,8 @@ add_subdirectory(utils)
 add_subdirectory(python)
 
 if(${ENABLE_SAMPLES})
-    add_subdirectory(samples)
+    add_subdirectory(samples/gstreamer)
+    add_subdirectory(samples/ffmpeg_openvino/cpp/decode_inference)
+    add_subdirectory(samples/ffmpeg_openvino/cpp/decode_resize_inference)
+    add_subdirectory(samples/ffmpeg_dpcpp/rgb_to_grayscale)
 endif()

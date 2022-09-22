@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -63,19 +63,20 @@ void RGBtoYUVColorConverter::convert_colors_rgb_to_yuv(double Kr, double Kb, con
     }
 }
 
-std::shared_ptr<ColorConverter>
-create_color_converter(dlstreamer::FourCC format, const std::vector<Color> &rgb_color_table, double Kr, double Kb) {
+std::shared_ptr<ColorConverter> create_color_converter(dlstreamer::ImageFormat format,
+                                                       const std::vector<Color> &rgb_color_table, double Kr,
+                                                       double Kb) {
     switch (format) {
-    case dlstreamer::FOURCC_BGR:
-    case dlstreamer::FOURCC_BGRX:
-    case dlstreamer::FOURCC_BGRP:
+    case dlstreamer::ImageFormat::BGR:
+    case dlstreamer::ImageFormat::BGRX:
+    case dlstreamer::ImageFormat::BGRP:
         return std::make_shared<RGBtoBGRColorConverter>(RGBtoBGRColorConverter(rgb_color_table));
-    case dlstreamer::FOURCC_RGB:
-    case dlstreamer::FOURCC_RGBX:
-    case dlstreamer::FOURCC_RGBP:
+    case dlstreamer::ImageFormat::RGB:
+    case dlstreamer::ImageFormat::RGBX:
+    case dlstreamer::ImageFormat::RGBP:
         return std::make_shared<SaveOriginalColorConverter>(SaveOriginalColorConverter());
-    case dlstreamer::FOURCC_NV12:
-    case dlstreamer::FOURCC_I420:
+    case dlstreamer::ImageFormat::NV12:
+    case dlstreamer::ImageFormat::I420:
         return std::make_shared<RGBtoYUVColorConverter>(RGBtoYUVColorConverter(rgb_color_table, Kr, Kb));
     }
 

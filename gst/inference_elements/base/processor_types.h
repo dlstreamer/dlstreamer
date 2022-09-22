@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,10 +8,10 @@
 
 #ifdef __cplusplus
 
-#include "common/input_model_preproc.h"
 #include "common/post_processor.h"
 #include "inference_backend/image_inference.h"
 #include "inference_backend/input_image_layer_descriptor.h"
+#include "input_model_preproc.h"
 
 #include <gst/gst.h>
 #include <gst/video/video.h>

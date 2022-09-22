@@ -1,8 +1,17 @@
 # ==============================================================================
-# Copyright (C) 2021-2022 Intel Corporation
+# Copyright (C) 2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-add_subdirectory(tensor_inference_openvino)
-add_subdirectory(tensor_inference_openvino2)
+cmake_minimum_required(VERSION 3.12)
+
+find_package(OpenVINO COMPONENTS Runtime)
+if (OpenVINO_FOUND)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
+
+    add_subdirectory(tensor_inference_openvino)
+
+    add_subdirectory(_plugin/dlstreamer/openvino/elements)
+    add_subdirectory(_gst_plugin)
+endif() # OpenVINO_FOUND

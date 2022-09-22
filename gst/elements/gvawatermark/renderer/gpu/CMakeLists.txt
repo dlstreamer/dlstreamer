@@ -12,7 +12,7 @@ string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 set (TARGET_NAME "gpurenderer")
 
-find_package(OpenCV REQUIRED core gapi)
+find_package(OpenCV REQUIRED core)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
@@ -32,7 +32,6 @@ file (GLOB HEADERS
         )
 
 add_library(${TARGET_NAME} SHARED ${SRC} ${HEADERS})
-set_target_lib_version(${TARGET_NAME})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}

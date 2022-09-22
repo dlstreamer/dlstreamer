@@ -23,20 +23,19 @@ Overview
 A model-proc file is a regular JSON file with pre- and post-processing
 configuration.
 
-As an example of what it can look like, model-proc file for emotions
-recognition model is shown in the code snippet below.
+As an example implementation, see the model-proc file for the emotions
+recognition model shown in the code snippet below.
 
-``input_preproc`` set to ``[]`` says that images don’t need to be
-pre-processed with custom means before inference. They’ll be resized
+``input_preproc`` set to ``[]`` indicates that images do not need to be
+pre-processed with custom means before inference. They will be resized
 without aspect-ratio preservation and their color space will be changed
 to BGR.
 
-``output_postproc`` says that inference result is one of the strings
+``output_postproc`` says that the inference result is one of the strings
 listed in ``"labels"``.
 
-Also see `this
-folder <https://github.com/dlstreamer/dlstreamer/tree/master/samples/model_proc>`__
-for examples of .json files for various models from `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__ and some
+See the `samples/model_proc <https://github.com/dlstreamer/dlstreamer/tree/master/samples/model_proc>`__
+for examples of .json files using various models from `Open Model Zoo <https://github.com/openvinotoolkit/open_model_zoo>`__ and some
 public models.
 
 .. code:: javascript
@@ -62,7 +61,7 @@ public models.
 
 This file has specific fields:
 
-* ``json_schema_version``. Service information needed by Intel® Deep Learning Streamer (Intel® DL Streamer). **The latest version should be used: 2.2.0**. 
+* ``json_schema_version``. Service information needed by Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework. **The latest version should be used: 2.2.0**. 
 * ``input_preproc``. Describes how to process an input tensor before inference. 
 * ``output_postproc``. Describes how to process inference results.
 
@@ -105,7 +104,7 @@ should be described in a key-value format. Valid keys for
      - | image,
        | image_info,
        | sequence_index
-     - Input format for layer with specified name. In other words: "What to pre-process?". Can be one of the following:       
+     - Input format for the layer with the specified name. In other words: "What to pre-process?". Can be one of the following:       
        
        * *image* - pre-process images;
        * *image_info* - pre-process additional layer with image info;
@@ -143,19 +142,19 @@ should be described in a key-value format. Valid keys for
    * - params
      - range
      - [ 0.0, 1.0 ]
-     - Normalize input image values to be in specified range.
+     - Normalize input image values to be in the specified range.
      - | opencv,
        | vaapi
    * - params
      - mean
      - [ 0.485, 0.456, 0.406 ]
-     - JSON arrays of doubles. Size of arrays should be equal to number of channels of input image.
+     - JSON arrays of doubles. Size of arrays should be equal to the number of channels of the input image.
      - | opencv,
        | vaapi
    * - params
      - std
      - [ 0.229, 0.224, 0.225 ]
-     - JSON arrays of doubles. Size of arrays should be equal to number of channels of input image.
+     - JSON arrays of doubles. Size of arrays should be equal to the number of channels of the input image.
      - | opencv,
        | vaapi
    * - params
@@ -165,7 +164,7 @@ should be described in a key-value format. Valid keys for
        |   "stride_y": 8,
        |   "fill_value": [0.0, 0.0, 0.0]
        | }
-     - A JSON object with following keys:
+     - A JSON object with the following keys:
        
        * stride in pixels from image boundaries (also can be set with *stride_x* and *stride_y*);
        * and *fill_value* with color to fill (in target color format).
@@ -241,11 +240,11 @@ Post-processing is described in the similar to pre-processing fashion by
 the ``output_postproc`` key. The key should contain an array of JSON
 objects with post-processing configuration. Each object describes
 operations for one output layer. This array can be empty for models with
-one output layer. In that case, Intel DL Streamer will detect the name of the
-output layer and set a default converter for specified Intel DL Streamer
+one output layer. In that case, Pipeline Framework will detect the name of the
+output layer and set a default converter for specified Pipeline Framework
 inference element.
 
-Intel DL Streamer uses converters to transform output blob into suitable form.
+Pipeline Framework uses converters to transform output blob into suitable form.
 Currently several converters are supported and its usage depends on what
 model was used (whether detection, classification, or any other model).
 
@@ -291,21 +290,21 @@ converter can be applied.
    * - **For gvadetect**:
      -
      -
-   * - `detection_output <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/face-detection-retail-0004.json>`__
+   * - `detection_output <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/face-detection-retail-0004.json>`__
      - Parse output blob produced by object detection neural network with *DetectionOutput* IR output layer's type. Output is RegionOfInterest.
        
        *labels* - an array of strings representing labels or a path to a file with labels where each label is on a new line.
      - `mobilnet-ssd <https://docs.openvino.ai/latest/omz_models_model_mobilenet_ssd.html#output>`__
      
        `person-vehicle-bike-detection-crossroad-0078 <https://docs.openvino.ai/latest/omz_models_model_person_vehicle_bike_detection_crossroad_0078.html#outputs>`__
-   * - `boxes_labels <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/face-detection-0205.json>`__
+   * - `boxes_labels <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/face-detection-0205.json>`__
      - Parse output blob produced by object detection neural network with two output layers: *boxes* and *labels*. Output is RegionOfInterest.
        
        *labels* - an array of strings representing labels or a path to a file with labels where each label is on a new line.
      - `face-detection-0205 <https://docs.openvino.ai/latest/omz_models_model_face_detection_0205.html#outputs>`__
      
        `person-vehicle-bike-detection-2004 <https://docs.openvino.ai/latest/omz_models_model_person_vehicle_bike_detection_2004.html#outputs>`__
-   * - `yolo_v2 <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/yolo-v2-tf.json>`__
+   * - `yolo_v2 <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/yolo-v2-tf.json>`__
      - Parse output blob produced by object detection neural network with YOLO v2 architecture. Output is RegionOfInterest.
      
        * *labels* - an array of strings representing labels or a path to a file with labels where each label is on a new line;
@@ -317,7 +316,7 @@ converter can be applied.
      - `yolo-v2-tf <https://docs.openvino.ai/latest/omz_models_model_yolo_v2_tf.html#output>`__
      
        `yolo-v2-tiny-tf <https://docs.openvino.ai/latest/omz_models_model_yolo_v2_tiny_tf.html#output>`__
-   * - `yolo_v3 <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/yolo-v3-tf.json>`__
+   * - `yolo_v3 <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/yolo-v3-tf.json>`__
      - Parse output blob produced by object detection neural network with YOLO v3 architecture.
        
        * *labels* - an array of strings representing labels or a path to a file with labels where each label is on a new line;
@@ -336,13 +335,13 @@ converter can be applied.
    * - **For gvaclassify**:
      -
      -
-   * - `text <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/age-gender-recognition-retail-0013.json>`__
+   * - `text <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/age-gender-recognition-retail-0013.json>`__
      - Transform output tensor to text.
      
        * *text_scale* - scales data by this number;
        * *text_precision* - sets precision for textual representation.
      - `age-gender-recognition-retail-0013 <https://docs.openvino.ai/latest/omz_models_model_age_gender_recognition_retail_0013.html#outputs>`__
-   * - `label <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json>`__
+   * - `label <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json>`__
      - Put an appropriate label for result.
        
        * *method*: one of [*max*, *index*, *compound* (threshold is required. 0.5 is default)];
@@ -352,13 +351,13 @@ converter can be applied.
        `license-plate-recognition-barrier-0001 <https://docs.openvino.ai/latest/omz_models_model_license_plate_recognition_barrier_0001.html#outputs>`__
        
        `person-attributes-recognition-crossroad-0230 <https://docs.openvino.ai/latest/omz_models_model_person_attributes_recognition_crossroad_0230.html#outputs>`__
-   * - `keypoints_hrnet <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/single-human-pose-estimation-0001.json>`__
+   * - `keypoints_hrnet <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/single-human-pose-estimation-0001.json>`__
      - Parse output blob produced by network with HRNet architecture. Output tensor will have an array of key points.
        
        * *point_names* - an array of strings with the name of the points;
        * *point_connections* - an array of strings with points connection. The length should be even.
      - `single-human-pose-estimation-0001 <https://docs.openvino.ai/latest/omz_models_model_single_human_pose_estimation_0001.html#outputs>`__
-   * - `keypoints_openpose <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/human-pose-estimation-0001.json>`__
+   * - `keypoints_openpose <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/human-pose-estimation-0001.json>`__
      - Parse output blob produced by network with OpenPose architecture. Output tensor will have an array of key points.
        
        * *point_names* - an array of strings with the name of the points;
@@ -373,7 +372,7 @@ converter can be applied.
    * - **For gvaaudiodetect**:
      -
      -
-   * - `audio_labels <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/aclnet.json>`__
+   * - `audio_labels <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/aclnet.json>`__
      - Output tensor - audio detections tensor.
        
        * *layer_name* - name of the layer to process;
@@ -387,11 +386,10 @@ converter can be applied.
 Example
 ^^^^^^^
 
-Example of what ``output_postproc`` and its parameters can look like are
-in the code snippet below.
+See an example of what ``output_postproc`` and its parameters can look in the code snippet below.
 
 .. note::
-  This configuration can't be used for any model.
+  This configuration cannot be used for any model.
 
 .. code:: javascript
 

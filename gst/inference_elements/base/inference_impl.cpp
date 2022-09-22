@@ -18,7 +18,7 @@
 #include "inference_backend/logger.h"
 #include "inference_backend/pre_proc.h"
 #include "logger_functions.h"
-#include "model_proc/model_proc_provider.h"
+#include "model_proc_provider.h"
 #include "region_of_interest.h"
 #include "safe_arithmetic.hpp"
 #include "scope_guard.h"
@@ -177,7 +177,7 @@ bool DoesModelProcDefinePreProcessing(const std::vector<ModelInputProcessorInfo:
 
 bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
                                   GstVideoInfo *input_video_info) {
-    auto format = dlstreamer::gst_format_to_fourcc(GST_VIDEO_INFO_FORMAT(input_video_info));
+    auto format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(input_video_info));
     for (const auto &it : model_input_processor_info) {
         if (!it || it->format != "image")
             continue;
@@ -186,7 +186,7 @@ bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr
         // VAAPI converts color to RGBP by default
         if (input_desc && (input_desc->doNeedDistribNormalization() || input_desc->doNeedRangeNormalization() ||
                            (input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
-                            input_desc->doNeedColorSpaceConversion(format))))
+                            input_desc->doNeedColorSpaceConversion(static_cast<int>(format)))))
             return false;
     }
     return true;
@@ -546,7 +546,7 @@ void InferenceImpl::PushOutput() {
             break; // inference not completed yet
         }
 
-        for (const std::shared_ptr<InferenceFrame> inference_roi : front.inference_rois) {
+        for (const std::shared_ptr<InferenceFrame> &inference_roi : front.inference_rois) {
             for (const GstStructure *roi_classification : inference_roi->roi_classifications) {
                 UpdateClassificationHistory(&inference_roi->roi, front.filter, roi_classification);
             }
@@ -598,12 +598,12 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
         if (!gva_base_inference || !gva_base_inference->priv)
             throw std::invalid_argument("GvaBaseInference is null");
         if (!gva_base_inference->priv->buffer_mapper)
-            throw std::invalid_argument("BufferMapper is null");
+            throw std::invalid_argument("Mapper is null");
         if (!buffer)
             throw std::invalid_argument("GstBuffer is null");
 
         auto &buf_mapper = *gva_base_inference->priv->buffer_mapper;
-        assert(buf_mapper.memoryType() == GetInferenceMemoryType() && "BufferMapper mem type =/= inference mem type");
+        assert(buf_mapper.memoryType() == GetInferenceMemoryType() && "Mapper mem type =/= inference mem type");
 
         /* we invoke CreateImage::gva_buffer_map::gst_video_frame_map with
          * GST_VIDEO_FRAME_MAP_FLAG_NO_REF to avoid refcount increase.

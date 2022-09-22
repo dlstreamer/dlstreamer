@@ -27,15 +27,15 @@ gst-inspect-1.0 utility
    * - :doc:`gvatrack <gvatrack>`
      - Performs object tracking using zero-term or short-term tracking algorithms. Zero-term tracking assigns unique object IDs and requires object detection to run on every frame. Short-term tracking allows to track objects between frames, thereby  reducing the need to run object detection on each frame.
 
-   * - :doc:`gvametaaggregate <gvametaaggregate>`
-     - Aggregates inference results from multiple pipeline branches.
-
    * - :doc:`gvametaconvert <gvametaconvert>`
      - Converts the metadata structure to the JSON format.
 
    * - :doc:`gvametapublish <gvametapublish>`
      - Publishes the JSON metadata to MQTT or Kafka message brokers or files.
 
+   * - :doc:`gvametaaggregate <gvametaaggregate>`
+     - Aggregates inference results from multiple pipeline branches.
+     
    * - :doc:`gvapython <gvapython>`
      - Provides a callback to execute user-defined Python functions on every frame. Can be used for metadata conversion, inference post-processing, and other tasks.
 
@@ -45,22 +45,19 @@ gst-inspect-1.0 utility
    * - :doc:`gvafpscounter <gvafpscounter>`
      - Measures frames per second across multiple streams in a single process.
 
-   * - :doc:`gvaactionrecognitionbin <../dev_guide/preview_features/action_recognition>`
-     - Performs full-frame action recognition inference using action-recognition-0001’s/driver-action-recognition-adas-0002’s encoder and decoder models.
-
 
 .. toctree::
    :maxdepth: 1
    :hidden:
 
-   gvainference
    gvadetect
    gvaclassify
+   gvainference
+   gvaaudiodetect
    gvatrack
    gvametaconvert
    gvametapublish
    gvametaaggregate
-   gvaaudiodetect
-   gvafpscounter
    gvapython
    gvawatermark
+   gvafpscounter

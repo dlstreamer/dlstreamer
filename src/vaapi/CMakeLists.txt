@@ -4,29 +4,16 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)
 
-add_subdirectory(video_preproc_vaapi)
+find_package(PkgConfig)
+pkg_search_module(VA va libva)
+if (VA_FOUND)
+    include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 
-set(TARGET_NAME "dlstreamer_vaapi")
+    add_subdirectory(vaapi_sync)
+    add_subdirectory(video_preproc_vaapi)
 
-file(GLOB MAIN_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-)
-
-file(GLOB MAIN_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-)
-
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
-set_target_lib_version(${TARGET_NAME})
-set_compile_flags(${TARGET_NAME})
-
-target_link_libraries(${TARGET_NAME}
-PRIVATE
-    video_preproc_vaapi
-    dlstreamer_gst
-    gstvideoanalyticsmeta
-)
-
-install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+    add_subdirectory(_plugin/dlstreamer/vaapi/elements)
+    add_subdirectory(_gst_plugin)
+endif()

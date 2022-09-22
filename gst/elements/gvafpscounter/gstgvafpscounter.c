@@ -198,7 +198,7 @@ static gboolean gst_gva_fpscounter_start(GstBaseTransform *trans) {
     if (gvafpscounter->write_pipe) {
         fps_counter_create_writepipe(gvafpscounter->write_pipe);
     } else {
-        fps_counter_create_average(gvafpscounter->starting_frame);
+        fps_counter_create_average(gvafpscounter->starting_frame, 1);
         fps_counter_create_iterative(gvafpscounter->interval);
         if (gvafpscounter->read_pipe) {
             fps_counter_create_readpipe(gvafpscounter, gvafpscounter->read_pipe);
@@ -219,20 +219,18 @@ gboolean gst_gva_fpscounter_sink_event(GstBaseTransform *trans, GstEvent *event)
 
 void gst_gva_fpscounter_dispose(GObject *object) {
     GstGvaFpscounter *gvafpscounter = GST_GVA_FPSCOUNTER(object);
-
     GST_DEBUG_OBJECT(gvafpscounter, "dispose");
 
-    /* clean up as possible.  may be called multiple times */
+    fps_counter_eos();
 
     G_OBJECT_CLASS(gst_gva_fpscounter_parent_class)->dispose(object);
 }
 
 void gst_gva_fpscounter_finalize(GObject *object) {
     GstGvaFpscounter *gvafpscounter = GST_GVA_FPSCOUNTER(object);
-
     GST_DEBUG_OBJECT(gvafpscounter, "finalize");
 
-    /* clean up object here */
+    fps_counter_eos();
     gst_gva_fpscounter_cleanup(gvafpscounter);
 
     G_OBJECT_CLASS(gst_gva_fpscounter_parent_class)->finalize(object);

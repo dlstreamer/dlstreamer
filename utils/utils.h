@@ -120,20 +120,6 @@ uint32_t GetChannelsCount(int fourcc) noexcept;
  */
 bool checkAllKeysAreKnown(const std::set<std::string> &known_keys, const std::map<std::string, std::string> &config);
 
-/**
- * @return the process ID (PID) of the calling process.
- */
-int getProcessId();
-
-/**
- * Searches for processes which have an open file descriptor to the given file.
- *
- * @param file_name path to a file
- * @param access_mode can be "w", "r", "rw" (read or write)
- * @return count of processes which access the file with the given access mode
- */
-int getOpenedByProcessesDescriptorsCount(const std::string &file_name, const std::string &access_mode);
-
 /*
  * @brief Trims path and replaces leading ~ symbol with the HOME path
  *

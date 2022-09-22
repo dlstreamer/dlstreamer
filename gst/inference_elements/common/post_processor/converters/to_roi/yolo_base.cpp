@@ -7,6 +7,7 @@
 #include "yolo_base.h"
 #include "yolo_v2.h"
 #include "yolo_v3.h"
+#include "yolo_v5.h"
 
 #include "inference_backend/image_inference.h"
 #include "inference_backend/logger.h"
@@ -319,6 +320,17 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(BlobToMetaConverter::Initiali
                                                    outputs_info, dims_layout, initializer.input_image_info);
 
             return BlobToMetaConverter::Ptr(new YOLOv3Converter(std::move(initializer), confidence_threshold,
+                                                                iou_threshold, yolo_initializer, masks));
+        }
+        if (converter_name == YOLOv5Converter::getName()) {
+            const auto masks =
+                YOLOv5Converter::getMask(model_proc_output_info, bbox_number_on_cell,
+                                         std::min(cells_number.first, cells_number.second), outputs_info.size());
+
+            YOLOv5Converter::checkModelProcOutputs(cells_number, bbox_number_on_cell, classes_number, masks,
+                                                   outputs_info, dims_layout, initializer.input_image_info);
+
+            return BlobToMetaConverter::Ptr(new YOLOv5Converter(std::move(initializer), confidence_threshold,
                                                                 iou_threshold, yolo_initializer, masks));
         }
     } catch (const std::exception &e) {

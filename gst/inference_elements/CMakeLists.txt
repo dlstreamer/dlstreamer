@@ -78,19 +78,18 @@ PRIVATE
     ${GSTVIDEO_LIBRARIES}
     ${GSTALLOC_LIBRARIES}
     ${OpenCV_LIBS}
-    dlstreamer_gst
+    dlstreamer_api
     common
     image_inference
     image_inference_openvino
     pre_proc
     opencv_pre_proc
     logger
-    json-hpp
-    json-schema-validator
 PUBLIC
     ${InferenceEngine_LIBRARIES}
     runtime_feature_toggling
     common
+    model_proc
 )
 
 if(${ENABLE_VAAPI})

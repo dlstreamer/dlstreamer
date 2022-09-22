@@ -4,10 +4,11 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "tensor_normalize_opencv.h"
-#include "dlstreamer/buffer_mappers/mapper_chain.h"
-#include "dlstreamer/opencv/buffer.h"
-#include "dlstreamer/utils.h"
+#include "dlstreamer/opencv/elements/tensor_normalize_opencv.h"
+#include "dlstreamer/base/transform.h"
+#include "dlstreamer/cpu/frame_alloc.h"
+#include "dlstreamer/memory_mapper_factory.h"
+#include "dlstreamer/opencv/tensor.h"
 
 namespace dlstreamer {
 
@@ -18,83 +19,55 @@ static constexpr auto std = "std";
 }; // namespace param
 
 static ParamDescVector params_desc = {
-    {param::range, "Normalization range in MIN,MAX string format, example: 0.0,1.0", ""},
-    {param::mean, "Comma-separated mean values per channel, example: 0.485,0.456,0.406", ""},
-    {param::std, "Comma-separated standard deviation values per channel, example: 0.229,0.224,0.225", ""},
+    {param::range, "Normalization range MIN, MAX. Example: <0,1>", std::vector<double>()},
+    {param::mean, "Mean values per channel. Example: <0.485,0.456,0.406>", std::vector<double>()},
+    {param::std, "Standard deviation values per channel. Example: <0.229,0.224,0.225>", std::vector<double>()},
 };
 
-class TensorNormalizeOpenCV : public TransformWithAlloc {
+class TensorNormalizeOpenCV : public BaseTransform {
   public:
-    TensorNormalizeOpenCV(ITransformController &transform_ctrl, DictionaryCPtr params)
-        : TransformWithAlloc(transform_ctrl, std::move(params)) {
-        _range = string_to_float_array(_params->get<std::string>(param::range, ""));
-        _mean = string_to_float_array(_params->get<std::string>(param::mean, ""));
-        _std = string_to_float_array(_params->get<std::string>(param::std, ""));
+    TensorNormalizeOpenCV(DictionaryCPtr params, const ContextPtr &app_context) : BaseTransform(app_context) {
+        _range = params->get<std::vector<double>>(param::range, {});
+        _mean = params->get<std::vector<double>>(param::mean, {});
+        _std = params->get<std::vector<double>>(param::std, {});
     }
 
-    BufferInfoVector get_input_info(const BufferInfo &output_info) override {
-        if (output_info.planes.empty()) {
-            return TensorNormalizeOpenCVDesc.input_info;
+    FrameInfoVector get_input_info() override {
+        if (_output_info.tensors.empty()) {
+            return tensor_normalize_opencv.input_info;
         } else {
-            BufferInfo info = output_info;
-            info.planes[0].type = DataType::U8;
+            FrameInfo info = _output_info;
+            info.tensors[0].dtype = DataType::UInt8;
             return {info};
         }
     }
 
-    BufferInfoVector get_output_info(const BufferInfo &input_info) override {
-        if (input_info.planes.empty()) {
-            return TensorNormalizeOpenCVDesc.output_info;
+    FrameInfoVector get_output_info() override {
+        if (_input_info.tensors.empty()) {
+            return tensor_normalize_opencv.output_info;
         } else {
-            BufferInfo info = input_info;
-            info.planes[0].type = DataType::FP32;
+            FrameInfo info = _input_info;
+            info.tensors[0].dtype = DataType::Float32;
             return {info};
         }
     }
 
-    void set_info(const BufferInfo &input_info, const BufferInfo &output_info) override {
-        _input_info = input_info;
-        _output_info = output_info;
-        _cpu_mapper = _transform_ctrl->create_input_mapper(BufferType::CPU);
+    std::function<FramePtr()> get_output_allocator() override {
+        return [this]() { return std::make_shared<CPUFrameAlloc>(_output_info); };
     }
 
-    ContextPtr get_context(const std::string & /*name*/) override {
-        return nullptr;
-    }
-
-    std::function<BufferPtr()> get_output_allocator() override {
-        return [this]() {
-            auto output_info = std::make_shared<BufferInfo>(_output_info);
-            std::vector<void *> data;
-            for (auto &plane : output_info->planes) {
-                data.push_back(malloc(plane.size()));
-            }
-            auto deleter = [data](CPUBuffer *dst) {
-                for (auto ptr : data)
-                    free(ptr);
-                delete dst;
-            };
-            return CPUBufferPtr(new CPUBuffer(output_info, data), deleter);
-        };
-    }
-
-    BufferMapperPtr get_output_mapper() override {
-        return nullptr;
-    }
-
-    bool process(BufferPtr src, BufferPtr dst) override {
-        if (src->info()->planes.size() != 1 || dst->info()->planes.size() != 1)
-            throw std::runtime_error("Expect single plane buffers");
-        auto &src_info = src->info()->planes[0];
-        auto &dst_info = dst->info()->planes[0];
+    bool process(TensorPtr src, TensorPtr dst) override {
+        auto src_tensor = src.map(AccessMode::Read);
+        auto dst_tensor = dst.map(AccessMode::Write);
+        ImageInfo src_info(src_tensor->info());
+        ImageInfo dst_info(dst_tensor->info());
         int w = src_info.width();
         int h = src_info.height();
         int channels = src_info.channels();
-        int batch = (src_info.shape.size() >= 4) ? src_info.batch() : 1;
+        int batch = src_info.batch();
 
-        auto src_cpu = _cpu_mapper->map<CPUBuffer>(src, AccessMode::READ);
-        char *src_data = static_cast<char *>(src_cpu->data());
-        char *dst_data = static_cast<char *>(dst->data());
+        uint8_t *src_data = src_tensor->data<uint8_t>();
+        uint8_t *dst_data = dst_tensor->data<uint8_t>();
         size_t src_w_stride = src_info.width_stride();
         size_t dst_w_stride = dst_info.width_stride();
         size_t src_h_stride = src_info.height_stride();
@@ -127,23 +100,21 @@ class TensorNormalizeOpenCV : public TransformWithAlloc {
     }
 
   private:
-    BufferInfo _input_info;
-    BufferInfo _output_info;
-    BufferMapperPtr _cpu_mapper;
-
-    std::vector<float> _range;
-    std::vector<float> _mean;
-    std::vector<float> _std;
+    std::vector<double> _range;
+    std::vector<double> _mean;
+    std::vector<double> _std;
 };
 
-TransformDesc TensorNormalizeOpenCVDesc = {
+extern "C" {
+ElementDesc tensor_normalize_opencv = {
     .name = "tensor_normalize_opencv",
     .description = "Convert U8 tensor to F32 tensor with normalization",
     .author = "Intel Corporation",
     .params = &params_desc,
-    .input_info = {BufferInfo(MediaType::TENSORS, BufferType::CPU, {{{}, DataType::U8}})},
-    .output_info = {BufferInfo(MediaType::TENSORS, BufferType::CPU, {{{}, DataType::FP32}})},
-    .create = TransformBase::create<TensorNormalizeOpenCV>,
-    .flags = TRANSFORM_FLAG_OUTPUT_ALLOCATOR | TRANSFORM_FLAG_SUPPORT_PARAMS_STRUCTURE};
+    .input_info = {FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::UInt8}})},
+    .output_info = {FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::Float32}})},
+    .create = create_element<TensorNormalizeOpenCV>,
+    .flags = 0};
+}
 
 } // namespace dlstreamer

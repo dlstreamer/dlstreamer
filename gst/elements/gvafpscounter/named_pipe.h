@@ -16,6 +16,15 @@ using FileDescriptor = int;
 using FileDescriptor = FILE *;
 #endif
 
+/**
+ * Searches for processes which have an open file descriptor to the given file.
+ *
+ * @param file_name path to a file
+ * @param access_mode can be "w", "r", "rw" (read or write)
+ * @return count of processes which access the file with the given access mode
+ */
+int getOpenedByProcessesDescriptorsCount(const std::string &file_name, const std::string &access_mode);
+
 class NamedPipe {
   public:
     enum class Mode { ReadOnly, WriteOnly };

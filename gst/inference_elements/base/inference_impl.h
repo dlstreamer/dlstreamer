@@ -6,9 +6,9 @@
 #pragma once
 
 #include "classification_history.h"
-#include "common/input_model_preproc.h"
 #include "gstgvaclassify.h"
 #include "gva_base_inference.h"
+#include "input_model_preproc.h"
 
 #include "inference_backend/image_inference.h"
 

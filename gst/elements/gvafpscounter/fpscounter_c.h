@@ -15,7 +15,7 @@ extern "C" {
 #endif
 
 void fps_counter_create_iterative(const char *intervals);
-void fps_counter_create_average(unsigned int starting_frame);
+void fps_counter_create_average(unsigned int starting_frame, unsigned int interval);
 void fps_counter_create_writepipe(const char *pipe_name);
 void fps_counter_create_readpipe(void *el, const char *pipe_name);
 

@@ -6,11 +6,11 @@
 
 #pragma once
 
-#include <dlstreamer/buffer.h>
+#include <dlstreamer/frame.h>
 #include <video_frame.h>
 
 class ITracker {
   public:
     virtual ~ITracker() = default;
-    virtual void track(dlstreamer::BufferPtr buffer, GVA::VideoFrame &frame_meta) = 0;
+    virtual void track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_meta) = 0;
 };

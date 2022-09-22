@@ -423,18 +423,18 @@ OpenVINOImageInference::CreateRemoteContext(const InferenceBackend::InferenceCon
             if (it != ie_config.end())
                 IeCoreSingleton::Instance().SetConfig({*it}, "GPU");
 
-            auto vaapi_ctx = std::dynamic_pointer_cast<dlstreamer::VAAPIContext>(context_);
-            if (!vaapi_ctx)
-                throw std::runtime_error("Invalid context type has been provided");
+            auto va_display = context_->handle(dlstreamer::VAAPIContext::key::va_display);
+            if (!va_display)
+                throw std::runtime_error("Error getting va_display from context");
 
             InferenceEngine::ParamMap contextParams = {
                 {GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
-                {GPU_PARAM_KEY(VA_DEVICE), static_cast<InferenceEngine::gpu_handle_param>(vaapi_ctx->va_display())}};
+                {GPU_PARAM_KEY(VA_DEVICE), static_cast<InferenceEngine::gpu_handle_param>(va_display)}};
 
             // GPU tile affinity
             if (device == "GPU.x") {
 #ifdef ENABLE_GPU_TILE_AFFINITY
-                VaDpyWrapper dpyWrapper(vaapi_ctx->va_display());
+                VaDpyWrapper dpyWrapper(va_display);
                 int tile_id = dpyWrapper.currentSubDevice();
                 // If tile_id is -1 (single-tile GPU is used or the driver doesn't support this feature)
                 // then GPU plugin will choose the device and tile on its own and there will be no affinity

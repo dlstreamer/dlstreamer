@@ -115,7 +115,9 @@ gboolean update_arguments(const char *argument, void **args) {
             json_args->insert(json_args->end(), new_argument.begin(), new_argument.end());
             break;
         }
-        default: { (*json_args) += new_argument; }
+        default: {
+            (*json_args) += new_argument;
+        }
         }
     } catch (json::parse_error &e) {
         GST_ERROR("argument %s is not a valid JSON value, error: %s", argument, e.what());

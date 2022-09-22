@@ -1,8 +1,8 @@
-Converting NVIDIA DeepStream Pipelines to Intel® Deep Learning Streamer (Intel® DL Streamer)
+Converting NVIDIA DeepStream Pipelines to Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
 =====================================================
 
 This document will describe the steps to convert a pipeline from NVIDIA
-DeepStream to Intel DL Streamer.
+DeepStream to Intel® DL Streamer Pipeline Framework.
 We also have a running example through the document that will be updated at
 each step to help show the modifications being described.
 
@@ -13,12 +13,12 @@ each step to help show the modifications being described.
 Preparing Your Model
 --------------------
 
-To use Intel DL Streamer and OpenVINO™ Toolkit the
+To use Intel® DL Streamer Pipeline Framework and OpenVINO™ Toolkit the
 model needs to be in Intermediate Representation (IR) format. To convert
 your model to this format, use the `Model Optimizer <https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>`__
 tool from OpenVINO™ Toolkit.
 
-Intel DL Streamer's inferencing plugins optionally can do some pre- and
+Pipeline Framework's inferencing plugins optionally can do some pre- and
 post-processing operations before/after running inferencing. These
 operations are specified in a model-proc file. Visit :doc:`this page <model_preparation>`
 for more information on creating a model-proc file and examples with
@@ -28,7 +28,7 @@ GStreamer Pipeline Adjustments
 ------------------------------
 
 In the following sections we will be converting the below pipeline that
-is using DeepStream elements to Intel DL Streamer. It is taken from one of the
+is using DeepStream elements to Pipeline Framework. It is taken from one of the
 examples
 `here <https://github.com/NVIDIA-AI-IOT/redaction_with_deepstream>`__.
 It takes an input stream from file, decodes, runs inferencing, overlays
@@ -54,12 +54,12 @@ Mux and Demux Elements
       Streamer, the inferencing elements share properties and instances
       if they share the same ``model-instance-id`` property.
    -  In our example, we only have one source so we will skip this for
-      now. See more on how to do this with Intel DL Streamer in the section
+      now. See more on how to do this with Pipeline Framework in the section
       :ref:`Multiple Input Streams <Multiple-Input-Streams>` below.
 
 At this stage we have removed ``nvstreammux`` and the ``queue`` that
 followed it. Notably, the ``batch-size`` property is also removed. It
-will be added in the next section as a property of the Intel DL Streamer
+will be added in the next section as a property of the Pipeline Framework
 inference elements.
 
 .. code:: shell
@@ -138,12 +138,12 @@ Video Processing Elements
       available decoder.
 
 -  Some caps filters that follow an inferencing element may need to be
-   adjusted or removed. Intel DL Streamer inferencing elements do not support
+   adjusted or removed. Pipeline Framework inferencing elements do not support
    color space conversion in post-processing. You will need to have a
    ``vaapipostproc`` or ``videoconvert`` element to handle this.
 
 Here we removed a few caps filters and instances of ``nvvideoconvert``
-used for conversions from DeepStream’s NVMM because Intel DL Streamer uses
+used for conversions from DeepStream’s NVMM because Pipeline Framework uses
 standard GStreamer structures and memory types. We will leave the
 standard gstreamer element ``videoconvert`` to do color space conversion
 on CPU, however if available, we suggest using ``vaapipostproc`` to run
@@ -208,7 +208,7 @@ Multiple Input Streams
 ----------------------
 
 | Unlike DeepStream, where all sources need to be linked to the sink
-  pads of the ``nvstreammux`` element, Intel DL Streamer shares all model and
+  pads of the ``nvstreammux`` element, Pipeline Framework shares all model and
   Inference Engine properties between elements that have the same
   ``model-instance-id`` property. Meaning that you do not need to mux
   all sources together before inferencing and you can remove any
@@ -220,7 +220,7 @@ Multiple Input Streams
 
    nvstreammux ! nvinfer config-file-path=./config.txt ! nvstreamdemux filesrc ! decode ! mux.sink_0 filesrc ! decode ! mux.sink_1 demux.src_0 ! encode ! filesink demux.src_1 ! encode ! filesink
 
-When using Intel DL Streamer, the pipeline will look like this:
+When using Pipeline Framework, the pipeline will look like this:
 
 .. code:: shell
 

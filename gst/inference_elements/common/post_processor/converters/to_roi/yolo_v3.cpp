@@ -105,8 +105,8 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
                 for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number; ++bbox_class_id) {
                     const float bbox_class_prob = cls_confs[bbox_class_id];
 
-                    if (bbox_class_prob > 1.f && bbox_class_prob < 0.f) {
-                        GST_WARNING("bbox_class_prob is weird %f.", bbox_class_prob);
+                    if (bbox_class_prob > 1.f || bbox_class_prob < 0.f) {
+                        GST_WARNING("bbox_class_prob %f.is out of range [0,1].", bbox_class_prob);
                     }
                     if (bbox_class_prob > bbox_class.second) {
                         bbox_class.first = bbox_class_id;
@@ -118,8 +118,8 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
                     const size_t class_index = entryIndex(side_square, common_offset, 5 + bbox_class_id);
                     const float bbox_class_prob = blob_data[class_index];
 
-                    if (bbox_class_prob > 1.f && bbox_class_prob < 0.f) {
-                        GST_WARNING("bbox_class_prob is weird %f.", bbox_class_prob);
+                    if (bbox_class_prob > 1.f || bbox_class_prob < 0.f) {
+                        GST_WARNING("bbox_class_prob %f.is out of range [0,1].", bbox_class_prob);
                     }
                     if (bbox_class_prob > bbox_class.second) {
                         bbox_class.first = bbox_class_id;
@@ -129,6 +129,9 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
             }
 
             const float confidence = bbox_conf * bbox_class.second;
+            if (confidence > 1.f || confidence < 0.f) {
+                GST_WARNING("confidence %f.is out of range [0,1].", confidence);
+            }
             if (confidence < confidence_threshold)
                 continue;
 
@@ -138,20 +141,8 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
             const float raw_w = blob_data[bbox_index + 2 * side_square];
             const float raw_h = blob_data[bbox_index + 3 * side_square];
 
-            const float x =
-                static_cast<float>(col + (output_sigmoid_activation ? sigmoid(raw_x) : raw_x)) / side_w * input_width;
-            const float y =
-                static_cast<float>(row + (output_sigmoid_activation ? sigmoid(raw_y) : raw_y)) / side_h * input_height;
-
-            // TODO: check if index in array range
-            const size_t anchor_offset = 2 * mask[0];
-            const float width = std::exp(raw_w) * anchors[anchor_offset + 2 * bbox_cell_num];
-            const float height = std::exp(raw_h) * anchors[anchor_offset + 2 * bbox_cell_num + 1];
-
-            DetectedObject bbox(x, y, width, height, confidence, bbox_class.first,
-                                BlobToMetaConverter::getLabelByLabelId(bbox_class.first), 1.0f / input_width,
-                                1.0f / input_height, true);
-            objects.push_back(bbox);
+            objects.push_back(calculateBoundingBox(col, row, raw_x, raw_y, raw_w, raw_h, side_w, side_h, input_width,
+                                                   input_height, mask[0], bbox_cell_num, confidence, bbox_class.first));
         }
     }
 }
@@ -161,4 +152,23 @@ size_t YOLOv3Converter::entryIndex(size_t side_square, size_t location, size_t e
     size_t loc = location % side_square;
     // side_square is the tensor dimension of the YoloV3 model. Overflow is not possible here.
     return side_square * (bbox_cell_num * (output_shape_info.classes_number + 5) + entry) + loc;
+}
+
+YOLOv3Converter::DetectedObject YOLOv3Converter::calculateBoundingBox(size_t col, size_t row, float raw_x, float raw_y,
+                                                                      float raw_w, float raw_h, size_t side_w,
+                                                                      size_t side_h, float input_width,
+                                                                      float input_height, size_t mask_0,
+                                                                      size_t bbox_cell_num, float confidence,
+                                                                      float bbox_class_first) const {
+
+    float x = static_cast<float>(col + (output_sigmoid_activation ? sigmoid(raw_x) : raw_x)) / side_w * input_width;
+    float y = static_cast<float>(row + (output_sigmoid_activation ? sigmoid(raw_y) : raw_y)) / side_h * input_height;
+
+    // TODO: check if index in array range
+    const size_t anchor_offset = 2 * mask_0;
+    float width = std::exp(raw_w) * anchors[anchor_offset + 2 * bbox_cell_num];
+    float height = std::exp(raw_h) * anchors[anchor_offset + 2 * bbox_cell_num + 1];
+    return DetectedObject(x, y, width, height, confidence, bbox_class_first,
+                          BlobToMetaConverter::getLabelByLabelId(bbox_class_first), 1.0f / input_width,
+                          1.0f / input_height, true);
 }

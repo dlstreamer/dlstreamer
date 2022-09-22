@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
-
 set(TARGET_NAME tensor_normalize_opencv)
+
+cmake_minimum_required(VERSION 3.12)
 
 find_package(OpenCV REQUIRED)
 
@@ -18,7 +18,7 @@ file(GLOB MAIN_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
 )
 
-add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} OBJECT ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -30,6 +30,6 @@ PRIVATE
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        dlstreamer_gst
+        dlstreamer_api
         ${OpenCV_LIBS}
 )

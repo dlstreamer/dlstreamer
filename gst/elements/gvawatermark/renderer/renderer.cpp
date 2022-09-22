@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,77 +8,65 @@
 
 #include "cpu/renderer_cpu.h"
 
-std::vector<cv::Mat> Renderer::convertBufferToCvMats(dlstreamer::Buffer &buffer) {
+std::vector<cv::Mat> Renderer::convertBufferToCvMats(dlstreamer::Frame &buffer) {
     static std::array<int, 4> channels_to_cvtype_map = {CV_8UC1, CV_8UC2, CV_8UC3, CV_8UC4};
 
-    auto &info = *buffer.info();
-    assert(info.media_type == dlstreamer::MediaType::VIDEO);
-    assert(!info.planes.empty());
+    assert(buffer.media_type() == dlstreamer::MediaType::Image);
+    assert(buffer.num_tensors() > 0);
 
     std::vector<cv::Mat> image_planes;
-    image_planes.reserve(info.planes.size());
+    image_planes.reserve(buffer.num_tensors());
 
     // Check for supported formats
-    using dlstreamer::FourCC;
-    switch (info.format) {
-    case FourCC::FOURCC_BGRX:
-    case FourCC::FOURCC_BGR:
-    case FourCC::FOURCC_RGBX:
-    case FourCC::FOURCC_RGB:
-    case FourCC::FOURCC_I420:
-    case FourCC::FOURCC_NV12:
+    switch (static_cast<dlstreamer::ImageFormat>(buffer.format())) {
+    case dlstreamer::ImageFormat::BGRX:
+    case dlstreamer::ImageFormat::BGR:
+    case dlstreamer::ImageFormat::RGBX:
+    case dlstreamer::ImageFormat::RGB:
+    case dlstreamer::ImageFormat::I420:
+    case dlstreamer::ImageFormat::NV12:
         break;
     default:
         throw std::runtime_error("Unsupported image format");
     }
 
     // Go through planes and create cv::Mat for every plane
-    size_t plane_idx = 0;
-    for (auto &plane : info.planes) {
+    for (auto &tensor : buffer) {
         // Verify number of channels
-        assert(plane.channels() > 0 && plane.channels() <= channels_to_cvtype_map.size());
-        const int cv_type = channels_to_cvtype_map[plane.channels() - 1];
+        dlstreamer::ImageInfo image_info(tensor->info());
+        assert(image_info.channels() > 0 && image_info.channels() <= channels_to_cvtype_map.size());
+        const int cv_type = channels_to_cvtype_map[image_info.channels() - 1];
 
-        image_planes.emplace_back(plane.height(), plane.width(), cv_type, buffer.data(plane_idx++),
-                                  plane.width_stride());
+        image_planes.emplace_back(image_info.height(), image_info.width(), cv_type, tensor->data(),
+                                  image_info.width_stride());
     }
 
     return image_planes;
 }
 
-void Renderer::convert_prims_color(std::vector<gapidraw::Prim> &prims) {
+void Renderer::convert_prims_color(std::vector<render::Prim> &prims) {
     for (auto &p : prims) {
-        switch (p.index()) {
-        // TODO: use references
-        case gapidraw::Prim::index_of<gapidraw::Line>(): {
-            gapidraw::Line line = cv::util::get<gapidraw::Line>(p);
+        if (std::holds_alternative<render::Line>(p)) {
+            render::Line line = std::get<render::Line>(p);
             line.color = _color_converter->convert(line.color);
             p = line;
-            break;
-        }
-        case gapidraw::Prim::index_of<gapidraw::Rect>(): {
-            gapidraw::Rect rect = cv::util::get<gapidraw::Rect>(p);
+        } else if (std::holds_alternative<render::Rect>(p)) {
+            render::Rect rect = std::get<render::Rect>(p);
             rect.color = _color_converter->convert(rect.color);
             p = rect;
-            break;
-        }
-        case gapidraw::Prim::index_of<gapidraw::Text>(): {
-            gapidraw::Text text = cv::util::get<gapidraw::Text>(p);
+        } else if (std::holds_alternative<render::Text>(p)) {
+            render::Text text = std::get<render::Text>(p);
             text.color = _color_converter->convert(text.color);
             p = text;
-            break;
-        }
-        case gapidraw::Prim::index_of<gapidraw::Circle>(): {
-            gapidraw::Circle circle = cv::util::get<gapidraw::Circle>(p);
+        } else if (std::holds_alternative<render::Circle>(p)) {
+            render::Circle circle = std::get<render::Circle>(p);
             circle.color = _color_converter->convert(circle.color);
             p = circle;
-            break;
-        }
         }
     }
 }
 
-void Renderer::draw(dlstreamer::BufferPtr buffer, std::vector<gapidraw::Prim> prims) {
+void Renderer::draw(dlstreamer::FramePtr buffer, std::vector<render::Prim> prims) {
     auto mapped_buf = buffer_map(buffer);
     std::vector<cv::Mat> image_planes = convertBufferToCvMats(*mapped_buf);
     convert_prims_color(prims);

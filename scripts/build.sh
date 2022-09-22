@@ -4,9 +4,14 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-BASEDIR=$(dirname "$0")/..
+BUILD_TYPE=${1:-Release}
 
-[ ! -d "${BASEDIR}/build" ] && mkdir ${BASEDIR}/build
-cd ${BASEDIR}/build
-cmake ..
+BUILD_DIR=$(dirname "$0")/../build
+
+[ ! -d "${BUILD_DIR}" ] && mkdir ${BUILD_DIR}
+cd ${BUILD_DIR}
+
+cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE} ..
+
 make -j $(nproc)
+

@@ -16,4 +16,4 @@ if NOT DEFINED MODELS_PATH (
 
 set LC_NUMERIC="C"
 
-echo [setup_env.bat] GVA-plugins environment initialized
+echo [setup_env.bat] Intel(R) Deep Learning Streamer development environment initialized

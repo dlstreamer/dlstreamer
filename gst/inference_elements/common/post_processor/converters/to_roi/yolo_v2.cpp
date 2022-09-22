@@ -68,8 +68,8 @@ void YOLOv2Converter::parseOutputBlob(const float *blob_data, const std::vector<
                     for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number; ++bbox_class_id) {
                         const float bbox_class_prob = cls_confs[bbox_class_id];
 
-                        if (bbox_class_prob > 1.f) {
-                            GST_WARNING("bbox_class_prob is weird %f", bbox_class_prob);
+                        if (bbox_class_prob > 1.f || bbox_class_prob < 0.f) {
+                            GST_WARNING("bbox_class_prob %f.is out of range [0,1].", bbox_class_prob);
                         }
                         if (bbox_class_prob > bbox_class.second) {
                             bbox_class.first = bbox_class_id;
@@ -81,8 +81,8 @@ void YOLOv2Converter::parseOutputBlob(const float *blob_data, const std::vector<
                         const float bbox_class_prob =
                             blob_data[getIndex((Index::FIRST_CLASS_PROB + bbox_class_id), common_offset)];
 
-                        if (bbox_class_prob > 1.f) {
-                            GST_WARNING("bbox_class_prob is weird %f", bbox_class_prob);
+                        if (bbox_class_prob > 1.f || bbox_class_prob < 0.f) {
+                            GST_WARNING("bbox_class_prob %f.is out of range [0,1].", bbox_class_prob);
                         }
                         if (bbox_class_prob > bbox_class.second) {
                             bbox_class.first = bbox_class_id;
@@ -92,6 +92,9 @@ void YOLOv2Converter::parseOutputBlob(const float *blob_data, const std::vector<
                 }
 
                 bbox_confidence *= bbox_class.second;
+                if (bbox_confidence > 1.f || bbox_confidence < 0.f) {
+                    GST_WARNING("bbox_confidence %f.is out of range [0,1].", bbox_confidence);
+                }
                 if (bbox_confidence <= confidence_threshold)
                     continue;
 

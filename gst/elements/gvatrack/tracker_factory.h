@@ -9,7 +9,7 @@
 #include "gstgvatrack.h"
 #include "itracker.h"
 #include "tracker_types.h"
-#include <dlstreamer/buffer_mapper.h>
+#include <dlstreamer/base/memory_mapper.h>
 #include <dlstreamer/context.h>
 
 #include <functional>
@@ -17,11 +17,11 @@
 
 class TrackerFactory {
   public:
-    using TrackerCreator = std::function<ITracker *(const GstGvaTrack *gva_track, dlstreamer::BufferMapperPtr mapper,
+    using TrackerCreator = std::function<ITracker *(const GstGvaTrack *gva_track, dlstreamer::MemoryMapperPtr mapper,
                                                     dlstreamer::ContextPtr context)>;
     TrackerFactory() = delete;
     static bool Register(const GstGvaTrackingType, TrackerCreator);
-    static ITracker *Create(const GstGvaTrack *gva_track, dlstreamer::BufferMapperPtr mapper,
+    static ITracker *Create(const GstGvaTrack *gva_track, dlstreamer::MemoryMapperPtr mapper,
                             dlstreamer::ContextPtr context);
 
   private:

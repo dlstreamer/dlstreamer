@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -47,10 +47,9 @@ class VideoFrame:
         if video_info:
             self.__video_info = video_info
         elif caps:
-            self.__video_info = GstVideo.VideoInfo()
-            self.__video_info.from_caps(caps)
+            self.__video_info = GstVideo.VideoInfo.new_from_caps(caps)
         elif self.video_meta():
-            self.__video_info = GstVideo.VideoInfo()
+            self.__video_info = GstVideo.VideoInfo.new()
             self.__video_info.width = self.video_meta().width
             self.__video_info.height = self.video_meta().height
 

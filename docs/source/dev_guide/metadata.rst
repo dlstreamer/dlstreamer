@@ -16,33 +16,33 @@ for object detection and classification use cases (elements **gvadetect**, **gva
   conversion of **GstVideoRegionOfInterestMeta** into JSON format
 
 The **gvadetect** element supports only object detection models and
-checks model output layer to have known format convertable into bounding
+checks that the model output layer has a known format convertible into a bounding
 boxes list. The gvadetect element creates and attaches to output
 GstBuffer as many instances of GstVideoRegionOfInterestMeta as objects
-detected on the frame. The object bounding-box position and object label
+detected on the frame. The object bounding-box position and object label are
 stored directly in GstVideoRegionOfInterestMeta fields
 ``x``, ``y``, ``w``, ``h``, ``roi_type``, while additional detection information such
-as confidence (in range [0,1]), model name and output layer name stored
+as confidence (in range [0,1]), model name, and output layer name are stored
 as GstStructure object and added into ``GList *params`` list of the same
 GstVideoRegionOfInterestMeta.
 
-The **gvaclassify** element typically inserted into pipeline after
+The **gvaclassify** element is typically inserted into the pipeline after
 gvadetect and executes inference on all objects detected by gvadetect
-(i.e as many times as GstVideoRegionOfInterestMeta attached to input
+(i.e., as many times as GstVideoRegionOfInterestMeta attached to input
 buffer) with input on crop area specified by GstVideoRegionOfInterestMeta.
-The inference output converted into as
-many GstStructure objects as number of output layers in the model and
-added into ``GList *params`` list of the GstVideoRegionOfInterestMeta.
+The inference output is converted into as
+many GstStructure objects as the number of output layers in the model and
+added into the ``GList *params`` list of the GstVideoRegionOfInterestMeta.
 Each GstStructure contains full inference results such as tensor data
 and dimensions, model and layer names, and label in string format (if
-post-processing rules specified).
+post-processing rules are specified).
 
 The **gvainference** element generates and attaches to the frame custom
 metadata **GstGVATensorMeta** (as many instances as output layers in the
 model) containing tensor raw data and additional information such as
 tensor dimensions, data precision, etc.
 
-Taking the following pipeline as example
+Using the following pipeline as an example
 
 .. code:: shell
 
@@ -57,16 +57,16 @@ Taking the following pipeline as example
        gvaclassify model=$(MODEL_PATH $MODEL3) model-proc=$(PROC_PATH $MODEL3) ! queue ! \
        gvawatermark ! videoconvert ! fpsdisplaysink sync=false
 
-If gvadetect element detected three faces, it will attach three metadata
+If the gvadetect element detected three faces, it will attach three metadata
 objects each containing one GstStructure with detection results, then
 gvaclassify will add two more GstStructure (model contains two output
-layers, age and gender) into each meta, and another gvaclassify will add
+layers, age, and gender) into each meta, and another gvaclassify will add
 one more GstStructure (emotion), resulting in three metadata objects
 each containing four GstStructure in ``GList *params`` field: detection,
 age, gender, emotions.
 
 "C" application can iterate objects and inference results using
-GStreamer API similar to code snippet below
+GStreamer API similar to the code snippet below
 
 .. code:: C
 

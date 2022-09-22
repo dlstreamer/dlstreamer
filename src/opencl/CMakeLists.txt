@@ -4,42 +4,22 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)
 
 find_package(OpenCL)
 if (OpenCL_FOUND)
+  include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 
-if(${ENABLE_VAAPI})
-add_subdirectory(video_preproc_vaapi_opencl)
-endif()
+  add_subdirectory(tensor_normalize_opencl)
 
-add_subdirectory(tensor_normalize_opencl)
+  find_package(PkgConfig)
+  pkg_search_module(VA va libva)
+  if(VA_FOUND)
+    add_definitions(-DDLS_HAVE_VAAPI)
+    add_subdirectory(vaapi_to_opencl)
+  endif()
 
-set(TARGET_NAME "dlstreamer_opencl")
-
-file(GLOB MAIN_SRC
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-)
-
-file(GLOB MAIN_HEADERS
-    ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-)
-
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
-set_target_lib_version(${TARGET_NAME})
-set_compile_flags(${TARGET_NAME})
-
-target_link_libraries(${TARGET_NAME}
-PRIVATE
-    tensor_normalize_opencl
-    dlstreamer_gst
-    gstvideoanalyticsmeta
-)
-
-if(${ENABLE_VAAPI})
-target_link_libraries(${TARGET_NAME} PUBLIC preproc_vaapi_opencl)
-endif()
-
-install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+  add_subdirectory(_plugin/dlstreamer/opencl/elements)
+  add_subdirectory(_gst_plugin)
 
 endif()

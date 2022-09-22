@@ -1,16 +1,26 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-GST_SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]:-${(%):-%x}}" )" >/dev/null 2>&1 && pwd )"
-export GST_PLUGIN_PATH=$( realpath ${GST_SCRIPT_DIR}/../build/intel64 ):${GST_PLUGIN_PATH}
-export PYTHONPATH=$( realpath ${GST_SCRIPT_DIR}/../python ):${PYTHONPATH}
+BUILD_TYPE=${1:-Release}
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]:-${(%):-%x}}" )" >/dev/null 2>&1 && pwd )"
+BUILD_DIR=$( realpath "$SCRIPT_DIR/../build" )
+
+# If Release folder doesn't exist, use Debug
+if [[ ! -d "${BUILD_DIR}/intel64/${BUILD_TYPE}" && -d "${BUILD_DIR}/intel64/Debug" ]]; then BUILD_TYPE=Debug; fi
+LIB_PATH="${BUILD_DIR}/intel64/${BUILD_TYPE}/lib"
+
+export GST_PLUGIN_PATH="$LIB_PATH":${GST_PLUGIN_PATH}
+
+export PYTHONPATH=$( realpath ${BUILD_DIR}/../python ):${PYTHONPATH}
 
 export MODELS_PATH=${MODELS_PATH:-${HOME}/intel/dl_streamer/models}
 
 export LC_NUMERIC="C"
 
-echo "[setup_env.sh] GVA-plugins environment initialized"
+echo "Added path to GST_PLUGIN_PATH: $LIB_PATH"
+

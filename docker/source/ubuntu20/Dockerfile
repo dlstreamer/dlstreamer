@@ -34,7 +34,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     libva-dev \
     python-gi-dev \
     vim \
-    wget
+    wget \
+    ocl-icd-opencl-dev
 
 # Register Intel® Graphics repository
 ARG GRAPHICS_APT_REPO=https://repositories.intel.com/graphics/
@@ -50,14 +51,14 @@ RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y -q --all
 ARG GPG_PUBLIC_KEY=https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 RUN curl -sSL ${GPG_PUBLIC_KEY} | apt-key add -
 
-# Register DL Streamer repository
+# Register external OpenVINO/DL Streamer repository
 ARG DLSTREAMER_APT_REPO=https://apt.repos.intel.com/openvino/2022
 ARG DLSTREAMER_APT_REPO_COMPONENT=main
 RUN sh -c "echo 'deb ${DLSTREAMER_APT_REPO} focal ${DLSTREAMER_APT_REPO_COMPONENT}' >> /etc/apt/sources.list"
 
 # Install GStreamer
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get install -y intel-dlstreamer-gst intel-dlstreamer-gst-vaapi
+    apt-get install -y -V intel-dlstreamer-gst intel-dlstreamer-gst-vaapi
 
 # Install Intel® OpenVINO
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \

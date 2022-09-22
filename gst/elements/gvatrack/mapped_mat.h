@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <dlstreamer/buffer_base.h>
-#include <dlstreamer/fourcc.h>
+#include <dlstreamer/base/frame.h>
+#include <dlstreamer/image_info.h>
 
 #include <safe_arithmetic.hpp>
 
@@ -19,25 +19,25 @@
 class MappedMat {
   private:
     std::unique_ptr<uint8_t[]> data_storage;
-    dlstreamer::BufferPtr buf;
+    dlstreamer::FramePtr buf;
     cv::Mat cv_mat;
     MappedMat();
     MappedMat(const MappedMat &);
     MappedMat &operator=(const MappedMat &);
 
-    void copyPlanesToDataStorage(const dlstreamer::Buffer &buffer) {
+    void copyPlanesToDataStorage(dlstreamer::Frame &buffer) {
         size_t total_size = 0;
-        for (const auto &p : buffer.info()->planes) {
-            total_size = safe_add(p.size(), total_size);
+        for (const auto &tensor : buffer) {
+            total_size = safe_add(tensor->info().nbytes(), total_size);
         }
 
         data_storage.reset(new uint8_t[total_size]);
         uint8_t *dst = data_storage.get();
 
         size_t offset = 0;
-        for (size_t i = 0; i < buffer.info()->planes.size(); ++i) {
-            const size_t size = buffer.info()->planes[i].size();
-            std::memcpy(dst + offset, buffer.data(i), size);
+        for (const auto &tensor : buffer) {
+            const size_t size = tensor->info().nbytes();
+            std::memcpy(dst + offset, tensor->data(), size);
             offset = safe_add(size, offset);
         }
     }
@@ -47,17 +47,18 @@ class MappedMat {
      * @brief Construct MappedMat instance from GstBuffer and GstVideoInfo
      * @param buffer buffer containing image of interest
      */
-    MappedMat(dlstreamer::BufferPtr buffer) {
+    MappedMat(dlstreamer::FramePtr buffer) {
         if (!buffer)
             throw std::invalid_argument("GVA::MappedMat: Invalid buffer");
-        assert(buffer->type() == dlstreamer::BufferType::CPU && "Buffer with system memory is expected");
+        auto tensor0 = buffer->tensor(0);
+        assert(tensor0->memory_type() == dlstreamer::MemoryType::CPU && "Buffer with system memory is expected");
 
-        auto *data_ptr = static_cast<uint8_t *>(buffer->data(0));
-        auto &info = *buffer->info();
+        auto *data_ptr = static_cast<uint8_t *>(tensor0->data());
+        auto &info0 = tensor0->info();
 
         // Buffer can exceed the expected size due to decoder's padding. VAS OT expects a contiguous image with valid
         // data. Thus, repacking the image data to avoid undefined VAS OT behavior.
-        if (info.planes.size() >= 2 && data_ptr + info.planes[0].size() != buffer->data(1)) {
+        if (buffer->num_tensors() >= 2 && data_ptr + buffer->tensor(1)->info().nbytes() != buffer->tensor(1)->data()) {
             copyPlanesToDataStorage(*buffer);
             data_ptr = data_storage.get();
         } else {
@@ -65,22 +66,23 @@ class MappedMat {
             buf = buffer;
         }
 
-        cv::Size cv_size(info.planes.front().width(), info.planes.front().height());
-        size_t stride = info.planes.front().width_stride();
-        switch (info.format) {
-        case dlstreamer::FourCC::FOURCC_BGR:
+        dlstreamer::ImageInfo image_info(info0);
+        cv::Size cv_size(image_info.width(), image_info.height());
+        size_t stride = image_info.width_stride();
+        switch (static_cast<dlstreamer::ImageFormat>(buffer->format())) {
+        case dlstreamer::ImageFormat::BGR:
             cv_mat = cv::Mat(cv_size, CV_8UC3, data_ptr, stride);
             break;
-        case dlstreamer::FourCC::FOURCC_NV12:
+        case dlstreamer::ImageFormat::NV12:
             cv_size.height *= 1.5;
             cv_mat = cv::Mat(cv_size, CV_8UC1, data_ptr, stride);
             break;
-        case dlstreamer::FourCC::FOURCC_I420:
+        case dlstreamer::ImageFormat::I420:
             cv_size.height *= 1.5;
             cv_mat = cv::Mat(cv_size, CV_8UC1, data_ptr, stride);
             break;
-        case dlstreamer::FourCC::FOURCC_BGRX:
-        case dlstreamer::FourCC::FOURCC_RGBX:
+        case dlstreamer::ImageFormat::BGRX:
+        case dlstreamer::ImageFormat::RGBX:
             cv_mat = cv::Mat(cv_size, CV_8UC4, data_ptr, stride);
             break;
 

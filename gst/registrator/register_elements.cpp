@@ -22,17 +22,52 @@
 #include "gva_json_meta.h"
 #include "gva_tensor_meta.h"
 
+#include "runtime_feature_toggler.h"
+#include <feature_toggling/ifeature_toggle.h>
+
+#include "video_classify.h"
+#include "video_detect.h"
+#include "video_inference.h"
+
+CREATE_FEATURE_TOGGLE(UseMicroElements, "use-micro-elements",
+                      "By default gvainference, gvadetect and gvaclassify use legacy elements. If you want to try new "
+                      "micro elements approach set environment variable ENABLE_GVA_FEATURES=use-micro-elements.");
+
+CREATE_FEATURE_TOGGLE(UseCPPElements, "use-cpp-elements", "Use elements implemented via C++ internal API");
+
+static bool use_micro_elements() {
+    // DLSTREAMER_GEN
+    char *dlstreamer_gen = std::getenv("DLSTREAMER_GEN");
+    bool use_gen2 = dlstreamer_gen && dlstreamer_gen[0] == '2';
+    // ENABLE_GVA_FEATURES
+    using namespace FeatureToggling::Runtime;
+    RuntimeFeatureToggler toggler;
+    toggler.configure(EnvironmentVariableOptionsReader().read("ENABLE_GVA_FEATURES"));
+    bool use_cpp = toggler.enabled(UseCPPElements::id);
+    bool use_micro = toggler.enabled(UseMicroElements::id);
+
+    return use_gen2 || use_micro || use_cpp;
+}
+
 static gboolean plugin_init(GstPlugin *plugin) {
     set_log_function(GST_logger);
 
-    if (!gst_element_register(plugin, "gvainference_legacy", GST_RANK_NONE, GST_TYPE_GVA_INFERENCE))
-        return FALSE;
-
-    if (!gst_element_register(plugin, "gvadetect_legacy", GST_RANK_NONE, GST_TYPE_GVA_DETECT))
-        return FALSE;
-
-    if (!gst_element_register(plugin, "gvaclassify_legacy", GST_RANK_NONE, GST_TYPE_GVA_CLASSIFY))
-        return FALSE;
+    // gvainference/gvadetect/gvaclassify is bin on micro-elements or old implementation depending on env variable
+    if (use_micro_elements()) {
+        if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, video_inference_get_type()))
+            return FALSE;
+        if (!gst_element_register(plugin, "gvadetect", GST_RANK_NONE, video_detect_get_type()))
+            return FALSE;
+        if (!gst_element_register(plugin, "gvaclassify", GST_RANK_NONE, video_classify_get_type()))
+            return FALSE;
+    } else {
+        if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, GST_TYPE_GVA_INFERENCE))
+            return FALSE;
+        if (!gst_element_register(plugin, "gvadetect", GST_RANK_NONE, GST_TYPE_GVA_DETECT))
+            return FALSE;
+        if (!gst_element_register(plugin, "gvaclassify", GST_RANK_NONE, GST_TYPE_GVA_CLASSIFY))
+            return FALSE;
+    }
 
     if (!gst_element_register(plugin, "gvametaconvert", GST_RANK_NONE, GST_TYPE_GVA_META_CONVERT))
         return FALSE;

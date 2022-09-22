@@ -22,10 +22,12 @@
 #include "so_loader.h"
 #include "utils.h"
 #include "video_frame.h"
-#include <dlstreamer/buffer_mappers/mapper_chain.h>
-#include <dlstreamer/buffer_mappers/vaapi_to_dma.h>
-#include <dlstreamer/gst/buffer.h>
-#include <dlstreamer/gst/vaapi_context.h>
+#include <dlstreamer/gst/context.h>
+#include <dlstreamer/gst/frame.h>
+#include <dlstreamer/memory_mapper_factory.h>
+#ifdef ENABLE_VAAPI
+#include <dlstreamer/vaapi/mappers/vaapi_to_dma.h>
+#endif
 
 #include "renderer/color_converter.h"
 #include "renderer/cpu/create_renderer.h"
@@ -87,10 +89,10 @@ InferenceBackend::MemoryType memoryTypeFromCaps(GstCaps *caps) {
     }
 }
 
-dlstreamer::BufferMapperPtr createMapperToDma(InferenceBackend::MemoryType in_mem_type,
+dlstreamer::MemoryMapperPtr createMapperToDMA(InferenceBackend::MemoryType in_mem_type,
                                               dlstreamer::ContextPtr context) {
-
-    auto in_mapper = BufferMapperFactory::createMapper(in_mem_type, std::move(context));
+#ifdef ENABLE_VAAPI
+    auto in_mapper = BufferMapperFactory::createMapper(in_mem_type, context);
     if (in_mem_type == InferenceBackend::MemoryType::DMA_BUFFER)
         return in_mapper;
 
@@ -98,9 +100,15 @@ dlstreamer::BufferMapperPtr createMapperToDma(InferenceBackend::MemoryType in_me
         throw std::runtime_error("Unsupported input memory type for DMA FD conversion");
 
     // In case of VAAPI memory create chain of mappers GST -> VAAPI -> DMA
-    auto vaapi_to_dma = std::make_shared<dlstreamer::BufferMapperVAAPIToDMA>();
-    return std::make_shared<dlstreamer::BufferMapperChain>(
-        dlstreamer::BufferMapperChain{std::move(in_mapper), std::move(vaapi_to_dma)});
+    auto vaapi_to_dma = std::make_shared<dlstreamer::MemoryMapperVAAPIToDMA>(context, nullptr);
+    return std::make_shared<dlstreamer::MemoryMapperChain>(
+        dlstreamer::MemoryMapperChain{std::move(in_mapper), std::move(vaapi_to_dma)});
+#else
+    UNUSED(in_mem_type);
+    UNUSED(context);
+    throw std::runtime_error("VAAPI disabled");
+    return nullptr;
+#endif
 }
 
 } // namespace
@@ -114,19 +122,20 @@ struct Impl {
     }
 
   private:
-    void preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<gapidraw::Prim> &prims) const;
+    void preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Prim> &prims) const;
     void preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> rect,
-                               std::vector<gapidraw::Prim> &prims) const;
+                               std::vector<render::Prim> &prims) const;
     void preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double> rectangle,
-                                  std::vector<gapidraw::Prim> &prims) const;
+                                  std::vector<render::Prim> &prims) const;
     void preparePrimsForKeypointConnections(GstStructure *s, const std::vector<float> &keypoints_data,
                                             const std::vector<uint32_t> &dims, const GVA::Rect<double> &rectangle,
-                                            std::vector<gapidraw::Prim> &prims) const;
+                                            std::vector<render::Prim> &prims) const;
 
     std::unique_ptr<Renderer> createRenderer(std::shared_ptr<ColorConverter> converter, DEVICE_SELECTOR device,
                                              InferenceBackend::MemoryType mem_type, dlstreamer::ContextPtr context);
 
-    std::unique_ptr<Renderer> createGPURenderer(dlstreamer::FourCC format, std::shared_ptr<ColorConverter> converter,
+    std::unique_ptr<Renderer> createGPURenderer(dlstreamer::ImageFormat format,
+                                                std::shared_ptr<ColorConverter> converter,
                                                 InferenceBackend::MemoryType mem_type,
                                                 dlstreamer::ContextPtr vaapi_context);
 
@@ -288,7 +297,7 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     VaApiDisplayPtr va_dpy;
     if (mem_type == MemoryType::VAAPI) {
         try {
-            va_dpy = std::make_shared<dlstreamer::GSTVAAPIContext>(trans);
+            va_dpy = std::make_shared<dlstreamer::GSTContextQuery>(trans, dlstreamer::MemoryType::VAAPI);
         } catch (const std::exception &e) {
             GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not create VAAPI context"),
                               ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));
@@ -396,7 +405,7 @@ Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryT
     GstVideoColorimetry colorimetry = GST_VIDEO_INFO_COLORIMETRY(_vinfo);
     gst_video_color_matrix_get_Kr_Kb(colorimetry.matrix, &Kr, &Kb);
 
-    dlstreamer::FourCC format = dlstreamer::gst_format_to_fourcc(GST_VIDEO_INFO_FORMAT(_vinfo));
+    dlstreamer::ImageFormat format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(_vinfo));
     std::shared_ptr<ColorConverter> converter = create_color_converter(format, color_table, Kr, Kb);
 
     _renderer = createRenderer(std::move(converter), device, mem_type, context);
@@ -423,7 +432,7 @@ bool Impl::render(GstBuffer *buffer) {
     GVA::VideoFrame video_frame(buffer, _vinfo);
     auto video_frame_rois = video_frame.regions();
 
-    std::vector<gapidraw::Prim> prims;
+    std::vector<render::Prim> prims;
     prims.reserve(video_frame_rois.size());
     // Prepare primitives for all ROIs
     for (auto &roi : video_frame_rois) {
@@ -442,18 +451,18 @@ bool Impl::render(GstBuffer *buffer) {
     }
 
     if (ff_text.tellp() != 0)
-        prims.emplace_back(gapidraw::Text(ff_text.str(), _ff_text_position, _font.type, _font.scale, _default_color));
+        prims.emplace_back(render::Text(ff_text.str(), _ff_text_position, _font.type, _font.scale, _default_color));
 
     // Skip render if there are no primitives to draw
     if (!prims.empty()) {
-        auto gstbuffer = std::make_shared<dlstreamer::GSTBuffer>(buffer, _vinfo);
+        auto gstbuffer = std::make_shared<dlstreamer::GSTFrame>(buffer, _vinfo);
         _renderer->draw(gstbuffer, prims);
     }
 
     return true;
 }
 
-void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<gapidraw::Prim> &prims) const {
+void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Prim> &prims) const {
     size_t color_index = roi.label_id();
 
     auto rect = roi.normalized_rect();
@@ -489,19 +498,19 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<gapidraw::
     // put rectangle
     Color color = indexToColor(color_index);
     cv::Rect bbox_rect(rect.x, rect.y, rect.w, rect.h);
-    prims.emplace_back(gapidraw::Rect(bbox_rect, color, _thickness));
+    prims.emplace_back(render::Rect(bbox_rect, color, _thickness));
 
     // put text
     if (text.str().size() != 0) {
         cv::Point2f pos(rect.x, rect.y - 5.f);
         if (pos.y < 0)
             pos.y = rect.y + 30.f;
-        prims.emplace_back(gapidraw::Text(text.str(), pos, _font.type, _font.scale, color));
+        prims.emplace_back(render::Text(text.str(), pos, _font.type, _font.scale, color));
     }
 }
 
 void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> rect,
-                                 std::vector<gapidraw::Prim> &prims) const {
+                                 std::vector<render::Prim> &prims) const {
     // landmarks rendering
     if (tensor.model_name().find("landmarks") != std::string::npos || tensor.format() == "landmark_points") {
         std::vector<float> data = tensor.data<float>();
@@ -510,7 +519,24 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
             int x_lm = safe_convert<int>(rect.x + rect.w * data[2 * i]);
             int y_lm = safe_convert<int>(rect.y + rect.h * data[2 * i + 1]);
             size_t radius = 1 + safe_convert<size_t>(_radius_multiplier * rect.w);
-            prims.emplace_back(gapidraw::Circle(cv::Point2i(x_lm, y_lm), radius, color, cv::FILLED));
+            prims.emplace_back(render::Circle(cv::Point2i(x_lm, y_lm), radius, color, cv::FILLED));
+        }
+    }
+
+    if (tensor.format() == "contour_points") {
+        std::vector<float> data = tensor.data<float>();
+        for (size_t i = 0; i < data.size(); i += 2) {
+            int x = safe_convert<int>(rect.x + rect.w * data[i]);
+            int y = safe_convert<int>(rect.y + rect.h * data[i + 1]);
+            int x2, y2;
+            if (i + 2 < data.size()) {
+                x2 = safe_convert<int>(rect.x + rect.w * data[i + 2]);
+                y2 = safe_convert<int>(rect.y + rect.h * data[i + 3]);
+            } else {
+                x2 = safe_convert<int>(rect.x + rect.w * data[0]);
+                y2 = safe_convert<int>(rect.y + rect.h * data[1]);
+            }
+            prims.emplace_back(render::Line(cv::Point2i(x, y), cv::Point2i(x2, y2), _default_color, _thickness));
         }
     }
 
@@ -521,7 +547,7 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
  * Prepares primitives for key points and their conections using given tensor's info.
  */
 void Impl::preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double> rectangle,
-                                    std::vector<gapidraw::Prim> &prims) const {
+                                    std::vector<render::Prim> &prims) const {
     if (tensor.format() != "keypoints")
         return;
 
@@ -551,7 +577,7 @@ void Impl::preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double>
         size_t radius = 1 + safe_convert<size_t>(_radius_multiplier * (rectangle.w + rectangle.h));
 
         Color color = indexToColor(i);
-        prims.emplace_back(gapidraw::Circle(cv::Point2i(x_lm, y_lm), radius, color, cv::FILLED));
+        prims.emplace_back(render::Circle(cv::Point2i(x_lm, y_lm), radius, color, cv::FILLED));
     }
 
     preparePrimsForKeypointConnections(tensor.gst_structure(), keypoints_data, dimensions, rectangle, prims);
@@ -559,7 +585,7 @@ void Impl::preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double>
 
 void Impl::preparePrimsForKeypointConnections(GstStructure *s, const std::vector<float> &keypoints_data,
                                               const std::vector<uint32_t> &dims, const GVA::Rect<double> &rectangle,
-                                              std::vector<gapidraw::Prim> &prims) const {
+                                              std::vector<render::Prim> &prims) const {
     if (not(gst_structure_has_field(s, "point_names") and gst_structure_has_field(s, "point_connections")))
         return;
 
@@ -621,7 +647,7 @@ void Impl::preparePrimsForKeypointConnections(GstStructure *s, const std::vector
         int x2 = safe_convert<int>(rectangle.x + rectangle.w * x2_real);
         int y2 = safe_convert<int>(rectangle.y + rectangle.h * y2_real);
 
-        prims.emplace_back(gapidraw::Line(cv::Point2i(x1, y1), cv::Point2i(x2, y2), _default_color, _thickness));
+        prims.emplace_back(render::Line(cv::Point2i(x1, y1), cv::Point2i(x2, y2), _default_color, _thickness));
     }
 
     g_value_array_free(point_connections);
@@ -631,7 +657,7 @@ void Impl::preparePrimsForKeypointConnections(GstStructure *s, const std::vector
 std::unique_ptr<Renderer> Impl::createRenderer(std::shared_ptr<ColorConverter> converter, DEVICE_SELECTOR device,
                                                InferenceBackend::MemoryType mem_type, dlstreamer::ContextPtr context) {
 
-    dlstreamer::FourCC format = dlstreamer::gst_format_to_fourcc(GST_VIDEO_INFO_FORMAT(_vinfo));
+    dlstreamer::ImageFormat format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(_vinfo));
     if (device == DEVICE_GPU || device == DEVICE_GPU_AUTOSELECTED) {
         try {
             auto renderer = createGPURenderer(format, converter, mem_type, context);
@@ -650,23 +676,23 @@ std::unique_ptr<Renderer> Impl::createRenderer(std::shared_ptr<ColorConverter> c
     return create_cpu_renderer(format, converter, std::move(buf_mapper));
 }
 
-std::unique_ptr<Renderer> Impl::createGPURenderer(dlstreamer::FourCC format, std::shared_ptr<ColorConverter> converter,
+std::unique_ptr<Renderer> Impl::createGPURenderer(dlstreamer::ImageFormat format,
+                                                  std::shared_ptr<ColorConverter> converter,
                                                   InferenceBackend::MemoryType mem_type,
                                                   dlstreamer::ContextPtr vaapi_context) {
 
-    constexpr char FUNCTION_NAME[] =
-        "_Z15create_rendererN10dlstreamer6FourCCESt10shared_ptrI14ColorConverterES1_INS_12BufferMapperEEii";
+    constexpr char FUNCTION_NAME[] = "create_renderer";
     constexpr char LIBRARY_NAME[] = "libgpurenderer.so";
 
-    auto dma_mapper = createMapperToDma(mem_type, vaapi_context);
+    auto dma_mapper = createMapperToDMA(mem_type, vaapi_context);
 
-    using create_renderer_func_t =
-        std::unique_ptr<Renderer>(dlstreamer::FourCC format, std::shared_ptr<ColorConverter> converter,
-                                  dlstreamer::BufferMapperPtr input_buffer_mapper, int width, int height);
+    using create_renderer_func_t = Renderer *(dlstreamer::ImageFormat format, std::shared_ptr<ColorConverter> converter,
+                                              dlstreamer::MemoryMapperPtr input_buffer_mapper, int width, int height);
 
     _gpurenderer_loader = SharedObject::getLibrary(LIBRARY_NAME);
     auto create_renderer_func = _gpurenderer_loader->getFunction<create_renderer_func_t>(FUNCTION_NAME);
 
-    return create_renderer_func(format, converter, std::move(dma_mapper), GST_VIDEO_INFO_WIDTH(_vinfo),
-                                GST_VIDEO_INFO_HEIGHT(_vinfo));
+    auto renderer = create_renderer_func(format, converter, std::move(dma_mapper), GST_VIDEO_INFO_WIDTH(_vinfo),
+                                         GST_VIDEO_INFO_HEIGHT(_vinfo));
+    return std::unique_ptr<Renderer>(renderer);
 }

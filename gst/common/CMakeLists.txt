@@ -42,7 +42,7 @@ PUBLIC
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}
-        dlstreamer_gst
+        dlstreamer_api
         logger
         gstvideoanalyticsmeta
         json-hpp

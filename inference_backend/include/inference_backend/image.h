@@ -1,14 +1,14 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
-#include "dlstreamer/buffer.h"
 #include "dlstreamer/context.h"
-#include "dlstreamer/fourcc.h"
+#include "dlstreamer/frame.h"
+#include "dlstreamer/image_info.h"
 
 #include <cstdint>
 #include <memory>
@@ -30,16 +30,16 @@ enum class MemoryType { ANY = 0, SYSTEM = 1, DMA_BUFFER = 2, VAAPI = 3, USM_DEVI
 
 enum FourCC {
     FOURCC_RGBP_F32 = 0x07282024,
-    FOURCC_NV12 = dlstreamer::FOURCC_NV12,
+    FOURCC_NV12 = static_cast<int>(dlstreamer::ImageFormat::NV12),
     FOURCC_BGRA = fourcc<'B', 'G', 'R', 'A'>::code,
-    FOURCC_BGRX = dlstreamer::FOURCC_BGRX,
-    FOURCC_BGRP = dlstreamer::FOURCC_BGRP,
-    FOURCC_BGR = dlstreamer::FOURCC_BGR,
+    FOURCC_BGRX = static_cast<int>(dlstreamer::ImageFormat::BGRX),
+    FOURCC_BGRP = static_cast<int>(dlstreamer::ImageFormat::BGRP),
+    FOURCC_BGR = static_cast<int>(dlstreamer::ImageFormat::BGR),
     FOURCC_RGBA = fourcc<'R', 'G', 'B', 'A'>::code,
-    FOURCC_RGBX = dlstreamer::FOURCC_RGBX,
-    FOURCC_RGB = dlstreamer::FOURCC_RGB,
-    FOURCC_RGBP = dlstreamer::FOURCC_RGBP,
-    FOURCC_I420 = dlstreamer::FOURCC_I420,
+    FOURCC_RGBX = static_cast<int>(dlstreamer::ImageFormat::RGBX),
+    FOURCC_RGB = static_cast<int>(dlstreamer::ImageFormat::RGB),
+    FOURCC_RGBP = static_cast<int>(dlstreamer::ImageFormat::RGBP),
+    FOURCC_I420 = static_cast<int>(dlstreamer::ImageFormat::I420),
     FOURCC_YUV = fourcc<'Y', 'U', 'V', ' '>::code
 };
 

@@ -8,7 +8,7 @@
 
 #include "audio_infer_impl.h"
 #include "inference.h"
-#include "model_proc/model_proc_provider.h"
+#include "model_proc_provider.h"
 #include <utils.h>
 
 #include <assert.h>

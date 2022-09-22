@@ -71,7 +71,7 @@ namespace VasWrapper {
 
 class TrackerBackend {
   public:
-    TrackerBackend(dls::BufferMapperPtr buffer_mapper) : _buf_mapper(std::move(buffer_mapper)) {
+    TrackerBackend(dls::MemoryMapperPtr buffer_mapper) : _buf_mapper(std::move(buffer_mapper)) {
     }
 
     virtual std::unique_ptr<vas::ot::ObjectTracker::Builder> getBuilder() {
@@ -86,7 +86,7 @@ class TrackerBackend {
             type == vas::ot::TrackingType::ZERO_TERM_IMAGELESS || type == vas::ot::TrackingType::SHORT_TERM_IMAGELESS;
     }
 
-    virtual std::vector<vas::ot::Object> track(dls::BufferPtr buffer,
+    virtual std::vector<vas::ot::Object> track(dls::FramePtr buffer,
                                                const std::vector<vas::ot::DetectedObject> &detected_objects) {
         if (_imageless_algo) {
             // For imageless algorithms image data is not important
@@ -96,28 +96,29 @@ class TrackerBackend {
             return _object_tracker->Track(_dummy_mat, detected_objects);
         }
 
-        dls::BufferPtr sys_buf = _buf_mapper->map(buffer, dls::AccessMode::READ);
+        dls::FramePtr sys_buf = _buf_mapper->map(buffer, dls::AccessMode::Read);
         MappedMat cv_mat(sys_buf);
         return _object_tracker->Track(cv_mat.mat(), detected_objects);
     }
 
-    void prepareDummyCvMat(dls::Buffer &buffer) {
-        auto &info = *buffer.info();
-        cv::Size cv_size(info.planes.front().width(), info.planes.front().height());
-        if (info.format == dls::FourCC::FOURCC_NV12 || info.format == dls::FourCC::FOURCC_I420)
+    void prepareDummyCvMat(dls::Frame &buffer) {
+        dlstreamer::ImageInfo image_info(buffer.tensor(0)->info());
+        cv::Size cv_size(image_info.width(), image_info.height());
+        dls::ImageFormat format = static_cast<dls::ImageFormat>(buffer.format());
+        if (format == dls::ImageFormat::NV12 || format == dls::ImageFormat::I420)
             cv_size.height = cv_size.height * 3 / 2;
         _dummy_mat = cv::Mat(cv_size, CV_8UC3);
     }
 
   protected:
     std::unique_ptr<vas::ot::ObjectTracker> _object_tracker;
-    dls::BufferMapperPtr _buf_mapper;
+    dls::MemoryMapperPtr _buf_mapper;
     bool _imageless_algo = false;
     cv::Mat _dummy_mat;
 };
 
 Tracker::Tracker(const std::string &device, vas::ot::TrackingType tracking_type, vas::ColorFormat in_color,
-                 const std::string &config_kv, dls::BufferMapperPtr mapper, dls::ContextPtr /*context*/) {
+                 const std::string &config_kv, dls::MemoryMapperPtr mapper, dls::ContextPtr /*context*/) {
 
     // Parse device string. Examples: VPU.1, CPU, GPU, etc.
     std::vector<std::string> full_device = Utils::splitString(device, '.');
@@ -172,7 +173,7 @@ Tracker::Tracker(const std::string &device, vas::ot::TrackingType tracking_type,
     _impl->init(std::move(builder), tracking_type);
 }
 
-void Tracker::track(dls::BufferPtr buffer, GVA::VideoFrame &frame_meta) {
+void Tracker::track(dls::FramePtr buffer, GVA::VideoFrame &frame_meta) {
     if (!buffer)
         throw std::invalid_argument("buffer is nullptr");
 

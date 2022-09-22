@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -122,7 +122,7 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
         auto dims = blob->GetDims();
         if (dims.size() == 0)
             throw std::invalid_argument("Blob has 0 dimensions");
-        dims[0] = 1; // unbatched
+        // dims[0] = 1; // unbatched
 
         // TODO: make shared
         GValueArray *g_arr = ConvertVectorToGValueArr(dims);

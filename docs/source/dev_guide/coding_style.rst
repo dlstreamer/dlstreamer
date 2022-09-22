@@ -2,16 +2,15 @@ Coding Style
 ============
 
 We use Clang formatter for our code. Code style checker is being run
-through CI, so it's essential for you to format code before you can
+through CI, so it is essential to format your code before you can
 actually merge it to ``master``. There is a config for clang-format-7
-(``.clang-format`` in the root folder of project). Hence, you need to
-install it locally and configure your IDE to format your code by using
-it.
+(``.clang-format`` in the root folder of this project). You will need to
+install it locally and configure your IDE to format your code with it.
 
 Install clang formatter
 -----------------------
 
-If you are using Ubuntu 18.04 it's quite simple:
+If you are using Ubuntu 18.04 it is quite simple:
 
 .. code:: sh
 
@@ -29,9 +28,8 @@ here ``https://apt.llvm.org/``. And install the newest version:
 Configure IDE
 -------------
 
--  Visual Studio Code If you are using VS Code you just need to install
-   corresponding extension clang-format and configure autoformat on save
-   (you can find instruction on the extension page).
+-  Visual Studio Code - If you are using VS Code you can simply install the
+   `Clang-Format` extension and follow the provided instructions to configure VS Code to automatically format on save.
 -  CLion
 
    -  Go to File → Settings → Tools → External Tools and click on the plus
@@ -48,8 +46,10 @@ Configure IDE
          using the style define in the first ``.clang-format`` file found in
          a parent directory.
 
--  Different IDE If you are using different IDE or text editor please
-   find an appropriate instruction by yourself and suggest updates for
-   this wiki. We would be glad to accept your contributions.
+-  Other IDE - For different IDEs or text editors, please refer to their
+   respective documentation. 
+   If you would like to contribute instructions for your preferred
+   IDE or editor suggest a update for this wiki. We would be glad to 
+   accept your contribution.
 
-Have a good coding 😊
+Have a good time coding! 😊

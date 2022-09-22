@@ -12,10 +12,12 @@
 #include "inference_backend/buffer_mapper.h"
 #include "inference_backend/logger.h"
 #include "logger_functions.h"
-#include <dlstreamer/buffer_mappers/mapper_chain.h>
-#include <dlstreamer/gst/vaapi_context.h>
+#include <dlstreamer/gst/context.h>
+#include <dlstreamer/memory_mapper_factory.h>
 
-#include <dlstreamer/buffer_mappers/dma_to_vaapi.h>
+#ifdef ENABLE_VAAPI
+#include <dlstreamer/vaapi/context.h>
+#endif
 
 #define ELEMENT_LONG_NAME "Object tracker (generates GstGvaObjectTrackerMeta, GstVideoRegionOfInterestMeta)"
 #define ELEMENT_DESCRIPTION                                                                                            \
@@ -55,11 +57,12 @@ static GstFlowReturn gst_gva_track_transform_ip(GstBaseTransform *trans, GstBuff
 
 static GstStateChangeReturn gst_gva_track_change_state(GstElement *element, GstStateChange transition);
 
-static dlstreamer::BufferMapperPtr create_mapper(GstGvaTrack *gva_track, dlstreamer::ContextPtr context) {
+static dlstreamer::MemoryMapperPtr create_mapper(GstGvaTrack *gva_track, dlstreamer::ContextPtr context) {
     const bool gpu_device = strncmp(gva_track->device, DEVICE_GPU, strlen(DEVICE_GPU)) == 0;
     if (!gpu_device)
         return BufferMapperFactory::createMapper(InferenceBackend::MemoryType::SYSTEM);
 
+#ifdef ENABLE_VAAPI
     // GPU tracker expects VASurface as input
     if (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE)
         return BufferMapperFactory::createMapper(InferenceBackend::MemoryType::VAAPI, context);
@@ -67,10 +70,13 @@ static dlstreamer::BufferMapperPtr create_mapper(GstGvaTrack *gva_track, dlstrea
     // In case of DMA memory create additional chain of mappers GST -> DMA -> VAAPI
     assert(gva_track->caps_feature == DMA_BUF_CAPS_FEATURE);
     auto dma = BufferMapperFactory::createMapper(InferenceBackend::MemoryType::DMA_BUFFER);
-    auto dma_to_vaapi = std::make_shared<dlstreamer::BufferMapperDMAToVAAPI>(context);
-
-    return std::make_shared<dlstreamer::BufferMapperChain>(
-        dlstreamer::BufferMapperChain{std::move(dma), std::move(dma_to_vaapi)});
+    auto dma_to_vaapi = std::make_shared<dlstreamer::MemoryMapperDMAToVAAPI>(nullptr, context);
+    return std::make_shared<dlstreamer::MemoryMapperChain>(
+        dlstreamer::MemoryMapperChain{std::move(dma), std::move(dma_to_vaapi)});
+#else
+    UNUSED(context);
+    throw std::runtime_error("GPU not supported");
+#endif
 }
 
 static bool init_tracker_obj(GstGvaTrack *gva_track) {
@@ -78,7 +84,8 @@ static bool init_tracker_obj(GstGvaTrack *gva_track) {
     try {
         dlstreamer::ContextPtr gst_vaapi_ctx;
         if (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE || gva_track->caps_feature == DMA_BUF_CAPS_FEATURE)
-            gst_vaapi_ctx = std::make_shared<dlstreamer::GSTVAAPIContext>(GST_BASE_TRANSFORM(gva_track));
+            gst_vaapi_ctx = std::make_shared<dlstreamer::GSTContextQuery>(GST_BASE_TRANSFORM(gva_track),
+                                                                          dlstreamer::MemoryType::VAAPI);
 
         auto mapper = create_mapper(gva_track, gst_vaapi_ctx);
         gva_track->tracker = TrackerFactory::Create(gva_track, mapper, gst_vaapi_ctx);
@@ -335,7 +342,7 @@ static GstFlowReturn gst_gva_track_transform_ip(GstBaseTransform *trans, GstBuff
     GstFlowReturn status = GST_FLOW_OK;
     if (gva_track && gva_track->tracker) {
         try {
-            auto gstbuffer = std::make_shared<dlstreamer::GSTBuffer>(buf, gva_track->info);
+            auto gstbuffer = std::make_shared<dlstreamer::GSTFrame>(buf, gva_track->info);
             GVA::VideoFrame video_frame(buf, gva_track->info);
 
             gva_track->tracker->track(gstbuffer, video_frame);

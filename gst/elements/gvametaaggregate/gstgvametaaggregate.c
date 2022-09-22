@@ -94,7 +94,7 @@ static void gst_gva_meta_aggregate_class_init(GstGvaMetaAggregateClass *klass);
 static gpointer gst_gva_meta_aggregate_parent_class = NULL;
 
 GType gst_gva_meta_aggregate_get_type(void) {
-    static volatile gsize g_define_type_id_volatile = 0;
+    static gsize g_define_type_id_volatile = 0;
 
     if (g_once_init_enter(&g_define_type_id_volatile)) {
         GType g_define_type_id = g_type_register_static_simple(

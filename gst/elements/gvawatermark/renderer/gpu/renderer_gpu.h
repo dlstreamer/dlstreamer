@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include <dlstreamer/buffer_mapper.h>
+#include <dlstreamer/base/memory_mapper.h>
 
 #include "dpcpp_types.h"
 #include "renderer.h"
@@ -33,7 +33,7 @@ class RendererGPU : public Renderer {
     int image_height;
     std::shared_ptr<sycl::queue> queue;
     std::map<std::string, TextStorage> text_storage;
-    dlstreamer::BufferMapperPtr buffer_mapper;
+    dlstreamer::MemoryMapperPtr buffer_mapper;
 
     gpu_unique_ptr<gpu::dpcpp::Rect> rectangles = nullptr;
     gpu_unique_ptr<gpu::dpcpp::Circle> circles = nullptr;
@@ -44,25 +44,25 @@ class RendererGPU : public Renderer {
     uint32_t _lines_size = 0;
     uint32_t _texts_size = 0;
 
-    gpu::dpcpp::Rect prepare_rectangle(gapidraw::Rect rect, int &max_side);
-    std::vector<gpu::dpcpp::Text> prepare_text(const gapidraw::Text &drawing_text, int &max_width, int &max_height);
-    gpu::dpcpp::Line prepare_line(const gapidraw::Line &line);
+    gpu::dpcpp::Rect prepare_rectangle(render::Rect rect, int &max_side);
+    std::vector<gpu::dpcpp::Text> prepare_text(const render::Text &drawing_text, int &max_width, int &max_height);
+    gpu::dpcpp::Line prepare_line(const render::Line &line);
 
-    dlstreamer::BufferPtr buffer_map(dlstreamer::BufferPtr buffer) override;
-    void malloc_device_prims(int index, uint32_t size);
+    dlstreamer::FramePtr buffer_map(dlstreamer::FramePtr buffer) override;
+    void malloc_device_prims(render::Prim p, uint32_t size);
 
   public:
-    RendererGPU(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr input_buffer_mapper,
+    RendererGPU(std::shared_ptr<ColorConverter> color_converter, dlstreamer::MemoryMapperPtr input_buffer_mapper,
                 int image_width, int image_height);
     ~RendererGPU();
 };
 
 class RendererRGB : public RendererGPU {
   protected:
-    void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<cv::gapi::wip::draw::Prim> &prims) override;
+    void draw_backend(std::vector<cv::Mat> &image_planes, std::vector<render::Prim> &prims) override;
 
   public:
-    RendererRGB(std::shared_ptr<ColorConverter> color_converter, dlstreamer::BufferMapperPtr input_buffer_mapper,
+    RendererRGB(std::shared_ptr<ColorConverter> color_converter, dlstreamer::MemoryMapperPtr input_buffer_mapper,
                 int image_width, int image_height)
         : RendererGPU(color_converter, std::move(input_buffer_mapper), image_width, image_height) {
     }

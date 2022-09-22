@@ -155,29 +155,30 @@ class GvaMetaPublishMqttPrivate {
             return false;
         }
 
-        sts = MQTTAsync_setCallbacks(_client, this,
-                                     [](void *context, char *cause) {
-                                         if (!context) {
-                                             GST_ERROR("Got null context on mqtt connect_lost callback");
-                                             return;
-                                         }
-                                         static_cast<GvaMetaPublishMqttPrivate *>(context)->on_connection_lost(cause);
-                                     },
-                                     [](void *context, char *topicName, int topicLen, MQTTAsync_message *message) {
-                                         if (!context) {
-                                             GST_ERROR("Got null context on mqtt message_arrived callback");
-                                             return 0;
-                                         }
-                                         return static_cast<GvaMetaPublishMqttPrivate *>(context)->on_message_arrived(
-                                             topicName, topicLen, message);
-                                     },
-                                     [](void *context, MQTTAsync_token token) {
-                                         if (!context) {
-                                             GST_ERROR("Got null context on mqtt delivery_complete callback");
-                                             return;
-                                         }
-                                         static_cast<GvaMetaPublishMqttPrivate *>(context)->on_delivery_complete(token);
-                                     });
+        sts = MQTTAsync_setCallbacks(
+            _client, this,
+            [](void *context, char *cause) {
+                if (!context) {
+                    GST_ERROR("Got null context on mqtt connect_lost callback");
+                    return;
+                }
+                static_cast<GvaMetaPublishMqttPrivate *>(context)->on_connection_lost(cause);
+            },
+            [](void *context, char *topicName, int topicLen, MQTTAsync_message *message) {
+                if (!context) {
+                    GST_ERROR("Got null context on mqtt message_arrived callback");
+                    return 0;
+                }
+                return static_cast<GvaMetaPublishMqttPrivate *>(context)->on_message_arrived(topicName, topicLen,
+                                                                                             message);
+            },
+            [](void *context, MQTTAsync_token token) {
+                if (!context) {
+                    GST_ERROR("Got null context on mqtt delivery_complete callback");
+                    return;
+                }
+                static_cast<GvaMetaPublishMqttPrivate *>(context)->on_delivery_complete(token);
+            });
         if (sts != MQTTASYNC_SUCCESS) {
             GST_ERROR_OBJECT(_base, "Failed to set callbacks for MQTTAsync handler. Error code: %d", sts);
             return false;

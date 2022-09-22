@@ -20,11 +20,11 @@ High-performance Media Analytics solutions are difficult to build, deploy, and b
 
 **Intel® DL Streamer** makes **Media Analytics** easy:
 
-*	Write less code and get better performance
+*	Get beter performance while writing less code
 *	Quickly develop, optimize, benchmark, and deploy video & audio analytics pipelines in the Cloud and at the Edge
-* Analyze video & audio streams, create actionable results, capture and send results to the cloud
-*	Leverage the efficiency and computational power of Intel hardware platforms
-*	Write more portable code across Intel hardware platforms, CPU & xPU classes and generations
+*	Analyze video & audio streams, create actionable results, capture, and send results to the cloud
+*	Leverage the efficiency and computational power of Intel® hardware platforms
+*	Write more portable code across Intel® hardware platforms, CPU & xPU classes and generations
 *	Leverage GStreamer* open-source project community investments in new features & bug-fixes
 *	Leverage NNStreamer* selected AI inferencing elements via pipeline inter-operability
 *	Customize and extend your solution by reviewing, analyzing, and modifying Intel® DL Streamer open-sourced code
@@ -50,6 +50,11 @@ Testimonials
      - “Intel® DL Streamer (OpenVINO™) is an easy-to-use and extensible application framework, which provides a well-organized set of classes and methods. In particular, DL Streamer allows us to add user-defined post processing with gvapython elements. This feature will help us develop AI-based video analytics applications for NTT's businesses, addressing various customer demands responsively.”
 
        — Takeharu Eda, Senior Research Engineer, NTT Software Innovation Center
+   
+   * - .. 
+     - "Intel® DL Streamer Pipeline Server has helped TIBCO Software to develop and optimize Project AIR solution with less effort and shorter TTM, and to deliver better user experience that includes no-code data pipelines. Project AIR was able to easier deploy and expose optimized video analytics pipelines as microservices accessible for consumption via REST APIs."
+     
+       — Miguel Torres, Director of the Americas - Office of the CTO at TIBCO Software
 
 -----
 
@@ -65,4 +70,3 @@ Testimonials
    elements/elements
    supported_models
    api_ref/api_reference
-

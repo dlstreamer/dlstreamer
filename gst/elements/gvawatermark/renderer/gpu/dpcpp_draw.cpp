@@ -230,7 +230,7 @@ sycl::event gpu::dpcpp::renderCircles(sycl::queue queue, cv::Mat &image_plane, c
         const int i = item.get_global_id(1);
         const int j = item.get_global_id(2);
 
-        const cv::gapi::wip::draw::Circle &circle = circles[k].first;
+        const render::Circle &circle = circles[k].first;
         const int r2 = circle.radius * circle.radius + 1;
 
         const size_t y = circle.center.y - circle.radius + i;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -172,11 +172,8 @@ json convert_frame_classification(GstGvaMetaConvert *converter, GstBuffer *buffe
 
     GVA::VideoFrame video_frame(buffer, converter->info);
     const std::vector<GVA::Tensor> tensors = video_frame.tensors();
-    /* check if there is any full-frame classification tensors attached to the buffer */
-    if (!std::any_of(tensors.cbegin(), tensors.cend(),
-                     [](const GVA::Tensor &tensor) { return tensor.get_string("type") == "classification_result"; })) {
+    if (tensors.empty())
         return json{};
-    }
 
     json jobject = json::object();
     if (converter->add_tensor_data) {
@@ -188,15 +185,18 @@ json convert_frame_classification(GstGvaMetaConvert *converter, GstBuffer *buffe
     jobject.push_back({"h", converter->info->height});
 
     for (GVA::Tensor &tensor : video_frame.tensors()) {
-        if (tensor.get_string("type") != "classification_result")
-            continue;
-        if (tensor.has_field("label") && tensor.has_field("model_name")) {
+        if (tensor.has_field("label") || tensor.has_field("label_id")) {
             std::string label = tensor.label();
             std::string model_name = tensor.model_name();
+            json classification = json::object({});
+            if (!label.empty()) {
+                classification.push_back(json::object_t::value_type("label", label));
+            }
+            if (!model_name.empty()) {
+                classification.push_back(json::object_t::value_type("model", {{"name", model_name}}));
+            }
             std::string attribute_name =
                 tensor.has_field("attribute_name") ? tensor.get_string("attribute_name") : tensor.name();
-
-            json classification = json::object({{"label", label}, {"model", {{"name", model_name}}}});
 
             if (tensor.has_field("confidence")) {
                 classification.push_back(json::object_t::value_type("confidence", tensor.confidence()));

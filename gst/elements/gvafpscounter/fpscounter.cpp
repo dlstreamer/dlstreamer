@@ -5,14 +5,14 @@
  ******************************************************************************/
 
 #include "fpscounter.h"
-#include "config.h"
-#include "inference_backend/logger.h"
-#include "utils.h"
 
 #include <assert.h>
 #include <chrono>
 #include <exception>
 #include <mutex>
+#ifdef __linux__
+#include <unistd.h>
+#endif
 
 namespace {
 constexpr double TIME_THRESHOLD = 0.1;
@@ -25,28 +25,40 @@ constexpr int ELEMENT_NAME_MAX_SIZE = 64;
 
 bool IterativeFpsCounter::NewFrame(const std::string &element_name, FILE *output) {
     std::lock_guard<std::mutex> lock(mutex);
+    if (++total_frames <= starting_frame)
+        return false;
     if (output == nullptr)
         return false;
     num_frames[element_name]++;
     auto now = std::chrono::high_resolution_clock::now();
-    if (!last_time.time_since_epoch().count()) {
-        last_time = now;
+    if (!init_time.time_since_epoch().count()) {
+        init_time = last_time = now;
     }
 
     double sec = std::chrono::duration_cast<seconds_double>(now - last_time).count();
     if (sec >= interval) {
         last_time = now;
-        PrintFPS(output, sec);
-        for (auto it = num_frames.begin(); it != num_frames.end(); it++)
-            it->second = 0;
+        if (average) {
+            sec = std::chrono::duration_cast<seconds_double>(now - init_time).count();
+            PrintFPS(output, sec);
+        } else {
+            PrintFPS(output, sec);
+            for (auto it = num_frames.begin(); it != num_frames.end(); it++)
+                it->second = 0;
+        }
         return true;
     }
     return false;
 }
 
-void IterativeFpsCounter::PrintFPS(FILE *output, double sec) {
+void IterativeFpsCounter::PrintFPS(FILE *output, double sec, bool eos) {
     assert(output);
 
+    if (sec < TIME_THRESHOLD) {
+        fprintf(output, "FPSCounter: Not enough data for calculation. The time interval (%.7f sec) is too short.\n",
+                sec);
+        return;
+    }
     if (num_frames.empty())
         return;
 
@@ -55,10 +67,17 @@ void IterativeFpsCounter::PrintFPS(FILE *output, double sec) {
         total += num.second;
     total /= sec;
 
-    fprintf(output, "FpsCounter(%dsec): ", interval);
+    if (average) {
+        if (eos)
+            fprintf(output, "FpsCounter(overall %.2fsec): ", sec);
+        else
+            fprintf(output, "FpsCounter(average %.2fsec): ", sec);
+    } else {
+        fprintf(output, "FpsCounter(last %.2fsec): ", sec);
+    }
     fprintf(output, "total=%.2f fps, number-streams=%ld, per-stream=%.2f fps", total, num_frames.size(),
             total / num_frames.size());
-    if (num_frames.size() > 1 and print_each_stream) {
+    if (num_frames.size() > 1 && print_each_stream) {
         fprintf(output, " (");
         auto num = num_frames.begin();
         fprintf(output, "%.2f", num->second / sec);
@@ -70,69 +89,32 @@ void IterativeFpsCounter::PrintFPS(FILE *output, double sec) {
     fflush(output);
 }
 
-////////////////////////////////////////////////////////////////////////////////
-// AverageFpsCounter
-
-bool AverageFpsCounter::NewFrame(const std::string &element_name, FILE *) {
-    std::lock_guard<std::mutex> lock(mutex);
-    total_frames++;
-    if (total_frames <= skipped_frames)
-        return false;
-    num_frames[element_name]++;
-    if (!last_time.time_since_epoch().count()) {
-        last_time = std::chrono::high_resolution_clock::now();
-    }
-    return true;
-}
-
-void AverageFpsCounter::EOS(FILE *output) {
+void IterativeFpsCounter::EOS(FILE *output) {
     assert(output);
     std::lock_guard<std::mutex> lock(mutex);
-    if (not result_reported) {
+    if (!eos_result_reported) {
         auto now = std::chrono::high_resolution_clock::now();
-        double sec = std::chrono::duration_cast<seconds_double>(now - last_time).count();
-        PrintFPS(output, sec);
-        result_reported = true;
+        auto last = average ? init_time : last_time;
+        double sec = std::chrono::duration_cast<seconds_double>(now - last).count();
+        PrintFPS(output, sec, true);
+        eos_result_reported = true;
     }
-}
-
-void AverageFpsCounter::PrintFPS(FILE *output, double sec) {
-    assert(output);
-    if (sec < TIME_THRESHOLD) {
-        fprintf(output,
-                "FPSCounter(average): Not enough data for calculation. The time interval (%.7f sec) is too short.\n",
-                sec);
-        return;
-    }
-
-    if (!num_frames.size())
-        return;
-    double total = 0;
-    for (auto num : num_frames)
-        total += num.second;
-    total /= sec;
-
-    fprintf(output, "FPSCounter(average): ");
-    fprintf(output, "total=%.2f fps, number-streams=%ld, per-stream=%.2f fps", total, num_frames.size(),
-            total / num_frames.size());
-    if (num_frames.size() > 1) {
-        fprintf(output, " (");
-        for (auto num = num_frames.begin(); num != num_frames.end(); num++) {
-            if (num != num_frames.begin())
-                fprintf(output, ", ");
-            fprintf(output, "%.2f", num->second / sec);
-        }
-        fprintf(output, ")");
-    }
-    fprintf(output, "\n");
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 // WritePipeFpsCounter
 
+static int getProcessId() {
+#ifdef __linux__
+    return getpid();
+#elif _WIN32
+    assert(!"getpid() is not implemented for Windows.");
+    return -1;
+#endif
+}
+
 WritePipeFpsCounter::WritePipeFpsCounter(const char *pipe_name)
-    : pipe(new NamedPipe(std::string(pipe_name), NamedPipe::Mode::WriteOnly)),
-      pid(std::to_string(Utils::getProcessId())) {
+    : pipe(new NamedPipe(std::string(pipe_name), NamedPipe::Mode::WriteOnly)), pid(std::to_string(getProcessId())) {
 }
 
 bool WritePipeFpsCounter::NewFrame(const std::string &element_name, FILE *) {
@@ -166,7 +148,7 @@ ReadPipeFpsCounter::ReadPipeFpsCounter(const char *pipe_name, std::function<void
                     // Since we're waiting and have nothing to do,
                     // let's find out how many pipe descriptors are open.
                     // If there're zero, our work here is done.
-                    if (Utils::getOpenedByProcessesDescriptorsCount(pipe->getName(), "w") == 0)
+                    if (getOpenedByProcessesDescriptorsCount(pipe->getName(), "w") == 0)
                         break;
                     continue;
                 }
@@ -174,7 +156,7 @@ ReadPipeFpsCounter::ReadPipeFpsCounter(const char *pipe_name, std::function<void
             }
             pipe_completion_callback();
         } catch (const std::exception &e) {
-            GVA_ERROR("ReadPipe error: %s", e.what());
+            printf("ReadPipe error: %s", e.what());
         }
     });
 }
@@ -185,6 +167,6 @@ ReadPipeFpsCounter::~ReadPipeFpsCounter() {
             thread.join();
         }
     } catch (const std::exception &e) {
-        GVA_ERROR("An error occurred while destructing ReadPipe: %s", e.what());
+        printf("An error occurred while destructing ReadPipe: %s", e.what());
     }
 }

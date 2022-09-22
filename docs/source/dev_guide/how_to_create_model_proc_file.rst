@@ -2,7 +2,7 @@ How to Create Model-proc File
 =============================
 
 In this tutorial you will learn how to create model-proc file for your
-own CNN model that can be processed by Intel® Deep Learning Streamer (Intel® DL Streamer).
+own CNN model that can be processed by Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework.
 
 Please refer to the :doc:`model-proc documentation <model_proc_file>`
 before going through this tutorial.
@@ -59,7 +59,7 @@ Model has several input layers
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The general case when the model has 2 or more input layers is **not
-supported** by Intel DL Streamer, however, there is an **exception**:
+supported** by Pipeline Framework, however, there is an **exception**:
 
 1. The model requires an image as an input for only one layer;
 2. The second layer is a layer of the following formats:
@@ -85,11 +85,11 @@ In the table below you can find examples of model-proc files that use formats de
      - 2nd layer format
 
    * - `Faster-RCNN <https://docs.openvino.ai/latest/omz_models_model_faster_rcnn_resnet50_coco.html#converted_model>`__
-     - `faster-rcnn-coco.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/faster-rcnn-coco.json>`__
+     - `faster-rcnn-coco.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/faster-rcnn-coco.json>`__
      - image_info
 
    * - `license-plate-recognition-barrier-0001 <https://docs.openvino.ai/latest/omz_models_model_license_plate_recognition_barrier_0001.html>`__
-     - `license-plate-recognition-barrier-0001.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/license-plate-recognition-barrier-0001.json>`__
+     - `license-plate-recognition-barrier-0001.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/license-plate-recognition-barrier-0001.json>`__
      - sequence_index
 
 
@@ -118,11 +118,11 @@ In the table below you can find examples of model-proc files that use some of th
      - Operation
 
    * - `MobileNet <https://github.com/onnx/models/master/vision/classification/mobilenet>`__
-     - `mobilenetv2-7.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/onnx/mobilenetv2-7.json>`__
+     - `mobilenetv2-7.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/onnx/mobilenetv2-7.json>`__
      - normalization
 
    * - `single-human-pose-estimation-0001 <https://github.com/onnx/models/master/vision/classification/mobilenet>`__
-     - `single-human-pose-estimation-0001.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/single-human-pose-estimation-0001.json>`__
+     - `single-human-pose-estimation-0001.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/single-human-pose-estimation-0001.json>`__
      - padding
 
 For details see :doc:`model-proc documentation <model_proc_file>`.
@@ -144,7 +144,7 @@ converter in *"output_postproc"* for separate processing. Example:
    * - Model
      - Model-proc
    * - `age-gender-recognition-retail-0013 <https://docs.openvino.ai/latest/omz_models_model_age_gender_recognition_retail_0013.html>`__
-     - `age-gender-recognition-retail-0013.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/age-gender-recognition-retail-0013.json>`__
+     - `age-gender-recognition-retail-0013.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/age-gender-recognition-retail-0013.json>`__
 
 For joint processing of blobs from several output layers, it is enough to specify only one converter and
 the field *"layer_names": ["layer_name_1", .. , "layer_name_n"]* in it. Example:
@@ -155,7 +155,7 @@ the field *"layer_names": ["layer_name_1", .. , "layer_name_n"]* in it. Example:
    * - Model
      - Model-proc
    * - `YOLOv3 <https://docs.openvino.ai/latest/omz_models_model_yolo_v3_tf.html>`__
-     - `yolo-v3-tf.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/yolo-v3-tf.json>`__
+     - `yolo-v3-tf.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/yolo-v3-tf.json>`__
 
 .. note::
    In this example, you will not find the use of the *"layer_names"* field, because it is not necessary to specify it in
@@ -202,13 +202,13 @@ Examples of labels in model-proc files:
      - Model-proc
    * - ImageNet
      - `resnet-18-pytorch <https://docs.openvino.ai/latest/omz_models_model_resnet_18_pytorch.html>`__
-     - `resnet-18-pytorch.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/resnet-18-pytorch.json>`__
+     - `resnet-18-pytorch.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/resnet-18-pytorch.json>`__
    * - COCO
      - `YOLOv2 <https://docs.openvino.ai/latest/omz_models_model_yolo_v2_tf.html>`__
-     - `yolo-v2-tf.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/public/yolo-v2-tf.json>`__
+     - `yolo-v2-tf.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/yolo-v2-tf.json>`__
    * - PASCAL VOC
      - `yolo-v2-ava-0001 <https://docs.openvino.ai/latest/omz_models_model_yolo_v2_ava_0001.html>`__
-     - `yolo-v2-ava-0001.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/model_proc/intel/yolo-v2-ava-0001.json>`__
+     - `yolo-v2-ava-0001.json <https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/intel/yolo-v2-ava-0001.json>`__
 
 Practice
 --------

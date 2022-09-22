@@ -19,7 +19,7 @@ file(GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
 )
 
-add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} OBJECT ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -30,6 +30,6 @@ PUBLIC
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-    dlstreamer_gst
+    dlstreamer_api
     ${VA_LIBRARIES}
 )

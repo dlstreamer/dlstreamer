@@ -1,5 +1,6 @@
 # gstreamer-vaapi-patches
 
+# REMOVE THIS PAGE/FOLDER
 Intel® Deep Learning Streamer (Intel® DL Streamer) has a LGPL-licensed patch for gstreamer-vaapi plugins:
 
 * dma-vaapiencode.patch \
@@ -38,22 +39,22 @@ curl -sSL https://gitlab.freedesktop.org/gstreamer/gstreamer-vaapi/-/merge_reque
 curl -sSL https://raw.githubusercontent.com/openvinotoolkit/dlstreamer_gst/master/patches/gstreamer-vaapi/dma-vaapiencode.patch -o dma-vaapiencode.patch
 ```
 
-5. Download appropriate version of gstreamer-vaapi's sources (e.g. 1.18.4)
+5. Download appropriate version of gstreamer-vaapi's sources (e.g. 1.20.3)
 
 ```sh
-curl -sSL https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-1.18.4.tar.xz -o gstreamer-vaapi-1.18.4.tar.xz
+curl -sSL https://gstreamer.freedesktop.org/src/gstreamer-vaapi/gstreamer-vaapi-1.20.3.tar.xz -o gstreamer-vaapi-1.20.3.tar.xz
 ```
 
 6. Unpack downloaded archive
 
 ```sh
-tar xf gstreamer-vaapi-1.18.4.tar.xz
+tar xf gstreamer-vaapi-1.20.3.tar.xz
 ```
 
 7. Move into unpacked directory
 
 ```sh
-cd gstreamer-vaapi-1.18.4
+cd gstreamer-vaapi-1.20.3
 ```
 
 8. Apply patches

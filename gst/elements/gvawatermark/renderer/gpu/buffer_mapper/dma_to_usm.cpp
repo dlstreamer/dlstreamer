@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,46 +9,45 @@
 #include <level_zero/ze_api.h>
 #include <unistd.h>
 
-#include <dlstreamer/dma/buffer.h>
-#include <dlstreamer/usm/buffer.h>
-#include <dlstreamer/usm/context.h>
+#include <dlstreamer/dma/tensor.h>
+#include <dlstreamer/level_zero/context.h>
+#include <dlstreamer/level_zero/usm_tensor.h>
 
 namespace dlstreamer {
 
-BufferMapperDmaToUsm::BufferMapperDmaToUsm(BufferMapperPtr input_buffer_mapper, ContextPtr usm_context)
-    : _input_mapper(std::move(input_buffer_mapper)), _context(std::dynamic_pointer_cast<UsmContext>(usm_context)) {
+MapperDMAToUSM::MapperDMAToUSM(MemoryMapperPtr input_buffer_mapper, ContextPtr usm_context)
+    : BaseMemoryMapper(nullptr, usm_context), _input_mapper(std::move(input_buffer_mapper)),
+      _context(std::dynamic_pointer_cast<LevelZeroContext>(usm_context)) {
     if (!_context)
         throw std::invalid_argument("Invalid context type: USM context is expected");
     if (!_input_mapper)
         throw std::invalid_argument("input_buffer_mapper is null");
 };
 
-BufferPtr BufferMapperDmaToUsm::map(BufferPtr buffer, AccessMode mode) {
+TensorPtr MapperDMAToUSM::map(TensorPtr buffer, AccessMode mode) {
     auto dma_buf = _input_mapper->map(buffer, mode);
-    if (dma_buf->type() != BufferType::DMA_FD)
+    if (dma_buf->memory_type() != MemoryType::DMA)
         throw std::runtime_error("DMA buffer is expected as mapped memory type");
 
-    size_t dma_size = dma_buf->info()->planes.front().size();
-    int dma_fd = dma_buf->handle(DMABuffer::dma_fd_id);
+    size_t dma_size = dma_buf->info().nbytes();
+    int dma_fd = dma_buf->handle(DMATensor::key::dma_fd);
 
     void *usm_ptr = getDeviceMemPointer(dma_fd, dma_size);
 
-    auto usm_buffer = new UsmBuffer(dma_buf->info(), usm_ptr);
+    auto usm_tensor = new USMTensor(dma_buf->info(), usm_ptr, false, nullptr);
 
-    // FIXME: move deleter to UsmBuffer ?
-    auto deleter = [this, usm_ptr, dma_buf](UsmBuffer *usm_buffer) mutable {
-        zeMemFree(_context->context_handle(), usm_ptr);
-        // Release reference to source DMA buffer
-        dma_buf.reset();
-        delete usm_buffer;
+    // FIXME: move deleter to USMBuffer ?
+    auto deleter = [this, usm_ptr](USMTensor *usm_tensor) mutable {
+        zeMemFree(_context->ze_context(), usm_ptr);
+        delete usm_tensor;
     };
 
-    return std::shared_ptr<UsmBuffer>(usm_buffer, deleter);
+    return std::shared_ptr<USMTensor>(usm_tensor, deleter);
 }
 
-void *BufferMapperDmaToUsm::getDeviceMemPointer(int dma_fd, size_t dma_size) {
-    ze_context_handle_t ze_context = _context->context_handle();
-    ze_device_handle_t ze_device = _context->device_handle();
+void *MapperDMAToUSM::getDeviceMemPointer(int dma_fd, size_t dma_size) {
+    ze_context_handle_t ze_context = _context->ze_context();
+    ze_device_handle_t ze_device = _context->ze_device();
 
     // WA for issue in Level Zero when zeMemFree called FD that was passed to export external memory will be
     // closed but it shouldn`t.

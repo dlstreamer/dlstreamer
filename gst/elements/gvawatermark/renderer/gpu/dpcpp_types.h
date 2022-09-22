@@ -7,17 +7,15 @@
 #pragma once
 
 #include "color_converter.h"
-#include <opencv2/gapi.hpp>
-#include <opencv2/gapi/render/render.hpp>
-#include <opencv2/opencv.hpp>
+#include "render_prim.h"
 
 namespace gpu {
 namespace dpcpp {
-// gapi::Primitives such as Line, Rect etc uses cv::Scalar_<double> for Color field.
-// But some GPU platforms does not support `double` format.
+// Structures in render_prim.h such as Line, Rect etc use cv::Scalar_<double> for Color field.
+// But some GPU platforms don't support `double` format.
 // We attached u_int8_t Color to primitives to avoid the problem.
-using Rect = std::pair<cv::gapi::wip::draw::Rect, Color>;
-using Circle = std::pair<cv::gapi::wip::draw::Circle, Color>;
+using Rect = std::pair<render::Rect, Color>;
+using Circle = std::pair<render::Circle, Color>;
 
 struct Line {
     int x0;

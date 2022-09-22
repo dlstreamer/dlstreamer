@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,15 +12,12 @@
 
 #include <memory>
 
-// FWD
-class BufferMapper;
-
 // Channel (GvaBaseInference) specific information. Contains C++ objects
 struct GvaBaseInferencePrivate {
     // Decoder VA display, if present
     dlstreamer::ContextPtr va_display;
 
-    std::unique_ptr<InferenceBackend::BufferMapper> buffer_mapper;
+    std::unique_ptr<InferenceBackend::BufferToImageMapper> buffer_mapper;
 };
 
 #endif // __cplusplus

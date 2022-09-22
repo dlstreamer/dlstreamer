@@ -7,6 +7,7 @@
 cmake_minimum_required(VERSION 3.1)
 
 add_subdirectory(itt)
+
 # Populate thirdparty/json dependency
 set(JSONCONVERT_SOURCE "https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp")
 set(JSONCONVERT_PATH "${CMAKE_CURRENT_SOURCE_DIR}/json/nlohmann")
@@ -23,6 +24,11 @@ if(NOT EXISTS ${JSONVALIDATOR_HEADER})
 
     execute_process(
         COMMAND ${CMAKE_COMMAND} -E tar xzf ${JSONVALIDATOR_TAR}
+        WORKING_DIRECTORY ${JSONVALIDATOR_PATH}
+    )
+    # fix build issue
+    execute_process(
+        COMMAND sed -i "s/&c : s/c : s/g" json-schema-validator-2.0.0/src/json-validator.cpp
         WORKING_DIRECTORY ${JSONVALIDATOR_PATH}
     )
 endif()

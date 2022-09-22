@@ -11,6 +11,6 @@ Developer Guide
    python_bindings
    custom_processing
    object_tracking
+   profiling
    converting_deepstream_to_dlstreamer
    how_to_contribute
-   preview_features/preview_features

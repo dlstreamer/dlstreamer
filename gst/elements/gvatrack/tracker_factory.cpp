@@ -36,7 +36,7 @@ bool TrackerFactory::RegisterAll() {
     bool result = true;
 
     auto create_vas_tracker = [](const GstGvaTrack *gva_track, TrackingType tracking_type,
-                                 dlstreamer::BufferMapperPtr mapper, dlstreamer::ContextPtr context) -> ITracker * {
+                                 dlstreamer::MemoryMapperPtr mapper, dlstreamer::ContextPtr context) -> ITracker * {
         const vas::ColorFormat color_fmt = gstVideoFmtToVasColorFmt(gva_track->info->finfo->format);
         const std::string cfg = gva_track->tracking_config ? gva_track->tracking_config : std::string();
         return new VasWrapper::Tracker(gva_track->device, tracking_type, color_fmt, cfg, std::move(mapper),
@@ -64,7 +64,7 @@ bool TrackerFactory::Register(const GstGvaTrackingType tracking_type, TrackerCre
     return false;
 }
 
-ITracker *TrackerFactory::Create(const GstGvaTrack *gva_track, dlstreamer::BufferMapperPtr mapper,
+ITracker *TrackerFactory::Create(const GstGvaTrack *gva_track, dlstreamer::MemoryMapperPtr mapper,
                                  dlstreamer::ContextPtr context) {
     if (!gva_track)
         throw std::invalid_argument("GvaTrack instance is null");

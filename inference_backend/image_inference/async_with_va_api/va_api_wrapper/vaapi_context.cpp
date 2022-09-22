@@ -27,7 +27,7 @@ VaApiContext::VaApiContext(VADisplay va_display) : _display(va_display) {
 
 VaApiContext::VaApiContext(dlstreamer::ContextPtr va_display_context)
     : _display_storage(va_display_context),
-      _display(va_display_context->handle(dlstreamer::VAAPIContext::va_display_id)) {
+      _display(va_display_context->handle(dlstreamer::VAAPIContext::key::va_display)) {
 
     create_config_and_contexts();
     create_supported_pixel_formats();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -40,7 +40,7 @@ ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_ty
 
         // The display must present.
         if (!context)
-            throw std::invalid_argument("Null context provided (VAAPIContext is expected)");
+            throw std::invalid_argument("Null context provided (VaApiContext is expected)");
 
         ImagePreprocessorType preproc_type = getPreProcType(config.at(KEY_BASE));
         switch (preproc_type) {

@@ -8,14 +8,81 @@
 
 #ifdef __linux__
 
+#include <dirent.h>
 #include <fcntl.h>
+#include <stdexcept>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <stdexcept>
+int getOpenedByProcessesDescriptorsCount(const std::string &file_name, const std::string &access_mode) {
+#ifdef __linux__
+    int result = 0;
 
-#include <utils.h>
+    mode_t flags = S_IRUSR;
+    if (access_mode == "w")
+        flags = S_IWUSR;
+    else if (access_mode == "rw")
+        flags |= S_IWUSR;
+    else if (access_mode != "r")
+        throw std::runtime_error("Unexpected file mode.");
+
+    // Iterate over /proc directory
+    DIR *dir = opendir("/proc");
+    if (dir == NULL)
+        throw std::runtime_error("Unable to open /proc directory.");
+
+    struct dirent *de;
+    while ((de = readdir(dir))) {
+        if (!strcmp(de->d_name, ".") || !strcmp(de->d_name, ".."))
+            continue;
+        char *endptr = nullptr;
+        int pid = strtol(de->d_name, &endptr, 10);
+        if (*endptr != '\0')
+            continue;
+
+        char fd_path[PATH_MAX] = {'\0'};
+        sprintf(fd_path, "/proc/%d/fd", pid);
+
+        DIR *fd_dir = opendir(fd_path);
+        if (!fd_dir)
+            continue;
+
+        // Iterate over opened file descriptors and find the one we're looking for.
+        struct dirent *fde;
+        while ((fde = readdir(fd_dir))) {
+            if (!strcmp(fde->d_name, ".") || !strcmp(fde->d_name, ".."))
+                continue;
+
+            char fde_path[PATH_MAX];
+            sprintf(fde_path, "/proc/%d/fd/%s", pid, fde->d_name);
+            ssize_t link_dest_size = 0;
+            char link_dest[PATH_MAX];
+            if ((link_dest_size = readlink(fde_path, link_dest, sizeof(link_dest) - 1)) < 0) {
+                continue;
+            } else {
+                link_dest[link_dest_size] = '\0';
+            }
+
+            // Found our file. Lets check its permission
+            if (strcmp(link_dest, file_name.c_str())) {
+                continue;
+            }
+
+            struct stat st;
+            if (lstat(fde_path, &st) != 0)
+                continue;
+            result += st.st_mode & flags;
+        }
+        closedir(fd_dir);
+    }
+    closedir(dir);
+    return result;
+#elif _WIN32
+    assert(!"getOpenedByProcessesDescriptorsCount() is not implemented for Windows.");
+    return -1;
+#endif
+}
 
 namespace {
 
@@ -46,7 +113,7 @@ NamedPipe::NamedPipe(const std::string &name, NamedPipe::Mode mode) : _pipeName(
 NamedPipe::~NamedPipe() {
     try {
         close();
-        if (Utils::getOpenedByProcessesDescriptorsCount(_pipeName, "rw") == 0)
+        if (getOpenedByProcessesDescriptorsCount(_pipeName, "rw") == 0)
             remove(_pipeName.c_str());
     } catch (...) {
     }

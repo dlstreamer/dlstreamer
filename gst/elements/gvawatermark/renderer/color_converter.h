@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
-#include <dlstreamer/fourcc.h>
+#include <dlstreamer/image_info.h>
 #include <opencv2/opencv.hpp>
 #include <string>
 #include <unordered_map>
@@ -70,5 +70,5 @@ class RGBtoYUVColorConverter : public ColorConverter {
                                    std::unordered_map<Color, Color> &yuv_colors, double (&matrix)[3][3]);
 };
 
-std::shared_ptr<ColorConverter> create_color_converter(dlstreamer::FourCC format,
+std::shared_ptr<ColorConverter> create_color_converter(dlstreamer::ImageFormat format,
                                                        const std::vector<Color> &rgb_color_table, double Kr, double Kb);

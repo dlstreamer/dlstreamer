@@ -36,5 +36,8 @@ class LabelConverter : public BlobToTensorConverter {
 
   private:
     Method _method = Method::Max;
+    template <typename T>
+    void ExecuteMethod(const T *data, const std::string &layer_name, InferenceBackend::OutputBlob::Ptr blob,
+                       TensorsTable &tensors_table) const;
 };
 } // namespace post_processing

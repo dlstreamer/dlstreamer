@@ -4,246 +4,171 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "video_preproc_vaapi.h"
+#include "dlstreamer/vaapi/elements/video_preproc_vaapi.h"
+#include "dlstreamer/base/transform.h"
+#include "dlstreamer/image_metadata.h"
+#include "dlstreamer/memory_mapper_factory.h"
 #include "dlstreamer/utils.h"
-#include <iostream>
+#include "dlstreamer/vaapi/context.h"
+#include "dlstreamer/vaapi/frame_alloc.h"
+#include <climits>
+#include <mutex>
+#include <va/va_backend.h>
 
 namespace dlstreamer {
 
 namespace param {
-static constexpr auto batch_size = "batch_size";
+static constexpr auto aspect_ratio = "aspect-ratio";
+static constexpr auto output_format = "output-format";
 }; // namespace param
 
-ParamDescVector *VideoPreprocVAAPIParamsDesc() {
-    static ParamDescVector params_desc = {
-        // if batch_size=0, it selected during output caps negotiation
-        {param::batch_size, "Batch size (0=autoselection)", 0, 0, INT_MAX},
-    };
-    return &params_desc;
+static ParamDescVector params_desc = {
+    {param::aspect_ratio, "Keep the aspect ratio (add borders if necessary)", false},
+    {param::output_format, "Image format for output frames: BGR or RGB or GRAY", "BGR"},
 };
 
-#define VA_CALL(_FUNC)                                                                                                 \
-    {                                                                                                                  \
-        /*ITT_TASK(#_FUNC);*/                                                                                          \
-        VAStatus _status = _FUNC;                                                                                      \
-        if (_status != VA_STATUS_SUCCESS) {                                                                            \
-            throw std::runtime_error(#_FUNC " failed, sts=" + std::to_string(_status));                                \
-        }                                                                                                              \
-    }
-
-// Buffer that creates and controls lifetime of VASurface
-class VAAPIBufferEx final : public VAAPIBuffer {
-    VASurfaceID _surface;
-    VAAPIContextPtr _va_context; // FIXME: move to VAAPIBuffer
-
+class VideoPreprocVAAPI : public BaseTransform {
   public:
-    VAAPIBufferEx(VASurfaceID surface, BufferInfoCPtr info, ContextPtr context)
-        : VAAPIBuffer(surface, info, context), _surface(surface) {
-        _va_context = std::dynamic_pointer_cast<VAAPIContext>(context);
-        if (!_va_context)
-            throw std::runtime_error("failed to create VAAPIBufferEx: empty VAAPIContext");
+    VideoPreprocVAAPI(DictionaryCPtr params, const ContextPtr &app_context) : BaseTransform(app_context) {
+        _aspect_ratio = params->get<bool>(param::aspect_ratio, false);
+        std::string output_format_str = params->get(param::output_format, std::string());
+        if (!output_format_str.empty()) {
+            if (output_format_str.find("BGR") != std::string::npos)
+                _output_format = ImageFormat::BGRX;
+            else if (output_format_str.find("RGB") != std::string::npos)
+                _output_format = ImageFormat::RGBX;
+            else
+                throw std::runtime_error("Unknown image format: " + output_format_str);
+        }
     }
 
-    ~VAAPIBufferEx() {
-        VADriverContext *va_driver = unpack_drv_context(_va_context->va_display());
-        VAStatus status = va_driver->vtable->vaDestroySurfaces(va_driver, &_surface, 1);
-        // FIXME: logging system
-        if (status != VA_STATUS_SUCCESS)
-            std::cout << "vaDestroySurfaces() failed with status = " << status << std::endl;
+    bool init_once() override {
+        _vaapi_context = VAAPIContext::create(_app_context);
+        init_vaapi();
+        create_mapper({_app_context, _vaapi_context});
+
+        if (_output_info.format)
+            _output_format = static_cast<ImageFormat>(_output_info.format);
+        return true;
     }
 
-    static std::shared_ptr<VAAPIBufferEx> create(BufferInfoCPtr info, VAAPIContextPtr context, int rt_format) {
-        auto surface = create_surface(info, context, rt_format);
-        return std::make_shared<VAAPIBufferEx>(surface, std::move(info), std::move(context));
+    std::function<FramePtr()> get_output_allocator() override {
+        return [this]() {
+            FrameInfo output_info(_output_format, MemoryType::VAAPI, _output_info.tensors);
+            return std::make_shared<VAAPIFrameAlloc>(output_info, _vaapi_context);
+        };
     }
 
-    static VASurfaceID create_surface(BufferInfoCPtr info, VAAPIContextPtr context, int rt_format) {
-        VASurfaceAttrib surface_attr = {};
-        surface_attr.type = VASurfaceAttribPixelFormat;
-        surface_attr.flags = VA_SURFACE_ATTRIB_SETTABLE;
-        surface_attr.value.type = VAGenericValueTypeInteger;
-        surface_attr.value.value.i = info->format;
+    FramePtr process(FramePtr src) override {
+        DLS_CHECK(init());
+        auto dst = create_output();
+        ImageInfo src_info0(src->tensor(0)->info());
+        ImageInfo dst_info0(dst->tensor(0)->info());
+        uint16_t dst_w = dst_info0.width();
+        uint16_t dst_h = dst_info0.height();
 
-        const auto &p0 = info->planes.front();
-        unsigned int va_surface = VA_INVALID_SURFACE;
-        auto va_driver = unpack_drv_context(context->va_display());
-        auto vtable = va_driver->vtable;
+        int batch_size = src->num_tensors();
+        // if format specified, it's multiple-plane image not batch
+        if (src->media_type() == MediaType::Image && src->format())
+            batch_size = 1;
+
+        std::vector<VAProcPipelineParameterBuffer> pipeline_param_bufs(batch_size);
+        std::vector<VABufferID> pipeline_param_buf_ids(batch_size);
+        std::vector<VARectangle> src_rects(batch_size);
+        std::vector<VARectangle> dst_rects(batch_size);
+
+        for (int i = 0; i < batch_size; i++) {
+            auto tensor = src->tensor(i).map<VAAPITensor>(_vaapi_context, AccessMode::Read);
+            auto &info = src->tensor(i)->info();
+            ImageInfo image_info(info);
+            uint16_t src_w = image_info.width();
+            uint16_t src_h = image_info.height();
+
+            // input and output regions
+            auto &src_rect = src_rects[i];
+            auto &dst_rect = dst_rects[i];
+            int16_t src_x = tensor->offset_x();
+            int16_t src_y = tensor->offset_y();
+            src_rect = {.x = src_x, .y = src_y, .width = src_w, .height = src_h};
+            dst_rect = {.x = 0, .y = static_cast<int16_t>(i * dst_h), .width = dst_w, .height = dst_h};
+            pipeline_param_bufs[i] = {};
+            pipeline_param_bufs[i].surface = tensor->va_surface();
+            pipeline_param_bufs[i].surface_region = nullptr;
+            pipeline_param_bufs[i].surface_region = &src_rect;
+            pipeline_param_bufs[i].output_region = &dst_rect;
+
+            if (_aspect_ratio) {
+                double scale_x = static_cast<double>(dst_rect.width) / src_rect.width;
+                double scale_y = static_cast<double>(dst_rect.height) / src_rect.height;
+                double scale = std::min(scale_x, scale_y);
+                dst_rect.width = src_rect.width * scale;
+                dst_rect.height = src_rect.height * scale;
+            }
+
+            VA_CALL(_va_vtable->vaCreateBuffer(_va_driver, _va_context_id, VAProcPipelineParameterBufferType,
+                                               sizeof(pipeline_param_bufs[i]), 1, &pipeline_param_bufs[i],
+                                               &pipeline_param_buf_ids[i]));
+
+            // Store metadata with coefficients for src<>dst coordinates conversion
+            auto affine_meta = dst->metadata().add(AffineTransformInfoMetadata::name);
+            dst_rect.y -= i * dst_h;
+            AffineTransformInfoMetadata(affine_meta).set_rect(src_w, src_h, dst_w, dst_h, src_rect, dst_rect);
+        }
+
+        VAAPIFramePtr dst_vaapi = ptr_cast<VAAPIFrame>(dst);
+        VASurfaceID dst_surface = dst_vaapi->va_surface();
+
+        VA_CALL(_va_vtable->vaBeginPicture(_va_driver, _va_context_id, dst_surface));
+        VA_CALL(_va_vtable->vaRenderPicture(_va_driver, _va_context_id, pipeline_param_buf_ids.data(), batch_size));
+        VA_CALL(_va_vtable->vaEndPicture(_va_driver, _va_context_id));
+
+        for (int i = 0; i < batch_size; i++) {
+            VA_CALL(_va_vtable->vaDestroyBuffer(_va_driver, pipeline_param_buf_ids[i]));
+        }
+
+        return dst;
+    }
+
+  protected:
+    bool _aspect_ratio = false;
+    ImageFormat _output_format = ImageFormat::BGRX;
+    VAAPIContextPtr _vaapi_context;
+    VADriverContextP _va_driver = nullptr;
+    VADriverVTable *_va_vtable = nullptr;
+    VAConfigID _va_config_id = VA_INVALID_ID;
+    VAContextID _va_context_id = VA_INVALID_ID;
+
+    void init_vaapi() {
+        auto _va_display = reinterpret_cast<VADisplayContextP>(_vaapi_context->va_display());
+        _va_driver = _va_display->pDriverContext;
+        _va_vtable = _va_display->pDriverContext->vtable;
+
+        VAConfigAttrib attrib;
+        attrib.type = VAConfigAttribRTFormat;
+        attrib.value = VA_RT_FORMAT_YUV420; // TODO is VAConfigAttrib needed?
         VA_CALL(
-            vtable->vaCreateSurfaces2(va_driver, rt_format, p0.width(), p0.height(), &va_surface, 1, &surface_attr, 1));
-        return va_surface;
+            _va_vtable->vaCreateConfig(_va_driver, VAProfileNone, VAEntrypointVideoProc, &attrib, 1, &_va_config_id));
+        VA_CALL(
+            _va_vtable->vaCreateContext(_va_driver, _va_config_id, 0, 0, VA_PROGRESSIVE, nullptr, 0, &_va_context_id));
     }
 
-    static VADriverContext *unpack_drv_context(VADisplay va_display) {
-        return reinterpret_cast<VADisplayContextP>(va_display)->pDriverContext;
+    FrameInfo set_info_types(FrameInfo info, const FrameInfo &static_info) {
+        info.media_type = static_info.media_type;
+        info.memory_type = static_info.memory_type;
+        info.format = static_info.format;
+        return info;
     }
 };
 
-//
-// VideoPreprocVAAPI implementation
-//
-
-VideoPreprocVAAPI::VideoPreprocVAAPI(ITransformController &transform_ctrl, DictionaryCPtr params)
-    : TransformWithAlloc(transform_ctrl, std::move(params)) {
-    _batch_size = _params->get<int>(param::batch_size);
+extern "C" {
+ElementDesc video_preproc_vaapi = {.name = "video_preproc_vaapi",
+                                   .description = "Batched pre-processing with VAAPI memory as input and output",
+                                   .author = "Intel Corporation",
+                                   .params = nullptr,
+                                   .input_info = {{MediaType::Image, MemoryType::VAAPI}},
+                                   .output_info = {{MediaType::Tensors, MemoryType::VAAPI}},
+                                   .create = create_element<VideoPreprocVAAPI>,
+                                   .flags = ELEMENT_FLAG_SHARABLE};
 }
-
-void VideoPreprocVAAPI::init_vaapi() {
-    auto _va_display = reinterpret_cast<VADisplayContextP>(_vaapi_context->va_display());
-    _va_driver = _va_display->pDriverContext;
-    _va_vtable = _va_display->pDriverContext->vtable;
-
-    VAConfigAttrib attrib;
-    attrib.type = VAConfigAttribRTFormat;
-    attrib.value = RT_FORMAT;
-    VA_CALL(_va_vtable->vaCreateConfig(_va_driver, VAProfileNone, VAEntrypointVideoProc, &attrib, 1, &_va_config_id));
-    if (_va_config_id == VA_INVALID_ID) {
-        throw std::invalid_argument("Could not create VA config. Cannot initialize VaApiContext without VA config.");
-    }
-    VA_CALL(_va_vtable->vaCreateContext(_va_driver, _va_config_id, 0, 0, VA_PROGRESSIVE, nullptr, 0, &_va_context_id));
-    if (_va_context_id == VA_INVALID_ID) {
-        throw std::invalid_argument("Could not create VA context. Cannot initialize VaApiContext without VA context.");
-    }
-}
-
-BufferInfoVector VideoPreprocVAAPI::get_input_info(const BufferInfo &output_info) {
-    if (output_info.planes.empty()) {
-        return _desc->input_info;
-    } else {
-        BufferInfo input_info = set_info_types(output_info, _desc->input_info[0]);
-        // remove batch_size from tensor shape (NHWC to HWC)
-        for (auto &plane : input_info.planes) {
-            std::vector<size_t> shape = plane.shape;
-            if (!_batch_size)
-                _batch_size = shape[0];
-            else if (shape[0] != _batch_size)
-                throw std::runtime_error("Expect batch_size on first dimension");
-            shape.erase(shape.begin());
-            plane = PlaneInfo(shape, plane.type, plane.name);
-        }
-        return {input_info};
-    }
-}
-
-BufferInfoVector VideoPreprocVAAPI::get_output_info(const BufferInfo &input_info) {
-    if (input_info.planes.empty()) {
-        return _desc->output_info;
-    } else {
-        BufferInfo output_info = set_info_types(input_info, _desc->output_info[0]);
-        output_info.format = input_info.format;
-        // add batch_size to tensor shape (HWC to NHWC)
-        for (auto &plane : output_info.planes) {
-            std::vector<size_t> shape = plane.shape;
-            shape.insert(shape.begin(), _batch_size ? _batch_size : 1);
-            plane = PlaneInfo(shape, plane.type, plane.name);
-        }
-        return {output_info};
-    }
-}
-
-void VideoPreprocVAAPI::set_info(const BufferInfo &input_info, const BufferInfo &output_info) {
-    _input_info = input_info;
-    _output_info = output_info;
-    _vaapi_context = _transform_ctrl->get_context<VAAPIContext>();
-    if (!_vaapi_context)
-        throw std::runtime_error("Can't query VAAPI context ");
-
-    _input_mapper = _transform_ctrl->create_input_mapper(BufferType::VAAPI_SURFACE, _vaapi_context);
-    init_vaapi();
-    _src_batch.reserve(_batch_size);
-}
-
-std::function<BufferPtr()> VideoPreprocVAAPI::get_output_allocator() {
-    return [this]() {
-        auto info = std::make_shared<BufferInfo>(_output_info);
-        return VAAPIBufferEx::create(std::move(info), _vaapi_context, RT_FORMAT);
-    };
-}
-
-BufferMapperPtr VideoPreprocVAAPI::get_output_mapper() {
-    return nullptr; // std::make_shared<BufferMapperVAAPIToCPU>();
-}
-
-bool VideoPreprocVAAPI::process(BufferPtr src, BufferPtr dst) {
-    std::lock_guard<std::mutex> guard(_mutex);
-
-    _src_batch.push_back(src);
-    if (_src_batch.size() < _batch_size) {
-        return false;
-    }
-
-    auto dst_width = dst->info()->planes[0].width();
-    auto dst_height = dst->info()->planes[0].height();
-
-    std::vector<VAAPIBufferPtr> vaapi_buffers;
-    for (size_t i = 0; i < _src_batch.size(); i++) {
-        auto src_vaapi = _input_mapper->map<VAAPIBuffer>(_src_batch[i], AccessMode::READ);
-        vaapi_buffers.push_back(src_vaapi);
-    }
-
-    std::vector<VAProcPipelineParameterBuffer> pipeline_param_bufs(_batch_size);
-    std::vector<VABufferID> pipeline_param_buf_ids(_batch_size);
-    std::vector<VARectangle> output_regions(_batch_size);
-
-    for (size_t i = 0; i < _batch_size; i++) {
-        pipeline_param_bufs[i] = {};
-        pipeline_param_bufs[i].surface = vaapi_buffers[i]->va_surface();
-        pipeline_param_bufs[i].output_region = &output_regions[i];
-        output_regions[i] = {.x = 0,
-                             .y = static_cast<int16_t>(i * dst_height),
-                             .width = static_cast<uint16_t>(dst_width),
-                             .height = static_cast<uint16_t>(dst_height)};
-        VA_CALL(_va_vtable->vaCreateBuffer(_va_driver, _va_context_id, VAProcPipelineParameterBufferType,
-                                           sizeof(pipeline_param_bufs[i]), 1, &pipeline_param_bufs[i],
-                                           &pipeline_param_buf_ids[i]));
-    }
-
-    VAAPIBufferPtr dst_vaapi = dst_buffer_to_vaapi(dst);
-    if (!dst_vaapi)
-        throw std::runtime_error("Couldn't convert Buffer to VAAPIBuffer");
-    VASurfaceID dst_surface = dst_vaapi->va_surface();
-
-    VA_CALL(_va_vtable->vaBeginPicture(_va_driver, _va_context_id, dst_surface));
-    VA_CALL(_va_vtable->vaRenderPicture(_va_driver, _va_context_id, &pipeline_param_buf_ids[0], _src_batch.size()));
-    VA_CALL(_va_vtable->vaEndPicture(_va_driver, _va_context_id));
-
-    for (size_t i = 0; i < _batch_size; i++) {
-        VA_CALL(_va_vtable->vaDestroyBuffer(_va_driver, pipeline_param_buf_ids[i]));
-    }
-
-    // Attach to output buffer information about pts/stream_id/object_id of every source frame
-    for (size_t i = 0; i < _batch_size; i++) {
-        auto src_meta = find_metadata<SourceIdentifierMetadata>(*_src_batch[i]);
-        if (src_meta) {
-            auto dst_meta = dst->add_metadata(SourceIdentifierMetadata::name);
-            copy_dictionary(*src_meta, *dst_meta);
-            dst_meta->set(SourceIdentifierMetadata::key::batch_index, static_cast<int>(i));
-        }
-    }
-
-    _src_batch.clear();
-
-    return true;
-}
-
-BufferInfo VideoPreprocVAAPI::set_info_types(BufferInfo info, const BufferInfo &static_info) {
-    info.media_type = static_info.media_type;
-    info.buffer_type = static_info.buffer_type;
-    info.format = static_info.format;
-    return info;
-}
-
-VAAPIBufferPtr VideoPreprocVAAPI::dst_buffer_to_vaapi(BufferPtr dst) {
-    return std::dynamic_pointer_cast<VAAPIBuffer>(dst);
-}
-
-TransformDesc VideoPreprocVAAPIDesc = {.name = "video_preproc_vaapi",
-                                       .description = "Batched pre-processing with VAAPI memory as input and output",
-                                       .author = "Intel Corporation",
-                                       .params = VideoPreprocVAAPIParamsDesc(),
-                                       .input_info = {{FourCC::FOURCC_BGRX, BufferType::VAAPI_SURFACE}},
-                                       .output_info = {{MediaType::TENSORS, BufferType::VAAPI_SURFACE}},
-                                       .create = TransformBase::create<VideoPreprocVAAPI>,
-                                       .flags = TRANSFORM_FLAG_OUTPUT_ALLOCATOR | TRANSFORM_FLAG_SHARABLE |
-                                                TRANSFORM_FLAG_MULTISTREAM_MUXER};
 
 } // namespace dlstreamer

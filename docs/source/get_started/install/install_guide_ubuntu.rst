@@ -1,15 +1,15 @@
 Install Guide Ubuntu
 ====================
 
-The easiest way to install Intel® Deep Learning Streamer (Intel® DL Streamer) is installing :ref:`from APT repository <1>`.
+The easiest way to install Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework is installing :ref:`from APT repository <1>`.
 If you prefer containerized development or runtime
-environment based on Docker, the Intel® DL Streamer is also available in
+environment based on Docker, the Intel® DL Streamer Pipeline Framework is also available in
 `2022.1.0-ubuntu20-devel <https://hub.docker.com/r/intel/dlstreamer/dlstreamer:2022.1.0-ubuntu20-devel>`__
 or
 `2022.1.0-ubuntu20 <https://hub.docker.com/r/intel/dlstreamer/dlstreamer:2022.1.0-ubuntu20>`__
 Docker image containers.
 
-Alternatively, you can build Intel® DL Streamer from the source code
+Alternatively, you can build Intel® DL Streamer Pipeline Framework from the source code
 provided in `repository <https://github.com/dlstreamer/dlstreamer>`__, either building directly on host system, or
 as a Docker image.
 
@@ -25,18 +25,18 @@ links in the first column of the table.
      - Supported OS
      - Notes
 
-   * - :ref:`Install Intel® DL Streamer from APT repository <1>`
+   * - :ref:`Install Intel® DL Streamer Pipeline Framework from APT repository <1>`
      - Ubuntu 20.04, Ubuntu 18.04
      - \-
-   * - :ref:`Pull and run Intel® DL Streamer Docker image<2>`
+   * - :ref:`Pull and run Intel® DL Streamer Pipeline Framework Docker image<2>`
      - Any Linux OS as host system
-     - Recommended for containerized environment and when host OS is not supported by Intel® DL Streamer installer
-   * - :ref:`Compile Intel® DL Streamer from sources on host system <3>`
+     - Recommended for containerized environment and when host OS is not supported by the Pipeline Framework installer
+   * - :ref:`Compile Intel® DL Streamer Pipeline Framework from sources on host system <3>`
      - Ubuntu 20.04, Ubuntu 18.04
-     - If you want to build Intel® DL Streamer from source code on host system
-   * - :ref:`Compile Intel® DL Streamer as Docker image <4>`
+     - If you want to build Pipeline Framework from source code on host system
+   * - :ref:`Compile Intel® DL Streamer Pipeline Framework as Docker image <4>`
      - Any Linux OS as host system
-     - If you want to build Docker image from Intel® DL Streamer source code and run as container
+     - If you want to build Docker image from Pipeline Framework source code and run as container
 
 Refer to :doc:`Windows Install Guide<install_guide_windows>` for Windows
 installation.
@@ -46,14 +46,14 @@ installation.
 
 .. _1:
 
-Option #1: Install Intel® DL Streamer from APT repository
---------------------------------------------------------
+Option #1: Install Intel® DL Streamer Pipeline Framework from APT repository
+----------------------------------------------------------------------------
 
 Step 1: Install required packages
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Option a : (Recommended) Specific GPU driver versions used in OpenVINO™ and Intel® DL Streamer validation
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Option a : (Recommended) Specific GPU driver versions used in OpenVINO™ and Pipeline Framework validation
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 ..  code:: sh
 
@@ -65,14 +65,14 @@ Option a : (Recommended) Specific GPU driver versions used in OpenVINO™ and In
    echo "deb https://apt.repos.intel.com/openvino/2022 `. /etc/os-release && echo ${UBUNTU_CODENAME}` main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2022.list
 
    # Install OpenVINO™ toolkit and recommended version of OpenCL™ driver
-   sudo apt-get update && sudo apt-get install openvino-libraries-dev-2022.1.0
+   sudo apt-get update && sudo apt-get install openvino-libraries-dev
    sudo -E /opt/intel/openvino_2022/install_dependencies/install_NEO_OCL_driver.sh
 
-   # Install Intel® DL Streamer and recommended version of media driver
+   # Install Intel® DL Streamer Pipeline Framework and recommended version of media driver
    sudo apt-get update && sudo apt-get install intel-dlstreamer-dev
    sudo -E /opt/intel/dlstreamer/install_dependencies/install_media_driver.sh
 
-   # Setup OpenVINO™ and Intel® DL Streamer environment
+   # Setup OpenVINO™ and Intel® DL Streamer Pipeline Framework environment
    source /opt/intel/openvino_2022/setupvars.sh
    source /opt/intel/dlstreamer/setupvars.sh
 
@@ -95,7 +95,7 @@ Option b : For latest OpenCL™ and media driver versions
    # Install
    sudo apt-get update && sudo apt-get install intel-dlstreamer-dev
 
-   # Setup OpenVINO™ and Intel® DL Streamer environment
+   # Setup OpenVINO™ and Intel® DL Streamer Pipeline Framework environment
    source /opt/intel/openvino_2022/setupvars.sh
    source /opt/intel/dlstreamer/setupvars.sh
 
@@ -112,7 +112,7 @@ In order to enable all `gvametapublish` backends install required dependencies w
 
 
 
-To install Intel® DL Streamer package that contains Intel® oneAPI DPC++/C++ Compiler features:
+To install Intel® DL Streamer Pipeline Framework package that contains Intel® oneAPI DPC++/C++ Compiler features:
 
 .. code:: sh
 
@@ -129,8 +129,8 @@ Also you can install Intel® oneAPI DPC++/C++ Compiler itself if you want:
    sudo apt-get install intel-oneapi-compiler-dpcpp-cpp
 
 
-Available Intel® DL Streamer APT packages
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Available Intel® DL Streamer Pipeline Framework APT packages
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. list-table::
    :align: left
@@ -150,17 +150,17 @@ Available Intel® DL Streamer APT packages
    * - intel-dlstreamer-dpcpp
      - Additional runtime on GPU - runtime libraries built on Intel® oneAPI DPC++ Compiler. This package installs DPC++ runtime as dependency
    * - python3-intel-dlstreamer
-     - Python runtime - installs Intel® DL Streamer Python bindings and runtime on CPU/GPU
+     - Python runtime - installs Intel® DL Streamer Pipeline Framework Python bindings and runtime on CPU/GPU
    * - intel-dlstreamer-cpp
      - C++ bindings
    * - intel-dlstreamer-samples
-     - C++ and Python samples demonstrating the use of Intel® DL Streamer
+     - C++ and Python samples demonstrating the use of Intel® DL Streamer Pipeline Framework
 
 
 .. _2:
 
-Option #2: Pull and run Intel® DL Streamer Docker image
-------------------------------------------------------
+Option #2: Pull and run Intel® DL Streamer Pipeline Framework Docker image
+--------------------------------------------------------------------------
 
 Step 1: Install Docker
 ^^^^^^^^^^^^^^^^^^^^^^
@@ -170,7 +170,7 @@ Step 1: Install Docker
 Step 2: Allow connection to X server
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Some Intel® DL Streamer samples use display. Hence, first run the following
+Some Pipeline Framework samples use display. Hence, first run the following
 commands to allow connection from Docker container to X server on
 host:
 
@@ -179,10 +179,10 @@ host:
    xhost local:root
    setfacl -m user:1000:r ~/.Xauthority
 
-Step 3: Run Intel® DL Streamer container
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 3: Run Intel® DL Streamer Pipeline Framework container
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Pull and run Intel® DL Streamer container for development:
+Pull and run the Pipeline Framework container for development:
 
 .. code:: sh
 
@@ -192,11 +192,11 @@ Pull and run Intel® DL Streamer container for development:
       -v /tmp/.X11-unix \
       -e DISPLAY=$DISPLAY \
       -v /dev/bus/usb \
-      --rm dlstreamer/dlstreamer:latest-devel /bin/bash
+      --rm dlstreamer/dlstreamer:devel /bin/bash
 
-For deployment, you can download Intel® DL Streamer runtime container
+For deployment, you can download the Pipeline Framework runtime container
 with reduced size comparing to development container. Please note
-that this container does not have Intel® DL Streamer samples:
+that this container does not have the Pipeline Framework samples:
 
 .. code:: sh
 
@@ -208,16 +208,16 @@ that this container does not have Intel® DL Streamer samples:
       -v /dev/bus/usb \
       --rm dlstreamer/dlstreamer:latest /bin/bash
 
-Inside Docker container for development, you can find Intel® DL Streamer
+Inside Docker container for development, you can find the Pipeline Framework
 samples in folder
 ``/opt/intel/dlstreamer/samples``
 
-Before using the Intel® DL Streamer samples, run the script
+Before using the Pipeline Framework samples, run the script
 ``download_models.sh`` (located in ``samples`` folder) to download
 the models required for samples.
 
-Step 4: Run Intel® DL Streamer container with Intel® oneAPI DPC++/C++ Compiler [OPTIONAL]
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 4: Run Intel® DL Streamer Pipeline Framework container with Intel® oneAPI DPC++/C++ Compiler [OPTIONAL]
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To enable execution of ``gvawatermark`` and ``gvatrack``
 elements on GPU you should download container with Intel® oneAPI DPC++/C++ Compiler.
@@ -238,7 +238,7 @@ Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver conf
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver components are required to use a GPU device.
-The driver is installed in the Intel® DL Streamer Docker image but you need to activate it in the container for a non-root user if you have Ubuntu 20.04 on your host.
+The driver is installed in the Intel® DL Streamer Pipeline Framework Docker image but you need to activate it in the container for a non-root user if you have Ubuntu 20.04 on your host.
 
 To access GPU capabilities, you need to have correct permissions on the host and Docker container.
 Run the following command to list the group assigned ownership of the render nodes on your host:
@@ -247,7 +247,7 @@ Run the following command to list the group assigned ownership of the render nod
 
    stat -c "group_name=%G group_id=%g" /dev/dri/render*
 
-Intel® DL Streamer Docker images do not contain a render group for `dlstreamer` non-root user because the render group does not have a strict group ID, unlike the video group.
+Intel® DL Streamer Pipeline Framework Docker images do not contain a render group for `dlstreamer` non-root user because the render group does not have a strict group ID, unlike the video group.
 To run container as non-root with access to a GPU device, specify the render group ID from your host:
 
 .. code:: sh
@@ -264,8 +264,8 @@ Now you can use the container with GPU access under the non-root user.
 
 .. _3:
 
-Option #3: Compile Intel® DL Streamer from sources on host system
------------------------------------------------------------------
+Option #3: Compile Intel® DL Streamer Pipeline Framework from sources on host system
+------------------------------------------------------------------------------------
 
 .. note::
    These instructions are verified on Ubuntu 20.04
@@ -296,7 +296,7 @@ Install required packages:
 
 .. code:: sh
 
-   sudo apt-get update && sudo apt-get install -y OpenVINO™ openvino-opencv
+   sudo apt-get update && sudo apt-get install -y openvino openvino-libraries-dev openvino-opencv
 
 After successful OpenVINO™ Toolkit package installation, run the
 following commands to install OpenVINO™ Toolkit dependencies and enable
@@ -314,8 +314,8 @@ Install Open Model Zoo tools:
    python3 -m pip install --upgrade pip
    python3 -m pip install openvino-dev[onnx]
 
-Step 3: Install Intel® DL Streamer dependencies
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 3: Install Intel® DL Streamer Pipeline Framework dependencies
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Install GStreamer and other build dependencies:
 
@@ -389,7 +389,7 @@ Run following script to install the message brokers:
    cd ~/intel/dlstreamer_gst/scripts/
    sudo ./install_metapublish_dependencies.sh
 
-In order to enable one of these message brokers in Intel® DL Streamer,
+In order to enable one of these message brokers in Pipeline Framework,
 corresponding key should be passed to cmake in configuration step. To
 enable MQTT please pass ``-DENABLE_PAHO_INSTALLATION=ON`` option to
 cmake. To enable Kafka please pass ``-DENABLE_RDKAFKA_INSTALLATION=ON``
@@ -420,7 +420,7 @@ Step 8: Install VA-API dependencies [OPTIONAL]
 
 :ref:`OpenCL™ driver installation <install-opencl>` is required before continuing.
 
-To enable VA-API preprocessing of Intel® DL Streamer’s inference
+To enable VA-API preprocessing of Pipeline Framework’s inference
 elements run the following commands:
 
 .. code:: sh
@@ -448,10 +448,10 @@ support on GitHub
 
 Additionally, pass ``-DENABLE_VAAPI=ON`` option to cmake in configuration step.
 
-Step 9: Build Intel® DL Streamer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 9: Build Intel® DL Streamer Pipeline Framework
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-With all dependencies installed, proceed to build Intel® DL Streamer:
+With all dependencies installed, proceed to build Pipeline Framework:
 
 .. code:: sh
 
@@ -471,10 +471,10 @@ With all dependencies installed, proceed to build Intel® DL Streamer:
    make -j
    sudo make install
 
-   # Setup Intel® DL Streamer environment
+   # Setup Intel® DL Streamer Pipeline Framework environment
    source ~/intel/dlstreamer_gst/scripts/setup_env.sh
 
-Intel® DL Streamer is now ready to use!
+Intel® DL Streamer Pipeline Framework is now ready to use!
 
 You can find samples in folder ``~/intel/dlstreamer_gst/samples``.
 Before using the samples, run the script ``download_models.sh`` (located
@@ -488,14 +488,14 @@ in ``samples`` folder) to download the models required for samples.
 .. note::
    The manual installation on the host machine may have environment issues.
    If this happened, please consider other ways we recommend -
-   :ref:`building Docker image with Intel® DL Streamer<4>`.
+   :ref:`building Docker image with Intel® DL Streamer Pipeline Framework<4>`.
    Also, you can create an issue on GitHub
    `here <https://github.com/dlstreamer/dlstreamer/issues>`__.
 
 .. _4:
 
-Option #4: Compile Intel® DL Streamer as Docker image
-----------------------------------------------------
+Option #4: Compile Intel® DL Streamer Pipeline Framework as Docker image
+------------------------------------------------------------------------
 
 Step 1: Install Docker CE (if not installed)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -567,7 +567,7 @@ the steps above.
 Step 4: Run Docker image
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Some Intel® DL Streamer samples use display. Hence, first run the following commands to
+Some Pipeline Framework samples use display. Hence, first run the following commands to
 allow connection from Docker container to X server on host:
 
 .. code:: sh
@@ -610,7 +610,7 @@ the ``docker run`` command:
 -  Volume provided for ``models`` folder will be used to download and store the models. Environment variable MODELS_PATH in the Docker container is responsible for it.
 -  Entrypoint of the Docker container is by default ``/opt/intel/dlstreamer/samples``.
 
-Inside the Docker image you can find Intel® DL Streamer samples at the entrypoint.
+Inside the Docker image you can find Pipeline Framework samples at the entrypoint.
 Before using the samples, run the script ``download_models.sh`` (located
 in ``samples`` folder) to download the models required for samples.
 

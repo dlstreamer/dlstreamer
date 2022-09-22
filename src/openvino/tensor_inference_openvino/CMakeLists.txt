@@ -4,13 +4,11 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
+set(TARGET_NAME "tensor_inference_openvino")
+
 cmake_minimum_required(VERSION 3.1)
 
-set(TARGET_NAME "dlstreamer_openvino2")
-
-find_package(PkgConfig REQUIRED)
-
-find_IE_package()
+find_package(OpenVINO REQUIRED Runtime)
 
 file(GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -20,8 +18,7 @@ file(GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
 )
 
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
-set_target_lib_version(${TARGET_NAME})
+add_library(${TARGET_NAME} OBJECT ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -31,8 +28,8 @@ PUBLIC
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
-    ${InferenceEngine_LIBRARIES}
-    dlstreamer_gst
+    openvino::runtime
+    dlstreamer_api
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
