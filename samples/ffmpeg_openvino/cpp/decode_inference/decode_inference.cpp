@@ -6,6 +6,7 @@
 
 #include <gflags/gflags.h>
 #include <memory>
+#include <cassert>
 
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
