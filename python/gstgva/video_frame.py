@@ -26,7 +26,7 @@ from .util import GVAJSONMeta
 from .util import GVAJSONMetaStr
 from .region_of_interest import RegionOfInterest
 from .tensor import Tensor
-from .util import libgst, gst_buffer_data
+from .util import libgst, gst_buffer_data, VideoInfoFromCaps
 
 
 ## @brief This class represents video frame - object for working with RegionOfInterest and Tensor objects which
@@ -47,9 +47,13 @@ class VideoFrame:
         if video_info:
             self.__video_info = video_info
         elif caps:
-            self.__video_info = GstVideo.VideoInfo.new_from_caps(caps)
+            self.__video_info = VideoInfoFromCaps(caps)
         elif self.video_meta():
-            self.__video_info = GstVideo.VideoInfo.new()
+            # Check for GST 1.20 API
+            if hasattr(GstVideo.VideoInfo, 'new'):
+                self.__video_info = GstVideo.VideoInfo.new()
+            else:
+                self.__video_info = GstVideo.VideoInfo()
             self.__video_info.width = self.video_meta().width
             self.__video_info.height = self.video_meta().height
 

@@ -26,7 +26,7 @@ from ..util import GVATensorMeta
 from ..util import GVAJSONMeta
 from ..util import GVAJSONMetaStr
 from ..tensor import Tensor
-from ..util import libgst, gst_buffer_data
+from ..util import libgst, gst_buffer_data, AudioInfoFromCaps
 
 
 ## @brief This class represents audio frame - object for working with AudioEvent and Tensor objects which
@@ -47,7 +47,7 @@ class AudioFrame:
         if audio_info:
             self.__audio_info = audio_info
         elif caps:
-            self.__audio_info = GstAudio.AudioInfo.new_from_caps(caps)
+            self.__audio_info = AudioInfoFromCaps(caps)
         else:
             raise RuntimeError("One of audio_info or caps is required")
 

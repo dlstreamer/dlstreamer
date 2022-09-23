@@ -8,9 +8,10 @@ import ctypes
 from contextlib import contextmanager
 import gi
 gi.require_version('GstVideo', '1.0')
+gi.require_version('GstAudio', '1.0')
 gi.require_version('GLib', '2.0')
 gi.require_version('Gst', '1.0')
-from gi.repository import GstVideo, GLib, GObject, Gst
+from gi.repository import GstVideo, GstAudio, GLib, GObject, Gst
 
 # libgstreamer
 libgst = ctypes.CDLL("libgstreamer-1.0.so.0")
@@ -390,3 +391,30 @@ class GVAJSONMeta(ctypes.Structure):
                 return
 
             yield ctypes.cast(value, ctypes.POINTER(GVAJSONMeta)).contents
+
+def _VideoInfoFromCaps(caps):
+    return GstVideo.VideoInfo.new_from_caps(caps)
+
+def _VideoInfoFromCaps_Legacy(caps):
+    video_info = GstVideo.VideoInfo()
+    video_info.from_caps(caps)
+    return video_info
+
+def _AudioInfoFromCaps(caps):
+    return GstAudio.AudioInfo.new_from_caps(caps)
+
+def _AudioInfoFromCaps_Legacy(caps):
+    audio_info = GstAudio.AudioInfo()
+    audio_info.from_caps(caps)
+    return audio_info
+
+# Check for GST 1.20 APIs
+# pylint: disable=method-hidden
+VideoInfoFromCaps = _VideoInfoFromCaps_Legacy
+if hasattr(GstVideo.VideoInfo, 'new_from_caps'):
+    VideoInfoFromCaps = _VideoInfoFromCaps
+
+AudioInfoFromCaps = _AudioInfoFromCaps_Legacy
+if hasattr(GstAudio.AudioInfo, 'new_from_caps'):
+    AudioInfoFromCaps = _AudioInfoFromCaps
+    
