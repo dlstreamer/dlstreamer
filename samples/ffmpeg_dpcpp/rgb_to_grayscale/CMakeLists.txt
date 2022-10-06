@@ -18,6 +18,7 @@ execute_process(COMMAND which dpcpp RESULT_VARIABLE dpcpp_status OUTPUT_VARIABLE
 if (dpcpp_status EQUAL 0 AND LIBAV_FOUND AND LIBVA_FOUND AND LEVEL_ZERO_FOUND AND gflags_FOUND)
 
 set(CMAKE_CXX_COMPILER dpcpp)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization")
 string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 #set(CMAKE_CXX_STANDARD 17)
 
@@ -32,6 +33,7 @@ if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
 else()
     target_include_directories(${TARGET_NAME}
             PRIVATE
+            ${DLSTREAMER_BASE_DIR}/src/ffmpeg/_plugin
             ${DLSTREAMER_BASE_DIR}/src/vaapi/_plugin
             )
 endif()
@@ -45,8 +47,15 @@ target_link_libraries(${TARGET_NAME}
 PRIVATE
         ${LIBAV_LIBRARIES}
         ${LEVEL_ZERO_LIBRARIES}
+        dlstreamer_ffmpeg
         dlstreamer_vaapi
         gflags
 )
+
+else()
+
+if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
+    message(FATAL_ERROR "dpcpp compiler not found")
+endif()
 
 endif()

@@ -10,7 +10,7 @@ find_package(OpenCL)
 if (OpenCL_FOUND)
   include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 
-  add_subdirectory(tensor_normalize_opencl)
+  add_subdirectory(opencl_tensor_normalize)
 
   find_package(PkgConfig)
   pkg_search_module(VA va libva)

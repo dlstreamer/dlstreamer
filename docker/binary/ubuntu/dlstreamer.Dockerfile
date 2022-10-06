@@ -13,20 +13,20 @@ ARG UBUNTU_VERSION=20.04
 ARG BASE_IMAGE=${DOCKER_PRIVATE_REGISTRY}ubuntu:${UBUNTU_VERSION}
 FROM ${BASE_IMAGE}
 ARG UBUNTU_CODENAME=focal
+ARG GRAPHICS_DISTRIBUTION=focal-legacy
 ARG PYTHON_VERSION=python3.8
 
 LABEL Description="This is the runtime image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework for Ubuntu ${UBUNTU_VERSION}"
 LABEL Vendor="Intel Corporation"
 
-ARG INSTALL_RECOMMENDED_OPENCL_DRIVER=true
-ARG INSTALL_RECOMMENDED_MEDIA_DRIVER=true
+ARG INSTALL_RECOMMENDED_OPENCL_DRIVER=false
+ARG INSTALL_RECOMMENDED_MEDIA_DRIVER=false
 ARG INSTALL_KAFKA_CLIENT=true
 ARG INSTALL_MQTT_CLIENT=true
 ARG INSTALL_DPCPP=true
 
 ARG DLSTREAMER_APT_VERSION="*"
 ENV DLSTREAMER_DIR=/opt/intel/dlstreamer
-ARG OPENVINO_VERSION=2022.1.0
 ENV INTEL_OPENVINO_DIR=/opt/intel/openvino_2022
 
 WORKDIR /root
@@ -44,7 +44,7 @@ RUN curl -fsSL ${INTEL_GPG_KEY} | apt-key add -
 # Add Intel® Graphics repository
 ARG GRAPHICS_APT_REPO=https://repositories.intel.com/graphics
 ARG GRAPHICS_KEY=${GRAPHICS_APT_REPO}/intel-graphics.key
-ARG GRAPHICS_REPO="deb [arch=amd64] ${GRAPHICS_APT_REPO}/ubuntu ${UBUNTU_CODENAME} main"
+ARG GRAPHICS_REPO="deb [arch=amd64] ${GRAPHICS_APT_REPO}/ubuntu ${GRAPHICS_DISTRIBUTION} main"
 RUN curl -fsSL ${GRAPHICS_KEY} | apt-key add -
 RUN if [ "${GRAPHICS_REPO}" != "" ] ; then \
     echo "${GRAPHICS_REPO}" > /etc/apt/sources.list.d/intel-graphics.list ; \
@@ -98,11 +98,15 @@ RUN apt-get update && apt-get install -y python3-intel-dlstreamer=${DLSTREAMER_A
 ARG OPENVINO_INSTALL_OPTIONS=
 RUN ${DLSTREAMER_DIR}/install_dependencies/install_openvino.sh ${OPENVINO_INSTALL_OPTIONS} 
 
-# If PYTHON_VERSION=python3.9, install it
+# If PYTHON_VERSION=python3.9, install it and create link for gstgva module
 RUN if [ "${PYTHON_VERSION}" = "python3.9" ] ; then \
-    ${INTEL_OPENVINO_DIR}/install_dependencies/install_python3.9.sh ; \
-    python3 -m pip install numpy ; \
+    ${DLSTREAMER_DIR}/install_dependencies/install_python3.9.sh ; \
+    python3 -m pip install numpy PyGObject ; \
+    ln -s /usr/lib/python3/dist-packages/gstgva /usr/local/lib/python3.9/ ; \
     fi
+
+# Install numpy via pip
+RUN python3 -m pip install --force-reinstall numpy
 
 # If INSTALL_RECOMMENDED_OPENCL_DRIVER set to true, run OpenVINO script
 RUN if [ "${INSTALL_RECOMMENDED_OPENCL_DRIVER}" = "true" ] ; then \
@@ -126,12 +130,6 @@ RUN if [ "${INSTALL_KAFKA_CLIENT}" = "true" ] || [ "${INSTALL_METAPUBLISH_DEPEND
 RUN if [ "${INSTALL_MQTT_CLIENT}" = "true" ] || [ "${INSTALL_METAPUBLISH_DEPENDENCIES}" = "true" ] ; then \
     ${DLSTREAMER_DIR}/install_dependencies/install_mqtt_client.sh ; \
     fi
-
-# Remove Intel® Graphics APT repository
-RUN rm -f /etc/ssl/certs/Intel*
-#RUN rm /etc/apt/sources.list.d/intel.list
-RUN rm -rf /etc/apt/sources.list.d/intel-graphics.list
-RUN apt-get update
 
 ARG DLS_HOME=/home/dlstreamer
 
@@ -164,11 +162,20 @@ ENV LD_LIBRARY_PATH=${USE_CUSTOM_GSTREAMER:+${GSTREAMER_DIR}/lib:}$LD_LIBRARY_PA
 ENV PYTHONPATH=${USE_CUSTOM_GSTREAMER:+${GSTREAMER_DIR}/lib/python3/dist-packages:}$PYTHONPATH
 
 # DPC++ runtime
-ENV PATH="${PATH}:/opt/intel/oneapi/compiler/latest/linux/lib:/opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin"
+ENV DPCPP_DIR="/opt/intel/oneapi/compiler/latest/linux"
+ENV PATH="${PATH}:${DPCPP_DIR}/lib:${DPCPP_DIR}/compiler/lib/intel64_lin"
+ENV LIBRARY_PATH="${LIBRARY_PATH}:${DPCPP_DIR}/lib:${DPCPP_DIR}/compiler/lib/intel64_lin"
+ENV LD_LIBRARY_PATH="${LD_LIBRARY_PATH}:${DPCPP_DIR}/lib:${DPCPP_DIR}/lib/x64:${DPCPP_DIR}/compiler/lib/intel64_lin"
 
-RUN useradd -ms /bin/bash -u 1000 -G video dlstreamer
-WORKDIR ${DLS_HOME}
-USER dlstreamer
 COPY ./docker/third-party-programs.txt ${DLSTREAMER_DIR}/
 
+RUN useradd -ms /bin/bash -u 1000 -G video dlstreamer
+
+# Remove Intel® Graphics APT repository
+RUN mv /etc/apt/sources.list.d/intel-graphics.list ${DLS_HOME}/
+RUN rm -f /etc/ssl/certs/Intel*
+RUN apt-get update
+
+WORKDIR ${DLS_HOME}
+USER dlstreamer
 CMD ["/bin/bash"]

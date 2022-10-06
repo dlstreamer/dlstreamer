@@ -10,6 +10,7 @@ set (TARGET_NAME "dlstreamer_gst_sycl")
 
 set(CMAKE_CXX_COMPILER dpcpp)
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization")
 string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 file (GLOB MAIN_SRC

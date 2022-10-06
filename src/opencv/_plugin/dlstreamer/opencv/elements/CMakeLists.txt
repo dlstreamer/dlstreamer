@@ -11,18 +11,18 @@ set_compile_flags(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-    find_contours_opencv
-    object_association_opencv
-    tensor_normalize_opencv
-    video_cropscale_opencv
-    watermark_opencv
+    opencv_find_contours
+    opencv_object_association
+    opencv_tensor_normalize
+    opencv_cropscale
+    opencv_meta_overlay
     ${OpenCV_LIBS}
     dlstreamer_api
-    remove_background_opencv
+    opencv_remove_background
 )
 
-if (TARGET warp_affine_opencv) # available if DLS_HAVE_OPENCV_UMAT
-    target_link_libraries(${TARGET_NAME} PUBLIC warp_affine_opencv)
+if (TARGET opencv_warp_affine) # available if DLS_HAVE_OPENCV_UMAT
+    target_link_libraries(${TARGET_NAME} PUBLIC opencv_warp_affine)
 endif()
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

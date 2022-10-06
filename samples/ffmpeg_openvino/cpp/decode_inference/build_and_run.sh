@@ -5,8 +5,12 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-BASE_DIR=$PWD
-BUILD_DIR=$HOME/intel/dl_streamer/samples/ffmpeg_vaapi_openvino/build
+VIDEO_FILE=${1}
+MODEL=${2:-${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml}
+
+EXE_NAME=ffmpeg_openvino_decode_inference
+BUILD_DIR=$HOME/intel/dl_streamer/samples/${EXE_NAME}/build
+BASE_DIR=$(dirname "$0")
 
 rm -rf ${BUILD_DIR}
 mkdir -p ${BUILD_DIR}
@@ -20,7 +24,4 @@ fi
 
 make -j $(nproc)
 
-cd ${BASE_DIR}
-
-FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
-${BUILD_DIR}/ffmpeg_vaapi_openvino -i $FILE
+${BUILD_DIR}/${EXE_NAME} -i ${VIDEO_FILE} -m ${MODEL}

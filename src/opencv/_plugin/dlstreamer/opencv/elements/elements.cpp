@@ -4,25 +4,25 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "find_contours_opencv.h"
-#include "object_association_opencv.h"
-#include "remove_background_opencv.h"
-#include "tensor_normalize_opencv.h"
-#include "video_cropscale_opencv.h"
-#include "warp_affine_opencv.h"
-#include "watermark_opencv.h"
+#include "opencv_cropscale.h"
+#include "opencv_find_contours.h"
+#include "opencv_meta_overlay.h"
+#include "opencv_object_association.h"
+#include "opencv_remove_background.h"
+#include "opencv_tensor_normalize.h"
+#include "opencv_warp_affine.h"
 
 extern "C" {
 
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
-    &find_contours_opencv,
-    &object_association_opencv,
-    &tensor_normalize_opencv,
-    &video_cropscale_opencv,
-    &watermark_opencv,
-    &remove_background_opencv,
+    &opencv_find_contours,
+    &opencv_object_association,
+    &opencv_tensor_normalize,
+    &opencv_cropscale,
+    &opencv_meta_overlay,
+    &opencv_remove_background,
 #ifdef DLS_HAVE_OPENCV_UMAT
-    &warp_affine_opencv,
+    &opencv_warp_affine,
 #endif
     nullptr};
 }

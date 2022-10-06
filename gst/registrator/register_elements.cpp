@@ -25,8 +25,8 @@
 #include "runtime_feature_toggler.h"
 #include <feature_toggling/ifeature_toggle.h>
 
-#include "video_classify.h"
-#include "video_detect.h"
+#include "object_classify.h"
+#include "object_detect.h"
 #include "video_inference.h"
 
 CREATE_FEATURE_TOGGLE(UseMicroElements, "use-micro-elements",
@@ -56,9 +56,9 @@ static gboolean plugin_init(GstPlugin *plugin) {
     if (use_micro_elements()) {
         if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, video_inference_get_type()))
             return FALSE;
-        if (!gst_element_register(plugin, "gvadetect", GST_RANK_NONE, video_detect_get_type()))
+        if (!gst_element_register(plugin, "gvadetect", GST_RANK_NONE, object_detect_get_type()))
             return FALSE;
-        if (!gst_element_register(plugin, "gvaclassify", GST_RANK_NONE, video_classify_get_type()))
+        if (!gst_element_register(plugin, "gvaclassify", GST_RANK_NONE, object_classify_get_type()))
             return FALSE;
     } else {
         if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, GST_TYPE_GVA_INFERENCE))

@@ -4,10 +4,10 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "tensor_inference_openvino.h"
+#include "openvino_tensor_inference.h"
 
 extern "C" {
 
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
-    &tensor_inference_openvino, nullptr};
+    &openvino_tensor_inference, nullptr};
 }

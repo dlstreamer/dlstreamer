@@ -27,6 +27,6 @@ PUBLIC
 target_link_libraries(${TARGET_NAME}
 PUBLIC
     model_proc
-    splitjoinbin
+    processbin
     dlstreamer_gst
 )

@@ -32,7 +32,7 @@ mkdir -p $HOME/mygst-vaapi
 cd $HOME/mygst-vaapi
 ```
 
-4. Download patches (usually, you can take last version of file from `master`-branch of Intel DL Streamer's repository)
+4. Download patches (usually, you can take last version of file from `master`-branch of Intel® DL Streamer's repository)
 
 ```sh
 curl -sSL https://gitlab.freedesktop.org/gstreamer/gstreamer-vaapi/-/merge_requests/435.patch -o gst-vaapi-peek-vadisplay.patch

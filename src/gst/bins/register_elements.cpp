@@ -4,20 +4,20 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "object_classify.h"
+#include "object_detect.h"
 #include "object_track.h"
-#include "splitjoinbin.h"
-#include "video_classify.h"
-#include "video_detect.h"
+#include "processbin.h"
 #include "video_inference.h"
 
 static gboolean plugin_init(GstPlugin *plugin) {
     gboolean result = TRUE;
 
-    result &= gst_element_register(plugin, "splitjoinbin", GST_RANK_NONE, splitjoinbin_get_type());
+    result &= gst_element_register(plugin, "processbin", GST_RANK_NONE, processbin_get_type());
 
     result &= gst_element_register(plugin, "video_inference", GST_RANK_NONE, video_inference_get_type());
-    result &= gst_element_register(plugin, "video_detect", GST_RANK_NONE, video_detect_get_type());
-    result &= gst_element_register(plugin, "video_classify", GST_RANK_NONE, video_classify_get_type());
+    result &= gst_element_register(plugin, "object_detect", GST_RANK_NONE, object_detect_get_type());
+    result &= gst_element_register(plugin, "object_classify", GST_RANK_NONE, object_classify_get_type());
     result &= gst_element_register(plugin, "object_track", GST_RANK_NONE, object_track_get_type());
 
     return result;

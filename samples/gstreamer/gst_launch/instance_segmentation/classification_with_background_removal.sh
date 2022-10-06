@@ -16,7 +16,7 @@ SCRIPTDIR="$(dirname "$(realpath "$0")")"
 PYTHON_SCRIPT=$SCRIPTDIR/tensor_to_box_mask.py
 
 if [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
-  SINK_ELEMENT="find_contours_opencv ! gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+  SINK_ELEMENT="opencv_find_contours ! gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
 elif [[ $OUTPUT == "fps" ]]; then
   SINK_ELEMENT="gvafpscounter ! fakesink async=false "
 elif [[ $OUTPUT == "json" ]]; then
@@ -24,7 +24,7 @@ elif [[ $OUTPUT == "json" ]]; then
   SINK_ELEMENT="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false "
 elif [[ $OUTPUT == "display-and-json" ]]; then
   rm -f output.json
-  SINK_ELEMENT="find_contours_opencv ! gvawatermark ! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+  SINK_ELEMENT="opencv_find_contours ! gvawatermark ! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
 else
   echo Error wrong value for SINK_ELEMENT parameter
   echo Valid values: "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
@@ -49,15 +49,15 @@ LABELS_PATH=$(dirname "$0")/../../../labels
 
 PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! decodebin force-sw-decoders=true ! \
-video_detect \
+object_detect \
   model=$MODEL_PATH device=$DEVICE \
   labels-file=$(realpath $LABELS_PATH/coco_80cl.txt) ! \
-video_classify \
-  preprocess='videoconvert ! roi_split ! video_cropscale_opencv ! remove_background_opencv ! \
-    videoconvert ! videoscale ! tensor_convert' \
+object_classify nireq=32 \
+  preprocess=\"videoconvert ! roi_split ! opencv_cropscale ! opencv_remove_background ! \
+    videoconvert ! videoscale ! tensor_convert\" \
   model=$CLASSIFICATION_MODEL_PATH device=$DEVICE \
-  postprocess='tensor_postproc_label threshold=0.2 \
-    labels-file=$(realpath $LABELS_PATH/imagenet_2012.txt) method=softmax ' ! \
+  postprocess=\"tensor_postproc_label threshold=0.2 \
+    labels-file=$(realpath $LABELS_PATH/imagenet_2012.txt) method=softmax\" ! \
 $SINK_ELEMENT"
 echo ${PIPELINE}
 $PIPELINE

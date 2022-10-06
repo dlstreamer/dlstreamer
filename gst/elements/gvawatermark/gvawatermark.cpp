@@ -19,7 +19,7 @@
 GST_DEBUG_CATEGORY_STATIC(gst_gva_watermark_debug_category);
 #define GST_CAT_DEFAULT gst_gva_watermark_debug_category
 
-#define DEFAULT_DEVICE nullptr
+#define DEFAULT_DEVICE "CPU"
 
 enum { PROP_0, PROP_DEVICE };
 
@@ -87,10 +87,8 @@ static void gst_gva_watermark_class_init(GstGvaWatermarkClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_DEVICE,
-        g_param_spec_string(
-            "device", "Target device",
-            "Supported devices are CPU and GPU. Default is CPU on system memory and GPU on video memory",
-            DEFAULT_DEVICE, static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+        g_param_spec_string("device", "Target device", "Deprecated, don't use", DEFAULT_DEVICE,
+                            static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_DEPRECATED)));
 }
 
 static void gst_gva_watermark_init(GstGvaWatermark *self) {
@@ -133,7 +131,7 @@ static void gst_gva_watermark_init(GstGvaWatermark *self) {
     self->active_path = WatermarkPathNone;
     self->preferred_path = WatermarkPathNone;
     self->is_active_nv12 = false;
-    self->device = DEFAULT_DEVICE;
+    self->device = g_strdup(DEFAULT_DEVICE);
     self->block_probe_id = 0;
 }
 

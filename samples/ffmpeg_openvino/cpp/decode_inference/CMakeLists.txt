@@ -8,6 +8,10 @@ set (TARGET_NAME "ffmpeg_openvino_decode_inference")
 
 cmake_minimum_required(VERSION 3.1)
 
+## use C11/C++17
+set (CMAKE_C_STANDARD 11)
+set (CMAKE_CXX_STANDARD 17)
+
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)
 find_package(OpenVINO COMPONENTS Runtime)

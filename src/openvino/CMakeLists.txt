@@ -10,7 +10,7 @@ find_package(OpenVINO COMPONENTS Runtime)
 if (OpenVINO_FOUND)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 
-    add_subdirectory(tensor_inference_openvino)
+    add_subdirectory(openvino_tensor_inference)
 
     add_subdirectory(_plugin/dlstreamer/openvino/elements)
     add_subdirectory(_gst_plugin)

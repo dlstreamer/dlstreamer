@@ -103,9 +103,9 @@ static GstStateChangeReturn object_track_change_state(GstElement *element, GstSt
 
     if (transition == GST_STATE_CHANGE_NULL_TO_READY) {
         if (self->spatial_feature == SpatialFeatureType::None) {
-            splitjoinbin_set_elements_description(GST_SPLITJOINBIN(element), NULL, NULL, NULL, NULL,
-                                                  "object_association_opencv");
-            splitjoinbin_link_elements(GST_SPLITJOINBIN(element));
+            processbin_set_elements_description(GST_PROCESSBIN(element), NULL, NULL, NULL, NULL,
+                                                "opencv_object_association");
+            processbin_link_elements(GST_PROCESSBIN(element));
         } else {
             g_object_set(G_OBJECT(self), "inference-region", "roi-list", NULL);
             gst_util_set_object_arg(G_OBJECT(self), "inference-region", "roi-list"); // TODO
@@ -120,7 +120,7 @@ static GstStateChangeReturn object_track_change_state(GstElement *element, GstSt
                 std::string elem = "tensor_histogram";
 
                 if (dlstreamer::get_property_as_string(G_OBJECT(element), "device").rfind("GPU", 0) == 0) {
-                    elem = "tensor_histogram_sycl";
+                    elem = "sycl_tensor_histogram";
                     gst_util_set_object_arg(G_OBJECT(self), "pre-process-backend", "vaapi-tensors");
                     gst_util_set_object_arg(G_OBJECT(self), "scale-method", "dls-vaapi"); // TODO not needed?
                 }
@@ -133,14 +133,14 @@ static GstStateChangeReturn object_track_change_state(GstElement *element, GstSt
                 throw std::runtime_error("Unknown spatial feature type");
             }
 
-            // postaggregate=object_association_opencv
+            // postaggregate=opencv_object_association
             if (dlstreamer::get_property_as_string(G_OBJECT(self), "postaggregate") == "NULL") {
                 if (self->spatial_feature_distance == SpatialFeatureDistanceType::None)
                     self->spatial_feature_distance = (self->spatial_feature == SpatialFeatureType::Inference)
                                                          ? SpatialFeatureDistanceType::Cosine
                                                          : SpatialFeatureDistanceType::Bhattacharyya;
                 std::string postaggregate =
-                    "object_association_opencv spatial-feature-metadata-name=spatial-feature spatial-feature-distance=";
+                    "opencv_object_association spatial-feature-metadata-name=spatial-feature spatial-feature-distance=";
                 for (auto &v : SpatialFeatureDistanceValues) {
                     if (v.value == self->spatial_feature_distance) {
                         postaggregate += v.value_nick;
@@ -164,7 +164,7 @@ static void object_track_class_init(ObjectTrackClass *klass) {
 
     auto video_inference = VIDEO_INFERENCE_CLASS(klass);
     video_inference->get_default_postprocess_elements = [](VideoInference *) -> std::string {
-        return "tensor_postproc_copy_params attribute-name=spatial-feature";
+        return "tensor_postproc_add_params attribute-name=spatial-feature";
     };
 
     const auto kParamFlags = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);

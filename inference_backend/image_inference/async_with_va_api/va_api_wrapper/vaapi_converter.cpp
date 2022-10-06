@@ -216,7 +216,7 @@ void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerD
     // Resize preparations
     double resize_scale_param_x = 1;
     double resize_scale_param_y = 1;
-    if (pre_proc_info->doNeedResize() && (src_surface_region.width != input_width_except_padding &&
+    if (pre_proc_info->doNeedResize() && (src_surface_region.width != input_width_except_padding ||
                                           src_surface_region.height != input_height_except_padding)) {
         double additional_crop_scale_param = 1;
         if (pre_proc_info->doNeedCrop() && pre_proc_info->doNeedResize()) {
@@ -242,7 +242,7 @@ void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerD
     }
 
     // Crop preparations
-    if (pre_proc_info->doNeedCrop() && (dst_surface_region.width != input_width_except_padding &&
+    if (pre_proc_info->doNeedCrop() && (dst_surface_region.width != input_width_except_padding ||
                                         dst_surface_region.height != input_height_except_padding)) {
         uint16_t cropped_border_x = 0;
         uint16_t cropped_border_y = 0;

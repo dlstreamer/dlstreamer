@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "dlstreamer/cpu/elements/tensor_postproc_text.h"
 #include "dlstreamer/base/transform.h"
-#include "dlstreamer/cpu/elements/tensor_postproc_detection_output.h"
 #include "dlstreamer/image_metadata.h"
 #include "dlstreamer/utils.h"
 

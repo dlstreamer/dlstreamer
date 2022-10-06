@@ -100,7 +100,10 @@ class GSTFrame : public BaseFrame {
                 throw std::runtime_error("Expect GstBuffer with single GstMemory");
             GstMemory *mem = gst_buffer_peek_memory(buffer, 0);
             for (size_t i = 0; i < info.tensors.size(); i++) {
-                _tensors.push_back(std::make_shared<GSTTensor>(info.tensors[i], gst_memory_ref(mem), true, context));
+                auto gst_tensor = std::make_shared<GSTTensor>(info.tensors[i], gst_memory_ref(mem), true, context);
+                const size_t offset = GST_VIDEO_INFO_PLANE_OFFSET(_video_info, i);
+                gst_tensor->set_handle(BaseTensor::key::offset, offset);
+                _tensors.emplace_back(std::move(gst_tensor));
             }
         } else {
             if (info.tensors.size()) {

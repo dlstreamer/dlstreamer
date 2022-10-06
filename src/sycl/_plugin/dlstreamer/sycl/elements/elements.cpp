@@ -4,13 +4,13 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "tensor_histogram_sycl.h"
-#include "watermark_sycl.h"
+#include "sycl_meta_overlay.h"
+#include "sycl_tensor_histogram.h"
 
 extern "C" {
 
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
-    &tensor_histogram_sycl, &watermark_sycl,
+    &sycl_tensor_histogram, &sycl_meta_overlay,
     //
     nullptr};
 }

@@ -12,10 +12,10 @@ This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [video_detect] for converting video frame into custom tensor, inferencing using OpenVINO™ toolkit and post process data to bounding box and mask.
-* [video_classify] for setting preprocess to crop bounding box, remove background, run inferencing using OpenVINO™ toolkit and post process data to attach classification results.
+* [object_detect] for converting video frame into custom tensor, inferencing using OpenVINO™ toolkit and post process data to bounding box and mask.
+* [object_classify] for setting preprocess to crop bounding box, remove background, run inferencing using OpenVINO™ toolkit and post process data to attach classification results.
 * [roi_split] cropping all ROI regions to images and push.
-* [remove_background_opencv] Removes background for each ROI image.
+* [opencv_remove_background] Removes background for each ROI image.
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
 * `autovideosink` for rendering output video into screen
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
@@ -51,6 +51,11 @@ Run sample:
 #### Classification with background removal
 ```sh
 ./classification_with_background_removal.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT] [SEGMENTATION_MODEL]
+```
+
+#### ROI background removal
+```sh
+./roi_background_removal.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT] [SEGMENTATION_MODEL]
 ```
 
 The sample takes three command-line *optional* parameters:

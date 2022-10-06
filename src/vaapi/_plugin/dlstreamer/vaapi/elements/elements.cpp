@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "vaapi_batch_proc.h"
 #include "vaapi_sync.h"
-#include "video_preproc_vaapi.h"
 
 extern "C" {
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
-    &vaapi_sync, &video_preproc_vaapi,
+    &vaapi_sync, &vaapi_batch_proc,
     //
     nullptr};
 }

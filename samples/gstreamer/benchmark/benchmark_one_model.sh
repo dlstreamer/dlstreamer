@@ -40,13 +40,13 @@ fi
 
 # Inference parameters
 PARAMS=''
-if [ $DECODE_DEVICE == "GPU" && $INFERENCE_DEVICE == "GPU" ]; then
+if [ $DECODE_DEVICE == GPU ] && [ $INFERENCE_DEVICE == GPU ]; then
     PARAMS+="batch-size=64 nireq=4 pre-process-backend=vaapi-surface-sharing" # scale-method=fast
 fi
-if [ $DECODE_DEVICE == "GPU" && $INFERENCE_DEVICE == "CPU" ]; then
+if [ $DECODE_DEVICE == GPU ] && [ $INFERENCE_DEVICE == CPU ]; then
     PARAMS+="pre-process-backend=vaapi"
 fi
-if (( $INFERENCE_DEVICE == "CPU" && $PROCESSES_COUNT > 1 )); then # limit number inference threads per process
+if [ $INFERENCE_DEVICE == CPU ] && [ $PROCESSES_COUNT > 1 ]; then # limit number inference threads per process
     CORES=`nproc`
     THREADS_NUM=$((($CORES + $CORES % $PROCESSES_COUNT) / $PROCESSES_COUNT))
     if [ $THREADS_NUM -eq 0 ]; then

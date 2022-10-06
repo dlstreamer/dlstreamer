@@ -29,8 +29,9 @@ class FFmpegContext : public BaseContext {
         static constexpr auto va_display = BaseContext::key::va_display;
     };
 
-    static inline FFmpegContextPtr create(AVBufferRef *hw_device_ctx = nullptr) {
-        return std::make_shared<FFmpegContext>(av_buffer_ref(hw_device_ctx), true);
+    FFmpegContext(AVHWDeviceType hw_device_type = AV_HWDEVICE_TYPE_VAAPI, const char *device = nullptr)
+        : BaseContext(MemoryType::FFmpeg), _hw_device_ctx(0), _take_ownerwhip(true) {
+        DLS_CHECK_GE0(av_hwdevice_ctx_create(&_hw_device_ctx, hw_device_type, device, NULL, 0));
     }
 
     FFmpegContext(AVBufferRef *hw_device_ctx, bool take_ownerwhip = true)

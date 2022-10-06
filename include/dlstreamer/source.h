@@ -19,7 +19,13 @@ class Source : public Element {
     /**
      * @brief Returns output information of the source.
      */
-    virtual FrameInfoVector get_output_info() = 0;
+    virtual FrameInfo get_output_info() = 0;
+
+    /**
+     * @brief Enables post-processing (ex, resize, color-conversion) to specified format and tensor shape.
+     * @param info Output frames information
+     */
+    virtual void set_output_info(const FrameInfo &info) = 0;
 
     /**
      * @brief Read one frame from the source.

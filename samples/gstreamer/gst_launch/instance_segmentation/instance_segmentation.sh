@@ -48,10 +48,10 @@ LABELS_PATH=$(dirname "$0")/../../../labels
 
 PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! decodebin ! \
-video_detect
+object_detect
   model=$MODEL_PATH device=$DEVICE \
   labels-file=$(realpath $LABELS_PATH/coco_80cl.txt) ! \
-find_contours_opencv ! \
+opencv_find_contours ! \
 $SINK_ELEMENT"
 
 echo ${PIPELINE}

@@ -8,12 +8,7 @@
                 "color_space": "BGR",
                 "resize": "aspect-ratio",
                 "padding": {
-                    "stride": 8,
-                    "fill_value": [
-                        0.0,
-                        0.0,
-                        0.0
-                    ]
+                    "stride": 8
                 }
             }
         }

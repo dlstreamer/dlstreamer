@@ -11,7 +11,7 @@ set_compile_flags(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
     PUBLIC
-        tensor_normalize_opencl
+        opencl_tensor_normalize
     )
 
 if(VA_FOUND)

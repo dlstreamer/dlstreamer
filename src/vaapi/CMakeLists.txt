@@ -12,7 +12,7 @@ if (VA_FOUND)
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 
     add_subdirectory(vaapi_sync)
-    add_subdirectory(video_preproc_vaapi)
+    add_subdirectory(vaapi_batch_proc)
 
     add_subdirectory(_plugin/dlstreamer/vaapi/elements)
     add_subdirectory(_gst_plugin)

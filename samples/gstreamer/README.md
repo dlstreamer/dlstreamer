@@ -1,6 +1,6 @@
 # Intel® Deep Learning Streamer (Intel® DL Streamer) Samples
 
-Samples are simple applications that demonstrate how to use the Intel DL Streamer. The samples are available in the `/opt/intel/dlstreamer/samples` directory.
+Samples are simple applications that demonstrate how to use the Intel® DL Streamer. The samples are available in the `/opt/intel/dlstreamer/samples` directory.
 
 Samples separated into several categories
 1. gst_launch command-line samples (samples construct GStreamer pipeline via [gst-launch-1.0](https://gstreamer.freedesktop.org/documentation/tools/gst-launch.html) command-line utility)
@@ -11,7 +11,7 @@ Samples separated into several categories
     * [Metadata Publishing Sample](./gst_launch/metapublish/README.md) - demonstrates how [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) and [gvametapublish](https://dlstreamer.github.io/elements/gvametapublish.html) elements are used for converting metadata with inference results into JSON format and publishing to file or Kafka/MQTT message bus
     * [gvapython Sample](./gst_launch/gvapython/face_detection_and_classification/README.md) - demonstrates pipeline customization with [gvapython](https://dlstreamer.github.io/elements/gvapython.html) element and application provided Python script for inference post-processing
     * [Action Recognition Sample](./gst_launch/action_recognition/README.md) - demonstrates action recognition via video_inference bin element
-    * [Instance Segmentation Sample](./gst_launch/instance_segmentation/README.md) - demonstrates Instance Segmentation via video_detect and video_classify bin elements
+    * [Instance Segmentation Sample](./gst_launch/instance_segmentation/README.md) - demonstrates Instance Segmentation via object_detect and object_classify bin elements
 2. C++ samples
     * [Draw Face Attributes C++ Sample](./cpp/draw_face_attributes/README.md) - constructs pipeline and sets "C" callback to access frame metadata and visualize inference results
 3. Python samples
@@ -27,7 +27,7 @@ Other samples (without C/C++ code) provide .sh script for constructing and execu
 
 ## DL Models
 
-Intel DL Streamer samples use pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+Intel® DL Streamer samples use pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 
 Before running samples, run script `download_models.sh` once to download all models required for samples. The script located in `samples` top folder.
 > **NOTE**: To install all necessary requirements for `download_models.sh` script run this command:
@@ -42,7 +42,7 @@ python3 -m pip openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 
 ## Input video
 
-First command-line parameter in Intel DL Streamer samples specifies input video and supports
+First command-line parameter in Intel® DL Streamer samples specifies input video and supports
 * local video file
 * web camera device (ex. `/dev/video0`)
 * RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)

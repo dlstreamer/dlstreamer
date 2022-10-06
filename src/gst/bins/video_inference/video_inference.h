@@ -6,7 +6,7 @@
 
 #pragma once
 
-#include "splitjoinbin.h"
+#include "processbin.h"
 #include <gst/gst.h>
 #include <list>
 #include <map>
@@ -29,13 +29,13 @@ namespace elem {
 // Intel® Deep Learning Streamer (Intel® DL Streamer) elements
 constexpr const char *roi_split = "roi_split";
 constexpr const char *rate_adjust = "rate_adjust";
-constexpr const char *video_preproc_vaapi = "video_preproc_vaapi";
+constexpr const char *vaapi_batch_proc = "vaapi_batch_proc";
 constexpr const char *vaapi_to_opencl = "vaapi_to_opencl";
-constexpr const char *video_cropscale_opencv = "video_cropscale_opencv";
+constexpr const char *opencv_cropscale = "opencv_cropscale";
 constexpr const char *tensor_convert = "tensor_convert";
-constexpr const char *tensor_normalize_opencv = "tensor_normalize_opencv";
-constexpr const char *tensor_normalize_opencl = "tensor_normalize_opencl";
-constexpr const char *tensor_inference_openvino = "tensor_inference_openvino";
+constexpr const char *opencv_tensor_normalize = "opencv_tensor_normalize";
+constexpr const char *opencl_tensor_normalize = "opencl_tensor_normalize";
+constexpr const char *openvino_tensor_inference = "openvino_tensor_inference";
 constexpr const char *tensor_postproc_ = "tensor_postproc_";
 constexpr const char *batch_create = "batch_create";
 constexpr const char *batch_split = "batch_split";
@@ -70,7 +70,7 @@ enum class Region { FULL_FRAME, ROI_LIST };
 GType inference_region_get_type();
 
 typedef struct _VideoInference {
-    GstSplitJoinBin base;
+    GstProcessBin base;
 
     class VideoInferencePrivate *impl;
 
@@ -79,7 +79,7 @@ typedef struct _VideoInference {
 } VideoInference;
 
 typedef struct _VideoInferenceClass {
-    GstSplitJoinBinClass base;
+    GstProcessBinClass base;
 
     std::string (*get_default_postprocess_elements)(VideoInference *video_inference);
 } VideoInferenceClass;

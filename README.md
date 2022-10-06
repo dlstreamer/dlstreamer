@@ -27,7 +27,7 @@ Please refer to [Install Guide](https://dlstreamer.github.io/get_started/install
 [Samples](https://github.com/dlstreamer/dlstreamer/tree/master/samples) available for C/C++ and Python programming, and as gst-launch command lines and scripts. 
 
 ## NN models
-Intel DL Streamer supports NN models in OpenVINO™ IR and ONNX* formats:
+Intel® DL Streamer supports NN models in OpenVINO™ IR and ONNX* formats:
 * Refer to [OpenVINO™ Model Optimizer](<https://docs.openvino.ai/latest/openvino_docs_MO_DG_Deep_Learning_Model_Optimizer_DevGuide.html>) how to convert model into OpenVINO™ IR format 
 * Refer to training frameworks documentation how to export model into ONNX* format
 

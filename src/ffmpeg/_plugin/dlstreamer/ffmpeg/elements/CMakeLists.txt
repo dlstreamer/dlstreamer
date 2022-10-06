@@ -11,7 +11,7 @@ set_compile_flags(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-    multi_source_ffmpeg
+    ffmpeg_multi_source
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

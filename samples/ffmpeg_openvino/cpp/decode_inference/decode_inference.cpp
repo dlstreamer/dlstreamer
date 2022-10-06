@@ -4,28 +4,28 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include <cassert>
 #include <gflags/gflags.h>
 #include <memory>
-#include <cassert>
 
+// OpenVINO
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
-#include <openvino/runtime/intel_gpu/remote_properties.hpp>
 
-extern "C" {
 // FFmpeg
+extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libavutil/hwcontext.h>
 #include <libavutil/hwcontext_vaapi.h>
-#include <libswscale/swscale.h>
 }
+
+auto constexpr inference_device = "GPU";
 
 DEFINE_string(i, "", "Required. Path to input video file");
 DEFINE_string(m, "", "Required. Path to IR .xml file");
-DEFINE_string(device, "GPU", "Device for decode and inference, 'CPU' or 'GPU'");
-DEFINE_int32(batch_size, 1, "Confidence threshold for bounding boxes, in range [0-1]");
+// DEFINE_string(device, "GPU", "Device for decode and inference, 'CPU' or 'GPU'");
 
 #define DLS_CHECK(_VAR)                                                                                                \
     if (!(_VAR))                                                                                                       \
@@ -44,7 +44,7 @@ int main(int argc, char *argv[]) {
     DLS_CHECK(!FLAGS_i.empty() && !FLAGS_m.empty());
 
     // find video stream information
-    AVInputFormat *input_format = NULL; // av_find_input_format(format.c_str());
+    AVInputFormat *input_format = NULL;
     AVFormatContext *input_ctx = NULL;
     DLS_CHECK_GE0(avformat_open_input(&input_ctx, FLAGS_i.data(), input_format, NULL));
     AVCodec *codec = nullptr;
@@ -52,17 +52,15 @@ int main(int argc, char *argv[]) {
     DLS_CHECK_GE0(video_stream);
     AVCodecParameters *codecpar = input_ctx->streams[video_stream]->codecpar;
 
-    // create CPU-based or VAAPI-based decoder depending on 'device' parameter
+    // create FFmpeg VAAPI decoder
     AVCodecContext *decoder_ctx = NULL;
     DLS_CHECK(decoder_ctx = avcodec_alloc_context3(codec));
     DLS_CHECK_GE0(avcodec_parameters_to_context(decoder_ctx, codecpar));
-    if (FLAGS_device.find("GPU") != std::string::npos) {
-        const char *device = nullptr;
-        DLS_CHECK_GE0(av_hwdevice_ctx_create(&decoder_ctx->hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, device, NULL, 0));
-        decoder_ctx->get_format = [](AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts) {
-            return AV_PIX_FMT_VAAPI; // request VAAPI frame format
-        };
-    }
+    const char *device = nullptr;
+    DLS_CHECK_GE0(av_hwdevice_ctx_create(&decoder_ctx->hw_device_ctx, AV_HWDEVICE_TYPE_VAAPI, device, NULL, 0));
+    decoder_ctx->get_format = [](AVCodecContext *ctx, const enum AVPixelFormat *pix_fmts) {
+        return AV_PIX_FMT_VAAPI; // request VAAPI frame format
+    };
     DLS_CHECK_GE0(avcodec_open2(decoder_ctx, codec, NULL));
 
     // Read OpenVINO™ toolkit model
@@ -78,12 +76,9 @@ int main(int argc, char *argv[]) {
     auto input_width = input_shape[ov::layout::width_idx(inputLayout)];
     auto input_height = input_shape[ov::layout::height_idx(inputLayout)];
 
-    // Configure OpenVINO™ toolkit pre-processing
+    // Configure model pre-processing
     ov::preprocess::PrePostProcessor ppp(ov_model);
-    if (!decoder_ctx->hw_device_ctx) { // CPU
-        ppp.input(input_tensor_name).tensor().set_layout({"NHWC"}).set_element_type(ov::element::u8);
-        ppp.input(input_tensor_name).model().set_layout(inputLayout);
-    } else { // GPU
+    if (decoder_ctx->hw_device_ctx) { // VAAPI decode
         // https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API.html#direct-nv12-video-surface-input
         ppp.input()
             .tensor()
@@ -92,10 +87,11 @@ int main(int argc, char *argv[]) {
             .set_memory_type(ov::intel_gpu::memory_type::surface);
         ppp.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
         ppp.input().model().set_layout("NCHW");
+    } else { // CPU decode
+        ppp.input(input_tensor_name).tensor().set_layout({"NHWC"}).set_element_type(ov::element::u8);
+        ppp.input(input_tensor_name).model().set_layout(inputLayout);
     }
     ov_model = ppp.build();
-    if (FLAGS_batch_size > 1)
-        ov::set_batch(ov_model, FLAGS_batch_size);
 
     // Compile model and create inference request
     ov::CompiledModel ov_compiled_model;
@@ -106,11 +102,10 @@ int main(int argc, char *argv[]) {
         ov::intel_gpu::ocl::VAContext ov_context(ov_core, vaapi_ctx->display);
         ov_compiled_model = ov_core.compile_model(ov_model, ov_context);
     } else {
-        ov_compiled_model = ov_core.compile_model(ov_model, FLAGS_device);
+        ov_compiled_model = ov_core.compile_model(ov_model, inference_device);
     }
     ov::InferRequest infer_request = ov_compiled_model.create_infer_request();
 
-    std::vector<AVFrame *> av_frames;
     for (;;) {
         // Read packet with compressed video frame
         AVPacket *avpacket = av_packet_alloc();
@@ -124,43 +119,31 @@ int main(int argc, char *argv[]) {
         // Send packet to decoder
         DLS_CHECK_GE0(avcodec_send_packet(decoder_ctx, avpacket));
 
+        // Receive frame(s) from decoder
         while (true) {
-            // Receive frame from decoder
-            auto dec_frame = av_frame_alloc();
-            int decode_err = avcodec_receive_frame(decoder_ctx, dec_frame);
+            auto av_frame = av_frame_alloc();
+            int decode_err = avcodec_receive_frame(decoder_ctx, av_frame);
             if (decode_err == AVERROR(EAGAIN) || decode_err == AVERROR_EOF) {
                 break;
             }
             DLS_CHECK_GE0(decode_err);
             static int frame_num = 0;
-            printf("--------------------------------------- Frame %d\n", frame_num++);
-
-            av_frames.push_back(dec_frame);
-            if (av_frames.size() < FLAGS_batch_size)
-                continue;
+            printf("Frame %d\n", frame_num++);
 
             std::vector<ov::Tensor> y_tensors;
             std::vector<ov::Tensor> uv_tensors;
-            for (auto av_frame : av_frames) {
-                if (av_frame->format == AV_PIX_FMT_VAAPI) {
-                    VASurfaceID va_surface = (VASurfaceID)(size_t)av_frame->data[3]; // As defined by AV_PIX_FMT_VAAPI
-                    // printf("va_surface %d\n", va_surface);
-                    // zero-copy conversion from VAAPI surface to OpenVINO™ toolkit tensors (one for Y plane, another
-                    // for UV)
-                    auto va_context = ov_compiled_model.get_context().as<ov::intel_gpu::ocl::VAContext>();
-                    auto nv12_tensor = va_context.create_tensor_nv12(input_height, input_width, va_surface);
-                    y_tensors.push_back(nv12_tensor.first);
-                    uv_tensors.push_back(nv12_tensor.second);
-                } else {
-                    printf("TODO!!!\n");
-                }
-            }
+            if (av_frame->format != AV_PIX_FMT_VAAPI)
+                throw std::runtime_error("Unsupported av_frame format");
+            VASurfaceID va_surface = (VASurfaceID)(size_t)av_frame->data[3]; // As defined by AV_PIX_FMT_VAAPI
+            // printf("va_surface %d\n", va_surface);
+            // zero-copy conversion from VAAPI surface to OpenVINO™ toolkit tensors (one for Y plane, another for UV)
+            auto va_context = ov_compiled_model.get_context().as<ov::intel_gpu::ocl::VAContext>();
+            auto nv12_tensor = va_context.create_tensor_nv12(input_height, input_width, va_surface);
 
             // Run inference request
-            infer_request.set_tensors(input_tensor_name + "/y", y_tensors);
-            infer_request.set_tensors(input_tensor_name + "/uv", uv_tensors);
+            infer_request.set_input_tensor(0, nv12_tensor.first);  // Y plane
+            infer_request.set_input_tensor(1, nv12_tensor.second); // UV plane
             infer_request.infer();
-
             auto output_tensor = infer_request.get_output_tensor(0);
 
             // If object detection model, print bounding box coordinates and confidence. Otherwise, print output shape
@@ -180,17 +163,16 @@ int main(int argc, char *argv[]) {
                     if (confidence < 0.5) {
                         continue;
                     }
-                    printf("image%d: bbox %.2f, %.2f, %.2f, %.2f, confidence = %.5f\n", image_id, x_min, y_min, x_max,
-                           y_max, confidence);
+                    printf("  bbox %.2f, %.2f, %.2f, %.2f, confidence = %.5f\n", x_min, y_min, x_max, y_max,
+                           confidence);
                 }
             } else {
                 std::cout << "output shape=" << output_tensor.get_shape() << std::endl;
             }
 
-            for (auto av_frame : av_frames)
-                av_frame_free(&av_frame);
-            av_frames.clear();
+            av_frame_free(&av_frame);
         }
+
         if (avpacket)
             av_packet_free(&avpacket);
         else

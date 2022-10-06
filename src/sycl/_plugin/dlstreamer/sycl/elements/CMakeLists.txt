@@ -15,8 +15,8 @@ target_link_libraries(${TARGET_NAME}
 PRIVATE
     dlstreamer_api
     ${LEVEL_ZERO_LIBRARIES}
-    tensor_histogram_sycl
-    watermark_sycl
+    sycl_tensor_histogram
+    sycl_meta_overlay
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

@@ -16,6 +16,17 @@ namespace dlstreamer {
 class Sink : public Element {
   public:
     /**
+     * @brief Returns input information.
+     */
+    virtual FrameInfo get_input_info() = 0;
+
+    /**
+     * @brief The function notifies element about input information.
+     * @param info Output frames information
+     */
+    virtual void set_input_info(const FrameInfo &info) = 0;
+
+    /**
      * @brief Write one frame
      * @param frame Frame to write
      */

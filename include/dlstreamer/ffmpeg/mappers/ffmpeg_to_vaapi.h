@@ -22,11 +22,7 @@ class MemoryMapperFFMPEGToVAAPI : public BaseMemoryMapper {
     }
 
     TensorPtr map(TensorPtr tensor, AccessMode /*mode*/) override {
-        return tensor;
-    }
-
-    FramePtr map(FramePtr frame, AccessMode /*mode*/) override {
-        return frame;
+        return ptr_cast<VAAPITensor>(tensor);
     }
 };
 

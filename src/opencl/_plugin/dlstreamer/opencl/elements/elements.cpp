@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "tensor_normalize_opencl.h"
+#include "opencl_tensor_normalize.h"
 #ifdef DLS_HAVE_VAAPI
 #include "vaapi_to_opencl.h"
 #endif
@@ -12,7 +12,7 @@
 extern "C" {
 
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
-    &tensor_normalize_opencl,
+    &opencl_tensor_normalize,
 #ifdef DLS_HAVE_VAAPI
     &vaapi_to_opencl,
 #endif

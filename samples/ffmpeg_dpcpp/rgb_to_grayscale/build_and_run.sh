@@ -5,8 +5,13 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-BASE_DIR=$PWD
-BUILD_DIR=$HOME/intel/dl_streamer/samples/ffmpeg_vaapi_openvino/build
+VIDEO_FILE=${1}
+
+EXE_NAME=ffmpeg_dpcpp_rgb_to_grayscale
+BUILD_DIR=$HOME/intel/dl_streamer/samples/${EXE_NAME}/build
+BASE_DIR=$(dirname "$0")
+
+source /opt/intel/oneapi/setvars.sh
 
 rm -rf ${BUILD_DIR}
 mkdir -p ${BUILD_DIR}
@@ -20,7 +25,4 @@ fi
 
 make -j $(nproc)
 
-cd ${BASE_DIR}
-
-FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
-${BUILD_DIR}/ffmpeg_vaapi_openvino -i $FILE
+${BUILD_DIR}/${EXE_NAME} -i ${VIDEO_FILE} -o output.gray

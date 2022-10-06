@@ -94,7 +94,8 @@ enum {
     PROP_INFERENCE_REGION,
     PROP_OBJECT_CLASS,
     PROP_LABELS,
-    PROP_LABELS_FILE
+    PROP_LABELS_FILE,
+    PROP_SCALE_METHOD
 };
 
 GType gst_gva_base_inference_get_inf_region(void) {
@@ -305,12 +306,19 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         g_param_spec_string("labels", "Labels",
                             "Array of object classes. "
                             "It could be set as the following example: labels=<label1,label2,label3>",
-                            DEFAULT_LABELS, G_PARAM_WRITABLE));
+                            DEFAULT_LABELS, param_flags));
 
     g_object_class_install_property(gobject_class, PROP_LABELS_FILE,
                                     g_param_spec_string("labels-file", "Labels-file",
                                                         "Path to .txt file containing object classes (one per line)",
                                                         DEFAULT_LABELS, param_flags));
+
+    g_object_class_install_property(gobject_class, PROP_SCALE_METHOD,
+                                    g_param_spec_string("scale-method", "scale-method",
+                                                        "Scale method to use in pre-preprocessing before inference."
+                                                        " Only default and scale-method=fast (VAAPI based) supported "
+                                                        "in this element",
+                                                        nullptr, G_PARAM_WRITABLE));
 }
 
 void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
@@ -588,6 +596,12 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_LABELS_FILE:
         gva_base_inference_set_labels(base_inference, g_value_get_string(value));
         break;
+    case PROP_SCALE_METHOD:
+        if (std::string(g_value_get_string(value)) == "fast")
+            base_inference->pre_proc_config = g_strdup("VAAPI_FAST_SCALE_LOAD_FACTOR=1");
+        else
+            GST_ERROR_OBJECT(base_inference, "Unsupported scale-method=%s", g_value_get_string(value));
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -656,6 +670,9 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_OBJECT_CLASS:
         g_value_set_string(value, base_inference->object_class);
+        break;
+    case PROP_LABELS:
+        g_value_set_string(value, base_inference->labels);
         break;
     case PROP_LABELS_FILE:
         g_value_set_string(value, base_inference->labels);

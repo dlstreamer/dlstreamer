@@ -15,7 +15,7 @@ PRIVATE
     rate_adjust
     tensor_convert
     tensor_histogram
-    tensor_sliding_aggregate
+    tensor_sliding_window
     tensor_postproc
 )
 

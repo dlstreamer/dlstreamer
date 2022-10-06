@@ -52,9 +52,9 @@ $SOURCE_ELEMENT ! \
 decodebin ! \
 video_inference \
   process=' \
-    tensor_inference_openvino model=$MODEL_ENCODER device=$DEVICE ! \
-    tensor_sliding_aggregate ! \
-    tensor_inference_openvino model=$MODEL_DECODER device=$DEVICE' \
+    openvino_tensor_inference model=$MODEL_ENCODER device=$DEVICE ! \
+    tensor_sliding_window ! \
+    openvino_tensor_inference model=$MODEL_DECODER device=$DEVICE' \
   postprocess=' \
     tensor_postproc_label labels-file=$DIR/kinetics_400.txt method=softmax' ! \
 $SINK_ELEMENT"

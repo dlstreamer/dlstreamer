@@ -21,51 +21,55 @@ class MemoryMapperGSTToCPU : public BaseMemoryMapper {
     using BaseMemoryMapper::BaseMemoryMapper;
 
     TensorPtr map(TensorPtr src, AccessMode mode) override {
+        auto info = src->info();
         auto gst_tensor = ptr_cast<GSTTensor>(src);
         GstMemory *mem = gst_tensor->gst_memory();
         int offset_x = gst_tensor->offset_x();
         int offset_y = gst_tensor->offset_y();
 
-        // If GstMemory allocated by GstDLStreamerAllocator, get TensorPtr and map. Otherwise, call gst_memory_map.
+        // If tensor with partial shape and GstMemory allocated by GstDLStreamerAllocator, get TensorPtr and map.
+        // Otherwise, use gst_memory_map and create new CPUTensor
+        if (!info.size()) {
 #ifndef DLS_AVOID_GST_LIBRARY_LINKAGE
-        if (gst_is_dlstreamer_memory(mem)) {
-            auto tensor = gst_dlstreamer_memory_get_tensor_ptr(mem);
+            if (gst_is_dlstreamer_memory(mem)) {
+                auto tensor = gst_dlstreamer_memory_get_tensor_ptr(mem);
 #else
-        // direct access to struct GstDLStreamerMemory to avoid libdlstreamer_gst.so linkage
-        if (G_TYPE_CHECK_INSTANCE_TYPE(mem->allocator, g_type_from_name(GST_DLSTREAMER_ALLOCATOR_TYPE_NAME))) {
-            auto tensor = GST_DLSTREAMER_MEMORY_CAST(mem)->tensor;
+            // direct access to struct GstDLStreamerMemory to avoid libdlstreamer_gst.so linkage
+            if (G_TYPE_CHECK_INSTANCE_TYPE(mem->allocator, g_type_from_name(GST_DLSTREAMER_ALLOCATOR_TYPE_NAME))) {
+                auto tensor = GST_DLSTREAMER_MEMORY_CAST(mem)->tensor;
 #endif
-            auto dst = tensor.map(mode);
-            if (offset_x || offset_y) {
-                ImageInfo image_info(dst->info());
-                std::vector<std::pair<size_t, size_t>> slice(image_info.info().shape.size());
-                slice[image_info.layout().w_position()] = {offset_x, image_info.width()};
-                slice[image_info.layout().h_position()] = {offset_y, image_info.height()};
-                dst = get_tensor_slice(dst, slice);
-            }
-            return dst;
-        } else {
-            GstMapInfo *map_info = new GstMapInfo;
-            DLS_CHECK(gst_memory_map(mem, map_info, mode_to_gst_map_flags(mode)));
-            uint8_t *data = map_info->data;
-
-            if (offset_x || offset_y) {
-                ImageInfo image_info(src->info());
-                data += offset_y * image_info.width_stride() + offset_x * image_info.channels_stride();
-            }
-
-            auto dst_tensor = new CPUTensor(src->info(), data);
-            auto deleter = [mem, map_info](CPUTensor *tensor) {
-                if (map_info) {
-                    gst_memory_unmap(mem, map_info);
-                    delete map_info;
+                auto dst = tensor.map(mode);
+                if (offset_x || offset_y) {
+                    ImageInfo image_info(dst->info());
+                    std::vector<std::pair<size_t, size_t>> slice(image_info.info().shape.size());
+                    slice[image_info.layout().w_position()] = {offset_x, image_info.width()};
+                    slice[image_info.layout().h_position()] = {offset_y, image_info.height()};
+                    dst = get_tensor_slice(dst, slice);
                 }
-                delete tensor;
-            };
-            auto dst = CPUTensorPtr(dst_tensor, deleter);
-            dst->set_parent(src);
-            return dst;
+                return dst;
+            }
         }
+
+        GstMapInfo *map_info = new GstMapInfo;
+        DLS_CHECK(gst_memory_map(mem, map_info, mode_to_gst_map_flags(mode)));
+        uint8_t *data = map_info->data;
+
+        if (offset_x || offset_y) {
+            ImageInfo image_info(src->info());
+            data += offset_y * image_info.width_stride() + offset_x * image_info.channels_stride();
+        }
+
+        auto dst_tensor = new CPUTensor(info, data);
+        auto deleter = [mem, map_info](CPUTensor *tensor) {
+            if (map_info) {
+                gst_memory_unmap(mem, map_info);
+                delete map_info;
+            }
+            delete tensor;
+        };
+        auto dst = CPUTensorPtr(dst_tensor, deleter);
+        dst->set_parent(src);
+        return dst;
     }
 
     FramePtr map(FramePtr src, AccessMode mode) override {

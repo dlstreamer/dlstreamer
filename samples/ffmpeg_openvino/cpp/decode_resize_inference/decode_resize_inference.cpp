@@ -4,54 +4,91 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "dlstreamer/ffmpeg/context.h"
-#include "dlstreamer/ffmpeg/elements/multi_source_ffmpeg.h"
-#include "dlstreamer/ffmpeg/frame.h"
-#include "dlstreamer/openvino/context.h"
-#include "dlstreamer/transform.h"
-#include "dlstreamer/vaapi/context.h"
-#include "dlstreamer/vaapi/elements/video_preproc_vaapi.h"
-
 #include <gflags/gflags.h>
 #include <memory>
+#include <thread>
 
+// DL Streamer
+#include "dlstreamer/base/blocking_queue.h"
+#include "dlstreamer/ffmpeg/context.h"
+#include "dlstreamer/ffmpeg/elements/ffmpeg_multi_source.h"
+#include "dlstreamer/image_metadata.h"
+#include "dlstreamer/vaapi/context.h"
+
+// OpenVINO
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
+#include <openvino/runtime/intel_gpu/properties.hpp>
 
-extern "C" {
-// FFmpeg
-#include <libavcodec/avcodec.h>
-#include <libavformat/avformat.h>
-#include <libavutil/hwcontext.h>
-#include <libswscale/swscale.h>
-}
+const std::string inference_device = "GPU";
 
-DEFINE_string(i, "", "Required. Path to input video file");
+DEFINE_string(i, "",
+              "Required. Path to one or multiple input video files "
+              "(separated by comma or delimeter specified in -delimeter option");
 DEFINE_string(m, "", "Required. Path to IR .xml file");
-DEFINE_string(device, "GPU", "Device for decode and inference, 'CPU' or 'GPU'");
-DEFINE_int32(batch_size, 1, "Confidence threshold for bounding boxes, in range [0-1]");
+// DEFINE_string(device, "GPU", "Device for decode and inference, 'CPU' or 'GPU'");
+DEFINE_int32(batch_size, 1, "Batch size");
+DEFINE_int32(nireq, 4, "Number inference requests");
+DEFINE_string(delimiter, ",", "Delimiter between multiple input files in -i option, default is comma");
 
 using namespace dlstreamer;
+
+void print_tensor(std::vector<FramePtr> batched_frames, ov::Tensor output_tensor) {
+    printf("Frames");
+    for (auto &frame : batched_frames) {
+        auto meta = find_metadata<SourceIdentifierMetadata>(*frame);
+        if (meta)
+            printf(" [stream_id=%ld, pts=%.2f]", meta->stream_id(), meta->pts() * 1e-9);
+    }
+    printf("\n");
+    // If object detection model, print bounding box coordinates and confidence. Otherwise, print output shape
+    size_t last_dim = output_tensor.get_shape().back();
+    if (last_dim == 7) {
+        // suppose object detection model with output [image_id, label_id, confidence, bbox coordinates]
+        float *data = (float *)output_tensor.data();
+        for (size_t i = 0; i < output_tensor.get_size() / last_dim; i++) {
+            int image_id = static_cast<int>(data[i * last_dim + 0]);
+            float confidence = data[i * last_dim + 2];
+            float x_min = data[i * last_dim + 3];
+            float y_min = data[i * last_dim + 4];
+            float x_max = data[i * last_dim + 5];
+            float y_max = data[i * last_dim + 6];
+            if (image_id < 0)
+                break;
+            if (confidence < 0.5) {
+                continue;
+            }
+            printf("  image%d: bbox %.2f, %.2f, %.2f, %.2f, confidence = %.5f\n", image_id, x_min, y_min, x_max, y_max,
+                   confidence);
+        }
+    } else {
+        std::cout << "  output shape=" << output_tensor.get_shape() << std::endl;
+    }
+}
 
 int main(int argc, char *argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     DLS_CHECK(!FLAGS_i.empty() && !FLAGS_m.empty());
 
-    auto source_ffmpeg = create_source(multi_source_ffmpeg, {{"input", FLAGS_i}});
-    auto ffmpeg_ctx = ptr_cast<FFmpegContext>(source_ffmpeg->get_context(MemoryType::FFmpeg));
-
-    // Load OpenVINO model
+    // Read OpenVINO™ toolkit model
     ov::Core ov_core;
     auto ov_model = ov_core.read_model(FLAGS_m);
     auto input = ov_model->inputs()[0];
-    auto input_tensor_name = input.get_any_name();
-    const ov::Shape &input_shape = input.get_shape();
-    ov::Layout inputLayout = ov::layout::get_layout(input);
+    auto input_shape = input.get_shape();
+    auto input_layout = ov::layout::get_layout(input);
+    auto input_width = input_shape[ov::layout::width_idx(input_layout)];
+    auto input_height = input_shape[ov::layout::height_idx(input_layout)];
+
+    // Initialize FFmpeg context and ffmpeg_multi_source element (decode and resize to inference input resolution)
+    auto ffmpeg_ctx = std::make_shared<FFmpegContext>(AV_HWDEVICE_TYPE_VAAPI);
+    auto inputs = split_string(FLAGS_i, FLAGS_delimiter[0]);
+    auto ffmpeg_source = create_source(ffmpeg_multi_source, {{"inputs", inputs}}, ffmpeg_ctx);
+    TensorInfo model_input_info({input_height, input_width, 1}, DataType::UInt8);
+    ffmpeg_source->set_output_info(FrameInfo(ImageFormat::NV12, MemoryType::VAAPI, {model_input_info}));
+
+    // Configure model pre-processing
     ov::preprocess::PrePostProcessor ppp(ov_model);
-    if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_NONE) {
-        ppp.input(input_tensor_name).tensor().set_layout({"NHWC"}).set_element_type(ov::element::u8);
-        ppp.input(input_tensor_name).model().set_layout(inputLayout);
-    } else if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
+    if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
         // https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API.html#direct-nv12-video-surface-input
         ppp.input()
             .tensor()
@@ -60,127 +97,81 @@ int main(int argc, char *argv[]) {
             .set_memory_type(ov::intel_gpu::memory_type::surface);
         ppp.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
         ppp.input().model().set_layout("NCHW");
+    } else if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_NONE) {
+        auto input_tensor_name = input.get_any_name();
+        ppp.input(input_tensor_name).tensor().set_layout({"NHWC"}).set_element_type(ov::element::u8);
+        ppp.input(input_tensor_name).model().set_layout(input_layout);
     } else {
         throw std::runtime_error("Unsupported hw_device_type");
     }
-    auto input_width = input_shape[ov::layout::width_idx(inputLayout)];
-    auto input_height = input_shape[ov::layout::height_idx(inputLayout)];
     ov_model = ppp.build();
+
+    // Set batch size
     if (FLAGS_batch_size > 1)
         ov::set_batch(ov_model, FLAGS_batch_size);
 
-    // Compile model and create inference request
-    ov::CompiledModel ov_compiled_model;
-    ContextPtr vaapi_ctx;
-    OpenVINOContextPtr openvino_ctx;
-    if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
-        vaapi_ctx = VAAPIContext::create(ffmpeg_ctx);
-        openvino_ctx = std::make_shared<OpenVINOContext>(ov_core, FLAGS_device, vaapi_ctx);
-        ov_compiled_model = ov_core.compile_model(ov_model, *openvino_ctx);
-    } else {
-        openvino_ctx = std::make_shared<OpenVINOContext>();
-        ov_compiled_model = ov_core.compile_model(ov_model, FLAGS_device);
-    }
-    ov::InferRequest infer_request = ov_compiled_model.create_infer_request();
+    // Compile model on VAContext
+    auto vaapi_ctx = VAAPIContext::create(ffmpeg_ctx);
+    ov::intel_gpu::ocl::VAContext ov_context(ov_core, vaapi_ctx->va_display());
+    ov::CompiledModel ov_compiled_model = ov_core.compile_model(ov_model, ov_context);
 
-    // GPU-based resize and color-conversion - create DL Streamer element 'video_preproc_vaapi'
-    TransformPtr vaapi_preproc;
-    if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
-        vaapi_preproc = create_transform(video_preproc_vaapi, {}, vaapi_ctx);
-        FrameInfo output_info = {ImageFormat::NV12, MemoryType::VAAPI, {TensorInfo({input_height, input_width, 1})}};
-        vaapi_preproc->set_output_info(output_info);
-    }
+    // Create inference requests
+    BlockingQueue<ov::InferRequest> free_requests;
+    for (int i = 0; i < FLAGS_nireq; i++)
+        free_requests.push(ov_compiled_model.create_infer_request());
 
-    std::vector<FramePtr> resized_frames;
+    // async thread waiting for inference completion and printing inference results
+    BlockingQueue<std::pair<std::vector<FramePtr>, ov::InferRequest>> busy_requests;
+    std::thread thread([&] {
+        for (;;) {
+            auto res = busy_requests.pop();
+            auto batched_frames = res.first;
+            auto infer_request = res.second;
+            if (!infer_request)
+                break;
+            infer_request.wait();
+            print_tensor(batched_frames, infer_request.get_output_tensor(0));
+            free_requests.push(infer_request);
+        }
+        printf("print_tensor() thread completed\n");
+    });
+
+    // Frame loop
+    std::vector<FramePtr> batched_frames;
     for (;;) {
-        // FFmpeg video input and video decode
-        auto frame = source_ffmpeg->read();
-        if (!frame) // End Of Streamer or error
+        // FFmpeg video input, decode, resize
+        auto frame = ffmpeg_source->read();
+        if (!frame) // End-Of-Stream or error
             break;
 
-        // GPU resize
-        frame = vaapi_preproc->process(frame);
-
         // fill full batch
-        resized_frames.push_back(frame);
-        if (resized_frames.size() < FLAGS_batch_size)
+        batched_frames.push_back(frame);
+        if (batched_frames.size() < FLAGS_batch_size)
             continue;
 
+        // zero-copy conversion from VASurfaceID to OpenVINO VASurfaceTensor (one tensor for Y plane, another for UV)
         std::vector<ov::Tensor> y_tensors;
         std::vector<ov::Tensor> uv_tensors;
-        if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
-            for (auto resized_frame : resized_frames) {
-                VASurfaceID vpp_va_surface = ptr_cast<VAAPIFrame>(resized_frame)->va_surface();
-                printf("vpp_va_surface %d\n", vpp_va_surface);
-                // zero-copy conversion from VAAPI surface to OpenVINO tensors (one tensor for Y plane, another for UV)
-                auto nv12_tensor = openvino_ctx->remote_context<ov::intel_gpu::ocl::VAContext>().create_tensor_nv12(
-                    input_height, input_width, vpp_va_surface);
-                y_tensors.push_back(nv12_tensor.first);
-                uv_tensors.push_back(nv12_tensor.second);
-            }
-            // infer_request.set_tensors(input_tensor_name + "/y", y_tensors);
-            // infer_request.set_tensors(input_tensor_name + "/uv", uv_tensors);
-        } else { // CPU resize
-            throw std::runtime_error("TODO");
-#if 0
-                AVFrame *av_frame = av_frame_alloc();
-                av_frame->format = AV_PIX_FMT_BGR24;
-                av_frame->width = input_width;
-                av_frame->height = input_height;
-                DLS_CHECK_GE0(av_frame_get_buffer(av_frame, 0));
-                if (!sws_context) {
-                    sws_context =
-                        sws_getContext(dec_frame->width, dec_frame->height,
-                                       static_cast<AVPixelFormat>(dec_frame->format), av_frame->width, av_frame->height,
-                                       static_cast<AVPixelFormat>(av_frame->format), SWS_BICUBIC, NULL, NULL, NULL);
-                    DLS_CHECK(sws_context);
-                }
-                DLS_CHECK(sws_scale(sws_context, dec_frame->data, dec_frame->linesize, 0, dec_frame->height,
-                                    av_frame->data, av_frame->linesize));
-
-                // free decoded frame
-                av_frame_free(&dec_frame);
-
-                // zero-copy mapping from FFmpeg to OpenVINO
-                resized_frames.push_back(std::make_shared<FFmpegFrame>(av_frame, true));
-                TensorPtr openvino_tensor = resized_frames.front().map(openvino_ctx)->tensor();
-                infer_request.set_input_tensor(0, *ptr_cast<OpenVINOTensor>(openvino_tensor));
-#endif
+        for (auto va_frame : batched_frames) {
+            VASurfaceID va_surface = ptr_cast<VAAPIFrame>(va_frame)->va_surface();
+            auto nv12_tensor = ov_context.create_tensor_nv12(input_height, input_width, va_surface);
+            y_tensors.push_back(nv12_tensor.first);
+            uv_tensors.push_back(nv12_tensor.second);
         }
 
-        // Run inference request
-        infer_request.set_tensors(input_tensor_name + "/y", y_tensors);
-        infer_request.set_tensors(input_tensor_name + "/uv", uv_tensors);
-        infer_request.infer();
+        // Get inference request and start asynchronously
+        ov::InferRequest infer_request = free_requests.pop();
+        infer_request.set_input_tensors(0, y_tensors);  // first input is batch of Y planes
+        infer_request.set_input_tensors(1, uv_tensors); // second input is batch of UV planes
+        infer_request.start_async();
+        busy_requests.push({batched_frames, infer_request});
 
-        auto output_tensor = infer_request.get_output_tensor(0);
-
-        // If object detection model, print bounding box coordinates and confidence. Otherwise, print output shape
-        size_t last_dim = output_tensor.get_shape().back();
-        if (last_dim == 7) {
-            // suppose object detection model with output [image_id, label_id, confidence, bbox coordinates]
-            float *data = (float *)output_tensor.data();
-            for (size_t i = 0; i < output_tensor.get_size() / last_dim; i++) {
-                int image_id = static_cast<int>(data[i * last_dim + 0]);
-                float confidence = data[i * last_dim + 2];
-                float x_min = data[i * last_dim + 3];
-                float y_min = data[i * last_dim + 4];
-                float x_max = data[i * last_dim + 5];
-                float y_max = data[i * last_dim + 6];
-                if (image_id < 0)
-                    break;
-                if (confidence < 0.5) {
-                    continue;
-                }
-                printf("image%d: bbox %.2f, %.2f, %.2f, %.2f, confidence = %.5f\n", image_id, x_min, y_min, x_max,
-                       y_max, confidence);
-            }
-        } else {
-            std::cout << "output shape=" << output_tensor.get_shape() << std::endl;
-        }
-
-        resized_frames.clear();
+        batched_frames.clear();
     }
+
+    // wait for all inference requests in queue
+    busy_requests.push({});
+    thread.join();
 
     return 0;
 }

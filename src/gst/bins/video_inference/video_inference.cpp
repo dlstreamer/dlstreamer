@@ -22,7 +22,7 @@ GST_DEBUG_CATEGORY(video_inference_debug_category);
 
 // Register GType
 #define video_inference_parent_class parent_class
-G_DEFINE_TYPE(VideoInference, video_inference, GST_TYPE_SPLITJOINBIN);
+G_DEFINE_TYPE(VideoInference, video_inference, GST_TYPE_PROCESSBIN);
 // G_DEFINE_TYPE_WITH_PRIVATE(VideoInference, video_inference, GST_TYPE_BIN)
 
 #define GST_VAAPI_DISPLAY_CONTEXT_TYPE_NAME "gst.vaapi.Display"
@@ -116,7 +116,8 @@ GType preprocess_backend_get_type() {
         {static_cast<int>(PreProcessBackend::GST_OPENCV),
          "DEPRECATED - use auto selection (don't set this property) or set pre-process-backend=gst-opencv", "ie"},
         {static_cast<int>(PreProcessBackend::GST_OPENCV),
-         "DEPRECATED - use auto selection (don't set this property) or set pre-process-backend=gst-opencv", "opencv"}};
+         "DEPRECATED - use auto selection (don't set this property) or set pre-process-backend=gst-opencv", "opencv"},
+        {0, nullptr, nullptr}};
     return g_enum_register_static("VideoInferenceBackend", values);
 }
 
@@ -261,7 +262,7 @@ class VideoInferencePrivate {
         return VIDEO_INFERENCE(base)->impl;
     }
 
-    VideoInferencePrivate(VideoInference *self, GstSplitJoinBin *base) : _self(self), _base(base) {
+    VideoInferencePrivate(VideoInference *self, GstProcessBin *base) : _self(self), _base(base) {
     }
 
     ~VideoInferencePrivate() {
@@ -271,7 +272,7 @@ class VideoInferencePrivate {
         GObject *gobject = G_OBJECT(_base);
         std::string preprocess, process, postprocess, aggregate, postaggregate;
 
-        if (splitjoinbin_is_linked(_base))
+        if (processbin_is_linked(_base))
             return true;
 
         if (dlstreamer::get_property_as_string(gobject, "preprocess") == "NULL")
@@ -290,12 +291,12 @@ class VideoInferencePrivate {
             postaggregate = _postaggregate_element;
 
         // TODO set queue size via properties?
-        splitjoinbin_set_queue_size(_base, PREPROCESS_QUEUE_SIZE(_batch_size), PROCESS_QUEUE_SIZE(_batch_size),
-                                    POSTPROCESS_QUEUE_SIZE(_batch_size), AGGREGATE_QUEUE_SIZE(_batch_size), -1);
+        processbin_set_queue_size(_base, PREPROCESS_QUEUE_SIZE(_batch_size), PROCESS_QUEUE_SIZE(_batch_size),
+                                  POSTPROCESS_QUEUE_SIZE(_batch_size), AGGREGATE_QUEUE_SIZE(_batch_size), -1);
 
         // TODO set elements via properties?
-        return splitjoinbin_set_elements_description(_base, preprocess.data(), process.data(), postprocess.data(),
-                                                     aggregate.data(), postaggregate.data());
+        return processbin_set_elements_description(_base, preprocess.data(), process.data(), postprocess.data(),
+                                                   aggregate.data(), postaggregate.data());
     }
 
     PreProcessBackend get_pre_proc_type(GstPad *pad) {
@@ -318,7 +319,7 @@ class VideoInferencePrivate {
     }
 
     gboolean sink_event_handler(GstPad *pad, GstEvent *event) {
-        if (GST_EVENT_TYPE(event) == GST_EVENT_CAPS && !splitjoinbin_is_linked(_base)) {
+        if (GST_EVENT_TYPE(event) == GST_EVENT_CAPS && !processbin_is_linked(_base)) {
             if (_preprocess_backend == PreProcessBackend::AUTO)
                 _preprocess_backend = get_pre_proc_type(pad);
             if (!link_elements())
@@ -356,13 +357,13 @@ class VideoInferencePrivate {
         case PreProcessBackend::GST_OPENCV:
             // convert parameters naming. TODO other parameters: padding, padding-color, etc
             if (_inference_region == Region::ROI_LIST || params) {
-                // TODO: videoconvert could be removed if video_cropscale_opencv support more color formats
+                // TODO: videoconvert could be removed if opencv_cropscale support more color formats
                 pipe += separator + elem::videoconvert;
                 if (structure_has_fields(params, {"resize"})) {
                     if (gst_structure_get_string(params, "resize") == std::string("aspect-ratio"))
                         pipe += " aspect-ratio=true";
                 }
-                pipe += separator + elem::video_cropscale_opencv;
+                pipe += separator + elem::opencv_cropscale;
             } else {
                 pipe += separator + elem::videoscale;
             }
@@ -372,14 +373,14 @@ class VideoInferencePrivate {
             pipe += separator + elem::caps_system_memory + color_format;
             pipe += separator + elem::tensor_convert;
             if (structure_has_fields(params, {"range", "mean", "std"})) {
-                pipe += separator + elem::tensor_normalize_opencv + fields_to_params(params, {"range", "mean", "std"});
+                pipe += separator + elem::opencv_tensor_normalize + fields_to_params(params, {"range", "mean", "std"});
             }
             break;
         case PreProcessBackend::VAAPI:
             pipe += separator + elem::caps_vasurface_memory;
             if (_batch_size > 1 || _scale_method == ScaleMethod::DlsVaapi) { // TODO check other parameters
                 pipe += separator + elem::batch_create + " batch-size=" + std::to_string(_batch_size);
-                pipe += separator + elem::video_preproc_vaapi;
+                pipe += separator + elem::vaapi_batch_proc;
                 if (_scale_method != ScaleMethod::Default && _scale_method != ScaleMethod::DlsVaapi)
                     pipe += "scale-method=" + scale_method_to_string(_scale_method) + " ";
             } else {
@@ -391,7 +392,7 @@ class VideoInferencePrivate {
                 pipe += separator + elem::tensor_convert;
             }
             if (structure_has_fields(params, {"range", "mean", "std"})) {
-                pipe += separator + elem::tensor_normalize_opencv + fields_to_params(params, {"range", "mean", "std"});
+                pipe += separator + elem::opencv_tensor_normalize + fields_to_params(params, {"range", "mean", "std"});
             }
             break;
         case PreProcessBackend::VAAPI_SURFACE_SHARING:
@@ -405,7 +406,7 @@ class VideoInferencePrivate {
             // TODO batch-size
             pipe += separator + elem::caps_vasurface_memory;
             if (_scale_method == ScaleMethod::DlsVaapi) {
-                pipe += separator + elem::video_preproc_vaapi;
+                pipe += separator + elem::vaapi_batch_proc;
             } else {
                 pipe += separator + elem::vaapipostproc;
                 if (_scale_method != ScaleMethod::Default)
@@ -417,10 +418,10 @@ class VideoInferencePrivate {
             pipe += separator + elem::caps_vasurface_memory;
             if (_batch_size > 1) {
                 pipe += separator + elem::batch_create + " batch-size=" + std::to_string(_batch_size);
-                pipe += separator + elem::video_preproc_vaapi;
+                pipe += separator + elem::vaapi_batch_proc;
             } else {
                 if (_scale_method == ScaleMethod::DlsVaapi)
-                    pipe += separator + elem::video_preproc_vaapi;
+                    pipe += separator + elem::vaapi_batch_proc;
                 else
                     pipe += separator + elem::vaapipostproc;
             }
@@ -429,7 +430,7 @@ class VideoInferencePrivate {
             pipe += separator + elem::vaapi_to_opencl;
             pipe += separator + elem::queue + " max-size-bytes=0 max-size-time=0 max-size-buffers=" +
                     std::to_string(OPENCL_QUEUE_SIZE(_batch_size));
-            pipe += separator + elem::tensor_normalize_opencl;
+            pipe += separator + elem::opencl_tensor_normalize;
             break;
         default:
             throw std::runtime_error("Unexpected preproc_backend type");
@@ -458,7 +459,7 @@ class VideoInferencePrivate {
                     if (structure_has_fields(structure, {"labels", "labels_file"}))
                         converter = "label";
                     else
-                        converter = "copy_params";
+                        converter = "add_params";
                 }
 
                 // element name
@@ -472,7 +473,7 @@ class VideoInferencePrivate {
                 oss_process << self->get_default_postprocess_elements(_self);
             } else {
                 if (_labels.empty() && _labels_file.empty()) {
-                    oss_process << "tensor_postproc_copy_params";
+                    oss_process << "tensor_postproc_add_params";
                 } else {
                     oss_process << "tensor_postproc_label";
                 }
@@ -512,7 +513,8 @@ class VideoInferencePrivate {
         std::string pipe = oss_pipe.str();
 
         static std::vector<std::pair<std::string, std::string>> replacements = {
-            {"tensor_postproc_boxes_labels", "tensor_postproc_detection_output"}};
+            {"tensor_postproc_detection_output", "tensor_postproc_detection"},
+            {"tensor_postproc_boxes_labels", "tensor_postproc_detection"}};
         for (auto &repl : replacements) {
             auto index = pipe.find(repl.first);
             if (index != std::string::npos)
@@ -670,7 +672,7 @@ class VideoInferencePrivate {
     }
 
   public:
-    std::string _inference_element = elem::tensor_inference_openvino;
+    std::string _inference_element = elem::openvino_tensor_inference;
     std::string _postaggregate_element;
     std::string _inference_params;
     std::string _aggregate_params;
@@ -678,7 +680,7 @@ class VideoInferencePrivate {
 
   private:
     VideoInference *_self = nullptr;
-    GstSplitJoinBin *_base = nullptr;
+    GstProcessBin *_base = nullptr;
 
     /* properties */
     std::string _model;

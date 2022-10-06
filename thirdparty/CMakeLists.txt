@@ -6,7 +6,9 @@
 
 cmake_minimum_required(VERSION 3.1)
 
-add_subdirectory(itt)
+add_subdirectory(itt)    endif()
+    add_subdirectory(fff)
+endif()
 
 # Populate thirdparty/json dependency
 set(JSONCONVERT_SOURCE "https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp")
