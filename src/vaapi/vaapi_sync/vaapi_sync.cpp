@@ -47,7 +47,11 @@ class VAAPISync : public BaseTransformInplace {
         auto vaapi_frame = frame.map(_vaapi_context, AccessMode::Read);
         auto va_surface = ptr_cast<VAAPITensor>(vaapi_frame->tensor(0))->va_surface();
         if (_timeout > 0) {
+#if VA_CHECK_VERSION(1, 15, 0)
             DLS_CHECK(_va_vtable->vaSyncSurface2(_va_driver, va_surface, _timeout) == VA_STATUS_SUCCESS);
+#else
+            throw std::runtime_error("vaSyncSurface2 requires VAAPI version >= 1.15");
+#endif
         } else {
             DLS_CHECK(_va_vtable->vaSyncSurface(_va_driver, va_surface) == VA_STATUS_SUCCESS);
         }
