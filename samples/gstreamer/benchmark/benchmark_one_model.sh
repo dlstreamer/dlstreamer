@@ -25,6 +25,12 @@ if [ -z ${1} ]; then
   exit
 fi
 
+if [ $NUMBER_STREAMS -lt $NUMBER_PROCESSES ]; then
+  echo "ERROR: wrong value for NUMBER_STREAMS parameter"
+  echo "Number of streams must be more or equal to NUMBER_PROCESSES parameter"
+  exit
+fi
+
 # Decode parameters
 if [ "$DECODE_ELEMENT" == decodebin ] && [ "$DECODE_DEVICE" == CPU ]; then
     DECODE_ELEMENT+=" force-sw-decoders=true"
@@ -46,14 +52,15 @@ fi
 if [ $DECODE_DEVICE == GPU ] && [ $INFERENCE_DEVICE == CPU ]; then
     PARAMS+="pre-process-backend=vaapi"
 fi
-if [ $INFERENCE_DEVICE == CPU ] && [ $PROCESSES_COUNT > 1 ]; then # limit number inference threads per process
+if [ $INFERENCE_DEVICE == CPU ] && [ $NUMBER_PROCESSES > 1 ]; then # limit number inference threads per process
     CORES=`nproc`
-    THREADS_NUM=$((($CORES + $CORES % $PROCESSES_COUNT) / $PROCESSES_COUNT))
+    THREADS_NUM=$((($CORES + $CORES % $NUMBER_PROCESSES) / $NUMBER_PROCESSES))
     if [ $THREADS_NUM -eq 0 ]; then
       THREADS_NUM=1
     fi
-    NIREQ=$((2 * $CHANNELS_PER_PROCESS))
-    THROUGHPUT_STREAMS=$(($CHANNELS_PER_PROCESS))
+    STREAMS_PER_PROCESS=$(($NUMBER_STREAMS / $NUMBER_PROCESSES))
+    NIREQ=$((2 * $STREAMS_PER_PROCESS))
+    THROUGHPUT_STREAMS=$(($STREAMS_PER_PROCESS))
     PARAMS+="ie-config=CPU_THREADS_NUM=${THREADS_NUM},CPU_THROUGHPUT_STREAMS=${THROUGHPUT_STREAMS},CPU_BIND_THREAD=NO nireq=${NIREQ}"
 fi
 
