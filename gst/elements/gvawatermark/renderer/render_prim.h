@@ -66,6 +66,16 @@ struct Line {
     }
 };
 
-using Prim = std::variant<Text, Rect, Circle, Line>;
+struct Blur {
+    cv::Rect rect;
+    int thick;
+
+    Blur() = default;
+
+    Blur(const cv::Rect &rect) : rect(rect) {
+    }
+};
+
+using Prim = std::variant<Text, Rect, Circle, Line, Blur>;
 
 } // namespace render
