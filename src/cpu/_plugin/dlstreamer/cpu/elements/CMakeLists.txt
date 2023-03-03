@@ -13,6 +13,7 @@ target_link_libraries(${TARGET_NAME}
 PRIVATE
     dlstreamer_api
     rate_adjust
+    meta_smooth
     tensor_convert
     tensor_histogram
     tensor_sliding_window

@@ -19,5 +19,6 @@ PRIVATE
 target_link_libraries(${TARGET_NAME}
 PUBLIC
         dlstreamer_api
+        dlstreamer_logger
         ${OpenCV_LIBS}
 )

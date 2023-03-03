@@ -7,7 +7,5 @@
 #include "dlstreamer/transform.h"
 
 extern "C" {
-
-extern dlstreamer::ElementDesc openvino_tensor_inference;
-
-} // namespace dlstreamer
+extern dlstreamer::ElementDesc tensor_postproc_yolo;
+}

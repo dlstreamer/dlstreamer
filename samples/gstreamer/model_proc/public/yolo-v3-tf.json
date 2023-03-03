@@ -5,6 +5,8 @@
         {
             "converter": "yolo_v3",
             "iou_threshold": 0.5,
+            "do_cls_softmax": false,
+            "output_sigmoid_activation": false,
             "classes": 80,
             "anchors": [
                 10.0,

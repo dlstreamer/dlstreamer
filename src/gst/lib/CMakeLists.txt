@@ -8,15 +8,7 @@ cmake_minimum_required(VERSION 3.1)
 
 set (TARGET_NAME "dlstreamer_gst")
 
-file (GLOB MAIN_SRC
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
-        )
-
-file (GLOB MAIN_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/*.h
-        )
-
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} SHARED allocator.cpp transform_element.cpp)
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -33,16 +25,17 @@ PUBLIC
         dlstreamer_api
         dlstreamer_gst_utils
         dlstreamer_gst_meta
-PRIVATE
+        gst_logger_sink
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}
+PRIVATE
         ${GSTALLOC_LIBRARIES}
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
 
-execute_process(COMMAND which dpcpp RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
+execute_process(COMMAND which icpx RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
 if(status EQUAL 0)
     add_subdirectory(sycl)
 else()

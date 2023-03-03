@@ -63,4 +63,4 @@ gboolean processbin_is_linked(GstProcessBin *self);
 
 G_END_DECLS
 
-#endif /* __SPLITJOINBIN_H__ */
+#endif /* __PROCESSBIN_H__ */

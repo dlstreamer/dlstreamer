@@ -55,11 +55,15 @@ class InferenceResultMetadata : public DictionaryProxy {
     void set_model_name(const std::string &model_name) {
         set(key::model_name, model_name);
     }
+    void set_layer_name(const std::string &layer_name) {
+        set(key::layer_name, layer_name);
+    }
+
     void init_tensor_data(const Tensor &tensor, const std::string &layer_name = "", const std::string &format = "") {
         set_info(tensor.info());
         set_array(key::data_buffer, tensor.data(), tensor.info().nbytes());
         if (!layer_name.empty())
-            set(key::layer_name, layer_name);
+            set_layer_name(layer_name);
         if (!format.empty())
             set(key::format, format);
     }
@@ -394,7 +398,7 @@ class ModelInfoMetadata : public DictionaryProxy {
         return info;
     }
     void set_layer_names(const std::string info_name, std::vector<std::string> layer_names) {
-        set(info_name + "_names", join_strings(layer_names.begin(), layer_names.end(), ','));
+        set(info_name + "_names", join_strings(layer_names.cbegin(), layer_names.cend(), ','));
     }
     std::vector<std::string> layers(const std::string info_name) {
         return split_string(get<std::string>(info_name + "_names"), ',');

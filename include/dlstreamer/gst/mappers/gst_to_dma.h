@@ -25,7 +25,7 @@ class MemoryMapperGSTToDMA : public BaseMemoryMapper {
         auto dst = std::make_shared<DMATensor>(dma_fd, 0, src->info());
 
         // offset and offset_x/y
-        int data_offset = src->handle(BaseTensor::key::offset, 0);
+        int data_offset = src->handle(tensor::key::offset, 0);
         int offset_x = gst_tensor->offset_x();
         int offset_y = gst_tensor->offset_y();
         if (offset_x || offset_y) {
@@ -33,7 +33,7 @@ class MemoryMapperGSTToDMA : public BaseMemoryMapper {
             data_offset += offset_y * image_info.width_stride() + offset_x * image_info.channels_stride();
         }
 
-        dst->set_handle(BaseTensor::key::offset, data_offset);
+        dst->set_handle(tensor::key::offset, data_offset);
         dst->set_parent(src);
         return dst;
     }

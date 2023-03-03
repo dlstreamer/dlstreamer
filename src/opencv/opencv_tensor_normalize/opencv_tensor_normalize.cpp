@@ -38,6 +38,8 @@ class OpencvTensorNormalize : public BaseTransform {
         } else {
             FrameInfo info = _output_info;
             info.tensors[0].dtype = DataType::UInt8;
+            if (!info.tensors[0].shape.empty())
+                info.tensors[0].stride = dlstreamer::contiguous_stride(info.tensors[0].shape, info.tensors[0].dtype);
             return {info};
         }
     }
@@ -48,6 +50,8 @@ class OpencvTensorNormalize : public BaseTransform {
         } else {
             FrameInfo info = _input_info;
             info.tensors[0].dtype = DataType::Float32;
+            if (!info.tensors[0].shape.empty())
+                info.tensors[0].stride = dlstreamer::contiguous_stride(info.tensors[0].shape, info.tensors[0].dtype);
             return {info};
         }
     }
@@ -63,15 +67,14 @@ class OpencvTensorNormalize : public BaseTransform {
         ImageInfo dst_info(dst_tensor->info());
         int w = src_info.width();
         int h = src_info.height();
+        size_t mat_size = w * h;
         int channels = src_info.channels();
         int batch = src_info.batch();
 
         uint8_t *src_data = src_tensor->data<uint8_t>();
-        uint8_t *dst_data = dst_tensor->data<uint8_t>();
+        float *dst_data = dst_tensor->data<float>();
         size_t src_w_stride = src_info.width_stride();
         size_t dst_w_stride = dst_info.width_stride();
-        size_t src_h_stride = src_info.height_stride();
-        size_t dst_h_stride = dst_info.height_stride();
         size_t src_c_stride = (batch > 1) ? src_info.channels_stride() : 0;
         size_t dst_c_stride = (batch > 1) ? dst_info.channels_stride() : 0;
 
@@ -80,17 +83,17 @@ class OpencvTensorNormalize : public BaseTransform {
                 double alpha = 1;
                 double beta = 0;
                 if (!_range.empty()) {
-                    alpha = (_range[1] - _range[0]) / 255.f;
-                    beta = _range[0];
+                    alpha *= (_range[1] - _range[0]) / 255.f;
+                    beta += _range[0];
                 }
                 if (!_std.empty()) {
-                    alpha = _std[i];
+                    alpha *= _std[i];
                 }
                 if (!_mean.empty()) {
-                    beta = _mean[i];
+                    beta += _mean[i];
                 }
-                cv::Mat src_mat = cv::Mat(h, w, CV_8UC1, src_data + i * src_h_stride, src_w_stride);
-                cv::Mat dst_mat = cv::Mat(h, w, CV_32FC1, dst_data + i * dst_h_stride, dst_w_stride);
+                cv::Mat src_mat = cv::Mat(h, w, CV_8UC1, src_data + i * mat_size, src_w_stride);
+                cv::Mat dst_mat = cv::Mat(h, w, CV_32FC1, dst_data + i * mat_size, dst_w_stride);
                 src_mat.convertTo(dst_mat, dst_mat.type(), alpha, beta);
             }
             src_data += src_c_stride;

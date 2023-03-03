@@ -12,6 +12,8 @@
 #include "dlstreamer/gst/plugin.h"
 #include "dlstreamer/gst/utils.h"
 #include "dlstreamer/image_metadata.h"
+#include "gst_logger_sink.h"
+#include <spdlog/spdlog.h>
 
 #include "shared_instance.h"
 
@@ -20,6 +22,9 @@
 #ifndef ITT_TASK
 #define ITT_TASK(NAME)
 #endif
+
+GST_DEBUG_CATEGORY_STATIC(gva_transform_element_debug);
+#define GST_CAT_DEFAULT gva_transform_element_debug
 
 namespace dlstreamer {
 
@@ -105,6 +110,7 @@ class GstDlsTransform {
     GstDlsTransform(GstBaseTransform *base, gpointer g_class)
         : _base(base), _class_data(static_cast<GstDlsTransformClass *>(g_class)) {
         _parent_class = GST_BASE_TRANSFORM_CLASS(g_type_class_peek_parent(_class_data));
+        _logger = log::init_logger(GST_CAT_DEFAULT, nullptr);
         _gst_context = std::make_shared<GSTContext>(&base->element);
         _gst_mapper = std::make_shared<MemoryMapperAnyToGST>(nullptr, _gst_context);
         //_gst_mapper = std::make_shared<MemoryMapperCache>(_gst_mapper);
@@ -141,6 +147,8 @@ class GstDlsTransform {
 #else
         {
 #endif
+            _logger = log::init_logger(GST_CAT_DEFAULT, G_OBJECT(_base));
+            _params->set(dlstreamer::param::logger_name, _logger->name());
             _element = ElementPtr(_class_data->desc->create(_params, _gst_context));
             if (!_element) {
                 GST_ELEMENT_ERROR(_base, LIBRARY, INIT, ("Invalid create function"),
@@ -171,6 +179,7 @@ class GstDlsTransform {
     GstFlowReturn generate_output(GstBuffer **outbuf);
     GstFlowReturn transform(GstBuffer *inbuf, GstBuffer *outbuf);
     GstFlowReturn transform_ip(GstBuffer *buf);
+    gboolean sink_event(GstEvent *event);
     GstFlowReturn transform_list(GstBufferList *list);
 
   private:
@@ -180,13 +189,13 @@ class GstDlsTransform {
 
         auto init_function = [this]() {
             if (_transform) {
-                log_frame_info(GST_LEVEL_FIXME, "INIT input_info", _input_info);
-                log_frame_info(GST_LEVEL_FIXME, "INIT output_info", _output_info);
+                log_frame_info(GST_LEVEL_INFO, "INIT input_info", _input_info);
+                log_frame_info(GST_LEVEL_INFO, "INIT output_info", _output_info);
                 _transform->set_input_info(_input_info);
                 _transform->set_output_info(_output_info);
                 _transform->init();
             } else if (_transform_inplace) {
-                log_frame_info(GST_LEVEL_FIXME, "INIT info", _input_info);
+                log_frame_info(GST_LEVEL_INFO, "INIT info", _input_info);
                 _transform_inplace->set_info(_input_info);
                 _transform_inplace->init();
             } else {
@@ -249,6 +258,8 @@ class GstDlsTransform {
     FrameInfo _output_info;
     GstVideoInfo _input_video_info = {};
     GstVideoInfo _output_video_info = {};
+
+    std::shared_ptr<spdlog::logger> _logger;
 };
 
 void GstDlsTransform::get_property(guint property_id, GValue *value, GParamSpec *pspec) {
@@ -340,7 +351,7 @@ GstCaps *GstDlsTransform::transform_caps(GstPadDirection direction, GstCaps *cap
 
     GstCaps *ret_caps;
     if (_transform_initialized) { // if transform already initialized, we don't support changing caps
-        FrameInfo &info = (direction == GST_PAD_SRC) ? _input_info : _output_info;
+        const FrameInfo &info = (direction == GST_PAD_SRC) ? _input_info : _output_info;
         log_frame_info(GST_LEVEL_INFO, "get_info (after initialized)", info);
         ret_caps = frame_info_to_gst_caps(info);
     } else {
@@ -399,7 +410,8 @@ gboolean GstDlsTransform::set_caps(GstCaps *incaps, GstCaps *outcaps) {
     try {
         init_transform();
     } catch (std::exception &e) {
-        GST_ERROR_OBJECT(_base, "Couldn't prepare transform instance for processing: %s", e.what());
+        GST_ELEMENT_ERROR(_base, CORE, FAILED, ("Couldn't prepare transform instance for processing"),
+                          ("%s", e.what()));
     }
 #else
     init_transform();
@@ -451,7 +463,7 @@ GstFlowReturn GstDlsTransform::generate_output(GstBuffer **outbuf) {
         return GST_FLOW_OK;
 #ifdef CATCH_EXCEPTIONS
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(_base, "%s", e.what());
+        GST_ELEMENT_ERROR(_base, CORE, FAILED, ("Failed to process buffer"), ("%s", e.what()));
         return GST_FLOW_ERROR;
     }
 #endif
@@ -471,7 +483,8 @@ GstFlowReturn GstDlsTransform::transform(GstBuffer *inbuf, GstBuffer *outbuf) {
 
         return GST_FLOW_OK;
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(_base, "%s", e.what());
+        GST_ELEMENT_ERROR(_base, CORE, FAILED, ("Failed to process buffer"),
+                          ("Buffer: %p. Error: %s", inbuf, e.what()));
         return GST_FLOW_ERROR;
     }
 }
@@ -485,24 +498,24 @@ GstFlowReturn GstDlsTransform::transform_ip(GstBuffer *buf) {
 #else
     {
 #endif
-        GstFramePtr in = gst_buffer_to_frame(buf, _input_info, &_input_video_info, false, _gst_context);
+        GstFramePtr transformed_frame = gst_buffer_to_frame(buf, _input_info, &_input_video_info, false, _gst_context);
 
         // TODO: return value means if we should drop buffer (send GAP) or not
         // May be introduce another method to check if buffer should be dropped, or by transform flag
-        bool ret = _transform_inplace->process(in);
+        bool accepted = _transform_inplace->process(transformed_frame);
 
-        if (!ret) {
+        if (!accepted) {
             GST_DEBUG_OBJECT(_base, "Push GAP event: ts=%" GST_TIME_FORMAT, GST_TIME_ARGS(GST_BUFFER_PTS(buf)));
-            auto event = gst_event_new_gap(GST_BUFFER_PTS(buf), GST_BUFFER_DURATION(buf));
+            GstEvent *gap_event = gst_event_new_gap(GST_BUFFER_PTS(buf), GST_BUFFER_DURATION(buf));
             // If SourceIdentifierMetadata attached, copy all fields to GAP event
-            auto source_id_meta = find_metadata(*in, SourceIdentifierMetadata::name);
+            auto source_id_meta = find_metadata(*transformed_frame, SourceIdentifierMetadata::name);
             if (source_id_meta) {
-                GSTDictionary event_dict(gst_event_writable_structure(event));
+                GSTDictionary event_dict(gst_event_writable_structure(gap_event));
                 copy_dictionary(*source_id_meta, event_dict);
             }
             // Push GAP event
-            if (!gst_pad_push_event(_base->srcpad, event)) {
-                GST_ERROR_OBJECT(_base, "Failed to push GAP event");
+            if (!gst_pad_push_event(_base->srcpad, gap_event)) {
+                GST_ERROR_OBJECT(_base, "Failed to push GAP event buf: %p pts: %ld", buf, GST_BUFFER_PTS(buf));
                 return GST_FLOW_ERROR;
             }
             return GST_BASE_TRANSFORM_FLOW_DROPPED;
@@ -510,7 +523,8 @@ GstFlowReturn GstDlsTransform::transform_ip(GstBuffer *buf) {
         return GST_FLOW_OK;
 #ifdef CATCH_EXCEPTIONS
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(_base, "%s", e.what());
+        GST_ELEMENT_ERROR(_base, CORE, FAILED, ("Failed to process buffer inplace"),
+                          ("Buffer: %p. PTS: %ld. Error: %s", buf, GST_BUFFER_PTS(buf), e.what()));
         return GST_FLOW_ERROR;
     }
 #else
@@ -559,7 +573,8 @@ GstFlowReturn GstDlsTransform::transform_list(GstBufferList *list) {
         // Push downstream
         return gst_pad_push(_base->srcpad, outbuf);
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(_base, "%s", e.what());
+        GST_ELEMENT_ERROR(_base, CORE, FAILED, ("Failed to process buffer list"),
+                          ("List: %p. Error: %s", list, e.what()));
         return GST_FLOW_ERROR;
     }
 }
@@ -567,6 +582,8 @@ GstFlowReturn GstDlsTransform::transform_list(GstBufferList *list) {
 /////////////////////////////////////////////////////////////////////////////////////
 
 void GstDlsTransformClass::init(gpointer g_class, gpointer class_data) {
+    GST_DEBUG_CATEGORY_INIT(gva_transform_element_debug, "gvatransformelement", 0,
+                            "debug category for transform element");
     auto *self = static_cast<GstDlsTransformClass *>(g_class);
     auto *desc = static_cast<ElementDesc *>(class_data);
     self->desc = desc;

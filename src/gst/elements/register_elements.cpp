@@ -12,8 +12,10 @@
 
 #include "batch_create.h"
 #include "batch_split.h"
+#include "capsrelax.h"
 #include "gvadrop.h"
 #include "meta_aggregate.h"
+#include "meta_smooth.h"
 #include "roi_split.h"
 #include "video_frames_buffer.h"
 
@@ -22,11 +24,15 @@ static gboolean plugin_init(GstPlugin *plugin) {
         return FALSE;
     if (!gst_element_register(plugin, "batch_split", GST_RANK_NONE, batch_split_get_type()))
         return FALSE;
+    if (!gst_element_register(plugin, "capsrelax", GST_RANK_NONE, gst_capsrelax_get_type()))
+        return FALSE;
     if (!gst_element_register(plugin, "gvadrop", GST_RANK_NONE, GST_TYPE_GVA_DROP))
         return FALSE;
     if (!gst_element_register(plugin, "meta_aggregate", GST_RANK_NONE, meta_aggregate_get_type()))
         return FALSE;
     if (!gst_element_register(plugin, "roi_split", GST_RANK_NONE, roi_split_get_type()))
+        return FALSE;
+    if (!gst_element_register(plugin, "meta_smooth", GST_RANK_NONE, meta_smooth_get_type()))
         return FALSE;
     if (!gst_element_register(plugin, "video_frames_buffer", GST_RANK_NONE, video_frames_buffer_get_type()))
         return FALSE;

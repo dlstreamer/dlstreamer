@@ -4,17 +4,20 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set(TARGET_NAME "openvino_tensor_inference")
 
-find_package(OpenVINO REQUIRED Runtime)
+set(TARGET_NAME "capsrelax")
 
-add_library(${TARGET_NAME} OBJECT openvino_tensor_inference.cpp)
+add_library(${TARGET_NAME} STATIC capsrelax.h capsrelax.c)
 set_compile_flags(${TARGET_NAME})
 
+target_include_directories(${TARGET_NAME}
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
+        )
+
 target_link_libraries(${TARGET_NAME}
-PRIVATE
-    openvino::runtime
-    dlstreamer_api
-)
+        PUBLIC
+        dlstreamer_gst
+        )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

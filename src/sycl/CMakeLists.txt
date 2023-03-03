@@ -4,15 +4,14 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-execute_process(COMMAND which dpcpp RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
+execute_process(COMMAND which icpx RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET )
 if(status EQUAL 0)
 
     set(TARGET_NAME "dlstreamer_sycl")
 
-    set(CMAKE_CXX_COMPILER dpcpp)
+    set(CMAKE_CXX_COMPILER icpx)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
     set(CMAKE_CXX_STANDARD 17)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization")
-    string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
 

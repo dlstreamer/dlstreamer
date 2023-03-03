@@ -8,21 +8,22 @@ cmake_minimum_required(VERSION 3.1)
 
 set (TARGET_NAME "dlstreamer_gst_sycl")
 
-set(CMAKE_CXX_COMPILER dpcpp)
+set(CMAKE_CXX_COMPILER icpx)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization")
-string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/../*.cpp
         )
 
-file (GLOB MAIN_HEADERS
-        ${CMAKE_CURRENT_SOURCE_DIR}/../*.h
-        )
-
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} SHARED ${MAIN_SRC})
 set_compile_flags(${TARGET_NAME})
+
+execute_process(COMMAND icpx --version OUTPUT_VARIABLE ICPX_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+string(REGEX MATCH "[0-9]+\\.[0-9]+" ICPX_MAJOR_VERSION "${ICPX_VERSION}")
+if(ICPX_MAJOR_VERSION VERSION_GREATER_EQUAL "2023.0")
+        target_compile_options(${TARGET_NAME} PRIVATE -Wno-enum-constexpr-conversion)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
@@ -39,6 +40,7 @@ PUBLIC
         dlstreamer_gst_utils
         dlstreamer_gst_meta
 PRIVATE
+        gst_logger_sink
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
         ${GLIB2_LIBRARIES}

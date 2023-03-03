@@ -11,19 +11,20 @@
 
 namespace dlstreamer {
 
+namespace tensor::key {
+static constexpr auto cv_mat = "cv_mat"; // (cv::Mat*)
+};
+
 class OpenCVTensor : public BaseTensor {
   public:
-    struct key {
-        static constexpr auto cv_mat = "cv_mat"; // (cv::Mat*)
-    };
-
     OpenCVTensor(const cv::Mat &mat, const TensorInfo &info)
-        : BaseTensor(MemoryType::OpenCV, info, key::cv_mat), _mat(mat) {
-        set_handle(key::cv_mat, reinterpret_cast<handle_t>(&_mat));
+        : BaseTensor(MemoryType::OpenCV, info, tensor::key::cv_mat), _mat(mat) {
+        set_handle(tensor::key::cv_mat, reinterpret_cast<handle_t>(&_mat));
     }
 
-    OpenCVTensor(const cv::Mat &mat) : BaseTensor(MemoryType::OpenCV, mat_to_tensor_info(mat), key::cv_mat), _mat(mat) {
-        set_handle(key::cv_mat, reinterpret_cast<handle_t>(&_mat));
+    OpenCVTensor(const cv::Mat &mat)
+        : BaseTensor(MemoryType::OpenCV, mat_to_tensor_info(mat), tensor::key::cv_mat), _mat(mat) {
+        set_handle(tensor::key::cv_mat, reinterpret_cast<handle_t>(&_mat));
     }
 
     operator cv::Mat() const {

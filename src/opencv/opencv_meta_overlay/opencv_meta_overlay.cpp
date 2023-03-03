@@ -6,14 +6,14 @@
 
 #include "dlstreamer/opencv/elements/opencv_meta_overlay.h"
 
-#include "base_watermark.h"
+#include "base_meta_overlay.h"
 #include "dlstreamer/cpu/frame_alloc.h"
 #include "dlstreamer/memory_mapper_factory.h"
 #include "dlstreamer/opencv/context.h"
 
 namespace dlstreamer {
 
-class OpencvMetaOverlay : public BaseWatermark {
+class OpencvMetaOverlay : public MetaOverlayBase {
   public:
     struct param {
         static constexpr auto font_thickness = "font-thickness";
@@ -28,7 +28,7 @@ class OpencvMetaOverlay : public BaseWatermark {
 
     static ParamDescVector params_desc;
 
-    OpencvMetaOverlay(DictionaryCPtr params, const ContextPtr &app_context) : BaseWatermark(params, app_context) {
+    OpencvMetaOverlay(DictionaryCPtr params, const ContextPtr &app_context) : MetaOverlayBase(params, app_context) {
         _font_thickness = params->get(param::font_thickness, dflt::font_thickness);
         _font_scale = params->get(param::font_scale, dflt::font_scale);
         _attach_label_mask = params->get(param::attach_label_mask, dflt::attach_label_mask);
@@ -51,14 +51,11 @@ class OpencvMetaOverlay : public BaseWatermark {
         std::vector<FramePtr> regions = frame->regions();
         regions.push_back(frame);
 
-        size_t num_rects = 0, num_texts = 0, num_masks = 0;
-
         if (_attach_label_mask) {
-            std::vector<TextPrim> texts(regions.size());
-            prepare_prims(frame, regions, NULL, num_rects, texts.data(), num_texts, NULL, num_masks);
-            for (size_t i = 0; i < num_texts; i++) {
-                auto &text = texts[i];
-
+            std::vector<overlay::prims::Text> texts;
+            texts.reserve(regions.size());
+            prepare_prims(frame, regions, nullptr, &texts, nullptr, nullptr, nullptr);
+            for (auto &text : texts) {
                 int baseline = 0;
                 auto size = cv::getTextSize(text.str, _font_face, _font_scale, _font_thickness, &baseline);
                 cv::Mat m = cv::Mat::zeros(size.height + baseline, size.width, CV_8UC1);
@@ -71,24 +68,33 @@ class OpencvMetaOverlay : public BaseWatermark {
         }
 
         // prepare primitives
-        std::vector<RectPrim> rects(regions.size());
-        std::vector<TextPrim> texts(regions.size());
-        prepare_prims(frame, regions, rects.data(), num_rects, texts.data(), num_texts, NULL, num_masks);
+        std::vector<overlay::prims::Rect> rects;
+        std::vector<overlay::prims::Text> texts;
+        std::vector<overlay::prims::Circle> keypoints;
+        std::vector<overlay::prims::Line> lines;
+        rects.reserve(regions.size());
+        texts.reserve(regions.size());
+        prepare_prims(frame, regions, &rects, &texts, nullptr, &keypoints, &lines);
 
         // map to OpenCV
         DLS_CHECK(_opencv_mapper)
-        cv::Mat mat = *ptr_cast<OpenCVTensor>(_opencv_mapper->map(frame->tensor(), AccessMode::Write));
+        FramePtr mapped_frame = _opencv_mapper->map(frame, AccessMode::ReadWrite);
+        cv::Mat mat = *ptr_cast<OpenCVTensor>(mapped_frame->tensor());
 
         // render
-        for (size_t i = 0; i < num_rects; i++) {
-            auto &rect = rects[i];
+        for (auto &rect : rects) {
             cv::rectangle(mat, {rect.x, rect.y}, {rect.x + rect.width, rect.y + rect.height}, color_to_cv(rect.color),
                           rect.thickness, _line_type);
         }
-        for (size_t i = 0; i < num_texts; i++) {
-            auto &text = texts[i];
+        for (auto &text : texts) {
             cv::putText(mat, text.str, {text.x, text.y}, _font_face, _font_scale, color_to_cv(text.color),
                         _font_thickness, _line_type);
+        }
+        for (auto &circle : keypoints) {
+            cv::circle(mat, {circle.x, circle.y}, circle.radius, color_to_cv(circle.color), cv::FILLED);
+        }
+        for (auto &line : lines) {
+            cv::line(mat, {line.x1, line.y1}, {line.x2, line.y2}, color_to_cv(line.color), line.thickness);
         }
 
         return true;
@@ -109,13 +115,14 @@ class OpencvMetaOverlay : public BaseWatermark {
     }
 
     static cv::Scalar color_to_cv(uint32_t color) {
-        auto c = Color(color).get_array();
+        auto c = overlay::Color(color).get_array();
         return {double(c[0]), double(c[1]), double(c[2])};
     }
 };
 
 ParamDescVector OpencvMetaOverlay::params_desc = {
-    {BaseWatermark::param::lines_thickness, "Thickness of lines and rectangles", BaseWatermark::dflt::lines_thickness},
+    {MetaOverlayBase::param::lines_thickness, "Thickness of lines and rectangles",
+     MetaOverlayBase::dflt::lines_thickness},
     {param::font_thickness, "Font thickness", dflt::font_thickness},
     {param::font_scale, "Font scale", dflt::font_scale},
     {param::attach_label_mask, "Attach label mask as metadata, image not changed", false},

@@ -11,6 +11,7 @@
 #include "opencv_remove_background.h"
 #include "opencv_tensor_normalize.h"
 #include "opencv_warp_affine.h"
+#include "tensor_postproc_human_pose.h"
 
 extern "C" {
 
@@ -21,6 +22,7 @@ DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
     &opencv_cropscale,
     &opencv_meta_overlay,
     &opencv_remove_background,
+    &tensor_postproc_human_pose,
 #ifdef DLS_HAVE_OPENCV_UMAT
     &opencv_warp_affine,
 #endif

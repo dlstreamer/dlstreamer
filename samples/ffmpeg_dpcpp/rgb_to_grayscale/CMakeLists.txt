@@ -13,19 +13,19 @@ pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)
 pkg_check_modules(LIBVA libva libva-drm)
 pkg_check_modules(LEVEL_ZERO libze_loader)
 find_package(gflags)
-execute_process(COMMAND which dpcpp RESULT_VARIABLE dpcpp_status OUTPUT_VARIABLE out OUTPUT_QUIET)
+execute_process(COMMAND which icpx RESULT_VARIABLE status OUTPUT_VARIABLE out OUTPUT_QUIET)
 
-if (dpcpp_status EQUAL 0 AND LIBAV_FOUND AND LIBVA_FOUND AND LEVEL_ZERO_FOUND AND gflags_FOUND)
+if (status EQUAL 0 AND LIBAV_FOUND AND LIBVA_FOUND AND LEVEL_ZERO_FOUND AND gflags_FOUND)
 
-set(CMAKE_CXX_COMPILER dpcpp)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization")
+set(CMAKE_CXX_COMPILER icpx)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
 string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization -Rno-debug-disables-optimization -Wno-unknown-warning-option")
+endif()
 #set(CMAKE_CXX_STANDARD 17)
 
-file (GLOB MAIN_SRC *.cpp)
-file (GLOB MAIN_HEADERS *.h)
-
-add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
+add_executable(${TARGET_NAME} rgb_to_grayscale.cpp)
 
 # use pkg-config if sample builds as standalone. Otherwise vars DLSTREAMER_INCLUDE_DIRS/etc set by top level cmake
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
@@ -55,7 +55,7 @@ PRIVATE
 else()
 
 if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
-    message(FATAL_ERROR "dpcpp compiler not found")
+    message(FATAL_ERROR "icpx compiler not found")
 endif()
 
 endif()

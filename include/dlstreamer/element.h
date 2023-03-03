@@ -15,6 +15,8 @@ namespace dlstreamer {
 
 /**
  * @brief Base class for all elements (Source, Transform, TransformInplace and Sink)
+ *
+ * The caller is responsible for thread safety.
  */
 class Element {
   public:
@@ -35,6 +37,10 @@ class Element {
 };
 
 using ElementPtr = std::shared_ptr<Element>;
+
+namespace param {
+static constexpr auto logger_name = "logger_name";
+}
 
 /**
  * @brief Structure describing element parameter - name, short description, default value, range or list (for strings)

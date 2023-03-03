@@ -19,7 +19,7 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/*.h
 )
 
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
 if(UNIX)
@@ -27,10 +27,11 @@ if(UNIX)
 endif()
 
 target_include_directories(${TARGET_NAME}
+PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
 PRIVATE
     ${GLIB2_INCLUDE_DIRS}
     ${GSTREAMER_INCLUDE_DIRS}
-    ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/modules/api/ot/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/modules/common/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/modules/platform/inc
@@ -46,5 +47,3 @@ PRIVATE
     utils
     ${ADDITIONAL_LINKS}
 )
-
-install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

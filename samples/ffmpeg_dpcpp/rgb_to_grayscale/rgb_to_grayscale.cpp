@@ -39,7 +39,7 @@ int main(int argc, char *argv[]) {
     FrameInfo output_info = {ImageFormat::RGBX, MemoryType::VAAPI, {TensorInfo({height, width, 1})}};
     ffmpeg_source->set_output_info(output_info);
 
-    // Create DL Streamer context objects for VAAPI, SYCL and DMA
+    // Create Intel® Deep Learning Streamer context objects for VAAPI, SYCL and DMA
     auto vaapi_ctx = ffmpeg_source->get_context(MemoryType::VAAPI);
     auto sycl_ctx = SYCLContext::create(sycl_queue);
     auto dma_ctx = DMAContext::create();

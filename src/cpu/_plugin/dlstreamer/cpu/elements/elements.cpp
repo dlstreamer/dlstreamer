@@ -13,14 +13,14 @@
 #include "tensor_postproc_detection.h"
 #include "tensor_postproc_label.h"
 #include "tensor_postproc_text.h"
-#include "tensor_postproc_yolo_v2.h"
+#include "tensor_postproc_yolo.h"
 
 extern "C" {
 
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
     &rate_adjust, &tensor_convert, &tensor_histogram, &tensor_sliding_window,
     // post-processing for object detection
-    &tensor_postproc_add_params, &tensor_postproc_detection, &tensor_postproc_yolo_v2,
+    &tensor_postproc_add_params, &tensor_postproc_detection, &tensor_postproc_yolo,
     // post-processing for object classification
     &tensor_postproc_label, &tensor_postproc_text,
     //

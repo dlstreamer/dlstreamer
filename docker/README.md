@@ -1,6 +1,6 @@
 # Intel® Deep Learning Streamer (Intel® DL Streamer) Dockerfiles
 
 Dockerfiles are used to build a Docker image.
-We provide two different types of dockerfiles separated into the following directories:
-* binary - dockerfiles that use Intel® DL Streamer APT packages to build
-* source - dockerfiles that use source code of Intel® DL Streamer to build
+We provide different dockerfiles for our Docker Images, seperated by supported operating system:
+* dlstreamer.Dockerfile - dockerfile that creates the base Intel® DL Streamer Image using the APT packages to build
+* dlstreamer_dev.Dockerfile - creates a Docker Image based on the base image with added development tools

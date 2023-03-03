@@ -40,8 +40,9 @@ ObjectsAssociator::Associate(const std::vector<Detection> &detections,
     // Compute detection-tracklet normalized position distance table
     std::vector<std::vector<float>> d2t_pos_dist_table(n_detections, std::vector<float>(n_tracklets, 1000.0f));
     for (int32_t d = 0; d < n_detections; ++d) {
-        TRACE("input detect(%.0f,%.0f %.0fx%.0f)", detections[d].rect.x, detections[d].rect.y, detections[d].rect.width,
-              detections[d].rect.height);
+        // TRACE("input detect(%.0f,%.0f %.0fx%.0f)", detections[d].rect.x, detections[d].rect.y,
+        // detections[d].rect.width,
+        //      detections[d].rect.height);
         for (int32_t t = 0; t < n_tracklets; ++t) {
             if (tracking_per_class_ && (detections[d].class_label != tracklets[t]->label))
                 continue;

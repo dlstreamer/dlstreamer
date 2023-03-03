@@ -12,12 +12,11 @@ namespace vas {
 namespace ot {
 
 Tracker::Tracker(vas::ot::Tracker::InitParameters init_param)
-    : max_objects_(init_param.max_num_objects), next_id_(1), frame_count_(0),
-      min_region_ratio_in_boundary_(init_param.min_region_ratio_in_boundary),
+    : next_id_(1), frame_count_(0), min_region_ratio_in_boundary_(init_param.min_region_ratio_in_boundary),
       associator_(ObjectsAssociator(init_param.tracking_per_class, init_param.kRgbHistDistScale,
                                     init_param.kNormCenterDistScale, init_param.kNormShapeDistScale)),
-      profile(init_param.profile), image_sz(0, 0) {
-    if (profile == Profile::PROFILE_SHORT_TERM_IMAGELESS) {
+      generate_objects(init_param.generate_objects), image_sz(0, 0) {
+    if (generate_objects) {
         kMaxAssociationFailCount = 20;
         kMinBirthCount = 1;
     }
@@ -139,7 +138,7 @@ int32_t Tracker::TrackObjects(cv::Size frame_size, const std::vector<Detection> 
     }
 
     // is_dead
-    if (profile == Profile::PROFILE_SHORT_TERM_IMAGELESS) {
+    if (generate_objects) {
         bool is_dead = false;
         if (image_sz.width != input_img_width || image_sz.height != input_img_height) {
             if (image_sz.width != 0 || image_sz.height != 0) {
@@ -172,7 +171,7 @@ int32_t Tracker::TrackObjects(cv::Size frame_size, const std::vector<Detection> 
     }
 
     // Update tracklets' state
-    if (n_detections == 0 && profile == Profile::PROFILE_SHORT_TERM_IMAGELESS) {
+    if (n_detections == 0 && generate_objects) {
         for (int32_t t = 0; t < static_cast<int32_t>(tracklets_.size()); ++t) {
             auto &tracklet = tracklets_[t];
             // Always change ST_NEW to ST_TRACKED: no feature tracking from previous detection input.
@@ -227,8 +226,6 @@ int32_t Tracker::TrackObjects(cv::Size frame_size, const std::vector<Detection> 
                 } else if (tracklet->status == ST_LOST) {
                     tracklet->RenewTrajectory(d_bounding_box);
                     tracklet->status = ST_TRACKED;
-                    if (profile == Profile::PROFILE_ZERO_TERM_COLOR_HISTOGRAM)
-                        tracklet->kalman_filter.reset(new KalmanFilterNoOpencv(d_bounding_box));
                 } else // Association failure
                 {
                     tracklet->association_fail_count++;
@@ -277,8 +274,8 @@ int32_t Tracker::TrackObjects(cv::Size frame_size, const std::vector<Detection> 
     // Register remaining detections as new objects
     for (size_t d = 0; d < detections.size(); d++) {
         if (d_is_associated[d] == false) {
-            if (static_cast<int32_t>(tracklets_.size()) >= max_objects_ && max_objects_ != -1)
-                continue;
+            // if (static_cast<int32_t>(tracklets_.size()) >= max_objects_ && max_objects_ != -1)
+            //    continue;
 
             auto tracklet = std::make_unique<ShortTermImagelessTracklet>();
 

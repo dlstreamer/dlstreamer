@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set(TARGET_NAME base_watermark)
+set(TARGET_NAME base_meta_overlay)
 
 cmake_minimum_required(VERSION 3.12)
 

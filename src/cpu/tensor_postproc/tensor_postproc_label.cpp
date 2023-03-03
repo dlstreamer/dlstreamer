@@ -63,35 +63,16 @@ class PostProcLabel : public BaseTransformInplace {
         if (_layer_name.empty()) {
             DLS_CHECK(info.tensors.size() == 1)
         }
-
-        if (_method != Method::Index) {
-            size_t expected_labels_count = info.tensors.front().size();
-            if (_method == Method::Compound)
-                expected_labels_count *= 2;
-            if (_labels.size() > expected_labels_count) {
-                throw std::invalid_argument("Wrong number of object classes");
-            }
-        }
     }
 
     bool process(FramePtr frame) override {
         TensorPtr tensor;
         auto src = frame.map(AccessMode::Read);
-        auto model_info = find_metadata<ModelInfoMetadata>(*frame);
 
-        if (!_layer_name.empty()) {
-            if (!model_info)
-                throw std::runtime_error("Layer name specified but model info not found");
-
-            auto lnames = model_info->output_layers();
-            auto it = std::find(lnames.cbegin(), lnames.cend(), _layer_name);
-            if (it == lnames.end())
-                throw std::runtime_error("There's no output layer with name:" + _layer_name);
-            tensor = src->tensor(std::distance(lnames.cbegin(), it));
-        } else {
-            tensor = src->tensor();
+        if (_layer_index < 0) {
+            detect_layer_index(frame);
         }
-
+        tensor = src->tensor(_layer_index);
         float *data = tensor->data<float>();
         const auto data_size = tensor->info().size();
         DLS_CHECK(data)
@@ -121,8 +102,8 @@ class PostProcLabel : public BaseTransformInplace {
             auto meta = add_metadata<ClassificationMetadata>(*frame);
             if (!_attribute_name.empty())
                 meta.set_name(_attribute_name);
-            if (model_info)
-                meta.set_model_name(model_info->model_name());
+            if (!_model_name.empty())
+                meta.set_model_name(_model_name);
             if (confidence >= 0)
                 meta.set_confidence(confidence);
             if (label_id != -1)
@@ -202,6 +183,33 @@ class PostProcLabel : public BaseTransformInplace {
         }
     }
 
+  private:
+    void detect_layer_index(FramePtr frame) {
+        auto model_info = find_metadata<ModelInfoMetadata>(*frame);
+        if (model_info)
+            _model_name = model_info->model_name();
+
+        if (!_layer_name.empty()) {
+            if (!model_info)
+                throw std::runtime_error("Layer name specified but model info not found");
+            auto lnames = model_info->output_layers();
+            auto it = std::find(lnames.cbegin(), lnames.cend(), _layer_name);
+            if (it == lnames.end())
+                throw std::runtime_error("There's no output layer with name:" + _layer_name);
+            _layer_index = std::distance(lnames.cbegin(), it);
+        } else
+            _layer_index = 0;
+
+        if (_method != Method::Index) {
+            size_t expected_labels_count = _info.tensors[_layer_index].size();
+            if (_method == Method::Compound)
+                expected_labels_count *= 2;
+            if (_labels.size() > expected_labels_count) {
+                throw std::invalid_argument("Wrong number of object classes");
+            }
+        }
+    }
+
   protected:
     Method _method = Method::Max;
     std::vector<std::string> _labels;
@@ -209,6 +217,8 @@ class PostProcLabel : public BaseTransformInplace {
     std::string _layer_name;
     double _threshold;
     double _compound_threshold;
+    int _layer_index = -1;
+    std::string _model_name;
 };
 
 extern "C" {

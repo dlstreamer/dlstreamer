@@ -14,9 +14,6 @@ G_BEGIN_DECLS
 #define TENSOR_SPLIT_BATCH_NAME "Split input tensor (remove batch dimension from tensor shape)"
 #define TENSOR_SPLIT_BATCH_DESCRIPTION TENSOR_SPLIT_BATCH_NAME
 
-GST_DEBUG_CATEGORY_EXTERN(batch_split_debug_category);
-#define GST_DEBUG_CAT_TENSOR_SPLIT_BATCH batch_split_debug_category
-
 #define GST_TYPE_TENSOR_SPLIT_BATCH (batch_split_get_type())
 #define TENSOR_SPLIT_BATCH(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_TENSOR_SPLIT_BATCH, TensorSplitBatch))
 #define TENSOR_SPLIT_BATCH_CLASS(klass)                                                                                \

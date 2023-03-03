@@ -27,7 +27,8 @@
     "on each frame. Imageless tracking forms object associations "                                                     \
     "based on the movement and shape of objects, and it does not use image data."
 
-GST_DEBUG_CATEGORY(gst_gva_track_debug_category);
+GST_DEBUG_CATEGORY_STATIC(gst_gva_track_debug_category);
+#define GST_CAT_DEFAULT gst_gva_track_debug_category
 
 #define DEVICE_CPU "CPU"
 #define DEVICE_GPU "GPU"
@@ -357,15 +358,3 @@ static GstFlowReturn gst_gva_track_transform_ip(GstBaseTransform *trans, GstBuff
     }
     return status;
 }
-
-static gboolean plugin_init(GstPlugin *plugin) {
-    set_log_function(GST_logger);
-
-    if (!gst_element_register(plugin, "gvatrack", GST_RANK_NONE, GST_TYPE_GVA_TRACK))
-        return FALSE;
-
-    return TRUE;
-}
-
-GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvatrack, PRODUCT_FULL_NAME " tracking element", plugin_init,
-                  PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

@@ -1,151 +1,411 @@
----
-face-detection-0200: { model-proc: gstreamer/model_proc/intel/face-detection-0200.json }
-face-detection-0202: { model-proc: gstreamer/model_proc/intel/face-detection-0202.json }
-face-detection-0204: { model-proc: gstreamer/model_proc/intel/face-detection-0204.json }
-face-detection-0205: { model-proc: gstreamer/model_proc/intel/face-detection-0205.json }
-face-detection-0206: { model-proc: gstreamer/model_proc/intel/face-detection-0206.json }
-face-detection-adas-0001: { model-proc: gstreamer/model_proc/intel/face-detection-adas-0001.json }
-face-detection-retail-0004: { model-proc: gstreamer/model_proc/intel/face-detection-retail-0004.json }
-face-detection-retail-0005: { model-proc: gstreamer/model_proc/intel/face-detection-retail-0005.json }
-faster-rcnn-resnet101-coco-sparse-60-0001: { model-proc: gstreamer/model_proc/intel/faster-rcnn-resnet101-coco-sparse-60-0001.json }
-pedestrian-and-vehicle-detector-adas-0001: { model-proc: gstreamer/model_proc/intel/pedestrian-and-vehicle-detector-adas-0001.json }
-pedestrian-detection-adas-0002: { model-proc: gstreamer/model_proc/intel/pedestrian-detection-adas-0002.json }
-person-detection-0200: { model-proc: gstreamer/model_proc/intel/person-detection-0200.json }
-person-detection-0201: { model-proc: gstreamer/model_proc/intel/person-detection-0201.json }
-person-detection-0202: { model-proc: gstreamer/model_proc/intel/person-detection-0202.json }
-person-detection-0203: { model-proc: gstreamer/model_proc/intel/person-detection-0203.json }
-person-detection-asl-0001: { model-proc: gstreamer/model_proc/intel/person-detection-0203.json }
-person-detection-retail-0013: { model-proc: gstreamer/model_proc/intel/person-detection-retail-0013.json }
-person-vehicle-bike-detection-2000: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2000.json }
-person-vehicle-bike-detection-2001: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2001.json }
-person-vehicle-bike-detection-2002: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2002.json }
-person-vehicle-bike-detection-2003: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2003.json }
-person-vehicle-bike-detection-2004: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2004.json }
-person-vehicle-bike-detection-crossroad-0078: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-crossroad-0078.json }
-person-vehicle-bike-detection-crossroad-1016: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-crossroad-1016.json }
-person-vehicle-bike-detection-crossroad-yolov3-1020: { model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-crossroad-yolov3-1020.json }
-product-detection-0001: { model-proc: gstreamer/model_proc/intel/product-detection-0001.json }
-vehicle-detection-0200: { model-proc: gstreamer/model_proc/intel/vehicle-detection-0200.json }
-vehicle-detection-0201: { model-proc: gstreamer/model_proc/intel/vehicle-detection-0201.json }
-vehicle-detection-0202: { model-proc: gstreamer/model_proc/intel/vehicle-detection-0202.json }
-vehicle-detection-adas-0002: { model-proc: gstreamer/model_proc/intel/vehicle-detection-adas-0002.json }
-vehicle-license-plate-detection-barrier-0106: { model-proc: gstreamer/model_proc/intel/vehicle-license-plate-detection-barrier-0106.json }
-yolo-v2-ava-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-ava-0001.json }
-yolo-v2-ava-sparse-35-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-ava-sparse-35-0001.json }
-yolo-v2-ava-sparse-70-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-ava-sparse-70-0001.json }
-yolo-v2-tiny-ava-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-tiny-ava-0001.json }
-yolo-v2-tiny-ava-sparse-30-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-tiny-ava-sparse-30-0001.json }
-yolo-v2-tiny-ava-sparse-60-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-tiny-ava-sparse-60-0001.json }
-yolo-v2-tiny-vehicle-detection-0001: { model-proc: gstreamer/model_proc/intel/yolo-v2-tiny-vehicle-detection-0001.json }
-efficientdet-d0-tf: { labels-file: labels/coco_91cl.txt }
-efficientdet-d1-tf: { labels-file: labels/coco_91cl.txt }
-face-detection-retail-0044: { labels-file: labels/face_bkgr.txt }
-faster_rcnn_inception_resnet_v2_atrous_coco: { model-proc: gstreamer/model_proc/public/preproc-image-info.json, labels-file: labels/coco_91cl_bkgr.txt }
-faster_rcnn_resnet50_coco: { model-proc: gstreamer/model_proc/public/preproc-image-info.json, labels-file: labels/coco_91cl_bkgr.txt }
-mobilenet-yolo-v4-syg: { model-proc: gstreamer/model_proc/public/mobilenet-yolo-v4-syg.json }
-pelee-coco: { labels-file: labels/coco_80cl_bkgr.txt }
-retinanet-tf: { labels-file: labels/coco_80cl.txt }
-rfcn-resnet101-coco-tf: { model-proc: gstreamer/model_proc/public/preproc-image-info.json, labels-file: labels/coco_91cl_bkgr.txt }
-ssd300: { labels-file: labels/voc_20cl_bkgr.txt }
-ssd512: { labels-file: labels/voc_20cl_bkgr.txt }
-mobilenet-ssd: { labels-file: labels/voc_20cl_bkgr.txt }
-ssd_mobilenet_v1_coco: { labels-file: labels/coco_91cl_bkgr.txt }
-ssd_mobilenet_v1_fpn_coco: { labels-file: labels/coco_91cl_bkgr.txt }
-ssdlite_mobilenet_v2: { labels-file: labels/coco_91cl_bkgr.txt }
-vehicle-license-plate-detection-barrier-0123: { model-proc: gstreamer/model_proc/public/vehicle-license-plate-detection-barrier-0123.json }
-yolo-v1-tiny-tf: { model-proc: gstreamer/model_proc/public/yolo-v1-tiny-tf.json, labels-file: labels/voc_20cl.txt }
-yolo-v2-tiny-tf: { model-proc: gstreamer/model_proc/public/yolo-v2-tiny-tf.json, labels-file: labels/coco_80cl.txt }
-yolo-v2-tf: { model-proc: gstreamer/model_proc/public/yolo-v2-tf.json, labels-file: labels/coco_80cl.txt }
-yolo-v3-tiny-tf: { model-proc: gstreamer/model_proc/public/yolo-v3-tiny-tf.json, labels-file: labels/coco_80cl.txt }
-yolo-v3-tf: { model-proc: gstreamer/model_proc/public/yolo-v3-tf.json, labels-file: labels/coco_80cl.txt }
-yolo-v4-tiny-tf: { model-proc: gstreamer/model_proc/public/yolo-v4-tiny-tf.json, labels-file: labels/coco_80cl.txt }
-yolo-v4-tf: { model-proc: gstreamer/model_proc/public/yolo-v4-tf.json, labels-file: labels/coco_80cl.txt }
-yolov5s: { model-proc: gstreamer/model_proc/public/yolov5s.json, labels-file: labels/coco_80cl.txt }
-age-gender-recognition-retail-0013: { model-proc: gstreamer/model_proc/intel/age-gender-recognition-retail-0013.json }
-emotions-recognition-retail-0003: { model-proc: gstreamer/model_proc/intel/emotions-recognition-retail-0003.json }
-facial-landmarks-35-adas-0002: { }
-head-pose-estimation-adas-0001: { }
-landmarks-regression-retail-0009: { model-proc: gstreamer/model_proc/intel/landmarks-regression-retail-0009.json }
-license-plate-recognition-barrier-0001: { model-proc: gstreamer/model_proc/intel/license-plate-recognition-barrier-0001.json }
-license-plate-recognition-barrier-0007: { model-proc: gstreamer/model_proc/intel/license-plate-recognition-barrier-0007.json }
-person-attributes-recognition-crossroad-0230: { model-proc: gstreamer/model_proc/intel/person-attributes-recognition-crossroad-0230.json }
-person-attributes-recognition-crossroad-0234: { model-proc: gstreamer/model_proc/intel/person-attributes-recognition-crossroad-0234.json }
-person-attributes-recognition-crossroad-0238: { model-proc: gstreamer/model_proc/intel/person-attributes-recognition-crossroad-0238.json }
-vehicle-attributes-recognition-barrier-0039: { model-proc: gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json }
-vehicle-attributes-recognition-barrier-0042: { model-proc: gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0042.json }
-weld-porosity-detection-0001: { model-proc: gstreamer/model_proc/intel/weld-porosity-detection-0001.json }
-resnet50-binary-0001: { model-proc: gstreamer/model_proc/intel/resnet50-binary-0001.json }
-resnet18-xnor-binary-onnx-0001: { model-proc: gstreamer/model_proc/intel/resnet18-xnor-binary-onnx-0001.json }
-alexnet: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-anti-spoof-mn3: { model-proc: gstreamer/model_proc/public/anti-spoof-mn3.json }
-densenet-121: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-densenet-121-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-dla-34: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-efficientnet-b0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-efficientnet-b0-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-hbonet-1.0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-hbonet-0.25: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-googlenet-v1: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-googlenet-v1-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-googlenet-v2: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2015.txt }
-googlenet-v2-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-googlenet-v3: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-googlenet-v3-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-googlenet-v4-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-inception-resnet-v2-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-mixnet-l: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-mobilenet-v1-0.25-128: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-mobilenet-v1-1.0-224: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-mobilenet-v1-1.0-224-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-mobilenet-v2: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-mobilenet-v2-1.0-224: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-mobilenet-v2-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-mobilenet-v2-1.4-224: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-mobilenet-v3-small-1.0-224-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-mobilenet-v3-large-1.0-224-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-nfnet-f0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-regnetx-3.2gf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-octave-resnet-26-0.25: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-open-closed-eye-0001: { model-proc: gstreamer/model_proc/public/open-closed-eye-0001.json }
-repvgg-a0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-repvgg-b1: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-repvgg-b3: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-resnest-50-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-resnet-18-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-resnet-34-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-resnet-50-pytorch: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-resnet-50-tf: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012_bkgr.txt }
-rexnet-v1-x1.0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-se-inception: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2015.txt }
-se-resnet-50: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2015.txt }
-se-resnext-50: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2015.txt }
-shufflenet-v2-x0.5: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-shufflenet-v2-x1.0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-squeezenet1.0: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-squeezenet1.1: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-swin-tiny-patch4-window7-224: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-vgg16: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-vgg19: { model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json, labels-file: labels/imagenet_2012.txt }
-human-pose-estimation-0001: { model-proc: gstreamer/model_proc/intel/human-pose-estimation-0001.json }
-single-human-pose-estimation-0001: { model-proc: gstreamer/model_proc/public/single-human-pose-estimation-0001.json }
-aclnet: { model-proc: gstreamer/model_proc/public/aclnet.json }
-YOLOv2: { model-proc: gstreamer/model_proc/onnx/yolov2-coco-9.json }
-YOLOv2 Tiny: { model-proc: gstreamer/model_proc/onnx/tinyyolov2-8.json }
-MobileNet: { model-proc: gstreamer/model_proc/onnx/mobilenetv2-7.json }
-FER+ Emotion Recognition: { model-proc: gstreamer/model_proc/onnx/emotion-ferplus-8.json }
-action-recognition-0001: { labels-file: labels/kinetics_400.txt }
-driver-action-recognition-adas-0002: { labels-file: labels/driver_actions.txt }
-road-segmentation-adas-0001: { model-proc: gstreamer/model_proc/road-segmentation-adas-0001.json }
-semantic-segmentation-adas-0001: { model-proc: gstreamer/model_proc/semantic-segmentation-adas-0001.json }
-icnet-camvid-ava-0001: { model-proc: gstreamer/model_proc/icnet-camvid-ava-0001.json }
-instance-segmentation-security-0083: { model-proc: gstreamer/model_proc/instance-segmentation-security-0083.json }
-instance-segmentation-security-1025: { model-proc: gstreamer/model_proc/instance-segmentation-security-1025.json }
-text-detection-0003: { model-proc: gstreamer/model_proc/text-detection-0003.json }
-horizontal-text-detection-0001: { model-proc: gstreamer/model_proc/intel/horizontal-text-detection-0001.json }
-instance-segmentation-person-0007: { labels-file: labels/person.txt }
-instance-segmentation-security-0002: { labels-file: labels/coco_80cl.txt }
-instance-segmentation-security-0091: { labels-file: labels/coco_80cl.txt }
-instance-segmentation-security-0228: { labels-file: labels/coco_80cl.txt }
-instance-segmentation-security-1039: { labels-file: labels/coco_80cl.txt }
-instance-segmentation-security-1040: { labels-file: labels/coco_80cl.txt }
-...
+# OV Open Model Zoo models (Intel and public)
+aclnet:
+  model-proc: gstreamer/model_proc/public/aclnet.json
+action-recognition-0001:
+  labels-file: labels/kinetics_400.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_classify process='openvino_tensor_inference model=$MODEL_ENCODER device=$DEVICE ! tensor_sliding_window ! openvino_tensor_inference model=$MODEL_DECODER device=$DEVICE' postprocess='tensor_postproc_label labels-file=$DLSTREAMER_DIR/samples/labels/kinetics_400.txt method=softmax'
+age-gender-recognition-retail-0013:
+  model-proc: gstreamer/model_proc/intel/age-gender-recognition-retail-0013.json
+alexnet:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+anti-spoof-mn3:
+  model-proc: gstreamer/model_proc/public/anti-spoof-mn3.json
+densenet-121:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+densenet-121-tf:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+dla-34:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+driver-action-recognition-adas-0002:
+  labels-file: labels/driver_actions.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_classify process='openvino_tensor_inference model=$MODEL_ENCODER device=$DEVICE ! tensor_sliding_window ! openvino_tensor_inference model=$MODEL_DECODER device=$DEVICE' postprocess='tensor_postproc_label labels-file=$DLSTREAMER_DIR/samples/labels/driver_actions.txt method=softmax'
+efficientdet-d0-tf:
+  labels-file: labels/coco_91cl.txt
+efficientdet-d1-tf:
+  labels-file: labels/coco_91cl.txt
+efficientnet-b0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+efficientnet-b0-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+emotions-recognition-retail-0003:
+  model-proc: gstreamer/model_proc/intel/emotions-recognition-retail-0003.json
+face-detection-0200:
+  model-proc: gstreamer/model_proc/intel/face-detection-0200.json
+face-detection-0202:
+  model-proc: gstreamer/model_proc/intel/face-detection-0202.json
+face-detection-0204:
+  model-proc: gstreamer/model_proc/intel/face-detection-0204.json
+face-detection-0205:
+  model-proc: gstreamer/model_proc/intel/face-detection-0205.json
+face-detection-0206:
+  model-proc: gstreamer/model_proc/intel/face-detection-0206.json
+face-detection-adas-0001:
+  model-proc: gstreamer/model_proc/intel/face-detection-adas-0001.json
+face-detection-retail-0004:
+  model-proc: gstreamer/model_proc/intel/face-detection-retail-0004.json
+face-detection-retail-0005:
+  model-proc: gstreamer/model_proc/intel/face-detection-retail-0005.json
+face-detection-retail-0044:
+  model-proc: gstreamer/model_proc/intel/face-detection-retail-0044.json
+facial-landmarks-35-adas-0002:
+  model-proc: gstreamer/model_proc/intel/facial-landmarks-35-adas-0002.json
+facial-landmarks-98-detection-0001:
+  model-proc: gstreamer/model_proc/intel/facial-landmarks-98-detection-0001.json
+faster_rcnn_inception_resnet_v2_atrous_coco:
+  labels-file: labels/coco_91cl_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-image-info.json
+faster_rcnn_resnet50_coco:
+  labels-file: labels/coco_91cl_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-image-info.json
+googlenet-v1:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+googlenet-v1-tf:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+googlenet-v2:
+  labels-file: labels/imagenet_2015.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+googlenet-v2-tf:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+googlenet-v3:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+googlenet-v3-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+googlenet-v4-tf:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+hbonet-0.25:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+hbonet-1.0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+head-pose-estimation-adas-0001:
+  dlstreamer_support: gst_openvino_cpp
+horizontal-text-detection-0001:
+  model-proc: gstreamer/model_proc/intel/horizontal-text-detection-0001.json
+human-pose-estimation-0001:
+  model-proc: gstreamer/model_proc/intel/human-pose-estimation-0001.json
+icnet-camvid-ava-0001:
+  model-proc: gstreamer/model_proc/icnet-camvid-ava-0001.json
+inception-resnet-v2-tf:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+instance-segmentation-person-0007:
+  labels: [person]
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_detect $PARAMS ! opencv_find_contours
+instance-segmentation-security-0002:
+  labels-file: labels/coco_80cl.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_detect $PARAMS ! opencv_find_contours
+instance-segmentation-security-0091:
+  labels-file: labels/coco_80cl.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_detect $PARAMS ! opencv_find_contours
+instance-segmentation-security-0228:
+  labels-file: labels/coco_80cl.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_detect $PARAMS ! opencv_find_contours
+instance-segmentation-security-1039:
+  labels-file: labels/coco_80cl.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_detect $PARAMS ! opencv_find_contours
+instance-segmentation-security-1040:
+  labels-file: labels/coco_80cl.txt
+  dlstreamer_support: gst_openvino
+  dlstreamer_gst_openvino: object_detect $PARAMS ! opencv_find_contours
+landmarks-regression-retail-0009:
+  model-proc: gstreamer/model_proc/intel/landmarks-regression-retail-0009.json
+license-plate-recognition-barrier-0007:
+  model-proc: gstreamer/model_proc/intel/license-plate-recognition-barrier-0007.json
+mixnet-l:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-ssd:
+  labels-file: labels/voc_20cl_bkgr.txt
+mobilenet-v1-0.25-128:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v1-1.0-224:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v1-1.0-224-tf:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v2:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v2-1.0-224:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v2-1.4-224:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v2-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v3-large-1.0-224-tf:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-v3-small-1.0-224-tf:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+mobilenet-yolo-v4-syg:
+  model-proc: gstreamer/model_proc/public/mobilenet-yolo-v4-syg.json
+nfnet-f0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+octave-resnet-26-0.25:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+open-closed-eye-0001:
+  model-proc: gstreamer/model_proc/public/open-closed-eye-0001.json
+pedestrian-and-vehicle-detector-adas-0001:
+  model-proc: gstreamer/model_proc/intel/pedestrian-and-vehicle-detector-adas-0001.json
+pedestrian-detection-adas-0002:
+  model-proc: gstreamer/model_proc/intel/pedestrian-detection-adas-0002.json
+pelee-coco:
+  labels-file: labels/coco_80cl_bkgr.txt
+person-attributes-recognition-crossroad-0230:
+  model-proc: gstreamer/model_proc/intel/person-attributes-recognition-crossroad-0230.json
+person-attributes-recognition-crossroad-0234:
+  model-proc: gstreamer/model_proc/intel/person-attributes-recognition-crossroad-0234.json
+person-attributes-recognition-crossroad-0238:
+  model-proc: gstreamer/model_proc/intel/person-attributes-recognition-crossroad-0238.json
+person-detection-0200:
+  model-proc: gstreamer/model_proc/intel/person-detection-0200.json
+person-detection-0201:
+  model-proc: gstreamer/model_proc/intel/person-detection-0201.json
+person-detection-0202:
+  model-proc: gstreamer/model_proc/intel/person-detection-0202.json
+person-detection-0203:
+  model-proc: gstreamer/model_proc/intel/person-detection-0203.json
+person-detection-asl-0001:
+  model-proc: gstreamer/model_proc/intel/person-detection-0203.json
+person-detection-retail-0013:
+  model-proc: gstreamer/model_proc/intel/person-detection-retail-0013.json
+person-vehicle-bike-detection-2000:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2000.json
+person-vehicle-bike-detection-2001:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2001.json
+person-vehicle-bike-detection-2002:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2002.json
+person-vehicle-bike-detection-2003:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2003.json
+person-vehicle-bike-detection-2004:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-2004.json
+person-vehicle-bike-detection-crossroad-0078:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-crossroad-0078.json
+person-vehicle-bike-detection-crossroad-1016:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-crossroad-1016.json
+person-vehicle-bike-detection-crossroad-yolov3-1020:
+  model-proc: gstreamer/model_proc/intel/person-vehicle-bike-detection-crossroad-yolov3-1020.json
+product-detection-0001:
+  model-proc: gstreamer/model_proc/intel/product-detection-0001.json
+regnetx-3.2gf:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+repvgg-a0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+repvgg-b1:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+repvgg-b3:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+resnest-50-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+resnet-18-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+resnet-34-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+resnet-50-pytorch:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+resnet-50-tf:
+  labels-file: labels/imagenet_2012_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+resnet18-xnor-binary-onnx-0001:
+  model-proc: gstreamer/model_proc/intel/resnet18-xnor-binary-onnx-0001.json
+resnet50-binary-0001:
+  model-proc: gstreamer/model_proc/intel/resnet50-binary-0001.json
+retinanet-tf:
+  labels-file: labels/coco_80cl.txt
+rexnet-v1-x1.0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+rfcn-resnet101-coco-tf:
+  labels-file: labels/coco_91cl_bkgr.txt
+  model-proc: gstreamer/model_proc/public/preproc-image-info.json
+road-segmentation-adas-0001:
+  model-proc: gstreamer/model_proc/road-segmentation-adas-0001.json
+se-inception:
+  labels-file: labels/imagenet_2015.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+se-resnet-50:
+  labels-file: labels/imagenet_2015.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+se-resnext-50:
+  labels-file: labels/imagenet_2015.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+semantic-segmentation-adas-0001:
+  model-proc: gstreamer/model_proc/semantic-segmentation-adas-0001.json
+shufflenet-v2-x0.5:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+shufflenet-v2-x1.0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+single-human-pose-estimation-0001:
+  model-proc: gstreamer/model_proc/public/single-human-pose-estimation-0001.json
+squeezenet1.0:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+squeezenet1.1:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+ssd300:
+  labels-file: labels/voc_20cl_bkgr.txt
+ssd512:
+  labels-file: labels/voc_20cl_bkgr.txt
+ssd_mobilenet_v1_coco:
+  labels-file: labels/coco_91cl_bkgr.txt
+ssd_mobilenet_v1_fpn_coco:
+  labels-file: labels/coco_91cl_bkgr.txt
+ssdlite_mobilenet_v2:
+  labels-file: labels/coco_91cl_bkgr.txt
+swin-tiny-patch4-window7-224:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+text-detection-0003:
+  model-proc: gstreamer/model_proc/text-detection-0003.json
+vehicle-attributes-recognition-barrier-0039:
+  model-proc: gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json
+vehicle-attributes-recognition-barrier-0042:
+  model-proc: gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0042.json
+vehicle-detection-0200:
+  model-proc: gstreamer/model_proc/intel/vehicle-detection-0200.json
+vehicle-detection-0201:
+  model-proc: gstreamer/model_proc/intel/vehicle-detection-0201.json
+vehicle-detection-0202:
+  model-proc: gstreamer/model_proc/intel/vehicle-detection-0202.json
+vehicle-detection-adas-0002:
+  model-proc: gstreamer/model_proc/intel/vehicle-detection-adas-0002.json
+vehicle-license-plate-detection-barrier-0106:
+  model-proc: gstreamer/model_proc/intel/vehicle-license-plate-detection-barrier-0106.json
+vehicle-license-plate-detection-barrier-0123:
+  model-proc: gstreamer/model_proc/public/vehicle-license-plate-detection-barrier-0123.json
+vgg16:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+vgg19:
+  labels-file: labels/imagenet_2012.txt
+  model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
+weld-porosity-detection-0001:
+  model-proc: gstreamer/model_proc/intel/weld-porosity-detection-0001.json
+yolo-v3-tf:
+  labels-file: labels/coco_80cl.txt
+  model-proc: gstreamer/model_proc/public/yolo-v3-tf.json
+yolo-v3-tiny-tf:
+  labels-file: labels/coco_80cl.txt
+  model-proc: gstreamer/model_proc/public/yolo-v3-tiny-tf.json
+yolo-v4-tf:
+  labels-file: labels/coco_80cl.txt
+  model-proc: gstreamer/model_proc/public/yolo-v4-tf.json
+yolo-v4-tiny-tf:
+  labels-file: labels/coco_80cl.txt
+  model-proc: gstreamer/model_proc/public/yolo-v4-tiny-tf.json
+
+# public models
+mobilenetv2-7:
+  source: public
+  format: onnx
+  task_type: classification
+  readme: https://github.com/onnx/models/tree/main/vision/classification/mobilenet/model
+  model-proc: gstreamer/model_proc/onnx/mobilenetv2-7.json
+emotion-ferplus-8:
+  source: public
+  format: onnx
+  task_type: classification
+  readme: https://github.com/onnx/models/blob/main/vision/body_analysis/emotion_ferplus/README.md
+  model-proc: gstreamer/model_proc/onnx/emotion-ferplus-8.json
+yolov5s:
+  source: public
+  format: pytorch
+  task_type: detection
+  readme: https://github.com/ultralytics/yolov5/releases/tag/v7.0
+  labels-file: labels/coco_80cl.txt
+  model-proc: gstreamer/model_proc/public/yolo-v5.json
+  files:
+    - source: https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5s.pt
+yolov5m:
+  source: public
+  format: pytorch
+  task_type: detection
+  readme: https://github.com/ultralytics/yolov5/releases/tag/v7.0
+  labels-file: labels/coco_80cl.txt
+  model-proc: gstreamer/model_proc/public/yolo-v5.json
+  files:
+    - source: https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5m.pt
+
+# Pipeline Zoo models
+efficientnet-b0_INT8:
+  source: dlstreamer
+  task_type: classification
+horizontal-text-detection-0002:
+  source: dlstreamer
+  task_type: detection
+resnet-50-tf_INT8:
+  source: dlstreamer
+  task_type: classification
+ssdlite_mobilenet_v2_INT8:
+  source: dlstreamer
+  task_type: detection
+ssd_mobilenet_v1_coco_INT8:
+  source: dlstreamer
+  task_type: detection
+text-recognition-0012-mod:
+  source: dlstreamer
+  task_type: optical_character_recognition
+yolo-v4-tf_INT8:
+  source: dlstreamer
+  task_type: detection
+yolov5s-416:
+  source: dlstreamer
+  task_type: detection
+  labels-file: labels/coco_80cl.txt
+yolov5s-416_INT8:
+  source: dlstreamer
+  task_type: detection
+  labels-file: labels/coco_80cl.txt
+
+# TorchVision models
+torchvision.models.detection.ssdlite320_mobilenet_v3_large:
+  source: torchvision
+  format: pytorch
+  task_type: detection
+  readme: https://pytorch.org/vision/main/models/generated/torchvision.models.detection.ssdlite320_mobilenet_v3_large.html
+  GFLOPs: '0.583'
+  labels-file: labels/coco_80cl.txt
+  dlstreamer_support: gva, gst_openvino, gst_pytorch, ffmpeg_openvino
+  dlstreamer_gva: gvadetect model=ssdlite320_mobilenet_v3_large.xml device=CPU
+  dlstreamer_gst_openvino: object_detect model=ssdlite320_mobilenet_v3_large.xml device=CPU
+  dlstreamer_gst_pytorch: object_detect model=torchvision.models.detection.ssdlite320_mobilenet_v3_large device=CPU
+  dlstreamer_ffmpeg_openvino: $DLSTREAMER_DIR/samples/ffmpeg_openvino/cpp/decode_resize_inference/build_and_run.sh VIDEO_FILE ssdlite320_mobilenet_v3_large.xml

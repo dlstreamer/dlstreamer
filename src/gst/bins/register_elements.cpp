@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "meta_overlay.h"
 #include "object_classify.h"
 #include "object_detect.h"
 #include "object_track.h"
@@ -19,6 +20,7 @@ static gboolean plugin_init(GstPlugin *plugin) {
     result &= gst_element_register(plugin, "object_detect", GST_RANK_NONE, object_detect_get_type());
     result &= gst_element_register(plugin, "object_classify", GST_RANK_NONE, object_classify_get_type());
     result &= gst_element_register(plugin, "object_track", GST_RANK_NONE, object_track_get_type());
+    result &= gst_element_register(plugin, "meta_overlay", GST_RANK_NONE, meta_overlay_bin_get_type());
 
     return result;
 }

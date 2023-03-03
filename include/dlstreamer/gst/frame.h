@@ -38,7 +38,7 @@ class GSTFrame : public BaseFrame {
         if (roi)
             _metadata = std::make_unique<GSTROIMetadata>(roi, video_info);
         else
-            _metadata = std::make_unique<GSTMetadata>(buffer);
+            _metadata = std::make_unique<GSTMetadata>(buffer, video_info);
     }
     // GSTTensor vector
     GSTFrame(MediaType media_type, Format format, TensorVector tensors, bool take_ownership = true)
@@ -100,9 +100,9 @@ class GSTFrame : public BaseFrame {
                 throw std::runtime_error("Expect GstBuffer with single GstMemory");
             GstMemory *mem = gst_buffer_peek_memory(buffer, 0);
             for (size_t i = 0; i < info.tensors.size(); i++) {
-                auto gst_tensor = std::make_shared<GSTTensor>(info.tensors[i], gst_memory_ref(mem), true, context);
+                auto gst_tensor = std::make_shared<GSTTensor>(info.tensors[i], gst_memory_ref(mem), true, context, i);
                 const size_t offset = GST_VIDEO_INFO_PLANE_OFFSET(_video_info, i);
-                gst_tensor->set_handle(BaseTensor::key::offset, offset);
+                gst_tensor->set_handle(tensor::key::offset, offset);
                 _tensors.emplace_back(std::move(gst_tensor));
             }
         } else {

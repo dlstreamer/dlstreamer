@@ -7,7 +7,7 @@
 #ifndef __OT_TRACKER_H__
 #define __OT_TRACKER_H__
 
-#include "common.h"
+#include "dlstreamer/utils.h"
 #include <cstdint>
 #include <deque>
 #include <opencv2/opencv.hpp>
@@ -18,26 +18,13 @@
 namespace vas {
 namespace ot {
 
-const int32_t kDefaultMaxNumObjects = -1;
-const float kMaxTargetAreaFactor = 0.8f;
 const float kMinRegionRatioInImageBoundary = 0.75f; // MIN_REGION_RATIO_IN_IMAGE_BOUNDARY
 
 class Tracker {
   public:
-    enum Profile {
-        PROFILE_LONG_TERM = 0,        // for long-term tracking usage
-        PROFILE_SHORT_TERM,           // for short-term tracking usage (suitable for using with an object detector)
-        PROFILE_SHORT_TERM_KCFVAR,    // alias of 'PROFILE_SHORT_TERM'. 'PROFILE_SHORT_TERM' will be deprecated
-        PROFILE_SHORT_TERM_IMAGELESS, // for short-term tracking usage with kalman tracking
-        PROFILE_ZERO_TERM, // for zero-term tracking usage (only works with object association algorithm, not tracking)
-        PROFILE_ZERO_TERM_IMAGELESS,       // for zero-term tracking usage with kalman tracking
-        PROFILE_ZERO_TERM_COLOR_HISTOGRAM, // alias of 'PROFILE_ZERO_TERM'. 'PROFILE_ZERO_TERM' will be deprecated
-    };
-
     class InitParameters {
       public:
-        Profile profile; // tracking type
-        int32_t max_num_objects;
+        bool generate_objects; // short-term if true, zero-term if false
         bool tracking_per_class;
 
         float kRgbHistDistScale;
@@ -107,7 +94,6 @@ class Tracker {
     bool RemoveOneLostTracklet();
 
   protected:
-    int32_t max_objects_; // -1 means no limitation
     int32_t next_id_;
     int32_t frame_count_;
 
@@ -126,7 +112,7 @@ class Tracker {
     void TrimTrajectories();
 
   private:
-    Profile profile;
+    bool generate_objects;
     cv::Size image_sz;
 
     int32_t kMaxAssociationLostCount = 2;    // ST_TRACKED -> ST_LOST

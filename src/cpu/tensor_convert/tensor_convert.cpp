@@ -6,12 +6,14 @@
 
 #include "dlstreamer/cpu/elements/tensor_convert.h"
 #include "dlstreamer/base/transform.h"
+#include "dlstreamer_logger.h"
 
 namespace dlstreamer {
 
 class TensorConvert : public BaseTransform {
   public:
-    TensorConvert(DictionaryCPtr /*params*/, const ContextPtr &app_context) : BaseTransform(app_context) {
+    TensorConvert(DictionaryCPtr params, const ContextPtr &app_context)
+        : BaseTransform(app_context), _logger(log::get_or_nullsink(params->get(param::logger_name, std::string()))) {
     }
 
     FrameInfoVector get_input_info() override {
@@ -69,6 +71,8 @@ class TensorConvert : public BaseTransform {
     }
 
   private:
+    std::shared_ptr<spdlog::logger> _logger;
+
     static std::vector<ImageFormat> tensor_info_to_image_format_vector(const TensorInfo &info) {
         ImageInfo image_info(info);
         switch (image_info.layout()) {

@@ -6,7 +6,7 @@
 
 cmake_minimum_required (VERSION 3.1)
 
-project(DL_Streamer)
+project(DL_Streamer C CXX)
 
 if(NOT(UNIX) AND NOT(WIN32))
     message(FATAL_ERROR "Only UNIX and Windows supported")
@@ -19,12 +19,12 @@ endif()
 
 # Define version
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 7)
+set(VERSION_MINOR 8)
 set(VERSION_PATCH 0)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")
-    message(WARNING "GIT_INFO is undefined. Set default value ${GIT_INFO}.")
+    message(INFO "GIT_INFO is undefined. Set default value ${GIT_INFO}.")
 endif()
 
 configure_file(cmake/version.txt.in version.txt)
@@ -56,6 +56,16 @@ endmacro(find_IE_package)
 
 function (set_compile_flags TARGET)
     target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:C>:${C_FLAGS}> $<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>)
+    if (CMAKE_CXX_COMPILER STREQUAL "icpx")
+        target_compile_options(${TARGET} PRIVATE -Wno-tautological-constant-compare)
+
+        if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+            target_compile_options(${TARGET} PRIVATE -Wno-debug-disables-optimization -Rno-debug-disables-optimization -Wno-unknown-warning-option)
+        endif()
+        
+        string(REPLACE "-fno-strict-overflow" "" CXX_TMP_FLAGS "${CMAKE_CXX_FLAGS}")
+        set(CMAKE_CXX_FLAGS ${CXX_TMP_FLAGS} PARENT_SCOPE)
+    endif()
 endfunction(set_compile_flags)
 
 # FIXME: replace with file(SIZE ...) when cmake version >= 3.14
@@ -135,7 +145,7 @@ if(WIN32)
     set (CMAKE_CXX_STANDARD 20)
 else()
     # Common compilation flags
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations  -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wuninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
 
     if(TREAT_WARNING_AS_ERROR)

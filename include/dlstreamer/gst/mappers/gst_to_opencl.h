@@ -31,7 +31,7 @@ class MemoryMapperGSTToOpenCL : public BaseMemoryMapper {
         if (offset_x || offset_y) {
             ImageInfo image_info(src->info());
             size_t offset = offset_y * image_info.width_stride() + offset_x * image_info.channels_stride();
-            dst->set_handle(OpenCLTensor::key::offset, offset);
+            dst->set_handle(tensor::key::offset, offset);
         }
 
         dst->set_parent(src);

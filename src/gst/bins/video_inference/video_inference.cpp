@@ -6,7 +6,9 @@
 
 #include "video_inference.h"
 #include "dlstreamer/gst/dictionary.h"
+#include "elem_names.h"
 #include "model_proc_provider.h"
+
 #include <sstream>
 
 // TODO queue sizes?
@@ -17,7 +19,7 @@
 #define OPENCL_QUEUE_SIZE(BATCH_SIZE) (BATCH_SIZE + 2)
 
 // Debug category
-GST_DEBUG_CATEGORY(video_inference_debug_category);
+GST_DEBUG_CATEGORY_STATIC(video_inference_debug_category);
 #define GST_CAT_DEFAULT video_inference_debug_category
 
 // Register GType
@@ -40,7 +42,8 @@ enum {
     /* pre-post-proc */
     PROP_MODEL_PROC,
     PROP_PRE_PROC_BACKEND,
-    PROP_INTERVAL,
+    PROP_INFERENCE_INTERVAL,
+    PROP_ROI_INFERENCE_INTERVAL,
     PROP_REGION,
     PROP_OBJECT_CLASS,
     PROP_LABELS,
@@ -61,9 +64,13 @@ constexpr guint MIN_BATCH_SIZE = 0;
 constexpr guint MAX_BATCH_SIZE = 1024;
 constexpr guint DEFAULT_BATCH_SIZE = 0;
 
-constexpr guint MIN_INTERVAL = 1;
-constexpr guint MAX_INTERVAL = std::numeric_limits<guint>::max();
-constexpr guint DEFAULT_INTERVAL = 1;
+constexpr guint MIN_INFERENCE_INTERVAL = 1;
+constexpr guint MAX_INFERENCE_INTERVAL = std::numeric_limits<guint>::max();
+constexpr guint DEFAULT_INFERENCE_INTERVAL = 1;
+
+constexpr guint MIN_ROI_INFERENCE_INTERVAL = 1;
+constexpr guint MAX_ROI_INFERENCE_INTERVAL = std::numeric_limits<guint>::max();
+constexpr guint DEFAULT_ROI_INFERENCE_INTERVAL = 1;
 
 constexpr auto DEFAULT_DEVICE = "CPU";
 
@@ -77,24 +84,23 @@ constexpr auto MAX_THRESHOLD = 1.f;
 constexpr auto MIN_THRESHOLD = 0.f;
 constexpr auto DEFAULT_THRESHOLD = 0.f;
 
-constexpr auto BGRP_FORMAT = ",format=BGRP";
+constexpr auto TORCHVISION_PREFIX = "torchvision.models";
+constexpr auto PYTORCH_MODELS_EXT = {".pth", ".pt"};
 
-constexpr std::string_view PIPE_SEPARATOR = " ! ";
+enum class InferenceBackend { OPEN_VINO, PYTORCH };
 
 #define IS_ESCAPE_SYMBOL(c) (((c) == '\"') || ((c) == '\\'))
 
-inline std::string color_space_to_caps_color_format(const std::string &color_space) {
-    if (color_space == "BGR")
-        return BGRP_FORMAT;
-    if (color_space == "RGB")
-        return ",format=RGBP";
+inline bool str_ends_with(std::string const &str, std::string const &ending) {
+    if (str.length() < ending.length())
+        return false;
 
-    throw std::runtime_error(
-        "The 'color_space' specified in the model-proc file is not supported"); // TODO: Support grayscale. Other
-                                                                                // formats?
+    return (str.compare(str.length() - ending.length(), ending.length(), ending) == 0);
 }
 
 } // namespace
+
+using namespace dlstreamer;
 
 GType preprocess_backend_get_type() {
     static const GEnumValue values[] = {
@@ -123,16 +129,17 @@ GType preprocess_backend_get_type() {
 
 enum class ScaleMethod { Default, Nearest, Bilinear, Bicubic, Lanczos, Spline, Fast, DlsVaapi };
 
-static GEnumValue scale_method_values[] = {
-    {static_cast<int>(ScaleMethod::Default), "Default", "default"},
-    {static_cast<int>(ScaleMethod::Nearest), "Nearest", "nearest"},
-    {static_cast<int>(ScaleMethod::Bilinear), "Bilinear", "bilinear"},
-    {static_cast<int>(ScaleMethod::Bicubic), "Bicubic", "bicubic"},
-    {static_cast<int>(ScaleMethod::Lanczos), "Lanczos", "lanczos"},
-    {static_cast<int>(ScaleMethod::Spline), "Spline", "spline"},
-    {static_cast<int>(ScaleMethod::Fast), "(VA-API only) fast scale", "fast"},
-    {static_cast<int>(ScaleMethod::DlsVaapi), "(VA-API only) scale via DL Streamer element", "dls-vaapi"},
-    {0, nullptr, nullptr}};
+static GEnumValue scale_method_values[] = {{static_cast<int>(ScaleMethod::Default), "Default", "default"},
+                                           {static_cast<int>(ScaleMethod::Nearest), "Nearest", "nearest"},
+                                           {static_cast<int>(ScaleMethod::Bilinear), "Bilinear", "bilinear"},
+                                           {static_cast<int>(ScaleMethod::Bicubic), "Bicubic", "bicubic"},
+                                           {static_cast<int>(ScaleMethod::Lanczos), "Lanczos", "lanczos"},
+                                           {static_cast<int>(ScaleMethod::Spline), "Spline", "spline"},
+                                           {static_cast<int>(ScaleMethod::Fast), "(VA-API only) fast scale", "fast"},
+                                           {static_cast<int>(ScaleMethod::DlsVaapi),
+                                            "(VA-API only) scale via Intel® Deep Learning Streamer element",
+                                            "dls-vaapi"},
+                                           {0, nullptr, nullptr}};
 
 GType scale_method_get_type() {
     return g_enum_register_static("VideoInferenceScaleMethod", scale_method_values);
@@ -156,10 +163,10 @@ GType inference_region_get_type() {
     return video_inference_region_type;
 }
 
-static bool structure_has_fields(GstStructure *structure, const std::vector<std::string_view> &fields) {
+static bool structure_has_any_of_fields(GstStructure *structure, const std::vector<std::string_view> &fields) {
     if (!structure)
         return false;
-    return std::all_of(fields.begin(), fields.end(),
+    return std::any_of(fields.begin(), fields.end(),
                        [&](const std::string_view &fld) { return gst_structure_has_field(structure, fld.data()); });
 }
 
@@ -256,6 +263,8 @@ std::string fields_to_params(GstStructure *structure, const std::vector<std::str
 }
 
 class VideoInferencePrivate {
+    friend struct _VideoInference;
+
   public:
     static VideoInferencePrivate *unpack(gpointer base) {
         g_assert(VIDEO_INFERENCE(base)->impl);
@@ -279,7 +288,7 @@ class VideoInferencePrivate {
             preprocess = get_preproces_pipeline();
 
         if (dlstreamer::get_property_as_string(gobject, "process") == "NULL")
-            process = _inference_element + _inference_params;
+            process = get_process_pipeline();
 
         if (dlstreamer::get_property_as_string(gobject, "postprocess") == "NULL")
             postprocess = get_postprocess_pipeline();
@@ -307,9 +316,9 @@ class VideoInferencePrivate {
         gst_query_unref(query);
 
         if (vaapi_context) {
-#if 0
-            if (_device.find("GPU") != std::string::npos) {
-                return PreProcessBackend::VAAPI;
+#if 0 // TODO enable vaapi-surface-sharing by default
+            if (_inference_backend == InferenceBackend::OPEN_VINO && _device.find("GPU") != std::string::npos) {
+                return PreProcessBackend::VAAPI_SURFACE_SHARING;
             }
 #endif
             return PreProcessBackend::VAAPI;
@@ -330,11 +339,14 @@ class VideoInferencePrivate {
 
     std::string get_preproces_pipeline() {
         std::string pipe;
-        std::string separator(PIPE_SEPARATOR);
+        std::string separator(elem::pipe_separator);
 
-        // inference interval
-        if (_interval > 1) {
-            pipe += separator + elem::rate_adjust + " denominator=" + std::to_string(_interval);
+        // Use capsrelax to avoid propagation of resized image capabilites outside of preprocess pipeline
+        pipe += separator + elem::capsrelax;
+
+        // inference_interval
+        if (_inference_interval > 1) {
+            pipe += separator + elem::rate_adjust + " ratio=1/" + std::to_string(_inference_interval);
         }
 
         /* Insert roi_split if inference-region=roi-list */
@@ -344,36 +356,64 @@ class VideoInferencePrivate {
                 pipe += " object-class=" + _object_class;
         }
 
+        // roi_inference_interval
+        if (_roi_inference_interval > 1) {
+            if (_inference_region != Region::ROI_LIST)
+                throw std::runtime_error("Property roi-inference-interval requires inference-region=per-roi");
+            pipe += separator + elem::rate_adjust + " ratio=1/" + std::to_string(_roi_inference_interval);
+        }
+
         if (_model_preproc.size() > 1)
             throw std::runtime_error("Only model-proc with single input layer supported"); // TODO
         GstStructure *params = _model_preproc.empty() ? nullptr : _model_preproc.begin()->get()->params;
 
-        // by default color format is BGRP if not specified in the model-proc file
-        auto color_space = gst_structure_get_string(params, "color_space");
-        std::string color_format = (color_space) ? color_space_to_caps_color_format(color_space) : BGRP_FORMAT;
+        // default color format is BGR for OPEN_VINO and RGB for other backends
+        const gchar *color_space = (_inference_backend == InferenceBackend::OPEN_VINO) ? "BGR" : "RGB";
+        if (params && gst_structure_has_field(params, "color_space"))
+            color_space = gst_structure_get_string(params, "color_space");
+        auto color_space_to_caps_color_format = [](const std::string &color_space) {
+            if (color_space == "BGR")
+                return ",format={BGR,BGRP}";
+            if (color_space == "RGB")
+                return ",format={RGB,RGBP}";
+            // TODO: Support grayscale. Other formats?
+            throw std::runtime_error("The color space specified in the model-proc file is not supported");
+        };
+        std::string color_format = color_space_to_caps_color_format(color_space);
+
+        bool keep_aspect_ratio = false;
+        if (structure_has_any_of_fields(params, {"resize"}))
+            keep_aspect_ratio = gst_structure_get_string(params, "resize") == std::string("aspect-ratio");
+
+        std::string normalization_params;
+        if (structure_has_any_of_fields(params, {"range", "mean", "std"}))
+            normalization_params = fields_to_params(params, {"range", "mean", "std"});
+        // element pytorch_tensor_inference supports only F32 tensors
+        if (_inference_backend == InferenceBackend::PYTORCH && normalization_params.empty())
+            normalization_params = " range=\"< (double)0, (double)1 >\"";
 
         /* add preproc elements based on pre-process-backend property */
         switch (_preprocess_backend) {
         case PreProcessBackend::GST_OPENCV:
             // convert parameters naming. TODO other parameters: padding, padding-color, etc
-            if (_inference_region == Region::ROI_LIST || params) {
+            if (_inference_region == Region::ROI_LIST) {
                 // TODO: videoconvert could be removed if opencv_cropscale support more color formats
                 pipe += separator + elem::videoconvert;
-                if (structure_has_fields(params, {"resize"})) {
-                    if (gst_structure_get_string(params, "resize") == std::string("aspect-ratio"))
-                        pipe += " aspect-ratio=true";
-                }
                 pipe += separator + elem::opencv_cropscale;
             } else {
                 pipe += separator + elem::videoscale;
             }
+
+            if (keep_aspect_ratio)
+                pipe += " add-borders=true";
+
             if (_scale_method != ScaleMethod::Default)
-                pipe += "method=" + scale_method_to_string(_scale_method) + " ";
+                pipe += " method=" + scale_method_to_string(_scale_method);
             pipe += separator + elem::videoconvert;
             pipe += separator + elem::caps_system_memory + color_format;
             pipe += separator + elem::tensor_convert;
-            if (structure_has_fields(params, {"range", "mean", "std"})) {
-                pipe += separator + elem::opencv_tensor_normalize + fields_to_params(params, {"range", "mean", "std"});
+            if (!normalization_params.empty()) {
+                pipe += separator + elem::opencv_tensor_normalize + normalization_params;
             }
             break;
         case PreProcessBackend::VAAPI:
@@ -382,25 +422,26 @@ class VideoInferencePrivate {
                 pipe += separator + elem::batch_create + " batch-size=" + std::to_string(_batch_size);
                 pipe += separator + elem::vaapi_batch_proc;
                 if (_scale_method != ScaleMethod::Default && _scale_method != ScaleMethod::DlsVaapi)
-                    pipe += "scale-method=" + scale_method_to_string(_scale_method) + " ";
+                    pipe += " scale-method=" + scale_method_to_string(_scale_method) + " ";
             } else {
                 pipe += separator + elem::vaapipostproc;
                 if (_scale_method != ScaleMethod::Default)
-                    pipe += "scale-method=" + scale_method_to_string(_scale_method) + " ";
+                    pipe += " scale-method=" + scale_method_to_string(_scale_method) + " ";
                 pipe += separator + elem::videoconvert;
                 pipe += separator + elem::caps_system_memory + color_format;
                 pipe += separator + elem::tensor_convert;
             }
-            if (structure_has_fields(params, {"range", "mean", "std"})) {
-                pipe += separator + elem::opencv_tensor_normalize + fields_to_params(params, {"range", "mean", "std"});
+            if (!normalization_params.empty()) {
+                pipe += separator + elem::opencv_tensor_normalize + normalization_params;
             }
             break;
         case PreProcessBackend::VAAPI_SURFACE_SHARING:
-            // TODO batch-size
             pipe += separator + elem::caps_vasurface_memory;
             pipe += separator + elem::vaapipostproc;
             if (_scale_method != ScaleMethod::Default)
-                pipe += "scale-method=" + scale_method_to_string(_scale_method) + " ";
+                pipe += " scale-method=" + scale_method_to_string(_scale_method) + " ";
+            if (_batch_size > 1)
+                pipe += separator + elem::batch_create + " batch-size=" + std::to_string(_batch_size);
             break;
         case PreProcessBackend::VAAPI_TENSORS:
             // TODO batch-size
@@ -410,7 +451,7 @@ class VideoInferencePrivate {
             } else {
                 pipe += separator + elem::vaapipostproc;
                 if (_scale_method != ScaleMethod::Default)
-                    pipe += "scale-method=" + scale_method_to_string(_scale_method) + " ";
+                    pipe += " scale-method=" + scale_method_to_string(_scale_method) + " ";
                 pipe += separator + elem::tensor_convert;
             }
             break;
@@ -426,7 +467,7 @@ class VideoInferencePrivate {
                     pipe += separator + elem::vaapipostproc;
             }
             if (_scale_method != ScaleMethod::Default && _scale_method != ScaleMethod::DlsVaapi)
-                pipe += "scale-method=" + scale_method_to_string(_scale_method) + " ";
+                pipe += " scale-method=" + scale_method_to_string(_scale_method) + " ";
             pipe += separator + elem::vaapi_to_opencl;
             pipe += separator + elem::queue + " max-size-bytes=0 max-size-time=0 max-size-buffers=" +
                     std::to_string(OPENCL_QUEUE_SIZE(_batch_size));
@@ -440,14 +481,21 @@ class VideoInferencePrivate {
         return pipe;
     }
 
+    std::string get_process_pipeline() {
+        return _inference_element + _inference_params;
+    }
+
     // Constructs post-processing sub-pipeline based either on model-proc file or properties or defaults
-    std::string construct_postprocess_elements() {
-        std::ostringstream oss_process;
+    std::string get_postprocess_pipeline() {
+        std::ostringstream pipe;
+
+        if (_batch_size > 1)
+            pipe << elem::batch_split << elem::pipe_separator;
 
         if (!_model_postproc.empty()) { // Go through all post-processors in model-proc file
             for (auto postproc = _model_postproc.begin(); postproc != _model_postproc.end(); postproc++) {
                 if (postproc != _model_postproc.begin())
-                    oss_process << PIPE_SEPARATOR;
+                    pipe << elem::pipe_separator;
 
                 GstStructure *structure = postproc->second;
                 assert(structure);
@@ -456,26 +504,27 @@ class VideoInferencePrivate {
                     return s ? s : "";
                 }();
                 if (converter.empty()) {
-                    if (structure_has_fields(structure, {"labels", "labels_file"}))
+                    if (structure_has_any_of_fields(structure, {"labels", "labels_file"}))
                         converter = "label";
                     else
                         converter = "add_params";
                 }
 
-                // element name
-                oss_process << elem::tensor_postproc_ << converter;
+                // Element name
+                pipe << elem::tensor_postproc_ << converter;
+
                 // properties serialized from GstStruct
-                oss_process << fields_to_params(structure);
+                pipe << fields_to_params(structure);
             }
         } else { // default postprocess element
             auto self = VIDEO_INFERENCE_GET_CLASS(_self);
             if (self->get_default_postprocess_elements) {
-                oss_process << self->get_default_postprocess_elements(_self);
+                pipe << self->get_default_postprocess_elements(_self);
             } else {
                 if (_labels.empty() && _labels_file.empty()) {
-                    oss_process << "tensor_postproc_add_params";
+                    pipe << "tensor_postproc_add_params";
                 } else {
-                    oss_process << "tensor_postproc_label";
+                    pipe << "tensor_postproc_label";
                 }
             }
         }
@@ -484,43 +533,41 @@ class VideoInferencePrivate {
         if (_threshold != DEFAULT_THRESHOLD) {
             if (_model_postproc.size() > 1)
                 throw std::runtime_error("Property 'threshold' is incompatible with multi-layer model proc file");
-            oss_process << " threshold=" << _threshold;
+            pipe << " threshold=" << _threshold;
         }
         if (!_labels.empty()) {
             if (_model_postproc.size() > 1)
                 throw std::runtime_error("Property 'labels' is incompatible with multi-layer model proc file");
-            oss_process << " labels=" << _labels;
+            pipe << " labels=" << _labels;
         }
         if (!_labels_file.empty()) {
             if (_model_postproc.size() > 1)
                 throw std::runtime_error("Property 'labels-file' is incompatible with multi-layer model proc file");
-            oss_process << " labels-file=" << _labels_file;
+            pipe << " labels-file=" << _labels_file;
         }
 
-        return oss_process.str();
+        // repeat-metadata
+        if (_repeat_metadata)
+            pipe << elem::pipe_separator << elem::meta_smooth;
+
+        return naming_replacements(pipe.str());
     }
 
-    std::string get_postprocess_pipeline() {
-        // Build post-processing pipeline
-        std::ostringstream oss_pipe;
-        if (_batch_size > 1)
-            oss_pipe << elem::batch_split << PIPE_SEPARATOR;
-
-        oss_pipe << construct_postprocess_elements();
-        if (_repeat_metadata)
-            oss_pipe << PIPE_SEPARATOR << elem::meta_repeat;
-
-        std::string pipe = oss_pipe.str();
-
+    std::string naming_replacements(std::string str) {
         static std::vector<std::pair<std::string, std::string>> replacements = {
             {"tensor_postproc_detection_output", "tensor_postproc_detection"},
-            {"tensor_postproc_boxes_labels", "tensor_postproc_detection"}};
+            {"tensor_postproc_boxes_labels", "tensor_postproc_detection"},
+            {"tensor_postproc_boxes", "tensor_postproc_detection"},
+            {"tensor_postproc_yolo_v3", "tensor_postproc_yolo version=3"},
+            {"tensor_postproc_yolo_v4", "tensor_postproc_yolo version=4"},
+            {"tensor_postproc_yolo_v5", "tensor_postproc_yolo version=5"},
+            {"tensor_postproc_keypoints_openpose", "tensor_postproc_human_pose"}};
         for (auto &repl : replacements) {
-            auto index = pipe.find(repl.first);
+            auto index = str.find(repl.first);
             if (index != std::string::npos)
-                pipe.replace(index, repl.first.length(), repl.second);
+                str.replace(index, repl.first.length(), repl.second);
         }
-        return pipe;
+        return str;
     }
 
     void get_property(guint prop_id, GValue *value, GParamSpec *pspec) {
@@ -549,8 +596,11 @@ class VideoInferencePrivate {
         case PROP_PRE_PROC_BACKEND:
             g_value_set_enum(value, static_cast<gint>(_preprocess_backend));
             break;
-        case PROP_INTERVAL:
-            g_value_set_uint(value, _interval);
+        case PROP_INFERENCE_INTERVAL:
+            g_value_set_uint(value, _inference_interval);
+            break;
+        case PROP_ROI_INFERENCE_INTERVAL:
+            g_value_set_uint(value, _roi_inference_interval);
             break;
         case PROP_REGION:
             g_value_set_enum(value, static_cast<gint>(_inference_region));
@@ -587,6 +637,12 @@ class VideoInferencePrivate {
         case PROP_MODEL:
             _model = g_value_get_string(value);
             _inference_params += " model=" + _model;
+            if ((_model.rfind(TORCHVISION_PREFIX, 0) == 0) ||
+                std::any_of(PYTORCH_MODELS_EXT.begin(), PYTORCH_MODELS_EXT.end(),
+                            [&](const std::string &ext) { return str_ends_with(_model, ext); })) {
+                _inference_backend = InferenceBackend::PYTORCH;
+                _inference_element = elem::pytorch_tensor_inference;
+            }
             break;
         case PROP_IE_CONFIG:
             _ie_config = g_value_get_string(value);
@@ -623,8 +679,11 @@ class VideoInferencePrivate {
         case PROP_PRE_PROC_BACKEND:
             _preprocess_backend = static_cast<PreProcessBackend>(g_value_get_enum(value));
             break;
-        case PROP_INTERVAL:
-            _interval = g_value_get_uint(value);
+        case PROP_INFERENCE_INTERVAL:
+            _inference_interval = g_value_get_uint(value);
+            break;
+        case PROP_ROI_INFERENCE_INTERVAL:
+            _roi_inference_interval = g_value_get_uint(value);
             break;
         case PROP_REGION:
             _inference_region = static_cast<Region>(g_value_get_enum(value));
@@ -671,13 +730,6 @@ class VideoInferencePrivate {
         return GST_ELEMENT_CLASS(parent_class)->change_state(GST_ELEMENT(_base), transition);
     }
 
-  public:
-    std::string _inference_element = elem::openvino_tensor_inference;
-    std::string _postaggregate_element;
-    std::string _inference_params;
-    std::string _aggregate_params;
-    float _threshold = DEFAULT_THRESHOLD;
-
   private:
     VideoInference *_self = nullptr;
     GstProcessBin *_base = nullptr;
@@ -689,7 +741,8 @@ class VideoInferencePrivate {
     std::string _instance_id;
     guint _nireq = DEFAULT_NIREQ;
     guint _batch_size = DEFAULT_BATCH_SIZE;
-    guint _interval = DEFAULT_INTERVAL;
+    guint _inference_interval = DEFAULT_INFERENCE_INTERVAL;
+    guint _roi_inference_interval = DEFAULT_ROI_INFERENCE_INTERVAL;
     gboolean _attach_tensor_data = DEFAULT_ATTACH_TENSOR_DATA;
     PreProcessBackend _preprocess_backend = PreProcessBackend::AUTO;
     Region _inference_region = DEFAULT_INFERENCE_REGION;
@@ -699,12 +752,24 @@ class VideoInferencePrivate {
     std::string _labels_file;
     gboolean _repeat_metadata = DEFAULT_REPEAT_METADATA;
 
+    /* pipeline params */
+    InferenceBackend _inference_backend = InferenceBackend::OPEN_VINO;
+    std::string _inference_element = elem::openvino_tensor_inference;
+    std::string _postaggregate_element;
+    std::string _inference_params;
+    std::string _aggregate_params;
+    float _threshold = DEFAULT_THRESHOLD;
+
     /* model proc */
     std::string _model_proc;
     ModelProcProvider _model_proc_provider;
     std::vector<ModelInputProcessorInfo::Ptr> _model_preproc;
     std::map<std::string, GstStructure *> _model_postproc;
 };
+
+const gchar *VideoInference::get_model() {
+    return impl->_model.data();
+}
 
 void VideoInference::set_inference_element(const gchar *element) {
     impl->_inference_element = element;
@@ -812,10 +877,18 @@ static void video_inference_class_init(VideoInferenceClass *klass) {
                                                       "Preprocessing backend type", preprocess_backend_get_type(),
                                                       static_cast<int>(PreProcessBackend::AUTO), prm_flags));
 
-    g_object_class_install_property(gobject_class, PROP_INTERVAL,
-                                    g_param_spec_uint("inference-interval", "Inference Interval",
-                                                      "Run inference for every Nth frame", MIN_INTERVAL, MAX_INTERVAL,
-                                                      DEFAULT_INTERVAL, prm_flags));
+    g_object_class_install_property(gobject_class, PROP_INFERENCE_INTERVAL,
+                                    g_param_spec_uint("inference-interval", "Inference interval",
+                                                      "Run inference for every Nth frame", MIN_INFERENCE_INTERVAL,
+                                                      MAX_INFERENCE_INTERVAL, DEFAULT_INFERENCE_INTERVAL, prm_flags));
+
+    g_object_class_install_property(
+        gobject_class, PROP_ROI_INFERENCE_INTERVAL,
+        g_param_spec_uint("roi-inference-interval", "Roi Inference Interval",
+                          "Determines how often to run inference on each ROI object. Only valid if each ROI object has "
+                          "unique object id (requires object tracking after object detection)",
+                          MIN_ROI_INFERENCE_INTERVAL, MAX_ROI_INFERENCE_INTERVAL, DEFAULT_ROI_INFERENCE_INTERVAL,
+                          (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
     g_object_class_install_property(
         gobject_class, PROP_REGION,
@@ -869,7 +942,7 @@ static void video_inference_class_init(VideoInferenceClass *klass) {
         g_param_spec_boolean("repeat-metadata", "repeat-metadata",
                              "If true and inference-interval > 1, metadata with last inference results will be "
                              "attached to frames if inference skipped. "
-                             "If used in inference-region=per-roi mode, it requires object-id for each roi, "
+                             "If true and roi-inference-interval > 1, it requires object-id for each roi, "
                              "so requires object tracking element inserted before this element.",
                              DEFAULT_REPEAT_METADATA, prm_flags));
 

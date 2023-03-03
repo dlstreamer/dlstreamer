@@ -8,7 +8,7 @@
 #include <memory>
 #include <thread>
 
-// DL Streamer
+// Intel® Deep Learning Streamer
 #include "dlstreamer/base/blocking_queue.h"
 #include "dlstreamer/ffmpeg/context.h"
 #include "dlstreamer/ffmpeg/elements/ffmpeg_multi_source.h"
@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
         if (batched_frames.size() < FLAGS_batch_size)
             continue;
 
-        // zero-copy conversion from VASurfaceID to OpenVINO VASurfaceTensor (one tensor for Y plane, another for UV)
+        // zero-copy conversion from VASurfaceID to OpenVINO™ VASurfaceTensor (one tensor for Y plane, another for UV)
         std::vector<ov::Tensor> y_tensors;
         std::vector<ov::Tensor> uv_tensors;
         for (auto va_frame : batched_frames) {

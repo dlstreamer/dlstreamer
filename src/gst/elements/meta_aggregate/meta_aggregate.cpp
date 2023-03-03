@@ -14,19 +14,79 @@
 
 using namespace dlstreamer;
 
-GST_DEBUG_CATEGORY(meta_aggregate_debug);
+GST_DEBUG_CATEGORY_STATIC(meta_aggregate_debug);
 #define GST_CAT_DEFAULT meta_aggregate_debug
-
-G_DEFINE_TYPE(MetaAggregatePad, meta_aggregate_pad, GST_TYPE_AGGREGATOR_PAD);
 
 enum { PROP_0, PROP_ATTACH_TENSOR_DATA };
 
 #define DEFAULT_ATTACH_TENSOR_DATA TRUE
 
-static void meta_aggregate_pad_class_init(MetaAggregatePadClass *) {
+// ---
+// MetaAggregatePadPriv and MetaAggregatePad
+
+class MetaAggregatePadPrivate {
+  public:
+    MetaAggregatePadPrivate(GstAggregatorPad *parent) : _mybase(parent) {
+        gst_video_info_init(&_video_info);
+    }
+
+    void update_current_caps(const GstCaps *caps) {
+        _frame_info = gst_caps_to_frame_info(caps);
+        if (_frame_info.media_type == MediaType::Image)
+            _video_info_valid = gst_video_info_from_caps(&_video_info, caps);
+        else
+            _video_info_valid = false;
+    }
+
+    MediaType media_type() const {
+        return _frame_info.media_type;
+    }
+
+    // Returns true if media type on this pad is tensors
+    bool is_tensors_pad() const {
+        return media_type() == MediaType::Tensors;
+    }
+
+    // Returns GstVideoInfo if pad's media type is video/x-raw, otherwise returns nullptr
+    const GstVideoInfo *video_info() const {
+        return _video_info_valid ? &_video_info : nullptr;
+    }
+
+    const FrameInfo &frame_info() const {
+        return _frame_info;
+    }
+
+  private:
+    GstAggregatorPad *_mybase;
+    bool _video_info_valid = false;
+    GstVideoInfo _video_info;
+    FrameInfo _frame_info;
+};
+
+// Define type after private data
+G_DEFINE_TYPE_WITH_PRIVATE(MetaAggregatePad, meta_aggregate_pad, GST_TYPE_AGGREGATOR_PAD);
+
+static void meta_aggregate_pad_init(MetaAggregatePad *self) {
+    // Intialization of private data
+    auto *priv_memory = meta_aggregate_pad_get_instance_private(self);
+    self->impl = new (priv_memory) MetaAggregatePadPrivate(&self->parent);
 }
 
-static void meta_aggregate_pad_init(MetaAggregatePad *) {
+void meta_aggregate_pad_finalize(GObject *object) {
+    MetaAggregatePad *pad = GST_META_AGGREGATE_PAD(object);
+    g_assert(pad->impl);
+
+    if (pad->impl) {
+        pad->impl->~MetaAggregatePadPrivate();
+        pad->impl = nullptr;
+    }
+
+    G_OBJECT_CLASS(meta_aggregate_pad_parent_class)->finalize(object);
+}
+
+static void meta_aggregate_pad_class_init(MetaAggregatePadClass *klass) {
+    GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
+    gobject_class->finalize = meta_aggregate_pad_finalize;
 }
 
 // ----
@@ -36,8 +96,14 @@ GstStaticPadTemplate src_templ = GST_STATIC_PAD_TEMPLATE("src", GST_PAD_SRC, GST
 
 GstStaticPadTemplate sink_templ = GST_STATIC_PAD_TEMPLATE("sink", GST_PAD_SINK, GST_PAD_ALWAYS, GST_STATIC_CAPS_ANY);
 
-GstStaticPadTemplate tensor_templ =
-    GST_STATIC_PAD_TEMPLATE("tensor_%u", GST_PAD_SINK, GST_PAD_REQUEST, GST_STATIC_CAPS(DLS_TENSOR_MEDIA_NAME "(ANY)"));
+// Templates for request pads, metadata from which should be merged.
+GstStaticPadTemplate request_templs[] = {
+    // Video
+    GST_STATIC_PAD_TEMPLATE("meta_%u", GST_PAD_SINK, GST_PAD_REQUEST, GST_STATIC_CAPS("video/x-raw(ANY)")),
+    // Tensor
+    GST_STATIC_PAD_TEMPLATE("tensor_%u", GST_PAD_SINK, GST_PAD_REQUEST,
+                            GST_STATIC_CAPS(DLS_TENSOR_MEDIA_NAME "(ANY)"))};
+
 } // namespace
 
 class MetaAggregatePrivate {
@@ -103,14 +169,24 @@ class MetaAggregatePrivate {
             return nullptr;
         }
 
-        if (!g_str_has_prefix(templ->name_template, "tensor_"))
+        // Look for counter for specific pad template
+        uint32_t *counter = nullptr;
+        for (size_t i = 0; i < std::size(request_templs); i++) {
+            if (g_str_equal(templ->name_template, request_templs[i].name_template))
+                counter = &request_pad_counters_[i];
+        }
+
+        if (!counter) {
+            GST_WARNING_OBJECT(mybase_, "Unrecognized pad template name: %s", templ->name_template);
             return nullptr;
+        }
 
         GST_OBJECT_LOCK(mybase_);
-        gchar *name = g_strdup_printf("tensor_%u", tensor_pad_num_++);
+        gchar *name = g_strdup_printf(templ->name_template, *counter++);
         auto *res_pad = reinterpret_cast<MetaAggregatePad *>(g_object_new(
-            GST_TYPE_META_AGGREGATE_PAD, "name", name, "direction", GST_PAD_SINK, "template", templ, NULL));
+            GST_TYPE_META_AGGREGATE_PAD, "name", name, "direction", GST_PAD_SINK, "template", templ, nullptr));
         g_free(name);
+        GST_DEBUG_OBJECT(mybase_, "REQUEST pad created: %" GST_PTR_FORMAT, res_pad);
         GST_OBJECT_UNLOCK(mybase_);
 
         return &res_pad->parent;
@@ -164,7 +240,7 @@ class MetaAggregatePrivate {
                 GST_DEBUG_OBJECT(mybase_, "EOS on first pad, we're done");
                 return GST_FLOW_EOS;
             }
-
+            GST_ERROR_OBJECT(mybase_, "GST_AGGREGATOR_FLOW_NEED_DATA");
             // TODO: Can be reached ???
             return GST_AGGREGATOR_FLOW_NEED_DATA;
         }
@@ -203,8 +279,11 @@ class MetaAggregatePrivate {
         current_buf_ = buf;
         current_running_time_ = time_start;
         current_running_time_end_ = gst_segment_to_running_time(&first_pad->parent.segment, GST_FORMAT_TIME, end_time);
-        GST_DEBUG_OBJECT(mybase_, "Selected current buffer %p, running time: %" GST_TIME_FORMAT " -> %" GST_TIME_FORMAT,
-                         current_buf_, GST_TIME_ARGS(current_running_time_), GST_TIME_ARGS(current_running_time_end_));
+        GST_DEBUG_OBJECT(mybase_,
+                         "Selected current buffer %p, %" GST_TIME_FORMAT " running time: %" GST_TIME_FORMAT
+                         " -> %" GST_TIME_FORMAT,
+                         current_buf_, GST_TIME_ARGS(GST_BUFFER_PTS(current_buf_)),
+                         GST_TIME_ARGS(current_running_time_), GST_TIME_ARGS(current_running_time_end_));
 
         return GST_FLOW_OK;
     }
@@ -242,8 +321,8 @@ class MetaAggregatePrivate {
 
     GstFlowReturn gatherMetaFromPad_(MetaAggregatePad *pad, bool timeout) {
         while (true) {
-            GstBuffer *buf = gst_aggregator_pad_peek_buffer(&pad->parent);
-            if (!buf) {
+            GstBuffer *meta_buf = gst_aggregator_pad_peek_buffer(&pad->parent);
+            if (!meta_buf) {
                 if (gst_aggregator_pad_is_eos(&pad->parent)) {
                     GST_DEBUG_OBJECT(mybase_, "Got EOS on pad %" GST_PTR_FORMAT, pad);
                     break;
@@ -258,30 +337,21 @@ class MetaAggregatePrivate {
                 }
             }
 
-            GstClockTime buf_time = GST_BUFFER_PTS(buf);
+            GstClockTime buf_time = GST_BUFFER_PTS(meta_buf);
             if (!GST_CLOCK_TIME_IS_VALID(buf_time)) {
                 GST_ERROR_OBJECT(mybase_, "Got buffer without PTS on pad %" GST_PTR_FORMAT, pad);
 
-                gst_buffer_unref(buf);
+                gst_buffer_unref(meta_buf);
                 return GST_FLOW_ERROR;
             }
 
             buf_time = gst_segment_to_running_time(&pad->parent.segment, GST_FORMAT_TIME, buf_time);
             if (!GST_CLOCK_TIME_IS_VALID(buf_time)) {
-                GST_DEBUG_OBJECT(mybase_, "Buffer %" GST_PTR_FORMAT " outside segment -> dropping", buf);
+                GST_DEBUG_OBJECT(mybase_, "Buffer %" GST_PTR_FORMAT " outside segment -> dropping", meta_buf);
                 gst_aggregator_pad_drop_buffer(&pad->parent);
-                gst_buffer_unref(buf);
+                gst_buffer_unref(meta_buf);
 
                 continue;
-            }
-
-            if (gst_buffer_has_flags(buf, GST_BUFFER_FLAG_GAP)) {
-                GST_DEBUG_OBJECT(mybase_, "Buffer %" GST_PTR_FORMAT " with GAP -> dropping", buf);
-                gst_aggregator_pad_drop_buffer(&pad->parent);
-                gst_buffer_unref(buf);
-
-                // TODO: check buffer time + duration ???
-                break;
             }
 
             /**
@@ -305,20 +375,46 @@ class MetaAggregatePrivate {
              */
             if (buf_time > current_running_time_) {
                 // This's upcoming buffer, so everything is gathered for current one at this point
-                gst_buffer_unref(buf);
+                gst_buffer_unref(meta_buf);
                 break;
             }
 
-            GST_DEBUG_OBJECT(mybase_, "Collecting metadata buffer %p %" GST_TIME_FORMAT " for current buffer %p", buf,
-                             GST_TIME_ARGS(buf_time), current_buf_);
+            if (gst_buffer_has_flags(meta_buf, GST_BUFFER_FLAG_GAP)) {
+                GST_DEBUG_OBJECT(mybase_, "Buffer %" GST_PTR_FORMAT " with GAP -> dropping", meta_buf);
+                gst_aggregator_pad_drop_buffer(&pad->parent);
+                gst_buffer_unref(meta_buf);
+
+                // FIXME:
+                // Ideally here should be continue. However, when identity eos-after=X is used this causes pipeline hang
+                // So, it requires additional investigation
+                break;
+            }
+
+            GST_DEBUG_OBJECT(mybase_, "Collecting metadata buffer %p %" GST_TIME_FORMAT " for current buffer %p",
+                             meta_buf, GST_TIME_ARGS(buf_time), current_buf_);
 
             gst_aggregator_pad_drop_buffer(&pad->parent);
 
-            current_meta_bufs_.push_back(buf);
+            GstFramePtr frame;
+            if (pad->impl->video_info()) {
+                assert(pad->impl->media_type() == MediaType::Image);
+                // true -> take ownership of buffer
+                frame = std::make_shared<GSTFrame>(meta_buf, pad->impl->video_info(), nullptr, true);
+            } else {
+                assert(pad->impl->media_type() == MediaType::Tensors);
+                // true -> take ownership of buffer
+                frame = std::make_shared<GSTFrame>(meta_buf, pad->impl->frame_info(), true);
+            }
+
+            if (frame)
+                current_meta_bufs_.push_back(std::move(frame));
+            else
+                GST_ERROR_OBJECT(mybase_, "Failed to create internal frame object from buffer %p on pad %p", meta_buf,
+                                 pad);
 
             // Early exit if we found our custom flag
-            if (gst_buffer_has_flags(buf, static_cast<GstBufferFlags>(DLS_BUFFER_FLAG_LAST_ROI_ON_FRAME))) {
-                GST_DEBUG_OBJECT(mybase_, "Got last ROI flag in buffer %p", buf);
+            if (gst_buffer_has_flags(meta_buf, static_cast<GstBufferFlags>(DLS_BUFFER_FLAG_LAST_ROI_ON_FRAME))) {
+                GST_DEBUG_OBJECT(mybase_, "Got last ROI flag in buffer %p", meta_buf);
                 break;
             }
         }
@@ -334,50 +430,90 @@ class MetaAggregatePrivate {
         GST_DEBUG_OBJECT(mybase_, "Merging %lu buffers w/meta to buffer %p ts=%" GST_TIME_FORMAT,
                          current_meta_bufs_.size(), current_buf_, GST_TIME_ARGS(GST_BUFFER_PTS(current_buf_)));
         while (!current_meta_bufs_.empty()) {
-            auto buf = current_meta_bufs_.front();
+            auto meta_frame = current_meta_bufs_.front();
             current_meta_bufs_.pop_front();
 
-            mergeMetaFromBuffer(buf);
-
-            gst_buffer_unref(buf);
+            if (!mergeMetaFromFrame(std::move(meta_frame))) {
+                GST_WARNING_OBJECT(mybase_, "Failed to merge metadata");
+            }
         }
     }
 
-    bool mergeMetaFromBuffer(GstBuffer *buf_with_meta) {
+    bool mergeMetaFromFrame(GstFramePtr dls_buf_with_meta) {
         g_assert(current_buf_);
-        g_assert(buf_with_meta);
         g_assert(gst_buffer_is_writable(current_buf_) && "Current buffer from video pad is not writable");
 
-        GstFramePtr dls_buf_with_meta;
-        if (!frame_info_.empty()) { // TODO fix after adding support for multiple tensor pins
-            auto info = frame_info_.begin()->second;
-            dls_buf_with_meta = std::make_shared<GSTFrame>(buf_with_meta, info);
+        switch (dls_buf_with_meta->media_type()) {
+        case MediaType::Image:
+            return mergeMetaFromVideoFrame(std::move(dls_buf_with_meta));
+
+        case MediaType::Tensors:
+            return mergeMetaFromTensorFrame(std::move(dls_buf_with_meta));
+
+        default:
+            break;
         }
 
+        return false;
+    }
+
+    bool mergeMetaFromVideoFrame(GstFramePtr frame) {
+        gpointer state = nullptr;
+        GstMeta *meta;
+        while ((meta = gst_buffer_iterate_meta_filtered(frame->gst_buffer(), &state,
+                                                        GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE))) {
+            auto *roi_meta_to_merge = reinterpret_cast<GstVideoRegionOfInterestMeta *>(meta);
+
+            // Get detection metadata
+            GstStructure *structure =
+                gst_video_region_of_interest_meta_get_param(roi_meta_to_merge, DetectionMetadata::name);
+            if (!structure) {
+                GST_WARNING_OBJECT(mybase_,
+                                   "Skipping ROI %p from buffer %p because detection metadata for ROI is missing",
+                                   roi_meta_to_merge, frame->gst_buffer());
+                continue;
+            }
+
+            // FIXME: avoid copy by taking ownership?
+            structure = gst_structure_copy(structure);
+            const gchar *label = gst_structure_get_string(structure, "label");
+            if (!label)
+                label = g_quark_to_string(roi_meta_to_merge->roi_type);
+
+            GstVideoRegionOfInterestMeta *roi_meta =
+                gst_buffer_add_video_region_of_interest_meta(current_buf_, label, 0, 0, 0, 0);
+
+            // FIXME: scale ?
+
+            gst_video_region_of_interest_meta_add_param(roi_meta, structure);
+            roi_meta->id = gst_util_seqnum_next();
+        }
+
+        return true;
+    }
+
+    bool mergeMetaFromTensorFrame(GstFramePtr meta_frame) {
+        g_assert(meta_frame && "Meta frame must be valid");
         // Find SourceIdentifierMetadata and corresponding ROI meta if inference-region=per-roi
         GstVideoRegionOfInterestMeta *parent_roi_meta = nullptr;
-        if (dls_buf_with_meta) {
-            auto source_id_meta = find_metadata<SourceIdentifierMetadata>(*dls_buf_with_meta);
-            if (source_id_meta) {
-                int roi_id = source_id_meta->roi_id();
-                if (roi_id != GST_SEQNUM_INVALID) { // non-zero
-                    parent_roi_meta = gst_buffer_get_video_region_of_interest_meta_id(current_buf_, roi_id);
-                    if (!parent_roi_meta)
-                        GST_WARNING_OBJECT(mybase_, "Can't find ROI by id: %d", roi_id);
-                }
+        auto source_id_meta = find_metadata<SourceIdentifierMetadata>(*meta_frame);
+        if (source_id_meta) {
+            int roi_id = source_id_meta->roi_id();
+            if (roi_id != GST_SEQNUM_INVALID) { // non-zero
+                parent_roi_meta = gst_buffer_get_video_region_of_interest_meta_id(current_buf_, roi_id);
+                if (!parent_roi_meta)
+                    GST_WARNING_OBJECT(mybase_, "Can't find ROI by id: %d", roi_id);
             }
         }
 
         std::vector<std::string> output_layers;
-        if (dls_buf_with_meta) {
-            auto model_info_meta = find_metadata<ModelInfoMetadata>(*dls_buf_with_meta);
-            if (model_info_meta)
-                output_layers = model_info_meta->output_layers();
-        }
+        auto model_info_meta = find_metadata<ModelInfoMetadata>(*meta_frame);
+        if (model_info_meta)
+            output_layers = model_info_meta->output_layers();
 
         GstGVATensorMeta *custom_meta;
         gpointer state = nullptr;
-        while ((custom_meta = GST_GVA_TENSOR_META_ITERATE(buf_with_meta, &state))) {
+        while ((custom_meta = GST_GVA_TENSOR_META_ITERATE(meta_frame->gst_buffer(), &state))) {
             std::string name = g_quark_to_string(custom_meta->data->name);
             // Skip utility metadata-s
             if (name == SourceIdentifierMetadata::name || name == ModelInfoMetadata::name ||
@@ -385,45 +521,43 @@ class MetaAggregatePrivate {
                 continue;
 #if 0
             // Take ownership of GstStructure
-            GstStructure *structure = custom_meta->data;
+            GstStructure *out_tensor_data = custom_meta->data;
             custom_meta->data = nullptr;
 #else
-            GstStructure *structure = gst_structure_copy(custom_meta->data);
+            GstStructure *out_tensor_data = gst_structure_copy(custom_meta->data);
 #endif
 
-            // Copy tensor data to GstStructure if requested by property
-            if (attach_tensor_data_ && dls_buf_with_meta) {
-                auto cpu_buffer = gst_to_cpu_.map(dls_buf_with_meta, AccessMode::Read);
+            // Copy tensor data to GstStructure if requested by property and tensor data not attached yet
+            if (attach_tensor_data_ && !gst_structure_has_field(out_tensor_data, "data_buffer")) {
+                FramePtr cpu_buffer = gst_to_cpu_.map(meta_frame, AccessMode::Read);
                 for (size_t i = 0; i < cpu_buffer->num_tensors(); i++) {
-                    InferenceResultMetadata inference_meta(std::make_shared<GSTDictionary>(structure));
+                    InferenceResultMetadata inference_meta(std::make_shared<GSTDictionary>(out_tensor_data));
                     std::string layer_name = (i < output_layers.size()) ? output_layers[i] : "";
                     inference_meta.init_tensor_data(*cpu_buffer->tensor(i), layer_name);
                 }
             }
             // Attach to output buffer
             if (name == DetectionMetadata::name) { // attach as GstVideoRegionOfInterestMeta
-                auto label = gst_structure_get_string(structure, DetectionMetadata::key::label);
+                auto label = gst_structure_get_string(out_tensor_data, DetectionMetadata::key::label);
                 GstVideoRegionOfInterestMeta *roi_meta =
                     gst_buffer_add_video_region_of_interest_meta(current_buf_, label, 0, 0, 0, 0);
 
-                std::shared_ptr<AffineTransformInfoMetadata> affine_transform;
-                if (dls_buf_with_meta)
-                    affine_transform = find_metadata<AffineTransformInfoMetadata>(*dls_buf_with_meta);
+                auto affine_transform = find_metadata<AffineTransformInfoMetadata>(*meta_frame);
 
-                scaleRoi_(roi_meta, structure, nullptr, affine_transform.get());
+                scaleRoi_(roi_meta, out_tensor_data, nullptr, affine_transform.get());
 
-                gst_video_region_of_interest_meta_add_param(roi_meta, structure);
+                gst_video_region_of_interest_meta_add_param(roi_meta, out_tensor_data);
                 roi_meta->id = gst_util_seqnum_next();
                 if (parent_roi_meta)
                     roi_meta->parent_id = parent_roi_meta->id;
             } else { // attach as GstGVATensorMeta (full-frame) or param in GstVideoRegionOfInterestMeta (per-roi)
                 if (parent_roi_meta) {
-                    gst_video_region_of_interest_meta_add_param(parent_roi_meta, structure);
+                    gst_video_region_of_interest_meta_add_param(parent_roi_meta, out_tensor_data);
                 } else {
                     GstGVATensorMeta *tensor = GST_GVA_TENSOR_META_ADD(current_buf_);
                     if (tensor->data)
                         gst_structure_free(tensor->data);
-                    tensor->data = structure;
+                    tensor->data = out_tensor_data;
                 }
             }
         }
@@ -497,17 +631,15 @@ class MetaAggregatePrivate {
     GstAggregator *mybase_;
     gboolean attach_tensor_data_ = DEFAULT_ATTACH_TENSOR_DATA;
     GstCaps *current_caps_ = nullptr;
-    std::map<GstAggregatorPad *, FrameInfo> frame_info_;
     GstVideoInfo video_info_ = {};
 
     GstBuffer *current_buf_ = nullptr;
     GstClockTime current_running_time_ = GST_CLOCK_TIME_NONE;
     GstClockTime current_running_time_end_ = GST_CLOCK_TIME_NONE;
 
-    std::list<GstBuffer *> current_meta_bufs_;
+    std::list<GstFramePtr> current_meta_bufs_;
 
-    uint32_t tensor_pad_num_ = 0;
-
+    uint32_t request_pad_counters_[std::size(request_templs)] = {};
     MemoryMapperGSTToCPU gst_to_cpu_;
 };
 
@@ -528,7 +660,8 @@ gboolean MetaAggregatePrivate::sinkEvent(GstAggregatorPad *pad, GstEvent *event)
             gst_aggregator_set_src_caps(mybase_, caps);
             GST_INFO_OBJECT(mybase_, "src caps set: %" GST_PTR_FORMAT, caps);
         } else {
-            frame_info_.insert({pad, gst_caps_to_frame_info(caps)});
+            auto mypad = GST_META_AGGREGATE_PAD(pad);
+            mypad->impl->update_current_caps(caps);
         }
         break;
     }
@@ -627,7 +760,7 @@ static void meta_aggregate_class_init(MetaAggregateClass *klass) {
     GstElementClass *gstelement_class = GST_ELEMENT_CLASS(klass);
     GstAggregatorClass *gstaggregator_class = GST_AGGREGATOR_CLASS(klass);
 
-    GST_DEBUG_CATEGORY_INIT(meta_aggregate_debug, "metaaggregate", 0, "Tensor muxer");
+    GST_DEBUG_CATEGORY_INIT(meta_aggregate_debug, "meta_aggregate", 0, "Tensor muxer");
 
     gobject_class->finalize = meta_aggregate_finalize;
 
@@ -659,7 +792,9 @@ static void meta_aggregate_class_init(MetaAggregateClass *klass) {
     // gstaggregator_class->flush = GST_DEBUG_FUNCPTR(metaaggregate_flush);
     // gstaggregator_class->get_next_time = GST_DEBUG_FUNCPTR(metaaggregate_get_next_time);
 
-    gst_element_class_add_static_pad_template_with_gtype(gstelement_class, &tensor_templ, GST_TYPE_META_AGGREGATE_PAD);
+    for (auto &templ : request_templs) {
+        gst_element_class_add_static_pad_template_with_gtype(gstelement_class, &templ, GST_TYPE_META_AGGREGATE_PAD);
+    }
     gst_element_class_add_static_pad_template_with_gtype(gstelement_class, &sink_templ, GST_TYPE_META_AGGREGATE_PAD);
     gst_element_class_add_static_pad_template_with_gtype(gstelement_class, &src_templ, GST_TYPE_AGGREGATOR_PAD);
     gst_element_class_set_static_metadata(gstelement_class, "[Preview] Tensor AV Muxer", "Codec/Muxer",
@@ -672,9 +807,9 @@ static void meta_aggregate_class_init(MetaAggregateClass *klass) {
                              "If true, additionally copies tensor data into metadata", DEFAULT_ATTACH_TENSOR_DATA,
                              static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 
-#if 0
+#if GST_CHECK_VERSION(1, 18, 0)
     // Since 1.18
-    gst_type_mark_as_plugin_api(GST_TYPE_META_AGGREGATE_PAD, 0);
+    gst_type_mark_as_plugin_api(GST_TYPE_META_AGGREGATE_PAD, static_cast<GstPluginAPIFlags>(0));
 #else
     g_type_class_ref(GST_TYPE_META_AGGREGATE_PAD);
 #endif

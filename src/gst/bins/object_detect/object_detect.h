@@ -12,8 +12,6 @@
 
 G_BEGIN_DECLS
 
-GST_DEBUG_CATEGORY_EXTERN(object_detect_debug_category);
-
 GType object_detect_get_type(void);
 
 G_END_DECLS

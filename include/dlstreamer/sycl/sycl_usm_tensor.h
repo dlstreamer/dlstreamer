@@ -12,18 +12,17 @@
 
 namespace dlstreamer {
 
+namespace tensor::key {
+static constexpr auto usm_type = "usm_type"; // enum sycl::usm::alloc
+};
+
 class SYCLUSMTensor : public BaseTensor {
   public:
-    struct key {
-        static constexpr auto data = "data";         // void*
-        static constexpr auto usm_type = "usm_type"; // enum sycl::usm::alloc
-    };
-
     SYCLUSMTensor(const TensorInfo &info, ContextPtr context, sycl::usm::alloc usm_type)
-        : BaseTensor(MemoryType::USM, info, key::data, context), _usm_type(usm_type), _take_ownership(true) {
+        : BaseTensor(MemoryType::USM, info, tensor::key::data, context), _usm_type(usm_type), _take_ownership(true) {
         _data = ptr_cast<SYCLContext>(context)->malloc<uint8_t>(info.nbytes(), usm_type);
-        set_handle(key::data, reinterpret_cast<handle_t>(_data));
-        set_handle(key::usm_type, static_cast<handle_t>(usm_type));
+        set_handle(tensor::key::data, reinterpret_cast<handle_t>(_data));
+        set_handle(tensor::key::usm_type, static_cast<handle_t>(usm_type));
     }
 
     ~SYCLUSMTensor() {

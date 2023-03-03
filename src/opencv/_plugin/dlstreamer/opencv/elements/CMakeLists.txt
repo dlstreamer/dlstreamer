@@ -19,6 +19,7 @@ PUBLIC
     ${OpenCV_LIBS}
     dlstreamer_api
     opencv_remove_background
+    tensor_postproc_human_pose
 )
 
 if (TARGET opencv_warp_affine) # available if DLS_HAVE_OPENCV_UMAT

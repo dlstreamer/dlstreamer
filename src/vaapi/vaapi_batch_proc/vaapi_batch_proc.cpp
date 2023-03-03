@@ -18,19 +18,19 @@
 namespace dlstreamer {
 
 namespace param {
-static constexpr auto aspect_ratio = "aspect-ratio";
+static constexpr auto add_borders = "add-borders"; // aspect-ratio
 static constexpr auto output_format = "output-format";
 }; // namespace param
 
 static ParamDescVector params_desc = {
-    {param::aspect_ratio, "Keep the aspect ratio (add borders if necessary)", false},
+    {param::add_borders, "Add borders if necessary to keep the aspect ratio", false},
     {param::output_format, "Image format for output frames: BGR or RGB or GRAY", "BGR"},
 };
 
 class VaapiBatchProc : public BaseTransform {
   public:
     VaapiBatchProc(DictionaryCPtr params, const ContextPtr &app_context) : BaseTransform(app_context) {
-        _aspect_ratio = params->get<bool>(param::aspect_ratio, false);
+        _aspect_ratio = params->get<bool>(param::add_borders, false);
         std::string output_format_str = params->get(param::output_format, std::string());
         if (!output_format_str.empty()) {
             if (output_format_str.find("BGR") != std::string::npos)
@@ -166,7 +166,7 @@ extern "C" {
 ElementDesc vaapi_batch_proc = {.name = "vaapi_batch_proc",
                                 .description = "Batched pre-processing with VAAPI memory as input and output",
                                 .author = "Intel Corporation",
-                                .params = nullptr,
+                                .params = &params_desc,
                                 .input_info = {{MediaType::Image, MemoryType::VAAPI}},
                                 .output_info = {{MediaType::Tensors, MemoryType::VAAPI}},
                                 .create = create_element<VaapiBatchProc>,

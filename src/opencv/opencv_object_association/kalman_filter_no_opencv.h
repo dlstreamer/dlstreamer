@@ -7,7 +7,7 @@
 #ifndef __KALMAN_FILTER_KALMAN_FILTER_NO_OPENCV_H__
 #define __KALMAN_FILTER_KALMAN_FILTER_NO_OPENCV_H__
 
-#include "common.h"
+#include "dlstreamer/utils.h"
 #include <opencv2/video.hpp>
 
 const float kMeasurementNoiseCoordinate = 0.001f;

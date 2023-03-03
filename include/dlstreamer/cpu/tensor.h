@@ -12,12 +12,8 @@ namespace dlstreamer {
 
 class CPUTensor : public BaseTensor {
   public:
-    struct key {
-        static constexpr auto data = "data"; // void*
-    };
-
-    CPUTensor(const TensorInfo &info, void *data) : BaseTensor(MemoryType::CPU, info, key::data), _data(data) {
-        set_handle(key::data, reinterpret_cast<handle_t>(data));
+    CPUTensor(const TensorInfo &info, void *data) : BaseTensor(MemoryType::CPU, info, tensor::key::data), _data(data) {
+        set_handle(tensor::key::data, reinterpret_cast<handle_t>(data));
     }
 
     void *data() const override {

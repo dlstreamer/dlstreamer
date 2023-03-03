@@ -17,12 +17,16 @@
 
 namespace dlstreamer {
 
+namespace tensor::key {
+static constexpr auto offset = "offset";           // (size_t)
+static constexpr auto plane_index = "plane_index"; // int
+static constexpr auto offset_x = "offset_x";       // int
+static constexpr auto offset_y = "offset_y";       // int
+static constexpr auto data = "data";               // void*
+};                                                 // namespace tensor::key
+
 class BaseTensor : public Tensor {
   public:
-    struct key {
-        static constexpr auto offset = "offset"; // (size_t)
-    };
-
     BaseTensor(MemoryType memory_type, const TensorInfo &info, std::string_view primary_key = {},
                ContextPtr context = nullptr)
         : _memory_type(memory_type), _info(info), _primary_key(primary_key), _context(context) {
@@ -74,7 +78,7 @@ class BaseTensor : public Tensor {
         _parent = parent;
     }
 
-    void set_handle(std::string key, handle_t handle) {
+    void set_handle(const std::string &key, handle_t handle) {
         _handles[key] = handle;
     }
 

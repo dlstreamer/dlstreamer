@@ -37,6 +37,7 @@ PRIVATE
     common
     elements
     inference_elements
+    gvatrack
     gstdlstreamer_bins
 )
 

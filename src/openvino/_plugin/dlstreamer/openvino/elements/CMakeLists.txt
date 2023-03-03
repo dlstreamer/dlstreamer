@@ -12,7 +12,7 @@ set_compile_flags(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
 PRIVATE
     dlstreamer_api
-    openvino_tensor_inference
+    openvino_inference
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

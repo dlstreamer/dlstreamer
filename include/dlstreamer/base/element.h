@@ -16,7 +16,14 @@ template <class T>
 class BaseElement : public T {
   public:
     bool init() override {
-        std::call_once(_init_flag, [this] { _init_result = init_once(); });
+        // std::call_once can't be used here due to bug in gcc:
+        //   In case of exception second call to std::call_once will hang
+        //   https://gcc.gnu.org/bugzilla/show_bug.cgi?id=66146
+        // It's not expected to be a concurrent call, so it can be replaced with a simple flag.
+        if (!_init_flag) {
+            _init_result = init_once();
+            _init_flag = true;
+        }
         return _init_result;
     }
 
@@ -30,8 +37,8 @@ class BaseElement : public T {
     }
 
   private:
-    std::once_flag _init_flag;
-    bool _init_result;
+    bool _init_flag = false;
+    bool _init_result = false;
 };
 
 } // namespace dlstreamer

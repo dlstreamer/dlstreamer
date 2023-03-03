@@ -18,9 +18,6 @@ G_BEGIN_DECLS
 #define ROI_SPLIT_NAME "Split buffer with multiple GstVideoRegionOfInterestMeta into multiple buffers"
 #define ROI_SPLIT_DESCRIPTION ROI_SPLIT_NAME
 
-GST_DEBUG_CATEGORY_EXTERN(roi_split_debug_category);
-#define GST_DEBUG_CAT_ROI_SPLIT roi_split_debug_category
-
 #define GST_TYPE_ROI_SPLIT (roi_split_get_type())
 #define ROI_SPLIT(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_ROI_SPLIT, RoiSplit))
 #define ROI_SPLIT_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_ROI_SPLIT, RoiSplitClass))

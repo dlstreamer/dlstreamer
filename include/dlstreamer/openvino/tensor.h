@@ -13,16 +13,16 @@
 
 namespace dlstreamer {
 
+namespace tensor::key {
+static constexpr auto ov_tensor = "ov_tensor"; // (ov::Tensor*)
+};
+
 class OpenVINOTensor : public BaseTensor {
   public:
-    struct key {
-        static constexpr auto ov_tensor = "ov_tensor"; // (ov::Tensor*)
-    };
-
     OpenVINOTensor(ov::Tensor tensor, ContextPtr context, std::function<void()> wait_function = nullptr)
-        : BaseTensor(MemoryType::OpenVINO, ov_tensor_to_tensor_info(tensor), key::ov_tensor, context),
+        : BaseTensor(MemoryType::OpenVINO, ov_tensor_to_tensor_info(tensor), tensor::key::ov_tensor, context),
           _ov_tensor(tensor), _wait_function(wait_function) {
-        set_handle(key::ov_tensor, reinterpret_cast<handle_t>(&_ov_tensor));
+        set_handle(tensor::key::ov_tensor, reinterpret_cast<handle_t>(&_ov_tensor));
     }
 
     void *data() const override {

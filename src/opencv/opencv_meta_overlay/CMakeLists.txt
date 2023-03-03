@@ -19,5 +19,5 @@ PRIVATE
 target_link_libraries(${TARGET_NAME}
 PUBLIC
         dlstreamer_api
-        base_watermark
+        base_meta_overlay
 )

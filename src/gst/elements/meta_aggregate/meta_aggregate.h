@@ -12,9 +12,6 @@
 
 G_BEGIN_DECLS
 
-GST_DEBUG_CATEGORY_EXTERN(meta_aggregate_debug);
-#define GST_DEBUG_CAT_META_AGGREGATE meta_aggregate_debug
-
 #define GST_TYPE_META_AGGREGATE (meta_aggregate_get_type())
 #define GST_META_AGGREGATE(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_META_AGGREGATE, MetaAggregate))
 #define GST_META_AGGREGATE_CLASS(klass) (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_META_AGGREGATE, MetaAggregateClass))
@@ -32,7 +29,7 @@ GType meta_aggregate_pad_get_type(void);
 
 struct MetaAggregatePad {
     GstAggregatorPad parent;
-    // TODO: add some useful fields
+    class MetaAggregatePadPrivate *impl;
 };
 
 struct MetaAggregatePadClass {

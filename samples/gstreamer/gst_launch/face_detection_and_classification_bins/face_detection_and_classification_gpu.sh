@@ -8,10 +8,6 @@ set -e
 
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 
-MODEL1=face-detection-adas-0001
-MODEL2=emotions-recognition-retail-0003
-MODEL3=landmarks-regression-retail-0009
-
 if [[ $INPUT == "/dev/video"* ]]; then
   SOURCE_ELEMENT="v4l2src device=${INPUT}"
 elif [[ $INPUT == *"://"* ]]; then
@@ -28,7 +24,7 @@ gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
 decodebin ! \
 processbin \
-    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! vaapipostproc ! videoconvert ! tensor_convert" \
+    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! vaapipostproc ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL1_PATH device=GPU" \
     postprocess="tensor_postproc_detection threshold=0.5" \
     aggregate="meta_aggregate attach-tensor-data=false" ! \
@@ -38,11 +34,11 @@ processbin \
     postprocess="tensor_postproc_label labels=<neutral,happy,sad,surprise,anger> attribute-name=emotion method=max" \
     aggregate=meta_aggregate ! \
 processbin \
-    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! roi_split ! vaapipostproc ! videoconvert ! tensor_convert" \
+    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! roi_split ! vaapipostproc ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL3_PATH device=GPU" \
     postprocess="tensor_postproc_add_params format=landmark_points" \
     aggregate=meta_aggregate ! \
-gvawatermark ! \
+meta_overlay device=GPU ! \
 videoconvert ! \
 gvafpscounter ! \
 autovideosink sync=false

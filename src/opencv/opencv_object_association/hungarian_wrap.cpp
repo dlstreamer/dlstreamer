@@ -6,7 +6,7 @@
 
 #include "hungarian_wrap.h"
 
-#include "common.h"
+#include "dlstreamer/utils.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -33,7 +33,7 @@ HungarianAlgo::~HungarianAlgo() {
 }
 
 cv::Mat_<uint8_t> HungarianAlgo::Solve() {
-    ETHROW(size_height_ > 0 && size_width_ > 0, invalid_argument, "Initialized with invalid cost_map size in Solve");
+    DLS_CHECK(size_height_ > 0 && size_width_ > 0);
 
     // Initialize the gungarian_problem using the cost matrix
     cv::Mat_<uint8_t> assignment_map;
@@ -62,8 +62,7 @@ int32_t HungarianAlgo::InitHungarian(int32_t mode) {
     int32_t **cost_matrix = &int_cost_map_rows_[0];
 
     // Is the number of cols  not equal to number of size_height_ : if yes, expand with 0-size_width_ / 0-size_width_
-    ETHROW(size_height_ > 0 && size_width_ > 0, invalid_argument,
-           "Initialized with invalid cost_map size in InitHungarian");
+    DLS_CHECK(size_height_ > 0 && size_width_ > 0);
     problem_.num_rows = (size_width_ < size_height_) ? size_height_ : size_width_;
     problem_.num_cols = problem_.num_rows;
 
@@ -94,7 +93,7 @@ int32_t HungarianAlgo::InitHungarian(int32_t mode) {
     } else if (mode == kHungarianModeMinimizeCost) {
         // Nothing to do
     } else {
-        TRACE(" Unknown mode. Mode was set to HUNGARIAN_MODE_MINIMIZE_COST");
+        throw std::runtime_error("Unknown mode. Mode was set to HUNGARIAN_MODE_MINIMIZE_COST");
     }
 
     return problem_.num_rows;
@@ -111,7 +110,7 @@ void HungarianAlgo::SolveHungarian() {
     int32_t unmatched = 0;
     int32_t cost = 0;
 
-    ETHROW(problem_.cost.size() != 0 && problem_.assignment.size() != 0, logic_error, "Unexpected solve");
+    DLS_CHECK(problem_.cost.size() != 0 && problem_.assignment.size() != 0);
 
     std::unique_ptr<int32_t[]> vert_col(new int32_t[problem_.num_rows]);
     std::unique_ptr<int32_t[]> row_unselected(new int32_t[problem_.num_rows]);
@@ -142,7 +141,7 @@ void HungarianAlgo::SolveHungarian() {
             problem_.assignment[i][j] = kHungarianNotAssigned;
 
     // Begin subtract column minima in order to start with lots of zeroes 12
-    TRACE(" Using heuristic");
+    // TRACE(" Using heuristic");
 
     for (int32_t i = 0; i < problem_.num_cols; ++i) {
         int32_t s = problem_.cost[0][i];
@@ -181,7 +180,7 @@ void HungarianAlgo::SolveHungarian() {
             if (s == problem_.cost[k][l] && vert_row[l] < 0) {
                 vert_col[k] = l;
                 vert_row[l] = k;
-                TRACE(" Matching col (%d)==row (%d)", l, k);
+                // TRACE(" Matching col (%d)==row (%d)", l, k);
 
                 is_row_done = true;
                 break;
@@ -192,7 +191,7 @@ void HungarianAlgo::SolveHungarian() {
             continue;
         } else {
             vert_col[k] = -1;
-            TRACE(" Node %d: unmatched row %d", t, k);
+            // TRACE(" Node %d: unmatched row %d", t, k);
             row_unselected[t++] = k;
         }
     }
@@ -204,7 +203,7 @@ void HungarianAlgo::SolveHungarian() {
 
     unmatched = t;
     while (1) {
-        TRACE("Matched %d rows.", problem_.num_rows - t);
+        // TRACE("Matched %d rows.", problem_.num_rows - t);
         int32_t q = 0;
         while (1) {
             while (q < t) {
@@ -224,7 +223,7 @@ void HungarianAlgo::SolveHungarian() {
                             goto leave_break_thru;
                         slack[l] = 0;
                         parent_row[l] = k;
-                        TRACE("node %d: row %d==col %d--row %d", t, vert_row[l], l, k);
+                        // TRACE("node %d: row %d==col %d--row %d", t, vert_row[l], l, k);
 
                         row_unselected[t++] = vert_row[l];
                     } else {
@@ -254,7 +253,7 @@ void HungarianAlgo::SolveHungarian() {
                     if (slack[l] == 0) {
                         // Begin look at a new zero 22
                         k = row_slack[l];
-                        TRACE("Decreasing uncovered elements by %d produces zero at [%d,%d]", s, k, l);
+                        // TRACE("Decreasing uncovered elements by %d produces zero at [%d,%d]", s, k, l);
                         if (vert_row[l] < 0) {
                             for (int32_t j = l + 1; j < problem_.num_cols; ++j) {
                                 if (slack[j] == 0)
@@ -264,7 +263,7 @@ void HungarianAlgo::SolveHungarian() {
                             goto leave_break_thru;
                         } else {
                             parent_row[l] = k;
-                            TRACE("node %d: row %d==col %d--row %d", t, vert_row[l], l, k);
+                            // TRACE("node %d: row %d==col %d--row %d", t, vert_row[l], l, k);
                             row_unselected[t++] = vert_row[l];
                         }
                         // End look at a new zero 22
@@ -277,12 +276,12 @@ void HungarianAlgo::SolveHungarian() {
         } // while (1)
 
     leave_break_thru:
-        TRACE("Breakthrough at node %d of %d!", q, t);
+        // TRACE("Breakthrough at node %d of %d!", q, t);
         while (1) {
             int32_t j = vert_col[k];
             vert_col[k] = l;
             vert_row[l] = k;
-            TRACE("rematching col %d==row %d", l, k);
+            // TRACE("rematching col %d==row %d", l, k);
             if (j < 0)
                 break;
 
@@ -303,7 +302,7 @@ void HungarianAlgo::SolveHungarian() {
 
         for (int32_t i = 0; i < problem_.num_rows; ++i) {
             if (vert_col[i] < 0) {
-                TRACE(" Node %d: unmatched row %d", t, i);
+                // TRACE(" Node %d: unmatched row %d", t, i);
                 row_unselected[t++] = i;
             }
         }

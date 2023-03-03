@@ -12,5 +12,6 @@ set_compile_flags(${TARGET_NAME})
 target_link_libraries(${TARGET_NAME}
 PUBLIC
         dlstreamer_api
-        base_watermark
+        dlstreamer_logger
+        base_meta_overlay
 )

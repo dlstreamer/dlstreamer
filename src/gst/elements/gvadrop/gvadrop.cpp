@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <string>
 
-GST_DEBUG_CATEGORY(gva_drop_debug_category);
+GST_DEBUG_CATEGORY_STATIC(gva_drop_debug_category);
 #define GST_CAT_DEFAULT gva_drop_debug_category
 
 namespace {

@@ -10,10 +10,12 @@ set(TARGET_NAME "tensor_postproc")
 
 file(GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/yolo/yolo_parser.cpp
         )
 
 file(GLOB MAIN_HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
+        ${CMAKE_CURRENT_SOURCE_DIR}/yolo/yolo_parser.h
         )
 
 add_library(${TARGET_NAME} OBJECT ${MAIN_SRC} ${MAIN_HEADERS})
@@ -25,8 +27,9 @@ target_include_directories(${TARGET_NAME}
         )
 
 target_link_libraries(${TARGET_NAME}
-        PUBLIC
+    PUBLIC
         dlstreamer_api
-        )
+        dlstreamer_logger
+)
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

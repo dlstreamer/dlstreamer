@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -9,7 +9,7 @@ VIDEO_FILE=${1}
 
 EXE_NAME=ffmpeg_dpcpp_rgb_to_grayscale
 BUILD_DIR=$HOME/intel/dl_streamer/samples/${EXE_NAME}/build
-BASE_DIR=$(dirname "$0")
+BASE_DIR=$(realpath $(dirname "$0"))
 
 source /opt/intel/oneapi/setvars.sh
 

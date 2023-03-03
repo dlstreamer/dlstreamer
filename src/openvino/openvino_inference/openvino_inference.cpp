@@ -4,12 +4,14 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "dlstreamer/openvino/elements/openvino_tensor_inference.h"
+#include "dlstreamer/openvino/elements/openvino_inference.h"
+
 #include "dlstreamer/base/transform.h"
 #include "dlstreamer/image_metadata.h"
 #include "dlstreamer/memory_mapper_factory.h"
 #include "dlstreamer/openvino/context.h"
 #include "dlstreamer/vaapi/context.h"
+#include "dlstreamer_logger.h"
 
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
@@ -44,7 +46,8 @@ static ParamDescVector params_desc = {
 class OpenVinoTensorInference : public BaseTransform {
   public:
     OpenVinoTensorInference(DictionaryCPtr params, const ContextPtr &app_context)
-        : BaseTransform(app_context), _params(params) {
+        : BaseTransform(app_context), _params(params),
+          _logger(log::get_or_nullsink(params->get(param::logger_name, std::string()))) {
         _device = _params->get<std::string>(param::device);
         _buffer_pool_size = _params->get<int>(param::buffer_pool_size, 16);
         read_ir_model();
@@ -53,14 +56,6 @@ class OpenVinoTensorInference : public BaseTransform {
     FrameInfoVector get_input_info() override {
         auto infos = info_variations(_model_input_info, {MemoryType::OpenCL, MemoryType::CPU},
                                      {DataType::UInt8, DataType::Float32});
-
-        if (is_device_gpu()) {
-            // Special case for VAAPI.
-            // Do not expose NV12 VASurface as an input capability if device is not set to GPU
-            assert(_model_input_info.tensors.size() == 1);
-            FrameInfo i(ImageFormat::NV12, MemoryType::VAAPI, {_model_input_info.tensors.front()});
-            infos.push_back(i);
-        }
         return infos;
     }
 
@@ -98,16 +93,8 @@ class OpenVinoTensorInference : public BaseTransform {
     }
 
     bool init_once() override {
-        // Special case for VAAPI NV12 surface input
-        if (_input_info.media_type == MediaType::Image && _input_info.memory_type == MemoryType::VAAPI) {
-            if (!is_device_gpu())
-                throw std::runtime_error("VASurface as input supported only for inference on GPU");
-            create_remote_context();
-        }
-
-        if (_input_info.tensors != _model_input_info.tensors || _input_info.media_type != MediaType::Tensors) {
+        if (is_preprocessing_required())
             configure_model_preprocessing();
-        }
 
         load_network();
 
@@ -117,7 +104,7 @@ class OpenVinoTensorInference : public BaseTransform {
                 _openvino_context = std::make_shared<OpenVINOContext>(_compiled_model);
             _input_mapper = create_mapper({_app_context, interm_context, _openvino_context});
         }
-#if 0
+
         // print all properties
         try {
             auto supported_properties = _compiled_model.get_property(ov::supported_properties);
@@ -125,11 +112,10 @@ class OpenVinoTensorInference : public BaseTransform {
                 if (cfg == ov::supported_properties)
                     continue;
                 auto prop = _compiled_model.get_property(cfg);
-                std::cout << "  OpenVINO™ toolkit config: " << cfg << " \t= " << prop.as<std::string>() << std::endl;
+                SPDLOG_LOGGER_INFO(_logger, "OpenVINO™ toolkit config: {} \t= {}", cfg, prop.as<std::string>());
             }
         } catch (const ov::Exception &) {
         }
-#endif
 
         return true;
     }
@@ -191,6 +177,7 @@ class OpenVinoTensorInference : public BaseTransform {
     DictionaryCPtr _params;
     MemoryMapperPtr _input_mapper;
     OpenVINOContextPtr _openvino_context;
+    std::shared_ptr<spdlog::logger> _logger;
 
     bool is_device_gpu() const {
         return _device.find("GPU") != std::string::npos;
@@ -214,39 +201,27 @@ class OpenVinoTensorInference : public BaseTransform {
         return _openvino_context;
     }
 
+    virtual bool is_preprocessing_required() const {
+        return _input_info.tensors != _model_input_info.tensors || _input_info.media_type != MediaType::Tensors;
+    }
+
     // Setups model preprocessing
-    void configure_model_preprocessing() {
+    virtual void configure_model_preprocessing() {
+        if (_input_info.media_type != MediaType::Tensors)
+            throw std::runtime_error("Tensor input is expected");
+
         ov::preprocess::PrePostProcessor ppp(_model);
         auto &ppp_input = ppp.input();
 
-        switch (_input_info.media_type) {
-        case MediaType::Tensors: {
-            if (_input_info.tensors.size() != 1 || _model_input_info.tensors.size() != 1)
-                throw std::runtime_error("Can't enable pre-processing on model with multiple tensors input");
-            auto &model_info = _model_input_info.tensors.front();
-            auto &requested_info = _input_info.tensors.front();
+        if (_input_info.tensors.size() != 1 || _model_input_info.tensors.size() != 1)
+            throw std::runtime_error("Can't enable pre-processing on model with multiple tensors input");
+        auto &model_info = _model_input_info.tensors.front();
+        auto &requested_info = _input_info.tensors.front();
 
-            if (requested_info.dtype != model_info.dtype)
-                ppp_input.tensor().set_element_type(data_type_to_openvino(requested_info.dtype));
-            if (requested_info.shape != model_info.shape)
-                ppp_input.tensor().set_shape({requested_info.shape});
-        } break;
-
-        case MediaType::Image:
-            // Special case for VAAPI NV12 surface input
-            if (_input_info.memory_type != MemoryType::VAAPI)
-                throw std::runtime_error("Image input is supported only for NV12 image format and VASurface memory");
-            ppp_input.tensor()
-                .set_element_type(ov::element::u8)
-                .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-                .set_memory_type(ov::intel_gpu::memory_type::surface);
-            ppp_input.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-            ppp_input.model().set_layout("NCHW");
-            break;
-
-        default:
-            throw std::runtime_error("Unsupported input media type");
-        }
+        if (requested_info.dtype != model_info.dtype)
+            ppp_input.tensor().set_element_type(data_type_to_openvino(requested_info.dtype));
+        if (requested_info.shape != model_info.shape)
+            ppp_input.tensor().set_shape({requested_info.shape});
 
         // ppp_input.model().set_layout("NHWC");
         // ppp_input.preprocess().convert_color(ov::preprocess::ColorFormat::BGRX);
@@ -298,7 +273,6 @@ class OpenVinoTensorInference : public BaseTransform {
 
         return m;
     }
-
     void adjust_ie_config(ov::AnyMap &ie_config) {
         const std::string num_streams_key = get_device_type() + "_THROUGHPUT_STREAMS";
         if (ie_config.count(ov::num_streams.name()) || ie_config.count(num_streams_key))
@@ -318,20 +292,81 @@ class OpenVinoTensorInference : public BaseTransform {
             ie_config[num_streams_key] = std::string(get_device_type() + "_THROUGHPUT_AUTO");
         else if (supported(ov::num_streams.name()))
             ie_config[ov::num_streams.name()] = ov::streams::AUTO;
-    };
+    }
+};
+
+class OpenVinoVideoInference : public OpenVinoTensorInference {
+  public:
+    using OpenVinoTensorInference::OpenVinoTensorInference;
+
+    FrameInfoVector get_input_info() override {
+        assert(_model_input_info.tensors.size() == 1);
+        FrameInfo frame_info(ImageFormat::NV12, MemoryType::VAAPI, {_model_input_info.tensors.front()});
+
+        return {frame_info};
+    }
+
+    bool init_once() override {
+        if (_input_info.media_type != MediaType::Image)
+            throw std::runtime_error("Image input is expected");
+        if (_input_info.memory_type != MemoryType::VAAPI ||
+            static_cast<ImageFormat>(_input_info.format) != ImageFormat::NV12) {
+            throw std::runtime_error("Image input is supported only for NV12 image format and VASurface memory");
+        }
+        if (!is_device_gpu())
+            throw std::runtime_error("VASurface as input supported only for inference on GPU");
+
+        create_remote_context();
+
+        // Chain to base implementation
+        return OpenVinoTensorInference::init_once();
+    }
+
+  protected:
+    bool is_preprocessing_required() const override {
+        // The pre-processing configuration is required for NV12 VASurface input
+        return true;
+    }
+
+    // Setups model preprocessing
+    void configure_model_preprocessing() override {
+        ov::preprocess::PrePostProcessor ppp(_model);
+        auto &ppp_input = ppp.input();
+
+        // Configure model's pre-processing for VAAPI NV12 surface input
+        ppp_input.tensor()
+            .set_element_type(ov::element::u8)
+            .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+            .set_memory_type(ov::intel_gpu::memory_type::surface);
+        ppp_input.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+        ppp_input.tensor().set_layout("NHWC");
+        ppp_input.model().set_layout("NCHW");
+
+        _model = ppp.build();
+    }
 };
 
 extern "C" {
-ElementDesc openvino_tensor_inference = {.name = "openvino_tensor_inference",
-                                         .description = "Inference on OpenVINO™ toolkit backend",
-                                         .author = "Intel Corporation",
-                                         .params = &params_desc,
-                                         .input_info = {{MediaType::Tensors, MemoryType::OpenCL},
-                                                        {MediaType::Tensors, MemoryType::CPU},
-                                                        {ImageFormat::NV12, MemoryType::VAAPI}},
-                                         .output_info = {{MediaType::Tensors, MemoryType::OpenVINO}},
-                                         .create = create_element<OpenVinoTensorInference>,
-                                         .flags = ELEMENT_FLAG_SHARABLE};
+ElementDesc openvino_tensor_inference = {
+    .name = "openvino_tensor_inference",
+    .description = "Inference on OpenVINO™ toolkit backend",
+    .author = "Intel Corporation",
+    .params = &params_desc,
+    .input_info = {{MediaType::Tensors, MemoryType::OpenCL}, {MediaType::Tensors, MemoryType::CPU}},
+    .output_info = {{MediaType::Tensors, MemoryType::OpenVINO}},
+    .create = create_element<OpenVinoTensorInference>,
+    .flags = ELEMENT_FLAG_SHARABLE};
+}
+
+extern "C" {
+ElementDesc openvino_video_inference = {.name = "openvino_video_inference",
+                                        .description = "Inference on OpenVINO™ toolkit backend",
+                                        .author = "Intel Corporation",
+                                        .params = &params_desc,
+                                        .input_info = {{ImageFormat::NV12, MemoryType::VAAPI}},
+                                        .output_info = {{MediaType::Tensors, MemoryType::OpenVINO}},
+                                        .create = create_element<OpenVinoVideoInference>,
+                                        .flags = ELEMENT_FLAG_SHARABLE};
 }
 
 } // namespace dlstreamer

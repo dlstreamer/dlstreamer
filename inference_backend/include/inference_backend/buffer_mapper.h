@@ -60,7 +60,7 @@ class BufferToImageMapper final {
                 image->planes[i] = static_cast<uint8_t *>(tensor->data());
             else
                 image->planes[i] = nullptr;
-            image->offsets[i] = tensor->handle(dlstreamer::BaseTensor::key::offset, 0);
+            image->offsets[i] = tensor->handle(dlstreamer::tensor::key::offset, 0);
             image->stride[i] = image_info.width_stride();
             size += info.nbytes();
         }
@@ -75,8 +75,8 @@ class BufferToImageMapper final {
             image->va_surface_id = dlstreamer::ptr_cast<dlstreamer::VAAPITensor>(tensor0)->va_surface();
             image->va_display = tensor0->context()->handle(dlstreamer::VAAPIContext::key::va_display);
         };
-        image->dma_fd = tensor0->handle(dlstreamer::DMATensor::key::dma_fd, 0);
-        image->drm_format_modifier = tensor0->handle(dlstreamer::DMATensor::key::drm_modifier, 0);
+        image->dma_fd = tensor0->handle(dlstreamer::tensor::key::dma_fd, 0);
+        image->drm_format_modifier = tensor0->handle(dlstreamer::tensor::key::drm_modifier, 0);
 
         return image;
     }

@@ -9,6 +9,7 @@
 #include "dlstreamer/cpu/utils.h"
 #include "dlstreamer/image_metadata.h"
 #include "dlstreamer/utils.h"
+#include "dlstreamer_logger.h"
 #include "load_labels_file.h"
 
 namespace dlstreamer {
@@ -53,7 +54,10 @@ static ParamDescVector params_desc = {
 
 class TensorPostProcDetection : public BaseTransformInplace {
   public:
-    TensorPostProcDetection(DictionaryCPtr params, const ContextPtr &app_context) : BaseTransformInplace(app_context) {
+    TensorPostProcDetection(DictionaryCPtr params, const ContextPtr &app_context)
+        : BaseTransformInplace(app_context),
+          _logger(log::get_or_nullsink(params->get(param::logger_name, std::string()))) {
+        SPDLOG_LOGGER_INFO(_logger, "create element");
         _labels = params->get(param::labels, std::vector<std::string>());
         auto labels_file = params->get(param::labels_file, std::string());
         if (!labels_file.empty())
@@ -74,10 +78,8 @@ class TensorPostProcDetection : public BaseTransformInplace {
 
     bool process(FramePtr src) override {
         auto frame = src.map(AccessMode::Read);
-
-        if (_box_index < 0) {
-            DLS_CHECK(auto_detect_format(frame_info(src)));
-        }
+        DLS_CHECK(auto_detect_format(src));
+        parse_model_info(src);
 
         int num_tensors = frame->num_tensors();
         DLS_CHECK(_box_index < num_tensors && _box_index >= 0);
@@ -86,23 +88,37 @@ class TensorPostProcDetection : public BaseTransformInplace {
         DLS_CHECK(_imageid_index < num_tensors);
         DLS_CHECK(_mask_index < num_tensors);
 
-        auto source_id_meta = find_metadata<SourceIdentifierMetadata>(*src);
-        int batch_index = source_id_meta ? source_id_meta->batch_index() : 0;
-
-        auto model_info_meta = find_metadata<ModelInfoMetadata>(*src);
-        auto model_name = model_info_meta ? model_info_meta->model_name() : std::string();
-        auto model_input_layers = model_info_meta ? model_info_meta->input_layers() : std::vector<std::string>();
-
-        auto label_dtype = (_label_index >= 0) ? frame->tensor(_label_index)->info().dtype : DataType(0);
-
         // all layers should have same "num_objects"
-        size_t num_objects = get_num_objects(frame->tensor(0)->info());
-        for (int i = 1; i < num_tensors; i++)
-            DLS_CHECK(num_objects == get_num_objects(frame->tensor(i)->info()));
+        size_t num_objects = get_num_objects(frame->tensor(_box_index)->info());
+        DLS_CHECK(check_objects_equal(frame, num_objects, _confidence_index));
+        DLS_CHECK(check_objects_equal(frame, num_objects, _label_index));
+        DLS_CHECK(check_objects_equal(frame, num_objects, _imageid_index));
+        DLS_CHECK(check_objects_equal(frame, num_objects, _mask_index));
 
-        for (size_t i = 0; i < num_objects; i++) {
+        int batch_index = 0;
+        auto source_id_meta = find_metadata<SourceIdentifierMetadata>(*src);
+        if (source_id_meta)
+            batch_index = source_id_meta->batch_index();
+
+        std::vector<size_t> confidence_offset;
+        std::vector<size_t> label_offset;
+        std::vector<size_t> box_offset{0, _box_offset};
+
+        if (_confidence_index >= 0) {
+            auto confidence_tensor = frame->tensor(_confidence_index);
+            confidence_offset = (confidence_tensor->info().shape.size() == 1)
+                                    ? std::vector<size_t>(1)
+                                    : std::vector<size_t>{0, _confidence_offset};
+        }
+        if (_label_index >= 0) {
+            auto label_tensor = frame->tensor(_label_index);
+            label_offset = (label_tensor->info().shape.size() == 1) ? std::vector<size_t>(1)
+                                                                    : std::vector<size_t>{0, _label_offset};
+        }
+
+        for (size_t object_idx = 0; object_idx < num_objects; object_idx++) {
             if (_imageid_index >= 0) {
-                float imageid = *frame->tensor(_imageid_index)->data<float>({i, _imageid_offset}, false);
+                float imageid = *frame->tensor(_imageid_index)->data<float>({object_idx, _imageid_offset}, false);
                 if (imageid != batch_index)
                     continue;
                 if (imageid < 0)
@@ -111,7 +127,8 @@ class TensorPostProcDetection : public BaseTransformInplace {
 
             float confidence = 0;
             if (_confidence_index >= 0) {
-                confidence = *frame->tensor(_confidence_index)->data<float>({i, _confidence_offset}, false);
+                confidence_offset.at(0) = object_idx;
+                confidence = *frame->tensor(_confidence_index)->data<float>(confidence_offset, false);
                 if (confidence < _threshold)
                     continue;
             }
@@ -119,50 +136,46 @@ class TensorPostProcDetection : public BaseTransformInplace {
             int64_t label_id = -1;
             if (_label_index >= 0) {
                 auto label_tensor = frame->tensor(_label_index);
-                std::vector<size_t> offset{i, _label_offset};
-                if (label_tensor->info().shape.size() == 1) {
-                    if (_label_offset != 0)
-                        throw std::runtime_error("Invalid label offset");
-                    offset.resize(1);
-                }
-
+                label_offset.at(0) = object_idx;
+                auto label_dtype = frame->tensor(_label_index)->info().dtype;
                 if (label_dtype == DataType::Float32)
-                    label_id = *label_tensor->data<float>(offset, false);
+                    label_id = *label_tensor->data<float>(label_offset, false);
                 else if (label_dtype == DataType::Int32)
-                    label_id = *label_tensor->data<int32_t>(offset, false);
+                    label_id = *label_tensor->data<int32_t>(label_offset, false);
                 else if (label_dtype == DataType::Int64)
-                    label_id = *label_tensor->data<int64_t>(offset, false);
+                    label_id = *label_tensor->data<int64_t>(label_offset, false);
                 else
                     throw std::runtime_error("Unsupported data type in label tensor");
             }
 
-            float *box = frame->tensor(_box_index)->data<float>({i, _box_offset}, false);
+            box_offset.at(0) = object_idx;
+            float *box = frame->tensor(_box_index)->data<float>(box_offset, false);
             float x_min = box[0];
             float y_min = box[1];
             float x_max = box[2];
             float y_max = box[3];
-            if (!(x_min < 2 && y_min < 2 && x_max < 2 && y_max < 2)) {
+            if (!(x_min < 2 && y_min < 2 && x_max < 2 && y_max < 2)) { // TODO is this check robust?
                 // convert absolute coordinates to normalized coordinates in range [0, 1]
-                DLS_CHECK(model_info_meta);
-                auto input = model_info_meta->input();
-                ImageInfo info(input.tensors.front());
-                x_min /= info.width();
-                y_min /= info.height();
-                x_max /= info.width();
-                y_max /= info.height();
+                DLS_CHECK(_model_input_width && _model_input_height);
+                x_min /= _model_input_width;
+                y_min /= _model_input_height;
+                x_max /= _model_input_width;
+                y_max /= _model_input_height;
             }
 
             DetectionMetadata meta(src->metadata().add(DetectionMetadata::name));
             std::string label = (label_id >= 0 && label_id < (int)_labels.size()) ? _labels[label_id] : std::string();
             meta.init(x_min, y_min, x_max, y_max, confidence, label_id, label);
-            if (!model_name.empty())
-                meta.set_model_name(model_name);
 
             if (_mask_index >= 0) {
-                auto mask_data = get_tensor_slice(frame->tensor(_mask_index), {{i, 1}}, true);
-                auto layer_name = (_mask_index < (int)model_input_layers.size()) ? model_input_layers[_mask_index] : "";
-                meta.init_tensor_data(*mask_data, layer_name, "mask");
+                auto mask_data = get_tensor_slice(frame->tensor(_mask_index), {{object_idx, 1}}, true);
+                meta.init_tensor_data(*mask_data, std::string(), "mask");
             }
+
+            if (!_model_name.empty())
+                meta.set_model_name(_model_name);
+            if (!_layer_name.empty())
+                meta.set_layer_name(_layer_name);
         }
 
         return true;
@@ -177,11 +190,26 @@ class TensorPostProcDetection : public BaseTransformInplace {
             tsize /= info.shape[info.shape.size() - 1];
         return tsize;
     }
-    bool auto_detect_format(const FrameInfo &info) {
+    bool check_objects_equal(const FramePtr &frame, size_t num_objects, int index) {
+        if (index < 0)
+            return true;
+        return (num_objects == get_num_objects(frame->tensor(index)->info()));
+    }
+
+    bool auto_detect_format(const FramePtr &frame) {
+        if (_box_index >= 0)
+            return true;
+        FrameInfo info = frame_info(frame);
         size_t num_tensors = info.tensors.size();
         auto &info0 = info.tensors[0];
         auto shape0 = info0.shape;
-        if (num_tensors == 1 && shape0[shape0.size() - 1] == 7) {
+        if (num_tensors == 1 && shape0.back() == 5) {
+            _box_index = 0;
+            _confidence_index = 0;
+
+            _box_offset = 0;
+            _confidence_offset = 4;
+        } else if (num_tensors == 1 && shape0.back() == 7) {
             _box_index = 0;
             _confidence_index = 0;
             _label_index = 0;
@@ -191,10 +219,7 @@ class TensorPostProcDetection : public BaseTransformInplace {
             _confidence_offset = 2;
             _label_offset = 1;
             _imageid_offset = 0;
-
-            return true;
-        }
-        if (num_tensors == 2 && shape0[shape0.size() - 1] == 5) {
+        } else if (num_tensors == 2 && shape0.back() == 5) {
             shape0.pop_back();
             if (shape0 == info.tensors[1].shape) {
                 _box_index = 0;
@@ -204,28 +229,81 @@ class TensorPostProcDetection : public BaseTransformInplace {
                 _box_offset = 0;
                 _confidence_offset = 4;
                 _label_offset = 0;
-
-                return true;
             }
-        }
-        if (num_tensors == 3) {
-            for (size_t tensorIdx = 0; tensorIdx < info.tensors.size(); ++tensorIdx) {
-                if (info.tensors[tensorIdx].shape.size() == 1)
-                    _label_index = tensorIdx;
-                else if (info.tensors[tensorIdx].shape.size() == 2)
-                    _box_index = _confidence_index = tensorIdx;
-                else if (info.tensors[tensorIdx].shape.size() == 3)
+        } else if ((num_tensors == 3) || (num_tensors == 5)) {
+            for (size_t tensorIdx = 0; tensorIdx < 3; ++tensorIdx) {
+                const auto &current_tensor = info.tensors[tensorIdx];
+                switch (current_tensor.shape.size()) {
+                case 1:
+                    if (current_tensor.dtype == DataType::Float32) {
+                        _confidence_index = tensorIdx;
+                        _confidence_offset = 0;
+                    } else {
+                        _label_index = tensorIdx;
+                    }
+                    break;
+                case 2:
+                    if (current_tensor.shape[1] == 5) {
+                        _confidence_index = tensorIdx;
+                        _confidence_offset = 4;
+                    }
+                    _box_index = tensorIdx;
+                    break;
+                case 3:
                     _mask_index = tensorIdx;
-                else
+                    break;
+                default:
+                    SPDLOG_LOGGER_ERROR(_logger, "unsupported shape size: {} on tensor_idx: {}",
+                                        current_tensor.shape.size(), tensorIdx);
+                    _box_index = -1;
                     return false;
+                }
             }
             _num_objects_index = 0;
             _box_offset = 0;
-            _confidence_offset = 4;
             _label_offset = 0;
-            return true;
         }
-        return false;
+        if (_box_index >= 0) {
+            SPDLOG_LOGGER_INFO(_logger, "Params detected for num_tensors: {} tensor_info: {}", num_tensors,
+                               tensor_info_to_string(info0));
+            SPDLOG_LOGGER_INFO(_logger,
+                               "Params pairs index and offset : box: {}x{}, confidence: {}x{}, label: {}x{}, "
+                               "image: {}x{} _num_objects_index: {} _mask_index: {}",
+                               _box_index, _box_offset, _confidence_index, _confidence_offset, _label_index,
+                               _label_offset, _imageid_index, _imageid_offset, _num_objects_index, _mask_index);
+            return true;
+        } else {
+            SPDLOG_LOGGER_ERROR(_logger, "unsupported num_tensors: {} tensor_info: {}", num_tensors,
+                                tensor_info_to_string(info0));
+            return false;
+        }
+    }
+
+    void parse_model_info(const FramePtr &frame) {
+        if (!_model_name.empty())
+            return;
+        auto model_info_meta = find_metadata<ModelInfoMetadata>(*frame);
+        if (!model_info_meta)
+            return;
+
+        _model_name = model_info_meta->model_name();
+
+        auto output_layers = model_info_meta->output_layers();
+        if (_mask_index >= 0 && _mask_index < (int)output_layers.size()) {
+            _layer_name = output_layers[_mask_index];
+        } else {
+            _layer_name = join_strings(output_layers.cbegin(), output_layers.cend(), '\\');
+        }
+
+        FrameInfo input_info = model_info_meta->input();
+        if (input_info.tensors.size()) {
+            ImageInfo image_info(input_info.tensors.front());
+            auto layout = image_info.layout();
+            if (layout.w_position() >= 0 && layout.h_position() >= 0) {
+                _model_input_width = image_info.width();
+                _model_input_height = image_info.height();
+            }
+        }
     }
 
   protected:
@@ -242,6 +320,14 @@ class TensorPostProcDetection : public BaseTransformInplace {
     size_t _confidence_offset;
     size_t _label_offset;
     size_t _imageid_offset;
+
+    // From ModelInfoMetadata
+    std::string _model_name;
+    std::string _layer_name;
+    int _model_input_width = 0;
+    int _model_input_height = 0;
+
+    std::shared_ptr<spdlog::logger> _logger;
 };
 
 extern "C" {

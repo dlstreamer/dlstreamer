@@ -190,9 +190,9 @@ void Tracker::track(dls::FramePtr buffer, GVA::VideoFrame &frame_meta) {
     for (const auto &tracked_object : tracked_objects) {
         if (tracked_object.status == vas::ot::TrackingStatus::LOST)
             continue;
-        if (tracked_object.association_idx != NO_ASSOCIATION)
+        if (tracked_object.association_idx != NO_ASSOCIATION) {
             regions[tracked_object.association_idx].set_object_id(tracked_object.tracking_id);
-        else {
+        } else {
             auto it = labels.find(tracked_object.class_label);
             std::string label = it != labels.end() ? it->second : std::string();
             append(frame_meta, tracked_object, label);

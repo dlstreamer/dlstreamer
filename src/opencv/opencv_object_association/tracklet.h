@@ -7,7 +7,7 @@
 #ifndef __OT_TRACKLET_H__
 #define __OT_TRACKLET_H__
 
-#include "common.h"
+#include "dlstreamer/utils.h"
 #include <cstdint>
 #include <deque>
 #include <opencv2/opencv.hpp>

@@ -5,4 +5,6 @@
 # ==============================================================================
 
 add_subdirectory(base_histogram)
-add_subdirectory(base_watermark)
+add_subdirectory(base_meta_overlay)
+
+add_subdirectory(dlstreamer_logger)

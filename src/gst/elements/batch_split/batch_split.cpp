@@ -10,7 +10,7 @@
 
 using namespace dlstreamer;
 
-GST_DEBUG_CATEGORY(batch_split_debug_category);
+GST_DEBUG_CATEGORY_STATIC(batch_split_debug_category);
 #define GST_CAT_DEFAULT batch_split_debug_category
 
 G_DEFINE_TYPE(TensorSplitBatch, batch_split, GST_TYPE_BASE_TRANSFORM);

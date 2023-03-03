@@ -27,6 +27,7 @@ PUBLIC
 target_link_libraries(${TARGET_NAME}
 PUBLIC
     dlstreamer_api
+    dlstreamer_logger
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

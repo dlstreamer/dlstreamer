@@ -7,8 +7,6 @@
             "output_sigmoid_activation": true,
             "do_cls_softmax": true,
             "iou_threshold": 0.4,
-            "bbox_number_on_cell": 3,
-            "cells_number": 13,
             "classes": 80,
             "anchors": [
                 10.0,

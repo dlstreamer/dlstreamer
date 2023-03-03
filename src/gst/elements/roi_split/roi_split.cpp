@@ -18,10 +18,12 @@ GstFlowReturn send_gap_event(GstPad *pad, GstBuffer *buf) {
 }
 } // namespace
 
-GST_DEBUG_CATEGORY(roi_split_debug_category);
+GST_DEBUG_CATEGORY_STATIC(roi_split_debug_category);
 #define GST_CAT_DEFAULT roi_split_debug_category
 
-G_DEFINE_TYPE(RoiSplit, roi_split, GST_TYPE_BASE_TRANSFORM);
+G_DEFINE_TYPE_WITH_CODE(RoiSplit, roi_split, GST_TYPE_BASE_TRANSFORM,
+                        GST_DEBUG_CATEGORY_INIT(roi_split_debug_category, "roi_split", 0,
+                                                "debug category for roi_split"));
 
 enum { PROP_0, PROP_OBJECT_CLASS };
 
@@ -53,7 +55,7 @@ static void roi_split_get_property(GObject *object, guint prop_id, GValue *value
     switch (prop_id) {
     case PROP_OBJECT_CLASS:
         if (self->object_classes) {
-            auto str = dlstreamer::join_strings(self->object_classes->begin(), self->object_classes->end());
+            auto str = dlstreamer::join_strings(self->object_classes->cbegin(), self->object_classes->cend());
             g_value_set_string(value, str.c_str());
         }
         break;

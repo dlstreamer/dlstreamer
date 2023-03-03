@@ -15,7 +15,9 @@ INFERENCE_DEVICE=${5:-CPU}  # Supported values: "CPU", "GPU", "AUTO", "MULTI:GPU
 NUMBER_STREAMS=${6:-1}
 NUMBER_PROCESSES=${7:-1}
 DECODE_ELEMENT=${8:-"decodebin"}
-SINK_ELEMENT=${9:-"fakesink async=false"}
+INFERENCE1_ELEMENT=${9:-"gvadetect"}
+INFERENCE2_ELEMENT=${10:-"gvaclassify"}
+SINK_ELEMENT=${11:-"fakesink async=false"}
 
 if [ -z ${1} ]; then
   echo "ERROR set path to video"
@@ -28,32 +30,32 @@ fi
 
 if [ $NUMBER_STREAMS -lt $NUMBER_PROCESSES ]; then
   echo "ERROR: wrong value for NUMBER_STREAMS parameter"
-  echo "Number of streams must be more or equal to NUMBER_PROCESSES parameter"
+  echo "The number of streams must be greater than or equal to NUMBER_PROCESSES parameter"
   exit
 fi
 
 # Decode parameters
-if [ "$DECODE_ELEMENT" == decodebin ] && [ "$DECODE_DEVICE" == CPU ]; then
+if [ "$DECODE_ELEMENT" == "decodebin" ] && [ "$DECODE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" force-sw-decoders=true"
 fi
-if [ $DECODE_DEVICE == CPU ]; then
+if [ "$DECODE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw"
-elif [ $DECODE_DEVICE == GPU ]; then
+elif [ "$DECODE_DEVICE" == "GPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw\(memory:VASurface\)"
-elif [ $DECODE_DEVICE != AUTO ]; then
+elif [ "$DECODE_DEVICE" != "AUTO" ]; then
   echo "Incorrect parameter DECODE_DEVICE. Supported values: CPU, GPU, AUTO"
   exit
 fi
 
 # Inference parameters
 PARAMS=''
-if [ $DECODE_DEVICE == GPU ] && [ $INFERENCE_DEVICE == GPU ]; then
+if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "GPU" ]; then
     PARAMS+="batch-size=64 nireq=4 pre-process-backend=vaapi-surface-sharing" # scale-method=fast
 fi
-if [ $DECODE_DEVICE == GPU ] && [ $INFERENCE_DEVICE == CPU ]; then
+if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "CPU" ]; then
     PARAMS+="pre-process-backend=vaapi"
 fi
-if [ $INFERENCE_DEVICE == CPU ] && [ $NUMBER_PROCESSES > 1 ]; then # limit number inference threads per process
+if [ "$INFERENCE_DEVICE" == "CPU" ] && [ $NUMBER_PROCESSES -gt 1 ]; then # limit number inference threads per process
     CORES=`nproc`
     THREADS_NUM=$((($CORES + $CORES % $NUMBER_PROCESSES) / $NUMBER_PROCESSES))
     if [ $THREADS_NUM -eq 0 ]; then
@@ -68,8 +70,8 @@ fi
 # Pipeline for single stream
 PIPELINE=" filesrc location=${VIDEO_FILE_NAME} ! \
 ${DECODE_ELEMENT} ! \
-gvadetect model-instance-id=inf0 model=${MODEL1_PATH} device=${INFERENCE_DEVICE} ${PARAMS} ! queue ! \
-gvaclassify model-instance-id=inf1 model=${MODEL2_PATH} device=${INFERENCE_DEVICE} ${PARAMS} ! queue ! \
+${INFERENCE1_ELEMENT} model-instance-id=inf0 model=${MODEL1_PATH} device=${INFERENCE_DEVICE} ${PARAMS} ! queue ! \
+${INFERENCE2_ELEMENT} model-instance-id=inf1 model=${MODEL2_PATH} device=${INFERENCE_DEVICE} ${PARAMS} ! queue ! \
 gvafpscounter ! ${SINK_ELEMENT}"
 
 # Launch multiple streams

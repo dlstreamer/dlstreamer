@@ -11,7 +11,6 @@
 
 G_BEGIN_DECLS
 
-GST_DEBUG_CATEGORY_EXTERN(gva_drop_debug_category);
 #define GST_DEBUG_CAT_GVA_DROP gva_drop_debug_category
 
 #define GST_TYPE_GVA_DROP (gva_drop_get_type())

@@ -37,3 +37,5 @@ add_subdirectory(json)
 
 # Hint compiler about location of the header file generated.
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+
+add_subdirectory(spdlog)

@@ -136,9 +136,10 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
 
     switch (converter_type) {
     case ConverterType::RAW:
-        if (converter_name == RawDataCopyConverter::getName()) {
+        if (converter_name == RawDataCopyConverter::getName())
             return BlobToMetaConverter::Ptr(new RawDataCopyConverter(std::move(initializer)));
-        }
+        else
+            throw std::runtime_error("Unsupported converter '" + converter_name + "' for type RAW");
         break;
     case ConverterType::TO_ROI:
         return BlobToROIConverter::create(std::move(initializer), converter_name);

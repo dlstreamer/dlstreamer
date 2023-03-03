@@ -8,7 +8,6 @@
 
 #include "dlstreamer/gst/dictionary.h"
 #include "dlstreamer/gst/utils.h"
-#include "dlstreamer/image_metadata.h"
 
 #include "dlstreamer/gst/metadata/gva_tensor_meta.h"
 
@@ -18,9 +17,10 @@ class GSTMetadata : public Metadata {
     // TODO migrate to GstCustomMeta introduced in GStreamer 1.20, use gst_custom_meta_get_structure etc
     std::vector<DictionaryPtr> _container;
     GstBuffer *_buffer = nullptr;
+    const GstVideoInfo *_video_info = nullptr;
 
   public:
-    GSTMetadata(GstBuffer *buf) : _buffer(buf) {
+    GSTMetadata(GstBuffer *buf, const GstVideoInfo *video_info = nullptr) : _buffer(buf), _video_info(video_info) {
         read_meta(buf);
     }
 
@@ -29,6 +29,14 @@ class GSTMetadata : public Metadata {
             _buffer = gst_buffer_list_get(buffer_list, i);
             read_meta(_buffer);
         }
+    }
+
+    DictionaryPtr find_metadata(std::string_view meta_name) {
+        for (auto &meta : _container) {
+            if (meta->name() == meta_name)
+                return meta;
+        }
+        return nullptr;
     }
 
     void clear() noexcept override {
@@ -53,12 +61,22 @@ class GSTMetadata : public Metadata {
     }
 
     DictionaryPtr add(std::string_view name) override {
-        auto gst_meta = GST_GVA_TENSOR_META_ADD(_buffer);
-        if (!name.empty())
-            gst_structure_set_name(gst_meta->data, name.data());
-        auto meta = std::make_shared<GSTDictionary>(gst_meta->data);
-        _container.emplace_back(meta);
-        return meta;
+        DictionaryPtr dict;
+
+        if (_video_info && name == DetectionMetadata::name) {
+            // GstVideoRegionOfInterestMeta + GstStruct
+            auto roi_meta = gst_buffer_add_video_region_of_interest_meta(_buffer, NULL, 0, 0, 0, 0);
+            auto roi_struct = gst_structure_new_empty(DetectionMetadata::name);
+            gst_video_region_of_interest_meta_add_param(roi_meta, roi_struct);
+            dict = std::make_shared<GSTROIDictionary>(roi_meta, _video_info->width, _video_info->height, roi_struct);
+        } else {
+            auto gst_meta = GST_GVA_TENSOR_META_ADD(_buffer);
+            if (!name.empty())
+                gst_structure_set_name(gst_meta->data, name.data());
+            dict = std::make_shared<GSTDictionary>(gst_meta->data);
+        }
+        _container.emplace_back(dict);
+        return dict;
     }
 
     iterator erase(iterator pos) override {
@@ -91,30 +109,6 @@ class GSTMetadata : public Metadata {
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
-// GSTROIDictionary
-
-class GSTROIDictionary : public BaseDictionary {
-  public:
-    GSTROIDictionary(GstVideoRegionOfInterestMeta *roi, const GstVideoInfo *video_info) {
-        DLS_CHECK(video_info && video_info->width != 0 && video_info->height != 0)
-        _name = DetectionMetadata::name;
-        _map[DetectionMetadata::key::x_min] = static_cast<double>(roi->x) / video_info->width;
-        _map[DetectionMetadata::key::y_min] = static_cast<double>(roi->y) / video_info->height;
-        _map[DetectionMetadata::key::x_max] = static_cast<double>(roi->x + roi->w) / video_info->width;
-        _map[DetectionMetadata::key::y_max] = static_cast<double>(roi->y + roi->h) / video_info->height;
-        _map[DetectionMetadata::key::id] = roi->id;
-        _map[DetectionMetadata::key::parent_id] = roi->parent_id;
-        auto label = g_quark_to_string(roi->roi_type);
-        if (label)
-            _map[DetectionMetadata::key::label] = std::string(label);
-    }
-
-    void set(std::string_view /*key*/, Any /*value*/) override {
-        throw std::runtime_error("Unsupported");
-    }
-};
-
-/////////////////////////////////////////////////////////////////////////////////////
 // GSTROIMetadata
 
 class GSTROIMetadata : public Metadata {
@@ -123,12 +117,18 @@ class GSTROIMetadata : public Metadata {
 
   public:
     GSTROIMetadata(GstVideoRegionOfInterestMeta *roi, const GstVideoInfo *video_info) : _roi(roi) {
-        // first metadata is special metadata created on GstVideoRegionOfInterestMeta structure fields
-        _container.emplace_back(std::make_shared<GSTROIDictionary>(roi, video_info));
-        // other metadata created on GstStructure list from GstVideoRegionOfInterestMeta params
+        // iterate GstStructure list in GstVideoRegionOfInterestMeta params
         for (GList *l = _roi->params; l; l = g_list_next(l)) {
+            DictionaryPtr dict;
             GstStructure *structure = GST_STRUCTURE(l->data);
-            _container.emplace_back(std::make_shared<GSTDictionary>(structure));
+            std::string name = gst_structure_get_name(structure);
+            if (name == DetectionMetadata::name) {
+                // special metadata created on GstVideoRegionOfInterestMeta plus GstStructure with norm. coordinates
+                dict = std::make_shared<GSTROIDictionary>(roi, video_info->width, video_info->height, structure);
+            } else {
+                dict = std::make_shared<GSTDictionary>(structure);
+            }
+            _container.emplace_back(dict);
         }
     }
 

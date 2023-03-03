@@ -16,8 +16,8 @@ ARG UBUNTU_CODENAME=focal
 ARG GRAPHICS_DISTRIBUTION=focal-legacy
 ARG PYTHON_VERSION=python3.8
 
-LABEL Description="This is the runtime image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework for Ubuntu ${UBUNTU_VERSION}"
-LABEL Vendor="Intel Corporation"
+LABEL description="This is the runtime image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework for Ubuntu ${UBUNTU_VERSION}"
+LABEL vendor="Intel Corporation"
 
 ARG INSTALL_RECOMMENDED_OPENCL_DRIVER=false
 ARG INSTALL_RECOMMENDED_MEDIA_DRIVER=false
@@ -35,7 +35,9 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 ARG DEBIAN_FRONTEND=noninteractive
 
 # Install curl and apt-key dependencies
-RUN apt-get update && apt-get install -y -q --no-install-recommends curl gpg-agent software-properties-common
+RUN apt-get update && apt-get install -y -q  --no-install-recommends curl gpg-agent software-properties-common  \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Add public key
 ARG INTEL_GPG_KEY=https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
@@ -75,24 +77,25 @@ RUN if [ "$INSTALL_DPCPP" = "true" ] ; then \
 # If INSTALL_RECOMMENDED_MEDIA_DRIVER set to true, run script from dlstreamer-env package
 RUN if [ "${INSTALL_RECOMMENDED_MEDIA_DRIVER}" = "true" ] ; then \
     apt-get update && apt-get install -y intel-dlstreamer-env=${DLSTREAMER_APT_VERSION} ; \
-    ${DLSTREAMER_DIR}/install_dependencies/install_media_driver.sh ; \
+    ${DLSTREAMER_DIR}/install_dependencies/install_media_driver.sh && apt-get clean && rm -rf /var/lib/apt/lists/* ; \
     fi
 
 # Install specific OpenCL driver version, if specified
 ARG OPENCL_DRIVER_APT_VERSION=
 RUN if [ "${OPENCL_DRIVER_APT_VERSION}" != "" ] ; then \
-    apt-get update && apt-get install -y intel-opencl-icd=${OPENCL_DRIVER_APT_VERSION} ; \
+    apt-get update && apt-get install -y intel-opencl-icd=${OPENCL_DRIVER_APT_VERSION} && apt-get clean && rm -rf /var/lib/apt/lists/* ; \
     fi
 
 # Install specific media driver version, if specified
 ARG MEDIA_DRIVER_APT_VERSION=
 RUN if [ "${MEDIA_DRIVER_APT_VERSION}" != "" ] ; then \
-    apt-get update && apt-get install -y intel-media-va-driver-non-free=${MEDIA_DRIVER_APT_VERSION} ; \
+    apt-get update && apt-get install -y intel-media-va-driver-non-free=${MEDIA_DRIVER_APT_VERSION} && apt-get clean && rm -rf /var/lib/apt/lists/* ; \
     fi
 
 # Install Intel® DL Streamer runtime package and Python bindings
-RUN apt-get update && apt-get install -y intel-dlstreamer=${DLSTREAMER_APT_VERSION}
-RUN apt-get update && apt-get install -y python3-intel-dlstreamer=${DLSTREAMER_APT_VERSION}
+RUN apt-get update && apt-get install -y intel-dlstreamer=${DLSTREAMER_APT_VERSION} python3-intel-dlstreamer=${DLSTREAMER_APT_VERSION} \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install OpenVINO™ toolkit
 ARG OPENVINO_INSTALL_OPTIONS=
@@ -101,12 +104,12 @@ RUN ${DLSTREAMER_DIR}/install_dependencies/install_openvino.sh ${OPENVINO_INSTAL
 # If PYTHON_VERSION=python3.9, install it and create link for gstgva module
 RUN if [ "${PYTHON_VERSION}" = "python3.9" ] ; then \
     ${DLSTREAMER_DIR}/install_dependencies/install_python3.9.sh ; \
-    python3 -m pip install numpy PyGObject ; \
+    python3 -m pip install --no-cache-dir numpy PyGObject ; \
     ln -s /usr/lib/python3/dist-packages/gstgva /usr/local/lib/python3.9/ ; \
     fi
 
 # Install numpy via pip
-RUN python3 -m pip install --force-reinstall numpy
+RUN python3 -m pip install --no-cache-dir --force-reinstall numpy
 
 # If INSTALL_RECOMMENDED_OPENCL_DRIVER set to true, run OpenVINO script
 RUN if [ "${INSTALL_RECOMMENDED_OPENCL_DRIVER}" = "true" ] ; then \
@@ -116,8 +119,8 @@ RUN if [ "${INSTALL_RECOMMENDED_OPENCL_DRIVER}" = "true" ] ; then \
 # If INSTALL_DPCPP set to true, install Intel® DL Streamer package with DPC++ based elements
 ARG DPCPP_APT_VERSION=*
 RUN if [ "${INSTALL_DPCPP}" = "true" ] ; then \
-    apt-get update && apt-get install -y intel-oneapi-compiler-dpcpp-cpp-runtime=${DPCPP_APT_VERSION}; \
-    apt-get update && apt-get install -y intel-dlstreamer-dpcpp=${DLSTREAMER_APT_VERSION}; \
+    apt-get update && apt-get install -y intel-oneapi-compiler-dpcpp-cpp-runtime=${DPCPP_APT_VERSION} intel-dlstreamer-dpcpp=${DLSTREAMER_APT_VERSION} && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* ; \
     fi
 
 ARG INSTALL_METAPUBLISH_DEPENDENCIES=
@@ -174,7 +177,9 @@ RUN useradd -ms /bin/bash -u 1000 -G video dlstreamer
 # Remove Intel® Graphics APT repository
 RUN mv /etc/apt/sources.list.d/intel-graphics.list ${DLS_HOME}/
 RUN rm -f /etc/ssl/certs/Intel*
-RUN apt-get update
+RUN apt-get update \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 WORKDIR ${DLS_HOME}
 USER dlstreamer

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2021 Intel Corporation
+# Copyright (C) 2020-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,7 +10,7 @@ MODEL=${2:-${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-ada
 
 EXE_NAME=ffmpeg_openvino_decode_inference
 BUILD_DIR=$HOME/intel/dl_streamer/samples/${EXE_NAME}/build
-BASE_DIR=$(dirname "$0")
+BASE_DIR=$(realpath $(dirname "$0"))
 
 rm -rf ${BUILD_DIR}
 mkdir -p ${BUILD_DIR}

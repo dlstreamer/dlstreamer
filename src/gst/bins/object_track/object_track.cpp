@@ -10,7 +10,15 @@
 #include <stdexcept>
 
 /* Properties */
-enum { PROP_0, PROP_SPATIAL_FEATURE, PROP_SPATIAL_FEATURE_DISTANCE };
+enum {
+    PROP_0,
+    PROP_GENERATE_OBJECTS,
+    PROP_ADJUST_OBJECTS,
+    PROP_TRACKING_PER_CLASS,
+    PROP_SPATIAL_FEATURE,
+    PROP_SPATIAL_FEATURE_DISTANCE,
+    PROP_TRACKING_TYPE
+};
 
 enum class SpatialFeatureType {
     None,
@@ -37,8 +45,13 @@ static const GEnumValue SpatialFeatureDistanceValues[] = {
 
 typedef struct _ObjectTrack {
     VideoInference base;
+
+    gboolean generate_objects;
+    gboolean adjust_objects;
+    gboolean tracking_per_class;
     SpatialFeatureType spatial_feature;
     SpatialFeatureDistanceType spatial_feature_distance;
+    gchar *tracking_type;
 } ObjectTrack;
 
 typedef struct _ObjectTrackClass {
@@ -64,18 +77,39 @@ GType spatial_feature_distance_get_type(void) {
 }
 
 static void object_track_init(ObjectTrack *self) {
+    self->generate_objects = TRUE;
+    self->adjust_objects = TRUE;
+    self->tracking_per_class = FALSE;
     self->spatial_feature = SpatialFeatureType::None;
     self->spatial_feature_distance = SpatialFeatureDistanceType::None;
+    self->tracking_type = NULL;
+}
+
+void object_track_finalize(GObject *object) {
+    ObjectTrack *self = OBJECT_TRACK(object);
+    g_free(self->tracking_type);
 }
 
 void object_track_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
     ObjectTrack *self = OBJECT_TRACK(object);
     switch (property_id) {
+    case PROP_GENERATE_OBJECTS:
+        g_value_set_boolean(value, self->generate_objects);
+        break;
+    case PROP_ADJUST_OBJECTS:
+        g_value_set_boolean(value, self->adjust_objects);
+        break;
+    case PROP_TRACKING_PER_CLASS:
+        g_value_set_boolean(value, self->tracking_per_class);
+        break;
     case PROP_SPATIAL_FEATURE:
         g_value_set_enum(value, static_cast<gint>(self->spatial_feature));
         break;
     case PROP_SPATIAL_FEATURE_DISTANCE:
         g_value_set_enum(value, static_cast<gint>(self->spatial_feature_distance));
+        break;
+    case PROP_TRACKING_TYPE:
+        g_value_set_string(value, self->tracking_type);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -86,11 +120,43 @@ void object_track_get_property(GObject *object, guint property_id, GValue *value
 void object_track_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec) {
     ObjectTrack *self = OBJECT_TRACK(object);
     switch (property_id) {
+    case PROP_GENERATE_OBJECTS:
+        self->generate_objects = g_value_get_boolean(value);
+        break;
+    case PROP_ADJUST_OBJECTS:
+        self->adjust_objects = g_value_get_boolean(value);
+        break;
+    case PROP_TRACKING_PER_CLASS:
+        self->tracking_per_class = g_value_get_boolean(value);
+        break;
     case PROP_SPATIAL_FEATURE:
         self->spatial_feature = static_cast<SpatialFeatureType>(g_value_get_enum(value));
         break;
     case PROP_SPATIAL_FEATURE_DISTANCE:
         self->spatial_feature_distance = static_cast<SpatialFeatureDistanceType>(g_value_get_enum(value));
+        break;
+    case PROP_TRACKING_TYPE:
+        g_free(self->tracking_type);
+        self->tracking_type = g_value_dup_string(value);
+        if (!strcmp(self->tracking_type, "zero-term-imageless")) {
+            self->generate_objects = FALSE;
+            self->adjust_objects = FALSE;
+            self->spatial_feature = SpatialFeatureType::None;
+        } else if (!strcmp(self->tracking_type, "zero-term")) {
+            self->generate_objects = FALSE;
+            self->adjust_objects = FALSE;
+            self->spatial_feature = SpatialFeatureType::SlicedHistogram;
+        } else if (!strcmp(self->tracking_type, "short-term-imageless")) {
+            self->generate_objects = TRUE;
+            self->adjust_objects = FALSE;
+            self->spatial_feature = SpatialFeatureType::None;
+        } else if (!strcmp(self->tracking_type, "short-term")) {
+            self->generate_objects = TRUE;
+            self->adjust_objects = FALSE;
+            self->spatial_feature = SpatialFeatureType::SlicedHistogram;
+        } else if (self->tracking_type[0]) {
+            GST_ERROR("Incorrect tracking-type=%s", self->tracking_type);
+        }
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -139,14 +205,20 @@ static GstStateChangeReturn object_track_change_state(GstElement *element, GstSt
                     self->spatial_feature_distance = (self->spatial_feature == SpatialFeatureType::Inference)
                                                          ? SpatialFeatureDistanceType::Cosine
                                                          : SpatialFeatureDistanceType::Bhattacharyya;
-                std::string postaggregate =
-                    "opencv_object_association spatial-feature-metadata-name=spatial-feature spatial-feature-distance=";
-                for (auto &v : SpatialFeatureDistanceValues) {
-                    if (v.value == self->spatial_feature_distance) {
-                        postaggregate += v.value_nick;
-                        break;
+                auto bool_to_string = [](gboolean v) -> std::string { return (v) ? "true" : "false"; };
+                auto spatial_feature_distance_to_string = [](SpatialFeatureDistanceType d) -> std::string {
+                    for (auto &v : SpatialFeatureDistanceValues) {
+                        if (v.value == d)
+                            return v.value_nick;
                     }
-                }
+                    throw std::runtime_error("Unknown SpatialFeatureDistanceType");
+                };
+                std::string postaggregate =
+                    "opencv_object_association generate-objects=" + bool_to_string(self->generate_objects) +
+                    " adjust-objects=" + bool_to_string(self->adjust_objects) +
+                    " tracking-per-class=" + bool_to_string(self->tracking_per_class) +
+                    " spatial-feature-distance=" + spatial_feature_distance_to_string(self->spatial_feature_distance) +
+                    " spatial-feature-metadata-name=spatial-feature";
                 self->base.set_postaggregate_element(postaggregate.data());
             }
         }
@@ -160,6 +232,7 @@ static void object_track_class_init(ObjectTrackClass *klass) {
     auto element_class = GST_ELEMENT_CLASS(klass);
     gobject_class->get_property = object_track_get_property;
     gobject_class->set_property = object_track_set_property;
+    gobject_class->finalize = object_track_finalize;
     element_class->change_state = GST_DEBUG_FUNCPTR(object_track_change_state);
 
     auto video_inference = VIDEO_INFERENCE_CLASS(klass);
@@ -168,6 +241,24 @@ static void object_track_class_init(ObjectTrackClass *klass) {
     };
 
     const auto kParamFlags = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);
+
+    g_object_class_install_property(
+        gobject_class, PROP_GENERATE_OBJECTS,
+        g_param_spec_boolean(
+            "generate-objects", "generate-objects",
+            "If true, generate objects (according to previous trajectory) if not detected on current frame", true,
+            kParamFlags));
+
+    g_object_class_install_property(gobject_class, PROP_ADJUST_OBJECTS,
+                                    g_param_spec_boolean("adjust-objects", "adjust-objects",
+                                                         "If true, adjust object position for more smooth trajectory",
+                                                         true, kParamFlags));
+
+    g_object_class_install_property(gobject_class, PROP_TRACKING_PER_CLASS,
+                                    g_param_spec_boolean("tracking-per-class", "tracking-per-class",
+                                                         "If true, object association takes into account object class",
+                                                         false, kParamFlags));
+
     g_object_class_install_property(
         gobject_class, PROP_SPATIAL_FEATURE,
         g_param_spec_enum("spatial-feature", "spatial-feature", "Spatial feature used by object tracking algorithm",
@@ -178,6 +269,16 @@ static void object_track_class_init(ObjectTrackClass *klass) {
                                                       spatial_feature_distance_get_type(),
                                                       static_cast<gint>(SpatialFeatureDistanceType::None),
                                                       kParamFlags));
+    g_object_class_install_property(
+        gobject_class, PROP_TRACKING_TYPE,
+        g_param_spec_string(
+            "tracking-type", "TrackingType",
+            "DEPRECATED - use other properties according to the following mapping:\n"
+            "zero-term-imageless:  generate-objects=false adjust-objects=false spatial-feature=none\n"
+            "zero-term:            generate-objects=false adjust-objects=false spatial-feature=sliced-histogram\n"
+            "short-term-imageless: generate-objects=true  adjust-objects=false spatial-feature=none\n"
+            "short-term:           generate-objects=true  adjust-objects=false spatial-feature=sliced-histogram",
+            "", static_cast<GParamFlags>(kParamFlags | G_PARAM_DEPRECATED)));
 
     gst_element_class_set_metadata(element_class, OBJECT_TRACK_NAME, "video", OBJECT_TRACK_DESCRIPTION,
                                    "Intel Corporation");

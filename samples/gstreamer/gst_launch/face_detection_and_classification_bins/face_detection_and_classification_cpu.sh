@@ -44,7 +44,7 @@ processbin \
     process="openvino_tensor_inference model=$MODEL4_PATH device=CPU" \
     postprocess="tensor_postproc_add_params format=landmark_points" \
     aggregate=meta_aggregate ! \
-gvawatermark ! \
+meta_overlay ! \
 videoconvert ! \
 gvafpscounter ! \
 autovideosink sync=false

@@ -38,7 +38,7 @@ class MemoryMapperDMAToVAAPI : public BaseMemoryMapper {
         auto info = frame_info(src);
         auto tensor0 = src->tensor(0);
         for (size_t i = 1; i < src->num_tensors(); i++) {
-            if (src->tensor(i)->handle(DMATensor::key::dma_fd) != tensor0->handle(DMATensor::key::dma_fd))
+            if (src->tensor(i)->handle(tensor::key::dma_fd) != tensor0->handle(tensor::key::dma_fd))
                 throw std::invalid_argument("Expect all tensors on same DMA buffer");
         }
 

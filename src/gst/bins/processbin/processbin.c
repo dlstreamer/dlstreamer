@@ -10,8 +10,8 @@
 
 #include "processbin.h"
 
-// GST_DEBUG_CATEGORY_STATIC(processbin_debug);
-//#define GST_CAT_DEFAULT processbin_debug
+GST_DEBUG_CATEGORY_STATIC(processbin_debug);
+#define GST_CAT_DEFAULT processbin_debug
 
 enum {
     PROP_0,
@@ -476,4 +476,5 @@ static void processbin_get_property(GObject *object, guint prop_id, GValue *valu
     }
 }
 
-G_DEFINE_TYPE(GstProcessBin, processbin, GST_TYPE_BIN);
+G_DEFINE_TYPE_WITH_CODE(GstProcessBin, processbin, GST_TYPE_BIN,
+                        GST_DEBUG_CATEGORY_INIT(processbin_debug, "processbin", 0, "debug category for processbin"));

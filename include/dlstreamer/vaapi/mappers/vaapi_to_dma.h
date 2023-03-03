@@ -59,7 +59,7 @@ class MemoryMapperVAAPIToDMA final : public BaseMemoryMapper {
                 auto dst =
                     std::make_shared<DMATensor>(dma_fd, drm_modifier, info, dma_fd != last_dma_fd, _output_context);
                 last_dma_fd = dma_fd;
-                dst->set_handle(DMATensor::key::offset, layer->offset[j]);
+                dst->set_handle(tensor::key::offset, layer->offset[j]);
                 tensors.push_back(dst);
                 plane_num++;
             }

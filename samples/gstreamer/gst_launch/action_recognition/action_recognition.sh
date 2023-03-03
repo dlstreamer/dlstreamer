@@ -45,12 +45,10 @@ fi
 
 DIR=$(dirname "$0")
 
-# Pipeline uses video_inference
-
 PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
 decodebin ! \
-video_inference \
+object_classify \
   process=' \
     openvino_tensor_inference model=$MODEL_ENCODER device=$DEVICE ! \
     tensor_sliding_window ! \

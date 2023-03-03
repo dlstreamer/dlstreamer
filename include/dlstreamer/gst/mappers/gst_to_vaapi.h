@@ -23,10 +23,10 @@ class MemoryMapperGSTToVAAPI : public BaseMemoryMapper {
         auto src_gst = ptr_cast<GSTTensor>(src);
         auto va_surface_id = get_surface_id(src_gst->gst_memory());
 
-        auto ret = std::make_shared<VAAPITensor>(va_surface_id, 0, src->info(), _output_context);
+        auto ret = std::make_shared<VAAPITensor>(va_surface_id, src_gst->plane_index(), src->info(), _output_context);
 
-        ret->set_handle(VAAPITensor::key::offset_x, src_gst->offset_x());
-        ret->set_handle(VAAPITensor::key::offset_y, src_gst->offset_y());
+        ret->set_handle(tensor::key::offset_x, src_gst->offset_x());
+        ret->set_handle(tensor::key::offset_y, src_gst->offset_y());
         ret->set_parent(src);
         return ret;
     }

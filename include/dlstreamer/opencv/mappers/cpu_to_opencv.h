@@ -15,6 +15,9 @@ class MemoryMapperCPUToOpenCV : public BaseMemoryMapper {
   public:
     using BaseMemoryMapper::BaseMemoryMapper;
 
+    MemoryMapperCPUToOpenCV() : BaseMemoryMapper(nullptr, nullptr) {
+    }
+
     TensorPtr map(TensorPtr src, AccessMode /*mode*/) override {
         cv::Mat mat;
         auto &info = src->info();

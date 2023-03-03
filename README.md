@@ -41,9 +41,6 @@ Report bugs and requests [on the issues page](https://github.com/dlstreamer/dlst
 * [Get Started](https://dlstreamer.github.io/get_started/get_started_index.html)
 * [Developer Guide](https://dlstreamer.github.io/dev_guide/dev_guide_index.html)
 * [API Reference](https://dlstreamer.github.io/api_ref/api_reference.html)
-* Webinars:
-    * [Introduction to Intel® DL Streamer Pipeline Framework](https://www.intel.com/content/www/us/en/developer/videos/ready-steady-stream-openvino-toolkit-dl-streamer.html#gs.hwyufz)
-    * [Audio event detection synchronized with video based object detection using Intel® DL Streamer Pipeline Framework](https://techdecoded.intel.io/essentials/ai-beyond-computer-vision-with-the-intel-distribution-of-openvino-toolkit)
 * YouTube Videos:
     * [Introduction to video analytics pipeline using Intel® DL Streamer Pipeline Framework](https://www.youtube.com/watch?v=fWhPV_IqDy0)
     * [Samples provided in Intel® DL Streamer Pipeline Framework](https://www.youtube.com/watch?v=EqHznsUR1sE)

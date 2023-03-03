@@ -8,5 +8,7 @@
 
 extern "C" {
 
-extern dlstreamer::ElementDesc tensor_postproc_yolo_v2;
-}
+extern dlstreamer::ElementDesc openvino_tensor_inference;
+extern dlstreamer::ElementDesc openvino_video_inference;
+
+} // namespace dlstreamer

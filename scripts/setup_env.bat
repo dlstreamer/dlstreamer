@@ -6,7 +6,7 @@
 
 @echo off
 
-set GST_PLUGIN_PATH=%~dp0\..\build\intel64\Release\bin\Release;%GST_PLUGIN_PATH%
+set GST_PLUGIN_PATH=%~dp0\..\build\intel64\Release\bin\Release;%~dp0\..\src\gst;%GST_PLUGIN_PATH%
 set PATH=%~dp0\..\build\intel64\Release\bin\Release;%PATH%
 set PYTHONPATH=%~dp0\..\python;%PYTHONPATH%
 

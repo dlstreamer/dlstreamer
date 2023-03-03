@@ -17,17 +17,19 @@
 namespace dlstreamer {
 
 namespace param {
-static constexpr auto aspect_ratio = "aspect-ratio";
+
+static constexpr auto add_borders = "add-borders"; // aspect-ratio
+
 }; // namespace param
 
 static ParamDescVector params_desc = {
-    {param::aspect_ratio, "Keep the aspect ratio (add borders if necessary)", false},
+    {param::add_borders, "Add borders if necessary to keep the aspect ratio", false},
 };
 
 class OpencvCropscale : public BaseTransform {
   public:
     OpencvCropscale(DictionaryCPtr params, const ContextPtr &app_context) : BaseTransform(app_context) {
-        _aspect_ratio = params->get<bool>(param::aspect_ratio, false);
+        _aspect_ratio = params->get<bool>(param::add_borders, false);
     }
 
     FrameInfoVector get_input_info() override {
@@ -102,7 +104,7 @@ ElementDesc opencv_cropscale = {.name = "opencv_cropscale",
                                 .description = "Fused video crop and scale on OpenCV backend. "
                                                "Crop operation supports GstVideoCropMeta if attached to input buffer",
                                 .author = "Intel Corporation",
-                                .params = nullptr,
+                                .params = &params_desc,
                                 .input_info =
                                     {
                                         //{ImageFormat::I420},

@@ -143,7 +143,7 @@ static inline std::string any_to_string(Any value) {
         return std::to_string(any_cast<intptr_t>(value));
     } else if (any_holds_type<std::vector<double>>(value)) {
         auto vec = any_cast<std::vector<double>>(value);
-        return join_strings(vec.begin(), vec.end());
+        return join_strings(vec.cbegin(), vec.cend());
     } else {
         throw std::runtime_error("Unsupported data type");
     }
@@ -197,7 +197,7 @@ static inline std::vector<size_t> shape_from_string(const std::string &str) {
 }
 
 static inline std::string shape_to_string(const std::vector<size_t> &dims) {
-    return join_strings(dims.begin(), dims.end(), ':');
+    return join_strings(dims.cbegin(), dims.cend(), ':');
 }
 
 static inline std::string tensor_info_to_string(const TensorInfo &info) {
