@@ -28,6 +28,8 @@ struct _GstGvaWatermarkImpl {
     GstVideoInfo info;
     gchar *device;
     struct Impl *impl;
+    guint flag;
+    gchar *filter;
 };
 
 struct _GstGvaWatermarkImplClass {
@@ -35,6 +37,13 @@ struct _GstGvaWatermarkImplClass {
 };
 
 GType gst_gva_watermark_impl_get_type(void);
+
+typedef enum {
+    WATERMARK_DRAW_RECTANGLE=0x0001,
+    WATERMARK_DRAW_TEXT=0x0002,
+    WATERMARK_DRAW_CIRCLE=0x0004,
+    WATERMARK_BLUR_RECTANGLE=0x0008
+} WATERMARK_FLAG;
 
 G_END_DECLS
 

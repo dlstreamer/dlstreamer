@@ -20,8 +20,20 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_watermark_debug_category);
 #define GST_CAT_DEFAULT gst_gva_watermark_debug_category
 
 #define DEFAULT_DEVICE "CPU"
+#define DEFAULT_FILTER "none"
 
-enum { PROP_0, PROP_DEVICE };
+enum { PROP_0, 
+    PROP_DEVICE,
+    PROP_WATERMARK_FLAG,
+    PROP_WATERMARK_FILTER,
+};
+
+enum {
+    WATERMARK_DRAW_RECTANGLE=0x0001,
+    WATERMARK_DRAW_TEXT=0x0002,
+    WATERMARK_DRAW_CIRCLE=0x0004,
+    WATERMARK_BLUR_RECTANGLE=0x0008
+};
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaWatermark, gst_gva_watermark, GST_TYPE_BIN,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_watermark_debug_category, "gvawatermark", 0,
@@ -89,9 +101,32 @@ static void gst_gva_watermark_class_init(GstGvaWatermarkClass *klass) {
         gobject_class, PROP_DEVICE,
         g_param_spec_string("device", "Target device", "Deprecated, don't use", DEFAULT_DEVICE,
                             static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_DEPRECATED)));
+    
+    g_object_class_install_property(
+        gobject_class, PROP_WATERMARK_FLAG,
+        g_param_spec_uint("flag", "flag",
+                          "watermark flag used to trigger the blur/draw rectangle and text. "
+                          "(0x01)draw rectangle, (0x02)draw text,(0x04)draw landmark,(0x08)blur rectangle"
+                          "please see user guide for more details",
+                          1, 16, WATERMARK_DRAW_RECTANGLE, static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(
+        gobject_class, PROP_WATERMARK_FILTER,
+        g_param_spec_string("filter", "filter",
+                          "watermark filter the specified object label list. seperated by comma "
+                          "please see user guide for more details",
+                          DEFAULT_FILTER, static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 static void gst_gva_watermark_init(GstGvaWatermark *self) {
+    GST_DEBUG_OBJECT(self, "gst_gva_watermark_init");
+
+    if (self == NULL)
+        return;
+
+    self->flag = WATERMARK_DRAW_RECTANGLE;
+    self->filter = g_strdup(DEFAULT_FILTER);
+    
     GstPadTemplate *pad_tmpl = gst_static_pad_template_get(&sinktemplate);
     self->sinkpad = gst_ghost_pad_new_no_target_from_template("sink", pad_tmpl);
     gst_object_unref(pad_tmpl);
@@ -146,6 +181,12 @@ void gst_gva_watermark_set_property(GObject *object, guint property_id, const GV
         gvawatermark->device = g_value_dup_string(value);
         g_object_set(gvawatermark->watermarkimpl, "device", gvawatermark->device, nullptr);
         break;
+    case PROP_WATERMARK_FLAG:
+        gvawatermark->flag = g_value_get_uint(value);
+        break;
+    case PROP_WATERMARK_FILTER:
+        gvawatermark->filter = g_value_dup_string(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -160,6 +201,12 @@ void gst_gva_watermark_get_property(GObject *object, guint property_id, GValue *
     switch (property_id) {
     case PROP_DEVICE:
         g_value_set_string(value, gvawatermark->device);
+        break;
+    case PROP_WATERMARK_FLAG:
+        g_value_set_uint(value, gvawatermark->flag);
+        break;
+    case PROP_WATERMARK_FILTER:
+        g_value_set_string(value, gvawatermark->filter);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -179,6 +226,9 @@ void gst_gva_watermark_finalize(GObject *object) {
 
     g_free(gvawatermark->device);
     gvawatermark->device = nullptr;
+    
+    g_free(gvawatermark->filter);
+    gvawatermark->filter=nullptr;
 
     G_OBJECT_CLASS(gst_gva_watermark_parent_class)->finalize(object);
 }

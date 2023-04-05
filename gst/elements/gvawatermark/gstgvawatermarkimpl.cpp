@@ -44,6 +44,8 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_watermark_impl_debug_category);
 
 #define DEFAULT_DEVICE nullptr
 
+#define DEFAULT_FILTER "none"
+
 typedef enum { DEVICE_CPU, DEVICE_GPU, DEVICE_GPU_AUTOSELECTED } DEVICE_SELECTOR;
 
 namespace {
@@ -115,10 +117,18 @@ dlstreamer::MemoryMapperPtr createMapperToDMA(InferenceBackend::MemoryType in_me
 
 struct Impl {
     Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
-         dlstreamer::ContextPtr context);
+         dlstreamer::ContextPtr context, WATERMARK_FLAG flag, std::string filter);
     bool render(GstBuffer *buffer);
     const std::string &getBackendType() const {
         return _backend_type;
+    }
+
+    const int &getFlag() const {
+        return flag;
+    }
+
+    const std::string &getFilter() const {
+        return filter;
     }
 
   private:
@@ -154,9 +164,15 @@ struct Impl {
         const int type = cv::FONT_HERSHEY_TRIPLEX;
         const double scale = 1.0;
     } _font;
+    int flag;
+    std::string filter;
 };
 
-enum { PROP_0, PROP_DEVICE };
+enum { PROP_0,
+    PROP_DEVICE,
+    PROP_WATERMARK_FLAG,
+    PROP_WATERMARK_FILTER,
+};
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaWatermarkImpl, gst_gva_watermark_impl, GST_TYPE_BASE_TRANSFORM,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_watermark_impl_debug_category, "gvawatermarkimpl", 0,
@@ -176,6 +192,12 @@ void gst_gva_watermark_impl_set_property(GObject *object, guint prop_id, const G
         g_free(gvawatermark->device);
         gvawatermark->device = g_value_dup_string(value);
         break;
+    case PROP_WATERMARK_FLAG:
+        gvawatermark->flag = g_value_get_uint(value);
+        break;
+    case PROP_WATERMARK_FILTER:
+        gvawatermark->filter = g_value_dup_string(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -193,6 +215,20 @@ void gst_gva_watermark_impl_get_property(GObject *object, guint prop_id, GValue 
             g_value_set_string(value, self->impl->getBackendType().c_str());
         } else {
             g_value_set_string(value, self->device);
+        }
+        break;
+    case PROP_WATERMARK_FLAG:
+        if (self->impl) {
+            g_value_set_uint(value, self->impl->getFlag());
+        } else {
+            g_value_set_uint(value, self->flag);
+        }
+        break;
+    case PROP_WATERMARK_FILTER:
+        if (self->impl) {
+            g_value_set_string(value, self->impl->getFilter().c_str());
+        } else {
+            g_value_set_string(value, self->filter);
         }
         break;
     default:
@@ -221,6 +257,9 @@ void gst_gva_watermark_impl_finalize(GObject *object) {
 
     g_free(gvawatermark->device);
     gvawatermark->device = nullptr;
+
+    g_free(gvawatermark->filter);
+    gvawatermark->filter=nullptr;
 
     G_OBJECT_CLASS(gst_gva_watermark_impl_parent_class)->finalize(object);
 }
@@ -305,7 +344,7 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     }
 
     try {
-        gvawatermark->impl = new Impl(&gvawatermark->info, device, mem_type, va_dpy);
+        gvawatermark->impl = new Impl(&gvawatermark->info, device, mem_type, va_dpy, (WATERMARK_FLAG)gvawatermark->flag, gvawatermark->filter);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not initialize"),
                           ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));
@@ -392,11 +431,26 @@ static void gst_gva_watermark_impl_class_init(GstGvaWatermarkImplClass *klass) {
             "device", "Target device",
             "Supported devices are CPU and GPU. Default is CPU on system memory and GPU on video memory",
             DEFAULT_DEVICE, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(
+        gobject_class, PROP_WATERMARK_FLAG,
+        g_param_spec_uint("flag", "flag",
+                          "watermark flag used to trigger the blur/draw rectangle and text. "
+                          "(0x01)draw rectangle, (0x02)draw text,(0x04)draw landmark,(0x08)blur rectangle"
+                          "please see user guide for more details",
+                          1, 16, WATERMARK_DRAW_RECTANGLE, static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+
+    g_object_class_install_property(
+        gobject_class, PROP_WATERMARK_FILTER,
+        g_param_spec_string("filter", "filter",
+                          "watermark filter the specified object label list. seperated by comma "
+                          "please see user guide for more details",
+                          DEFAULT_FILTER, static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
-           dlstreamer::ContextPtr context)
-    : _vinfo(info) {
+           dlstreamer::ContextPtr context, WATERMARK_FLAG flag, std::string filter)
+    : _vinfo(info), flag(flag), filter(filter) {
     assert(_vinfo);
     if (GST_VIDEO_INFO_COLORIMETRY(_vinfo).matrix == GstVideoColorMatrix::GST_VIDEO_COLOR_MATRIX_UNKNOWN)
         throw std::runtime_error("GST_VIDEO_COLOR_MATRIX_UNKNOWN");
@@ -446,11 +500,12 @@ bool Impl::render(GstBuffer *buffer) {
     for (auto &tensor : video_frame.tensors()) {
         if (tensor.is_detection())
             continue;
-        preparePrimsForTensor(tensor, ff_rect, prims);
+        if (flag & WATERMARK_DRAW_CIRCLE)
+            preparePrimsForTensor(tensor, ff_rect, prims);
         appendStr(ff_text, tensor.label());
     }
 
-    if (ff_text.tellp() != 0)
+    if (ff_text.tellp() != 0 && flag & WATERMARK_DRAW_TEXT)
         prims.emplace_back(render::Text(ff_text.str(), _ff_text_position, _font.type, _font.scale, _default_color));
 
     // Skip render if there are no primitives to draw
@@ -489,23 +544,34 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
 
     // Prepare primitives for tensors
     for (auto &tensor : roi.tensors()) {
-        preparePrimsForTensor(tensor, rect, prims);
+        if (flag & WATERMARK_DRAW_CIRCLE)
+            preparePrimsForTensor(tensor, rect, prims);
         if (!tensor.is_detection()) {
             appendStr(text, tensor.label());
         }
     }
 
     // put rectangle
-    Color color = indexToColor(color_index);
-    cv::Rect bbox_rect(rect.x, rect.y, rect.w, rect.h);
-    prims.emplace_back(render::Rect(bbox_rect, color, _thickness));
+    if (flag & WATERMARK_DRAW_RECTANGLE) {
+        Color color = indexToColor(color_index);
+        cv::Rect bbox_rect(rect.x, rect.y, rect.w, rect.h);
+        prims.emplace_back(render::Rect(bbox_rect, color, _thickness));
+    }
+    // draw blur rectangle
+    if (flag & WATERMARK_BLUR_RECTANGLE) {
+        cv::Rect blur_rect(rect.x, rect.y, rect.w, rect.h);
+        prims.emplace_back(render::Blur(blur_rect));
+    }
 
     // put text
-    if (text.str().size() != 0) {
-        cv::Point2f pos(rect.x, rect.y - 5.f);
-        if (pos.y < 0)
-            pos.y = rect.y + 30.f;
-        prims.emplace_back(render::Text(text.str(), pos, _font.type, _font.scale, color));
+    if (flag & WATERMARK_DRAW_TEXT) {
+        Color color = indexToColor(color_index);
+        if (text.str().size() != 0) {
+            cv::Point2f pos(rect.x, rect.y - 5.f);
+            if (pos.y < 0)
+                pos.y = rect.y + 30.f;
+            prims.emplace_back(render::Text(text.str(), pos, _font.type, _font.scale, color));
+        }
     }
 }
 

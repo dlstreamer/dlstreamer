@@ -48,6 +48,9 @@ struct _GstGvaWatermark {
     GstElement *preproc;
     GstElement *capsfilter;
     GstElement *convert;
+
+    guint flag;
+    gchar *filter;
 };
 
 struct _GstGvaWatermarkClass {
@@ -55,6 +58,7 @@ struct _GstGvaWatermarkClass {
 };
 
 GType gst_gva_watermark_get_type(void);
+
 
 G_END_DECLS
 
