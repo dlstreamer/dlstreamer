@@ -54,6 +54,11 @@ class OpenCLContext : public BaseContext {
             clReleaseCommandQueue(_queue);
     }
 
+    OpenCLContext(const OpenCLContext &) = delete;
+    OpenCLContext &operator=(const OpenCLContext &) = delete;
+    OpenCLContext(OpenCLContext &&) = delete;
+    OpenCLContext &operator=(OpenCLContext &&) = delete;
+
     cl_context context() {
         return _ctx;
     }

@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
-
 set(TARGET_NAME "meta_smooth")
 
 add_library(${TARGET_NAME} STATIC meta_smooth.cpp meta_smooth.h)

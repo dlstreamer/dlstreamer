@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+#include "opencv_barcode_detector.h"
 #include "opencv_cropscale.h"
 #include "opencv_find_contours.h"
 #include "opencv_meta_overlay.h"
@@ -17,6 +18,7 @@ extern "C" {
 
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
     &opencv_find_contours,
+    &opencv_barcode_detector,
     &opencv_object_association,
     &opencv_tensor_normalize,
     &opencv_cropscale,

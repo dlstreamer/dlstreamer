@@ -6,8 +6,6 @@
 
 set(TARGET_NAME opencv_object_association)
 
-cmake_minimum_required(VERSION 3.12)
-
 find_package(OpenCV REQUIRED)
 
 file(GLOB MAIN_SRC

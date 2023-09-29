@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.12)
-
 find_package(PkgConfig)
 pkg_search_module(VA va libva)
 if (VA_FOUND)

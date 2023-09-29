@@ -6,8 +6,6 @@
 
 set(TARGET_NAME opencv_warp_affine)
 
-cmake_minimum_required(VERSION 3.12)
-
 find_package(OpenCV REQUIRED)
 find_package(OpenCL REQUIRED)
 

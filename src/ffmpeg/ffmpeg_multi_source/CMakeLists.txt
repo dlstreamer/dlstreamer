@@ -4,9 +4,9 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set(TARGET_NAME ffmpeg_multi_source)
-
 cmake_minimum_required(VERSION 3.12)
+
+set(TARGET_NAME ffmpeg_multi_source)
 
 find_package(PkgConfig)
 pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)

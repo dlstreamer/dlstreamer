@@ -7,6 +7,7 @@
 set -e
 
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
+OUTPUT=${2:-display} # Supported values: display, fps, json, display-and-json
 
 if [[ $INPUT == "/dev/video"* ]]; then
   SOURCE_ELEMENT="v4l2src device=${INPUT}"
@@ -19,6 +20,22 @@ fi
 MODEL1_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
 MODEL2_PATH=${MODELS_PATH}/intel/emotions-recognition-retail-0003/FP32/emotions-recognition-retail-0003.xml
 MODEL3_PATH=${MODELS_PATH}/intel/landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
+
+if [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
+  SINK_ELEMENT="autovideosink sync=false"
+elif [[ $OUTPUT == "fps" ]]; then
+  SINK_ELEMENT="gvafpscounter ! fakesink async=false "
+elif [[ $OUTPUT == "json" ]]; then
+  rm -f output.json
+  SINK_ELEMENT="gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false "
+elif [[ $OUTPUT == "display-and-json" ]]; then
+  rm -f output.json
+  SINK_ELEMENT="gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+else
+  echo Error wrong value for OUTPUT parameter
+  echo Valid values: "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
+  exit
+fi
 
 gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
@@ -41,4 +58,4 @@ processbin \
 meta_overlay device=GPU ! \
 videoconvert ! \
 gvafpscounter ! \
-autovideosink sync=false
+$SINK_ELEMENT

@@ -232,9 +232,9 @@ class YoloParserBuilder final {
         case 3:
             switch (bbox_dim_i) {
             case 0:
-                return Layout::BCxCy;
+                return Layout::BCyCx;
             case 2:
-                return Layout::CxCyB;
+                return Layout::CyCxB;
             default:
                 break;
             }
@@ -242,9 +242,9 @@ class YoloParserBuilder final {
         case 4:
             switch (bbox_dim_i) {
             case 1:
-                return Layout::NBCxCy;
+                return Layout::NBCyCx;
             case 3:
-                return Layout::NCxCyB;
+                return Layout::NCyCxB;
             default:
                 break;
             }

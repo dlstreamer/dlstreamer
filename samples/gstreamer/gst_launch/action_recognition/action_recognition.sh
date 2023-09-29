@@ -48,7 +48,7 @@ DIR=$(dirname "$0")
 PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
 decodebin ! \
-object_classify \
+video_inference \
   process=' \
     openvino_tensor_inference model=$MODEL_ENCODER device=$DEVICE ! \
     tensor_sliding_window ! \

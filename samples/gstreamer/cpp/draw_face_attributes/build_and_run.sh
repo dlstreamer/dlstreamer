@@ -6,9 +6,9 @@
 # ==============================================================================
 
 FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
-OUTPUT=${2:-display} # Valid values: display, display-and-json
+OUTPUT=${2:-display} # Valid values: display, display-and-json, json
 
-BASE_DIR=$PWD
+BASE_DIR=$(realpath $(dirname "$0"))
 BUILD_DIR=$HOME/intel/dl_streamer/samples/draw_face_attributes/build
 rm -rf ${BUILD_DIR}
 mkdir -p ${BUILD_DIR}
@@ -21,7 +21,5 @@ else
 fi
 
 make -j $(nproc)
-
-cd ${BASE_DIR}
 
 ${BUILD_DIR}/draw_face_attributes -i $FILE -o $OUTPUT

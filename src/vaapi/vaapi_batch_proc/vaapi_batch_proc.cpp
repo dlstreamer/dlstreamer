@@ -60,8 +60,9 @@ class VaapiBatchProc : public BaseTransform {
     }
 
     FramePtr process(FramePtr src) override {
-        std::lock_guard<std::mutex> guard(_mutex);
         DLS_CHECK(init());
+        // Is it required?
+        std::lock_guard<std::mutex> guard(_mutex);
         auto dst = create_output();
         ImageInfo src_info0(src->tensor(0)->info());
         ImageInfo dst_info0(dst->tensor(0)->info());

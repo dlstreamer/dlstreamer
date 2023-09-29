@@ -18,7 +18,7 @@ class YoloParser {
   public:
     using MaskMap = std::map<size_t, std::vector<size_t>>;
 
-    enum class Layout { NCxCyB, NBCxCy, CxCyB, BCxCy, Other };
+    enum class Layout { NCyCxB, NBCyCx, CyCxB, BCyCx, Other };
 
     /// @brief Constructor of YoloParser object
     /// @param anchors Anchors array

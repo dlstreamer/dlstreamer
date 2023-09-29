@@ -1,12 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set (TARGET_NAME "ffmpeg_dpcpp_rgb_to_grayscale")
+cmake_minimum_required(VERSION 3.12)
 
-cmake_minimum_required(VERSION 3.1)
+set (TARGET_NAME "ffmpeg_dpcpp_rgb_to_grayscale")
 
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)

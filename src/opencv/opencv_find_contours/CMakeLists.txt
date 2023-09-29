@@ -6,8 +6,6 @@
 
 set(TARGET_NAME opencv_find_contours)
 
-cmake_minimum_required(VERSION 3.12)
-
 find_package(OpenCV REQUIRED)
 
 add_library(${TARGET_NAME} OBJECT opencv_find_contours.cpp)

@@ -98,8 +98,6 @@ horizontal-text-detection-0001:
   model-proc: gstreamer/model_proc/intel/horizontal-text-detection-0001.json
 human-pose-estimation-0001:
   model-proc: gstreamer/model_proc/intel/human-pose-estimation-0001.json
-icnet-camvid-ava-0001:
-  model-proc: gstreamer/model_proc/icnet-camvid-ava-0001.json
 inception-resnet-v2-tf:
   labels-file: labels/imagenet_2012_bkgr.txt
   model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
@@ -254,8 +252,6 @@ rexnet-v1-x1.0:
 rfcn-resnet101-coco-tf:
   labels-file: labels/coco_91cl_bkgr.txt
   model-proc: gstreamer/model_proc/public/preproc-image-info.json
-road-segmentation-adas-0001:
-  model-proc: gstreamer/model_proc/road-segmentation-adas-0001.json
 se-inception:
   labels-file: labels/imagenet_2015.txt
   model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
@@ -265,8 +261,6 @@ se-resnet-50:
 se-resnext-50:
   labels-file: labels/imagenet_2015.txt
   model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
-semantic-segmentation-adas-0001:
-  model-proc: gstreamer/model_proc/semantic-segmentation-adas-0001.json
 shufflenet-v2-x0.5:
   labels-file: labels/imagenet_2012.txt
   model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
@@ -294,8 +288,6 @@ ssdlite_mobilenet_v2:
 swin-tiny-patch4-window7-224:
   labels-file: labels/imagenet_2012.txt
   model-proc: gstreamer/model_proc/public/preproc-aspect-ratio.json
-text-detection-0003:
-  model-proc: gstreamer/model_proc/text-detection-0003.json
 vehicle-attributes-recognition-barrier-0039:
   model-proc: gstreamer/model_proc/intel/vehicle-attributes-recognition-barrier-0039.json
 vehicle-attributes-recognition-barrier-0042:
@@ -332,6 +324,15 @@ yolo-v4-tf:
 yolo-v4-tiny-tf:
   labels-file: labels/coco_80cl.txt
   model-proc: gstreamer/model_proc/public/yolo-v4-tiny-tf.json
+# Preview, located on branch: preview/segmentation
+icnet-camvid-ava-0001:
+  model-proc: gstreamer/model_proc/icnet-camvid-ava-0001.json
+road-segmentation-adas-0001:
+  model-proc: gstreamer/model_proc/road-segmentation-adas-0001.json
+semantic-segmentation-adas-0001:
+  model-proc: gstreamer/model_proc/semantic-segmentation-adas-0001.json
+text-detection-0003:
+  model-proc: gstreamer/model_proc/text-detection-0003.json
 
 # public models
 mobilenetv2-7:

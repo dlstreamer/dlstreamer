@@ -7,6 +7,7 @@
 
 VIDEO_FILE=${1}
 MODEL=${2:-${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml}
+OUTPUT=${3:-STDOUT} #Valid STDOUT FILE
 
 EXE_NAME=ffmpeg_openvino_decode_inference
 BUILD_DIR=$HOME/intel/dl_streamer/samples/${EXE_NAME}/build
@@ -24,4 +25,8 @@ fi
 
 make -j $(nproc)
 
-${BUILD_DIR}/${EXE_NAME} -i ${VIDEO_FILE} -m ${MODEL}
+if [ "${OUTPUT}" = "FILE" ]; then
+    ${BUILD_DIR}/${EXE_NAME} -i ${VIDEO_FILE} -m ${MODEL} > output.txt
+else
+    ${BUILD_DIR}/${EXE_NAME} -i ${VIDEO_FILE} -m ${MODEL}
+fi

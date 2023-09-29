@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
-
 set(TARGET_NAME "video_frames_buffer")
 
 file(GLOB MAIN_SRC

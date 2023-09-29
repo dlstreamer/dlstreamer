@@ -6,8 +6,6 @@
 
 set(TARGET_NAME "processbin")
 
-cmake_minimum_required(VERSION 3.1)
-
 add_library(${TARGET_NAME} STATIC processbin.c processbin.h)
 set_compile_flags(${TARGET_NAME})
 

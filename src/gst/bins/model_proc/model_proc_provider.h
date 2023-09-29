@@ -14,18 +14,14 @@
 class ModelProcProvider {
   private:
     JsonReader json_reader;
-    ModelProcParser *model_proc_parser;
+    std::unique_ptr<ModelProcParser> model_proc_parser;
 
     void validateSchema(const nlohmann::json &json_schema);
     void createParser(const std::string &schema_version);
 
   public:
-    ModelProcProvider();
-
     void readJsonFile(const std::string &file_path);
 
     std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc();
     std::map<std::string, GstStructure *> parseOutputPostproc();
-
-    ~ModelProcProvider();
 };

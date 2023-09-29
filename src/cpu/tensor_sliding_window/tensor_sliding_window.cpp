@@ -18,10 +18,6 @@ class TensorSlidingWindow : public BaseTransform {
     TensorSlidingWindow(DictionaryCPtr /*params*/, const ContextPtr &app_context) : BaseTransform(app_context) {
     }
 
-    ~TensorSlidingWindow() {
-        _aggregate_tensors.clear();
-    }
-
     std::function<FramePtr()> get_output_allocator() override {
         DLS_CHECK(_input_info.tensors.size() && _input_info.tensors[0].size())
         DLS_CHECK(_output_info.tensors.size() && _output_info.tensors[0].size())

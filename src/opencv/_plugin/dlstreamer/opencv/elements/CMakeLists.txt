@@ -11,6 +11,7 @@ set_compile_flags(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
+    opencv_barcode_detector
     opencv_find_contours
     opencv_object_association
     opencv_tensor_normalize

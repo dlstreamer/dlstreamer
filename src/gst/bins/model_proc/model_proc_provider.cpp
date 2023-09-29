@@ -28,16 +28,16 @@ void ModelProcProvider::createParser(const std::string &schema_version) {
     // FIXME: maybe need to move schema validation in parser?
     if (schema_version == "1.0.0") {
         validateSchema(MODEL_PROC_SCHEMA_V1);
-        model_proc_parser = new ModelProcParserV1();
+        model_proc_parser = std::make_unique<ModelProcParserV1>();
     } else if (schema_version == "2.0.0") {
         validateSchema(MODEL_PROC_SCHEMA_V2);
-        model_proc_parser = new ModelProcParserV2();
+        model_proc_parser = std::make_unique<ModelProcParserV2>();
     } else if (schema_version == "2.1.0") {
         validateSchema(MODEL_PROC_SCHEMA_V2_1);
-        model_proc_parser = new ModelProcParserV2_1();
+        model_proc_parser = std::make_unique<ModelProcParserV2_1>();
     } else if (schema_version == "2.2.0") {
         validateSchema(MODEL_PROC_SCHEMA_V2_2);
-        model_proc_parser = new ModelProcParserV2_2();
+        model_proc_parser = std::make_unique<ModelProcParserV2_2>();
     } else {
         throw std::invalid_argument("Parser for " + schema_version + " version not found");
     }
@@ -56,11 +56,4 @@ std::vector<ModelInputProcessorInfo::Ptr> ModelProcProvider::parseInputPreproc()
 std::map<std::string, GstStructure *> ModelProcProvider::parseOutputPostproc() {
     const nlohmann::json &model_proc_content = json_reader.content();
     return model_proc_parser->parseOutputPostproc(model_proc_content.at("output_postproc"));
-}
-
-ModelProcProvider::ModelProcProvider() : model_proc_parser(nullptr) {
-}
-
-ModelProcProvider::~ModelProcProvider() {
-    delete model_proc_parser;
 }

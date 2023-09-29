@@ -73,6 +73,25 @@ class RegionOfInterest(object):
             return None
         return object_id_tensor['id']
 
+    ## @brief Set object id
+    # @return None
+    def set_object_id(self, object_id: int):
+        object_id_tensor_name = "object_id"
+        object_id_tensor = None
+        param = self.meta()._params
+        while param:
+            tensor_structure = param.contents.data
+            if not libgst.gst_structure_has_name(tensor_structure, object_id_tensor_name.encode('utf-8')):
+                param = param.contents.next
+                continue
+            object_id_tensor = Tensor(tensor_structure)
+            break
+
+        if object_id_tensor is None:
+            object_id_tensor = self.add_tensor(object_id_tensor_name)
+
+        object_id_tensor["id"] = object_id
+
     ## @brief Get all Tensor instances added to this RegionOfInterest
     # @return list of Tensor instances added to this RegionOfInterest
     def tensors(self):

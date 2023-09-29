@@ -4,8 +4,6 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.1)
-
 set (TARGET_NAME "dlstreamer_gst")
 
 add_library(${TARGET_NAME} SHARED allocator.cpp transform_element.cpp)

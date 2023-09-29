@@ -43,6 +43,12 @@ static const GEnumValue SpatialFeatureDistanceValues[] = {
     {(int)SpatialFeatureDistanceType::Cosine, "Cosine distance", "cosine"},
     {0, NULL, NULL}};
 
+namespace {
+
+constexpr auto SPATIAL_FEATURE_META_NAME = "spatial-feature";
+
+} // namespace
+
 typedef struct _ObjectTrack {
     VideoInference base;
 
@@ -164,13 +170,37 @@ void object_track_set_property(GObject *object, guint property_id, const GValue 
     }
 }
 
+static std::string build_object_assoc_elem_str(ObjectTrack *self) {
+    std::ostringstream result;
+    result << "opencv_object_association" << std::boolalpha;
+    result << " generate-objects=" << !!self->generate_objects;
+    result << " adjust-objects=" << !!self->adjust_objects;
+    result << " tracking-per-class=" << !!self->tracking_per_class;
+
+    auto spatial_feature_distance_to_string = [](SpatialFeatureDistanceType d) -> std::string_view {
+        for (auto &v : SpatialFeatureDistanceValues) {
+            if (v.value == d)
+                return v.value_nick;
+        }
+        throw std::runtime_error("Unknown SpatialFeatureDistanceType");
+    };
+    result << " spatial-feature-distance=" << spatial_feature_distance_to_string(self->spatial_feature_distance);
+
+    if (self->spatial_feature != SpatialFeatureType::None) {
+        result << " spatial-feature-metadata-name=" << SPATIAL_FEATURE_META_NAME;
+    }
+
+    return result.str();
+}
+
 static GstStateChangeReturn object_track_change_state(GstElement *element, GstStateChange transition) {
     auto self = OBJECT_TRACK(element);
 
     if (transition == GST_STATE_CHANGE_NULL_TO_READY) {
         if (self->spatial_feature == SpatialFeatureType::None) {
-            processbin_set_elements_description(GST_PROCESSBIN(element), NULL, NULL, NULL, NULL,
-                                                "opencv_object_association");
+            std::string postaggregate = build_object_assoc_elem_str(self);
+            processbin_set_elements_description(GST_PROCESSBIN(element), nullptr, nullptr, nullptr, nullptr,
+                                                postaggregate.data());
             processbin_link_elements(GST_PROCESSBIN(element));
         } else {
             g_object_set(G_OBJECT(self), "inference-region", "roi-list", NULL);
@@ -205,20 +235,8 @@ static GstStateChangeReturn object_track_change_state(GstElement *element, GstSt
                     self->spatial_feature_distance = (self->spatial_feature == SpatialFeatureType::Inference)
                                                          ? SpatialFeatureDistanceType::Cosine
                                                          : SpatialFeatureDistanceType::Bhattacharyya;
-                auto bool_to_string = [](gboolean v) -> std::string { return (v) ? "true" : "false"; };
-                auto spatial_feature_distance_to_string = [](SpatialFeatureDistanceType d) -> std::string {
-                    for (auto &v : SpatialFeatureDistanceValues) {
-                        if (v.value == d)
-                            return v.value_nick;
-                    }
-                    throw std::runtime_error("Unknown SpatialFeatureDistanceType");
-                };
-                std::string postaggregate =
-                    "opencv_object_association generate-objects=" + bool_to_string(self->generate_objects) +
-                    " adjust-objects=" + bool_to_string(self->adjust_objects) +
-                    " tracking-per-class=" + bool_to_string(self->tracking_per_class) +
-                    " spatial-feature-distance=" + spatial_feature_distance_to_string(self->spatial_feature_distance) +
-                    " spatial-feature-metadata-name=spatial-feature";
+
+                std::string postaggregate = build_object_assoc_elem_str(self);
                 self->base.set_postaggregate_element(postaggregate.data());
             }
         }
@@ -237,7 +255,7 @@ static void object_track_class_init(ObjectTrackClass *klass) {
 
     auto video_inference = VIDEO_INFERENCE_CLASS(klass);
     video_inference->get_default_postprocess_elements = [](VideoInference *) -> std::string {
-        return "tensor_postproc_add_params attribute-name=spatial-feature";
+        return std::string("tensor_postproc_add_params attribute-name=") + SPATIAL_FEATURE_META_NAME;
     };
 
     const auto kParamFlags = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);

@@ -117,6 +117,9 @@ class MetaAggregatePrivate {
             gst_caps_unref(current_caps_);
     }
 
+    MetaAggregatePrivate(const MetaAggregatePrivate &) = delete;
+    MetaAggregatePrivate &operator=(const MetaAggregatePrivate &) = delete;
+
     void set_property(guint prop_id, const GValue *value) {
         switch (prop_id) {
         case PROP_ATTACH_TENSOR_DATA:

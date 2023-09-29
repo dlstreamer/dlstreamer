@@ -1,10 +1,10 @@
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required (VERSION 3.1)
+cmake_minimum_required(VERSION 3.12)
 
 project(DL_Streamer C CXX)
 
@@ -19,7 +19,7 @@ endif()
 
 # Define version
 set(VERSION_MAJOR 1)
-set(VERSION_MINOR 8)
+set(VERSION_MINOR 9)
 set(VERSION_PATCH 0)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
@@ -43,7 +43,7 @@ add_definitions(-DPRODUCT_FULL_NAME="Intel\(R\) DL Streamer")
 
 # Helper macros and functions
 macro(find_IE_package)
-    set(IE_MIN_VERSION "2021.4.0")
+    set(IE_MIN_VERSION "2022.3.0")
     find_package(InferenceEngine REQUIRED)
     if (${InferenceEngine_VERSION} VERSION_EQUAL "0.0.0")
         message(WARNING "InferenceEngine version is 0.0.0. If you built OpenVINO™ toolkit from source, you can skip this warning")
@@ -116,7 +116,7 @@ set (DLSTREAMER_HEADERS_INSTALL_PATH include)
 
 # include and lib folders of this project
 set (DLSTREAMER_BASE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-set (DLSTREAMER_INCLUDE_DIRS ${DLSTREAMER_BASE_DIR}/gst-libs)
+set (DLSTREAMER_INCLUDE_DIRS ${DLSTREAMER_BASE_DIR}/include/dlstreamer)
 set (DLSTREAMER_LIBRARIES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY})
 
 # Options
@@ -131,6 +131,7 @@ cmake_dependent_option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installatio
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
+
 
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
@@ -181,7 +182,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/configs)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_CONFIG_H")
 
-# Code coverage
+
 
 # Find common packages
 
@@ -194,14 +195,12 @@ link_directories(${GSTREAMER_LIBRARY_DIRS})
 # Add subdirectories
 
 add_subdirectory(include/dlstreamer)
+add_subdirectory(include/dlstreamer/gst/videoanalytics)
 if(NOT(WIN32))
     add_subdirectory(src)
 endif()
-add_subdirectory(gst)
-add_subdirectory(gst-libs)
-add_subdirectory(inference_backend)
+add_subdirectory(src/monolithic)
 add_subdirectory(thirdparty)
-add_subdirectory(utils)
 add_subdirectory(python)
 
 if(${ENABLE_SAMPLES})
@@ -210,3 +209,5 @@ if(${ENABLE_SAMPLES})
     add_subdirectory(samples/ffmpeg_openvino/cpp/decode_resize_inference)
     add_subdirectory(samples/ffmpeg_dpcpp/rgb_to_grayscale)
 endif()
+
+

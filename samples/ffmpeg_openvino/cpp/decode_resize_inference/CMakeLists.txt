@@ -1,12 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set (TARGET_NAME "ffmpeg_openvino_decode_resize_inference")
+cmake_minimum_required(VERSION 3.12)
 
-cmake_minimum_required(VERSION 3.1)
+set (TARGET_NAME "ffmpeg_openvino_decode_resize_inference")
 
 ## use C11/C++17
 set (CMAKE_C_STANDARD 11)

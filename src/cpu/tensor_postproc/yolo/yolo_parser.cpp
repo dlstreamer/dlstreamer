@@ -23,13 +23,13 @@ const TensorInfo &YoloParser::get_min_tensor_shape(const TensorInfoVector &infos
 
 std::pair<size_t, size_t> YoloParser::get_cells_indexes(Layout layout) {
     switch (layout) {
-    case Layout::NBCxCy:
-        return {2, 3};
-    case Layout::NCxCyB:
-    case Layout::BCxCy:
-        return {1, 2};
-    case Layout::CxCyB:
-        return {0, 1};
+    case Layout::NBCyCx:
+        return {3, 2};
+    case Layout::NCyCxB:
+    case Layout::BCyCx:
+        return {2, 1};
+    case Layout::CyCxB:
+        return {1, 0};
     case Layout::Other:
         return {0, 0};
 

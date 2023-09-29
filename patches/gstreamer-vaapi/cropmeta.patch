@@ -1,8 +1,8 @@
 diff --git a/gst/vaapi/gstvaapipostproc.c b/gst/vaapi/gstvaapipostproc.c
-index 052ee4fa..cc143481 100644
+index 0e1b3a8..043ca51 100644
 --- a/gst/vaapi/gstvaapipostproc.c
 +++ b/gst/vaapi/gstvaapipostproc.c
-@@ -873,18 +873,23 @@ gst_vaapipostproc_process_vpp (GstBaseTransform * trans, GstBuffer * inbuf,
+@@ -879,18 +879,23 @@ gst_vaapipostproc_process_vpp (GstBaseTransform * trans, GstBuffer * inbuf,
  
    if (use_vpp_crop (postproc)) {
      crop_rect = &tmp_rect;
@@ -36,3 +36,6 @@ index 052ee4fa..cc143481 100644
    }
  
    if (!crop_rect)
+-- 
+2.25.1
+

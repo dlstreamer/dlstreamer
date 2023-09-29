@@ -12,7 +12,7 @@
     "output_postproc": [
         {
             "converter": "label",
-            "method": "max",
+            "method": "softmax",
             "labels": [
                 "tench",
                 "goldfish",

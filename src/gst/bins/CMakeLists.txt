@@ -6,8 +6,6 @@
 
 set(TARGET_NAME "gstdlstreamer_bins")
 
-cmake_minimum_required(VERSION 3.1)
-
 add_subdirectory(model_proc)
 add_subdirectory(processbin)
 add_subdirectory(video_inference)

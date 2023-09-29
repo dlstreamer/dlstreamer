@@ -315,6 +315,8 @@ int main(int argc, char *argv[]) {
     else if (output_type_str == "display-and-json")
         sink =
             "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! autovideosink sync=false";
+    else if (output_type_str == "json")
+        sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false";
     else
         throw std::runtime_error("Unsupported output type: " + output_type_str);
 

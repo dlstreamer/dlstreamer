@@ -6,8 +6,6 @@
 
 set(TARGET_NAME vaapi_to_opencl)
 
-cmake_minimum_required(VERSION 3.1)
-
 find_package(OpenCL REQUIRED)
 
 file(GLOB MAIN_SRC
