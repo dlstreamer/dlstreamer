@@ -538,8 +538,13 @@ bool InferenceImpl::IsRoiSizeValid(const GstVideoRegionOfInterestMeta *roi_meta)
     return roi_meta->w > 1 && roi_meta->h > 1;
 }
 
+/**
+ * Acquires output_frames_mutex with std::lock_guard.
+ */
 void InferenceImpl::PushOutput() {
     ITT_TASK(__FUNCTION__);
+    std::lock_guard<std::mutex> guard(output_frames_mutex);
+
     while (!output_frames.empty()) {
         auto &front = output_frames.front();
         if (front.inference_count != 0) {
@@ -760,11 +765,13 @@ void InferenceImpl::PushFramesIfInferenceFailed(
 /**
  * Updates buffer pointers for corresponding to 'inference_roi' output_frame, decreases it's inference_count.
  * May affect buffer if it's not writable.
+ * Acquires output_frames_mutex with std::lock_guard.
  *
  * @param[in] inference_roi - InferenceFrame to provide buffer's and inference element's info
  */
 void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inference_roi) {
     assert(inference_roi && "Inference frame is null");
+    std::lock_guard<std::mutex> guard(output_frames_mutex);
 
     /* we must iterate through std::list because it has no lookup operations */
     for (auto &output_frame : output_frames) {
@@ -790,7 +797,6 @@ void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inferenc
 /**
  * Callback called when the inference request is completed. Updates output_frames and invokes post-processing for
  * corresponding inference element then makes gst_pad_push to send buffer further down the pipeline.
- * Acquires output_frames_mutex with std::lock_guard.
  * Nullifies shared_ptr for InferenceBackend::Image created during 'SubmitImages'.
  *
  * @param[in] blobs - the resulting blobs obtained after executing inference
@@ -801,7 +807,6 @@ void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inferenc
 void InferenceImpl::InferenceCompletionCallback(
     std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,
     std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames) {
-    std::lock_guard<std::mutex> guard(output_frames_mutex);
     ITT_TASK(__FUNCTION__);
     if (frames.empty())
         return;
