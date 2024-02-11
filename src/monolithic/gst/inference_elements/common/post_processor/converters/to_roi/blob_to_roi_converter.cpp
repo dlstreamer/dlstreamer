@@ -14,6 +14,7 @@
 #include "yolo_v2.h"
 #include "yolo_v3.h"
 #include "yolo_v5.h"
+#include "resnet_10.h"
 
 #include "inference_backend/logger.h"
 
@@ -40,6 +41,8 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
 
     if (converter_name == DetectionOutputConverter::getName())
         return BlobToMetaConverter::Ptr(new DetectionOutputConverter(std::move(initializer), confidence_threshold));
+    else if (converter_name == Resnet10Converter::getName())
+        return BlobToMetaConverter::Ptr(new Resnet10Converter(std::move(initializer), confidence_threshold));
     else if (converter_name == BoxesLabelsConverter::getName())
         return BlobToMetaConverter::Ptr(new BoxesLabelsConverter(std::move(initializer), confidence_threshold));
     else if (converter_name == BoxesScoresConverter::getName())
