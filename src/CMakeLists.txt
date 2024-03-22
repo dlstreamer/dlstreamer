@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
+# List of compilation target folders
 add_subdirectory(base)
 add_subdirectory(cpu)
 add_subdirectory(ffmpeg)
