@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,9 +10,6 @@ set -e
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 DEVICE=${2:-CPU}
 OUTPUT=${3:-display} # Supported values: display, fps, json, display-and-json
-
-MODEL1=face-detection-adas-0001
-MODEL2=age-gender-recognition-retail-0013
 
 SCRIPTDIR="$(dirname "$(realpath "$0")")"
 PYTHON_SCRIPT1=$SCRIPTDIR/postproc_callbacks/ssd_object_detection.py
@@ -47,17 +44,12 @@ DETECT_MODEL_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detect
 CLASS_MODEL_PATH=${MODELS_PATH}/intel/age-gender-recognition-retail-0013/FP32/age-gender-recognition-retail-0013.xml
 
 echo Running sample with the following parameters:
-echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
+echo GST_PLUGIN_PATH="${GST_PLUGIN_PATH}"
 
-PIPELINE="gst-launch-1.0 \
-$SOURCE_ELEMENT ! decodebin ! \
-gvainference model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! \
-gvapython module=$PYTHON_SCRIPT1 ! \
-gvainference inference-region=roi-list model=$CLASS_MODEL_PATH device=$DEVICE ! queue ! \
-gvapython module=$PYTHON_SCRIPT2 ! \
-gvapython module=$PYTHON_SCRIPT3 class=AgeLogger function=log_age kwarg={\\\"log_file_path\\\":\\\"/tmp/age_log.txt\\\"} ! \
-$SINK_ELEMENT"
+read -r PIPELINE << EOM
+gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! gvainference model=$DETECT_MODEL_PATH device=$DEVICE ! queue ! gvapython module=$PYTHON_SCRIPT1 ! gvainference inference-region=roi-list model=$CLASS_MODEL_PATH device=$DEVICE ! queue ! gvapython module=$PYTHON_SCRIPT2 ! gvapython module=$PYTHON_SCRIPT3 class=AgeLogger function=log_age kwarg={\\"log_file_path\\":\\"/tmp/age_log.txt\\"} ! $SINK_ELEMENT 
+EOM
 
-echo ${PIPELINE}
+echo "${PIPELINE}"
 PYTHONPATH=$PYTHONPATH:$(dirname "$0")/../../../../python \
 $PIPELINE

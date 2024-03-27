@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,14 +14,14 @@ void ExtractDetectionResults(AudioInferenceFrame *frame, AudioInferenceOutput *i
     if (!frame || !infOutput)
         throw std::runtime_error("Invalid AudioInferenceFrame or AudioInferenceOutput object");
 
-    for (const auto &blob_iter : infOutput->output_blobs) {
+    for (const auto &blob_iter : infOutput->output_tensors) {
         // Finding layer_name specified in model_proc against output blobs
         auto model_proc_itr = infOutput->model_proc.find(blob_iter.first);
         if (model_proc_itr != infOutput->model_proc.cend()) {
             std::string layer_name = blob_iter.first;
 
-            const float *tensor_array = reinterpret_cast<const float *>(blob_iter.second.first->GetData());
-            int tensor_size = blob_iter.second.second;
+            const float *tensor_array = reinterpret_cast<const float *>(blob_iter.second->GetData());
+            size_t tensor_size = blob_iter.second->GetSize();
 
             int index = std::distance(tensor_array, std::max_element(tensor_array, tensor_array + tensor_size));
             std::map<uint32_t, std::pair<std::string, float>> labels = infOutput->model_proc.at(layer_name);
@@ -38,7 +38,7 @@ void ExtractDetectionResults(AudioInferenceFrame *frame, AudioInferenceOutput *i
                                           "end_timestamp", G_TYPE_LONG, frame->endTime, "label_id", G_TYPE_INT,
                                           index + 1, "confidence", G_TYPE_DOUBLE, confidence, NULL);
 
-                    CopyOutputBlobToGstStructure(blob_iter.second.first, detection, infOutput->model_name.c_str(),
+                    CopyOutputBlobToGstStructure(blob_iter.second, detection, infOutput->model_name.c_str(),
                                                  layer_name.c_str(), 1, 1);
                     gst_gva_audio_event_meta_add_param(meta, detection);
                 }

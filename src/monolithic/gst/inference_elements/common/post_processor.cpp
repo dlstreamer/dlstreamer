@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -238,30 +238,4 @@ PostProcessor::PostProcessor(size_t image_width, size_t image_height, size_t bat
 PostProcessorImpl::ExitStatus PostProcessor::process(const OutputBlobs &blobs, InferenceFrames &frames) const {
     auto frame_wrappers = FramesWrapper(frames);
     return post_proc_impl.process(blobs, frame_wrappers);
-}
-PostProcessorImpl::ExitStatus PostProcessor::process(GstBuffer *buffer,
-                                                     const std::vector<TensorDesc> &output_tensors_descs,
-                                                     const std::string &instance_id) const {
-    try {
-        OutputBlobs output_blobs;
-
-        GstMapInfo info;
-        if (!gst_buffer_map(buffer, &info, GST_MAP_READ)) {
-            GVA_ERROR("Failed to map buffer for reading");
-            return PostProcessorImpl::ExitStatus::FAIL;
-        }
-
-        size_t offset = 0;
-        for (const auto &e : output_tensors_descs) {
-            output_blobs.emplace(e.name, std::make_shared<RawBlob>(info.data + offset, e.size, e.ie_desc));
-            offset = safe_add(offset, e.size);
-        }
-        gst_buffer_unmap(buffer, &info);
-
-        auto frame_wrappers = FramesWrapper(buffer, instance_id);
-        return post_proc_impl.process(output_blobs, frame_wrappers);
-    } catch (const std::exception &e) {
-        GVA_ERROR("An error occurred while post-processing: %s", e.what());
-        return PostProcessorImpl::ExitStatus::FAIL;
-    }
 }

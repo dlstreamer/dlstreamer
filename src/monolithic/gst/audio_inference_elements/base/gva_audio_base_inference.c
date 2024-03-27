@@ -1,11 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gva_audio_base_inference.h"
-#include "audio_defs.h"
+#include "utils.h"
 #include <sys/stat.h>
 
 #define DEFAULT_MODEL NULL

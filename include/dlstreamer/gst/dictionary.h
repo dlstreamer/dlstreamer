@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -89,7 +89,22 @@ class GSTROIDictionary : public Dictionary {
     }
 
     virtual std::vector<std::string> keys() const override {
-        return {"x_min", "y_min", "x_max", "y_max", "confidence", "id", "parent_id", "label_id", "label"};
+        using inferkey = InferenceResultMetadata::key;
+        return {
+            "x_min",
+            "y_min",
+            "x_max",
+            "y_max",
+            "confidence",
+            "id",
+            "parent_id",
+            "label_id",
+            "label",
+            // keys from InferenceResultMetadata:
+            inferkey::model_name,
+            inferkey::layer_name,
+            inferkey::format,
+        };
     }
 
     std::optional<Any> try_get(std::string_view key) const noexcept override {
@@ -103,6 +118,7 @@ class GSTROIDictionary : public Dictionary {
     }
 
     void set(std::string_view key, Any value) override {
+        using inferkey = InferenceResultMetadata::key;
         if (key == key::x_min) {
             _roi->x = std::lround(any_cast<double>(value) * _width);
             _struct_dict->set(key, value);
@@ -125,6 +141,12 @@ class GSTROIDictionary : public Dictionary {
         } else if (key == key::label_id) {
             _struct_dict->set(key, value);
         } else if (key == key::confidence) {
+            _struct_dict->set(key, value);
+        } else if (key == inferkey::model_name) {
+            _struct_dict->set(key, value);
+        } else if (key == inferkey::layer_name) {
+            _struct_dict->set(key, value);
+        } else if (key == inferkey::format) {
             _struct_dict->set(key, value);
         } else {
             throw std::runtime_error("Unsupported key: " + std::string(key));

@@ -1,12 +1,14 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-set (TARGET_NAME "gstaudioanalytics")
+set (TARGET_NAME "audio_inference_elements")
 
 find_package(PkgConfig REQUIRED)
+find_package(OpenVINO REQUIRED Runtime)
+
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
 
@@ -25,7 +27,7 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/openvino/*.h
 )
 
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
+add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
 # FIXME: implicit declaration of tracer functions
@@ -36,31 +38,29 @@ endif()
 target_include_directories(${TARGET_NAME}
 PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/gvaaudiodetect
-    ${CMAKE_CURRENT_SOURCE_DIR}/base
-    openvino
-    utils
+    ${CMAKE_SOURCE_DIR}/src/utils/
+    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/include/inference_backend/
+    ${CMAKE_SOURCE_DIR}/src/monolithic/inference_backend/image_inference/openvino/
+    ${CMAKE_CURRENT_SOURCE_DIR}/base/
+    ${CMAKE_CURRENT_SOURCE_DIR}/openvino/
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvaaudiodetect/
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
+    utils
 )
 
 target_link_libraries(${TARGET_NAME}
-PUBLIC
-    utils
 PRIVATE
     ${GSTREAMER_LIBRARIES}
     ${GSTALLOC_LIBRARIES}
+    dlstreamer_api
     common
-    gstvideoanalyticsmeta
     inference_backend
     inference_elements
-    ${InferenceEngine_LIBRARIES}
     image_inference_openvino
     logger
-    pre_proc
-    opencv_pre_proc
-    json-schema-validator
+    openvino::runtime
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

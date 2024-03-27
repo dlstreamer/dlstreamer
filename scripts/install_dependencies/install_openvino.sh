@@ -1,14 +1,13 @@
 #!/bin/bash -e
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-SCRIPT_DIR=$(dirname "$(readlink -f "$0")")
 RUN_PREFIX=
 
-OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2023.0/linux/l_openvino_toolkit_ubuntu22_2023.0.0.10926.b4452d56304_x86_64.tgz"
+OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.0/linux/l_openvino_toolkit_ubuntu22_2024.0.0.14509.34caeefd078_x86_64.tgz"
 OV_ARCHIVE_EXT=".tgz"
 OV_CHECKSUM_EXT=".tgz.sha256"
 OV_LOCAL_ARCHIVE_PATH=/tmp/openvino_installation
@@ -52,7 +51,6 @@ get_options() {
             ;;
         --dry-run)
             RUN_PREFIX="echo"
-        DRY_RUN="--dry-run"
             echo ""
             echo "=============================="
             echo "DRY RUN: COMMANDS PRINTED ONLY"
@@ -64,10 +62,10 @@ get_options() {
             break
             ;;
         -?*)
-        error 'ERROR: Unknown option: ' $1
+        error 'ERROR: Unknown option: ' "$1"
             ;;
         ?*)
-        error 'ERROR: Unknown option: ' $1
+        error 'ERROR: Unknown option: ' "$1"
             ;;
         *)
             break
@@ -120,12 +118,12 @@ $RUN_PREFIX mkdir -p $OV_LOCAL_ARCHIVE_PATH
 $RUN_PREFIX apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget
 
 # Download OpenVINO™ archive and .sha256 files to temp folder
-$RUN_PREFIX wget ${OV_REMOTE_ARCHIVE_PATH} -A "*_ubuntu22_*${OV_ARCHIVE_EXT},*_ubuntu22_*${OV_CHECKSUM_EXT}" -P ${OV_LOCAL_ARCHIVE_PATH} -r -l1 -nd -np -e robots=off -U mozilla
+$RUN_PREFIX wget "${OV_REMOTE_ARCHIVE_PATH}" -A "*_ubuntu22_*${OV_ARCHIVE_EXT},*_ubuntu22_*${OV_CHECKSUM_EXT}" -P ${OV_LOCAL_ARCHIVE_PATH} -r -l1 -nd -np -e robots=off -U mozilla
 
 # Verify contents, extract and move to install folder
 $RUN_PREFIX pushd $OV_LOCAL_ARCHIVE_PATH
 
-$RUN_PREFIX sha256sum -c *${OV_CHECKSUM_EXT} >& checksum_results || true 
+$RUN_PREFIX sha256sum -c ./*"${OV_CHECKSUM_EXT}" >& checksum_results || true 
 if grep -q "No such file or directory" checksum_results; then
     echo "checksum file not found .. continuing"
 elif grep -q "OK" checksum_results; then
@@ -143,7 +141,7 @@ OV_SAMPLES_PATH=${OV_INSTALL_MOUNT}/samples
 # Handle requests for uninstall
 if [ "$OV_UNINSTALL" == "true" ]; then
     # Dynamically identify the first version encountered and allow user to confirm uninstall
-    if [ -d /opt/intel/openvino_ubuntu22_* ] ; then
+    if ls /opt/intel/openvino_ubuntu22_* 1> /dev/null 2>&1; then
         OPENVINO_VERSION=$(ls -d /opt/intel/openvino_ubuntu22_*) && OPENVINO_VERSION=${OPENVINO_VERSION#*openvino_}
         OV_INSTALL_PATH="/opt/intel/openvino_${OPENVINO_VERSION}"
     else
@@ -161,54 +159,54 @@ if [ "$OV_UNINSTALL" == "true" ]; then
         exit 1
     fi
     echo "Removing install path at: ${OV_INSTALL_PATH}"
-    $RUN_PREFIX rm -rf ${OV_INSTALL_PATH}
+    $RUN_PREFIX rm -rf "${OV_INSTALL_PATH}"
     echo "Removing symlink at: ${OV_INSTALL_MOUNT}"
-    $RUN_PREFIX unlink ${OV_INSTALL_MOUNT}
+    $RUN_PREFIX unlink "${OV_INSTALL_MOUNT}"
     echo "Uninstall complete."
     exit 0
 fi
 
-echo "Extracting files from $(ls *${OV_ARCHIVE_EXT})"
+echo "Extracting files from $(ls ./*${OV_ARCHIVE_EXT})"
 echo "Creating dynamic installation"
 OV_INSTALL_PATH="/opt/intel/openvino_${OV_SHORT_VERSION}"
 
 echo "Installing to ${OV_INSTALL_PATH}..."
-$RUN_PREFIX mkdir -p ${OV_INSTALL_PATH}
-$RUN_PREFIX tar -xvf *${OV_ARCHIVE_EXT} -C ${OV_INSTALL_PATH} --strip-components=1
+$RUN_PREFIX mkdir -p "${OV_INSTALL_PATH}"
+$RUN_PREFIX tar -xvf ./*${OV_ARCHIVE_EXT} -C "${OV_INSTALL_PATH}" --strip-components=1
 
 $RUN_PREFIX popd
-$RUN_PREFIX rm -r $OV_LOCAL_ARCHIVE_PATH
+$RUN_PREFIX rm -r "$OV_LOCAL_ARCHIVE_PATH"
 
 # Add/update symlink so /opt/intel/openvino_$OV_YEAR points to the install folder
-$RUN_PREFIX ln -sfn $OV_INSTALL_PATH $OV_INSTALL_MOUNT
+$RUN_PREFIX ln -sfn "$OV_INSTALL_PATH" "$OV_INSTALL_MOUNT"
 
 # ==============================================================================
 # POST-INSTALLATION
 # ==============================================================================
-if ! $RUN_PREFIX ${OV_INSTALL_PATH}/install_dependencies/install_openvino_dependencies.sh -y ; then
+if ! $RUN_PREFIX "${OV_INSTALL_PATH}"/install_dependencies/install_openvino_dependencies.sh -y ; then
     echo "WARNING: OpenVINO™ does not support installing dependencies on this OS."
     echo "Temporarily installing Ubuntu 20.04 dependencies for preview support."
-    if ! os=ubuntu20.04 ${OV_INSTALL_PATH}/install_dependencies/install_openvino_dependencies.sh -y ; then
+    if ! os=ubuntu20.04 "${OV_INSTALL_PATH}"/install_dependencies/install_openvino_dependencies.sh -y ; then
         echo "ERROR: could not install OpenVINO™ dependencies on this OS."
     fi
 fi
 if [ "$BUILD_SAMPLES" == "true" ]; then
     # NOTE: This currently locates samples beneath:
     # /opt/intel/openvino_$OV_YEAR/samples/samples_bin
-    $RUN_PREFIX ${OV_INSTALL_PATH}/samples/cpp/build_samples.sh -i ${OV_SAMPLES_PATH}
+    $RUN_PREFIX "${OV_INSTALL_PATH}"/samples/cpp/build_samples.sh -i "${OV_SAMPLES_PATH}"
 fi
 
 if [ "$INSTALL_DEV_TOOLS" == "true" ]; then
-    DEBIAN_FRONTEND=noninteractive
+    export DEBIAN_FRONTEND=noninteractive
     $RUN_PREFIX apt-get install -y python3-pip python3-sympy && pip3 install --upgrade pip setuptools
     if [ -n "$EXTRA_PYPI_INDEX_URL" ]; then
-        $RUN_PREFIX python3 -m pip config set global.extra-index-url ${EXTRA_PYPI_INDEX_URL}
+        $RUN_PREFIX python3 -m pip config set global.extra-index-url "${EXTRA_PYPI_INDEX_URL}"
     fi
     if [ -n "$OV_SHORT_VERSION" ]; then
         echo "Installing explicitly requested developer tools version ${OV_SHORT_VERSION}..."
-        $RUN_PREFIX python3 -m pip install openvino-dev[onnx,tensorflow,tensorflow2,pytorch,mxnet,kaldi,caffe]==${OV_SHORT_VERSION}
+        $RUN_PREFIX python3 -m pip install 'openvino-dev[onnx,tensorflow,tensorflow2,pytorch,mxnet,kaldi,caffe]'=="${OV_SHORT_VERSION}"
     else
-        $RUN_PREFIX python3 -m pip install openvino-dev[onnx,tensorflow,tensorflow2,pytorch,mxnet,kaldi,caffe]
+        $RUN_PREFIX python3 -m pip install 'openvino-dev[onnx,tensorflow,tensorflow2,pytorch,mxnet,kaldi,caffe]'
     fi
 fi
 

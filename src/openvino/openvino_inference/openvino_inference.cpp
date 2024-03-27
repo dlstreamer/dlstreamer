@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,8 +11,8 @@
 #include "dlstreamer/memory_mapper_factory.h"
 #include "dlstreamer/openvino/context.h"
 #include "dlstreamer/vaapi/context.h"
-#include "dlstreamer_logger.h"
 
+#include <logger.h>
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 
@@ -46,8 +46,7 @@ static ParamDescVector params_desc = {
 class OpenVinoTensorInference : public BaseTransform {
   public:
     OpenVinoTensorInference(DictionaryCPtr params, const ContextPtr &app_context)
-        : BaseTransform(app_context), _params(params),
-          _logger(log::get_or_nullsink(params->get(param::logger_name, std::string()))) {
+        : BaseTransform(app_context), _params(params) {
         _device = _params->get<std::string>(param::device);
         _buffer_pool_size = _params->get<int>(param::buffer_pool_size, 16);
         read_ir_model();
@@ -112,7 +111,7 @@ class OpenVinoTensorInference : public BaseTransform {
                 if (cfg == ov::supported_properties)
                     continue;
                 auto prop = _compiled_model.get_property(cfg);
-                SPDLOG_LOGGER_INFO(_logger, "OpenVINO™ toolkit config: {} \t= {}", cfg, prop.as<std::string>());
+                GVA_INFO("OpenVINO™ toolkit config: %s \t= %s", cfg.c_str(), prop.as<std::string>().c_str());
             }
         } catch (const ov::Exception &) {
         }
@@ -177,7 +176,6 @@ class OpenVinoTensorInference : public BaseTransform {
     DictionaryCPtr _params;
     MemoryMapperPtr _input_mapper;
     OpenVINOContextPtr _openvino_context;
-    std::shared_ptr<spdlog::logger> _logger;
 
     bool is_device_gpu() const {
         return _device.find("GPU") != std::string::npos;

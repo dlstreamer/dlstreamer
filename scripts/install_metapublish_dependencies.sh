@@ -1,12 +1,12 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 CURDIR=$PWD
-cd /tmp/
+cd /tmp/ || exit
 
 if [ -n "$(command -v apt-get)" ]
 then
@@ -17,11 +17,11 @@ then
     yum check-update; yum install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates
 else
     echo "ERROR: Neither yum nor apt-get found"
-    exit -1
+    exit
 fi
 
 curl -sSL https://github.com/edenhill/librdkafka/archive/v1.5.0.tar.gz | tar -xz
-cd librdkafka-1.5.0
+cd librdkafka-1.5.0 || exit
 ./configure
 make
 make install
@@ -29,10 +29,10 @@ cd ..
 rm -rf librdkafka-1.5.0
 
 curl -sSL https://github.com/eclipse/paho.mqtt.c/archive/v1.3.4.tar.gz | tar -xz
-cd paho.mqtt.c-1.3.4
+cd paho.mqtt.c-1.3.4 || exit
 make
 make install
 cd ..
 rm -rf paho.mqtt.c-1.3.4
 
-cd $CURDIR
+cd "$CURDIR" || return

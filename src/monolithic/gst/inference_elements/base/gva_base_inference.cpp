@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -22,7 +22,6 @@
 #define DEFAULT_MODEL_INSTANCE_ID nullptr
 #define DEFAULT_MODEL_PROC nullptr
 #define DEFAULT_DEVICE "CPU"
-#define DEFAULT_DEVICE_EXTENSIONS ""
 #define DEFAULT_PRE_PROC "" // empty = autoselection
 #define DEFAULT_INFERENCE_REGION FULL_FRAME
 #define DEFAULT_OBJECT_CLASS nullptr
@@ -90,7 +89,6 @@ enum {
     PROP_GPU_THROUGHPUT_STREAMS,
     PROP_IE_CONFIG,
     PROP_PRE_PROC_CONFIG,
-    PROP_DEVICE_EXTENSIONS,
     PROP_INFERENCE_REGION,
     PROP_OBJECT_CLASS,
     PROP_LABELS,
@@ -105,7 +103,7 @@ GType gst_gva_base_inference_get_inf_region(void) {
                                                         {0, nullptr, nullptr}};
 
     if (!gva_inference_region) {
-        gva_inference_region = g_enum_register_static("InferenceRegionType", inference_region_types);
+        gva_inference_region = g_enum_register_static("InferenceRegionType3", inference_region_types);
     }
     return gva_inference_region;
 }
@@ -283,13 +281,6 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
                             "", param_flags));
 
     g_object_class_install_property(
-        gobject_class, PROP_DEVICE_EXTENSIONS,
-        g_param_spec_string(
-            "device-extensions", "ExtensionString",
-            "Comma separated list of KEY=VALUE pairs specifying the Inference Engine extension for a device",
-            DEFAULT_DEVICE_EXTENSIONS, static_cast<GParamFlags>(param_flags | G_PARAM_DEPRECATED)));
-
-    g_object_class_install_property(
         gobject_class, PROP_INFERENCE_REGION,
         g_param_spec_enum("inference-region", "Inference-Region",
                           "Identifier responsible for the region on which inference will be performed",
@@ -361,9 +352,6 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     g_free(base_inference->allocator_name);
     base_inference->allocator_name = nullptr;
 
-    g_free(base_inference->device_extensions);
-    base_inference->device_extensions = nullptr;
-
     if (base_inference->info) {
         gst_video_info_free(base_inference->info);
         base_inference->info = nullptr;
@@ -425,7 +413,6 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->ie_config = g_strdup("");
     base_inference->pre_proc_config = g_strdup("");
     base_inference->allocator_name = g_strdup(DEFAULT_ALLOCATOR_NAME);
-    base_inference->device_extensions = g_strdup(DEFAULT_DEVICE_EXTENSIONS);
 
     base_inference->initialized = FALSE;
     base_inference->info = nullptr;
@@ -555,12 +542,12 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         break;
     case PROP_CPU_THROUGHPUT_STREAMS:
         GST_WARNING("The property <cpu-throughput-streams> is deprecated and will be removed in future versions, "
-                    "please use ie-config=CPU_THROUGHPUT_STREAMS=x instead.");
+                    "please use ie-config=NUM_STREAMS=x instead.");
         base_inference->cpu_streams = g_value_get_uint(value);
         break;
     case PROP_GPU_THROUGHPUT_STREAMS:
         GST_WARNING("The property <gpu-throughput-streams> is deprecated and will be removed in future versions, "
-                    "please use ie-config=GPU_THROUGHPUT_STREAMS=x instead.");
+                    "please use ie-config=NUM_STREAMS=x instead.");
         base_inference->gpu_streams = g_value_get_uint(value);
         break;
     case PROP_IE_CONFIG:
@@ -570,10 +557,6 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_PRE_PROC_CONFIG:
         g_free(base_inference->pre_proc_config);
         base_inference->pre_proc_config = g_value_dup_string(value);
-        break;
-    case PROP_DEVICE_EXTENSIONS:
-        g_free(base_inference->device_extensions);
-        base_inference->device_extensions = g_value_dup_string(value);
         break;
     case PROP_INFERENCE_REGION:
         base_inference->inference_region = static_cast<InferenceRegionType>(g_value_get_enum(value));
@@ -669,9 +652,6 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_PRE_PROC_CONFIG:
         g_value_set_string(value, base_inference->pre_proc_config);
-        break;
-    case PROP_DEVICE_EXTENSIONS:
-        g_value_set_string(value, base_inference->device_extensions);
         break;
     case PROP_INFERENCE_REGION:
         g_value_set_enum(value, base_inference->inference_region);
@@ -860,21 +840,21 @@ gboolean gva_base_inference_start(GstBaseTransform *trans) {
 
     GST_DEBUG_OBJECT(base_inference, "start");
 
-    GST_INFO_OBJECT(
-        base_inference,
-        "%s inference parameters:\n -- Model: %s\n -- Model proc: %s\n "
-        "-- Device: %s\n -- Inference interval: %d\n -- Reshape: %s\n -- Batch size: %d\n "
-        "-- Reshape width: %d\n -- Reshape height: %d\n -- No block: %s\n -- Num of requests: %d\n "
-        "-- Model instance ID: %s\n -- CPU streams: %d\n -- GPU streams: %d\n -- IE config: %s\n "
-        "-- Allocator name: %s\n -- Preprocessing type: %s\n -- Device extensions: %s\n -- Object class: %s\n "
-        "-- Labels: %s\n",
-        GST_ELEMENT_NAME(GST_ELEMENT_CAST(base_inference)), base_inference->model, base_inference->model_proc,
-        base_inference->device, base_inference->inference_interval, base_inference->reshape ? "true" : "false",
-        base_inference->batch_size, base_inference->reshape_width, base_inference->reshape_height,
-        base_inference->no_block ? "true" : "false", base_inference->nireq, base_inference->model_instance_id,
-        base_inference->cpu_streams, base_inference->gpu_streams, base_inference->ie_config,
-        base_inference->allocator_name, base_inference->pre_proc_type, base_inference->device_extensions,
-        base_inference->object_class, base_inference->labels);
+    GST_INFO_OBJECT(base_inference,
+                    "%s inference parameters:\n -- Model: %s\n -- Model proc: %s\n "
+                    "-- Device: %s\n -- Inference interval: %d\n -- Reshape: %s\n -- Batch size: %d\n "
+                    "-- Reshape width: %d\n -- Reshape height: %d\n -- No block: %s\n -- Num of requests: %d\n "
+                    "-- Model instance ID: %s\n -- CPU streams: %d\n -- GPU streams: %d\n -- IE config: %s\n "
+                    "-- Allocator name: %s\n -- Preprocessing type: %s\n -- Object class: %s\n "
+                    "-- Labels: %s\n",
+                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(base_inference)), base_inference->model,
+                    base_inference->model_proc, base_inference->device, base_inference->inference_interval,
+                    base_inference->reshape ? "true" : "false", base_inference->batch_size,
+                    base_inference->reshape_width, base_inference->reshape_height,
+                    base_inference->no_block ? "true" : "false", base_inference->nireq,
+                    base_inference->model_instance_id, base_inference->cpu_streams, base_inference->gpu_streams,
+                    base_inference->ie_config, base_inference->allocator_name, base_inference->pre_proc_type,
+                    base_inference->object_class, base_inference->labels);
 
     if (!gva_base_inference_check_properties_correctness(base_inference)) {
         return base_inference->initialized;

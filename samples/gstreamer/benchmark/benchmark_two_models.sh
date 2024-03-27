@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2022 Intel Corporation
+# Copyright (C) 2020-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -19,7 +19,7 @@ INFERENCE1_ELEMENT=${9:-"gvadetect"}
 INFERENCE2_ELEMENT=${10:-"gvaclassify"}
 SINK_ELEMENT=${11:-"fakesink async=false"}
 
-if [ -z ${1} ]; then
+if [ -z "${1}" ]; then
   echo "ERROR set path to video"
   echo "Usage : ./benchmark_two_models.sh VIDEO_FILE [MODEL1_PATH] [MODEL2_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [SINK_ELEMENT]"
   echo "You can download video with"
@@ -28,7 +28,7 @@ if [ -z ${1} ]; then
   exit
 fi
 
-if [ $NUMBER_STREAMS -lt $NUMBER_PROCESSES ]; then
+if [ "$NUMBER_STREAMS" -lt "$NUMBER_PROCESSES" ]; then
   echo "ERROR: wrong value for NUMBER_STREAMS parameter"
   echo "The number of streams must be greater than or equal to NUMBER_PROCESSES parameter"
   exit
@@ -55,15 +55,15 @@ fi
 if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "CPU" ]; then
     PARAMS+="pre-process-backend=vaapi"
 fi
-if [ "$INFERENCE_DEVICE" == "CPU" ] && [ $NUMBER_PROCESSES -gt 1 ]; then # limit number inference threads per process
-    CORES=`nproc`
-    THREADS_NUM=$((($CORES + $CORES % $NUMBER_PROCESSES) / $NUMBER_PROCESSES))
+if [ "$INFERENCE_DEVICE" == "CPU" ] && [ "$NUMBER_PROCESSES" -gt 1 ]; then # limit number inference threads per process
+    CORES=$(nproc)
+    THREADS_NUM=$(((CORES + CORES % NUMBER_PROCESSES) / NUMBER_PROCESSES))
     if [ $THREADS_NUM -eq 0 ]; then
       THREADS_NUM=1
     fi
-    STREAMS_PER_PROCESS=$(($NUMBER_STREAMS / $NUMBER_PROCESSES))
-    NIREQ=$((2 * $STREAMS_PER_PROCESS))
-    THROUGHPUT_STREAMS=$(($STREAMS_PER_PROCESS))
+    STREAMS_PER_PROCESS=$((NUMBER_STREAMS / NUMBER_PROCESSES))
+    NIREQ=$((2 * STREAMS_PER_PROCESS))
+    THROUGHPUT_STREAMS=$((STREAMS_PER_PROCESS))
     PARAMS+="ie-config=CPU_THREADS_NUM=${THREADS_NUM},CPU_THROUGHPUT_STREAMS=${THROUGHPUT_STREAMS},CPU_BIND_THREAD=NO nireq=${NIREQ}"
 fi
 
@@ -75,4 +75,4 @@ ${INFERENCE2_ELEMENT} model-instance-id=inf1 model=${MODEL2_PATH} device=${INFER
 gvafpscounter ! ${SINK_ELEMENT}"
 
 # Launch multiple streams
-$(dirname "$0")/gst-launch-multi.sh "$PIPELINE" $NUMBER_STREAMS $NUMBER_PROCESSES
+"$(dirname "$0")"/gst-launch-multi.sh "$PIPELINE" "$NUMBER_STREAMS" "$NUMBER_PROCESSES"

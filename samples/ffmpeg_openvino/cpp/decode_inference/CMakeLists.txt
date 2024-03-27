@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -13,7 +13,7 @@ set (CMAKE_C_STANDARD 11)
 set (CMAKE_CXX_STANDARD 17)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)
+find_package(LIBAV COMPONENTS libavformat libavcodec libswscale libavutil)
 find_package(OpenVINO COMPONENTS Runtime)
 find_package(OpenCL)
 find_package(gflags)

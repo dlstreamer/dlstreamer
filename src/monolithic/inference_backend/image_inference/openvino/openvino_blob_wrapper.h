@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,42 +8,14 @@
 
 #include "inference_backend/image_inference.h"
 
-#include <inference_engine.hpp>
-
-class OpenvinoBlobWrapper : public virtual InferenceBackend::Blob {
+class OpenvinoInputBlob : public InferenceBackend::InputBlob {
   public:
-    OpenvinoBlobWrapper(InferenceEngine::Blob::Ptr blob) : blob(blob) {
+    OpenvinoInputBlob() : index(0) {
     }
-
-    const std::vector<size_t> &GetDims() const override {
-        return blob->getTensorDesc().getDims();
-    }
-
-    InferenceBackend::Blob::Layout GetLayout() const override {
-        return static_cast<InferenceBackend::Blob::Layout>((int)blob->getTensorDesc().getLayout());
-    }
-
-    InferenceBackend::Blob::Precision GetPrecision() const override {
-        return static_cast<InferenceBackend::Blob::Precision>((int)blob->getTensorDesc().getPrecision());
-    }
-
-    virtual ~OpenvinoBlobWrapper() = default;
-
-  protected:
-    InferenceEngine::Blob::Ptr blob;
-};
-
-class OpenvinoInputBlob : public OpenvinoBlobWrapper, public InferenceBackend::InputBlob {
-  public:
-    OpenvinoInputBlob(InferenceEngine::Blob::Ptr blob) : OpenvinoBlobWrapper(blob), index(0) {
-    }
-    OpenvinoInputBlob(InferenceEngine::Blob::Ptr blob, size_t batch_index)
-        : OpenvinoBlobWrapper(blob), index(batch_index) {
+    OpenvinoInputBlob(size_t batch_index) : index(batch_index) {
     }
     ~OpenvinoInputBlob() = default;
-    void *GetData() override {
-        return blob->buffer();
-    }
+
     size_t GetIndexInBatch() const override {
         return index;
     }
@@ -52,12 +24,117 @@ class OpenvinoInputBlob : public OpenvinoBlobWrapper, public InferenceBackend::I
     size_t index;
 };
 
-class OpenvinoOutputBlob : public OpenvinoBlobWrapper, public InferenceBackend::OutputBlob {
+// TODO: Do we need OV wrappers?
+class OpenvinoInputTensor : public OpenvinoInputBlob {
+    ov::Tensor _tensor;
+    mutable ov::Shape _shape;
+
   public:
-    OpenvinoOutputBlob(InferenceEngine::Blob::Ptr blob) : OpenvinoBlobWrapper(blob) {
+    OpenvinoInputTensor(ov::Tensor tensor) : _tensor(std::move(tensor)) {
     }
-    ~OpenvinoOutputBlob() = default;
+
+    const std::vector<size_t> &GetDims() const override {
+        if (_shape.empty())
+            _shape = _tensor.get_shape();
+        return _shape;
+    }
+
+    InferenceBackend::Blob::Layout GetLayout() const override {
+        // FIXME
+        return InferenceBackend::Blob::Layout::ANY;
+    }
+
+    InferenceBackend::Blob::Precision GetPrecision() const override {
+        switch (_tensor.get_element_type()) {
+        case ov::element::u8:
+            return InferenceBackend::Blob::Precision::U8;
+        case ov::element::f32:
+            return InferenceBackend::Blob::Precision::FP32;
+        case ov::element::f16:
+            return InferenceBackend::Blob::Precision::FP16;
+        case ov::element::bf16:
+            return InferenceBackend::Blob::Precision::BF16;
+        case ov::element::f64:
+            return InferenceBackend::Blob::Precision::FP64;
+        case ov::element::i16:
+            return InferenceBackend::Blob::Precision::I16;
+        case ov::element::i32:
+            return InferenceBackend::Blob::Precision::I32;
+        case ov::element::i64:
+            return InferenceBackend::Blob::Precision::I64;
+        case ov::element::u4:
+            return InferenceBackend::Blob::Precision::U4;
+        case ov::element::u16:
+            return InferenceBackend::Blob::Precision::U16;
+        case ov::element::u32:
+            return InferenceBackend::Blob::Precision::U32;
+        case ov::element::u64:
+            return InferenceBackend::Blob::Precision::U64;
+
+        default:
+            throw std::runtime_error(std::string("unsupported element type: ") +
+                                     _tensor.get_element_type().get_type_name().c_str());
+        }
+    }
+
+    void *GetData() {
+        return _tensor.data();
+    }
+};
+
+class OpenvinoOutputTensor : public InferenceBackend::OutputBlob {
+    ov::Tensor _tensor;
+    mutable ov::Shape _shape;
+
+  public:
+    OpenvinoOutputTensor(ov::Tensor tensor) : _tensor(std::move(tensor)) {
+    }
+
+    const std::vector<size_t> &GetDims() const override {
+        if (_shape.empty())
+            _shape = _tensor.get_shape();
+        return _shape;
+    }
+
+    InferenceBackend::Blob::Layout GetLayout() const override {
+        // FIXME
+        return InferenceBackend::Blob::Layout::ANY;
+    }
+
+    InferenceBackend::Blob::Precision GetPrecision() const override {
+        switch (_tensor.get_element_type()) {
+        case ov::element::u8:
+            return InferenceBackend::Blob::Precision::U8;
+        case ov::element::f32:
+            return InferenceBackend::Blob::Precision::FP32;
+        case ov::element::f16:
+            return InferenceBackend::Blob::Precision::FP16;
+        case ov::element::bf16:
+            return InferenceBackend::Blob::Precision::BF16;
+        case ov::element::f64:
+            return InferenceBackend::Blob::Precision::FP64;
+        case ov::element::i16:
+            return InferenceBackend::Blob::Precision::I16;
+        case ov::element::i32:
+            return InferenceBackend::Blob::Precision::I32;
+        case ov::element::i64:
+            return InferenceBackend::Blob::Precision::I64;
+        case ov::element::u4:
+            return InferenceBackend::Blob::Precision::U4;
+        case ov::element::u16:
+            return InferenceBackend::Blob::Precision::U16;
+        case ov::element::u32:
+            return InferenceBackend::Blob::Precision::U32;
+        case ov::element::u64:
+            return InferenceBackend::Blob::Precision::U64;
+
+        default:
+            throw std::runtime_error(std::string("unsupported element type: ") +
+                                     _tensor.get_element_type().get_type_name().c_str());
+        }
+    }
+
     const void *GetData() const override {
-        return blob->buffer();
+        return _tensor.data();
     }
 };

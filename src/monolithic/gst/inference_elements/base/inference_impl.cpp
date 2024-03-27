@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,7 +10,6 @@
 #include "common/pre_processor_info_parser.hpp"
 #include "common/pre_processors.h"
 #include "config.h"
-#include "core_singleton.h"
 #include "gst_allocator_wrapper.h"
 #include "gva_base_inference_priv.hpp"
 #include "gva_caps.h"
@@ -25,22 +24,20 @@
 #include "utils.h"
 #include "video_frame.h"
 
-#include <gpu/gpu_config.hpp>
-
-#include <ie_plugin_config.hpp>
-
-#include <gst/allocators/allocators.h>
-
 #include <assert.h>
 #include <cmath>
 #include <cstring>
 #include <exception>
+#include <gst/allocators/allocators.h>
 #include <map>
 #include <memory>
+#include <openvino/runtime/properties.hpp>
 #include <regex>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "gst_logger_sink.h"
 
 #ifdef ENABLE_VAAPI
 #include "vaapi_utils.h"
@@ -120,24 +117,46 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
     if (gva_base_inference->device != nullptr) {
         std::string device = gva_base_inference->device;
         base[KEY_DEVICE] = device;
+
+        // Map legacy OV1 inference engine params to OV2 properties to keep backward compatibility:
         if (device == "CPU") {
-            if (inference.find(KEY_CPU_THROUGHPUT_STREAMS) == inference.end()) {
-                inference[KEY_CPU_THROUGHPUT_STREAMS] = (gva_base_inference->cpu_streams == 0)
-                                                            ? "CPU_THROUGHPUT_AUTO"
-                                                            : std::to_string(gva_base_inference->cpu_streams);
+            if (inference.find(KEY_CPU_THROUGHPUT_STREAMS) != inference.end()) {
+                inference[ov::num_streams.name()] = inference[KEY_CPU_THROUGHPUT_STREAMS];
+                inference.erase(KEY_CPU_THROUGHPUT_STREAMS);
+                GVA_WARNING("Legacy setting detected 'ie-config=%s=x', use 'ie-config=%s=x' instead",
+                            KEY_CPU_THROUGHPUT_STREAMS, ov::num_streams.name());
+            }
+            if (inference.find(ov::num_streams.name()) == inference.end()) {
+                inference[ov::num_streams.name()] =
+                    (gva_base_inference->cpu_streams == 0) ? "-1" : std::to_string(gva_base_inference->cpu_streams);
+            }
+            if (inference.find("CPU_THREADS_NUM") != inference.end()) {
+                inference[ov::inference_num_threads.name()] = inference["CPU_THREADS_NUM"];
+                inference.erase("CPU_THREADS_NUM");
+                GVA_WARNING("Legacy setting detected 'ie-config=CPU_THREADS_NUM=x', use 'ie-config=%s=x' instead",
+                            ov::inference_num_threads.name());
+            }
+            if (inference.find("CPU_BIND_THREAD") != inference.end()) {
+                inference[ov::hint::enable_cpu_pinning.name()] = (inference["CPU_BIND_THREAD"] == "YES") ? "1" : "0";
+                inference.erase("CPU_BIND_THREAD");
+                GVA_WARNING("Legacy setting detected 'ie-config=CPU_BIND_THREAD=x', use 'ie-config=%s=x' instead",
+                            ov::hint::enable_cpu_pinning.name());
             }
         }
         if (device.find("GPU") != std::string::npos) {
-            if (inference.find(KEY_GPU_THROUGHPUT_STREAMS) == inference.end()) {
-                inference[KEY_GPU_THROUGHPUT_STREAMS] = (gva_base_inference->gpu_streams == 0)
-                                                            ? "GPU_THROUGHPUT_AUTO"
-                                                            : std::to_string(gva_base_inference->gpu_streams);
+            if (inference.find(KEY_GPU_THROUGHPUT_STREAMS) != inference.end()) {
+                inference[ov::num_streams.name()] = inference[KEY_GPU_THROUGHPUT_STREAMS];
+                inference.erase(KEY_GPU_THROUGHPUT_STREAMS);
+                GVA_WARNING("Legacy setting detected 'ie-config=%s=x', use 'ie-config=%s=x' instead",
+                            KEY_GPU_THROUGHPUT_STREAMS, ov::num_streams.name());
+            }
+            if (inference.find(ov::num_streams.name()) == inference.end()) {
+                inference[ov::num_streams.name()] =
+                    (gva_base_inference->gpu_streams == 0) ? "-1" : std::to_string(gva_base_inference->gpu_streams);
             }
         }
     }
 
-    // gva_base_inference->device_extensions is "device1=extension1,device2=extension2"-like string
-    base[KEY_DEVICE_EXTENSIONS] = gva_base_inference->device_extensions;
     base[KEY_PRE_PROCESSOR_TYPE] =
         std::to_string(static_cast<int>(ImagePreprocessorTypeFromString(gva_base_inference->pre_proc_type)));
     base[KEY_IMAGE_FORMAT] =
@@ -194,13 +213,15 @@ bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr
 
 bool IsPreprocSupported(ImagePreprocessorType preproc,
                         const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
-                        GstVideoInfo *input_video_info) {
+                        GstVideoInfo *input_video_info, const std::string device) {
+    bool isNpu = (device.find("NPU") != std::string::npos);
     switch (preproc) {
     case ImagePreprocessorType::IE:
-        return !DoesModelProcDefinePreProcessing(model_input_processor_info);
+        return !isNpu && !DoesModelProcDefinePreProcessing(model_input_processor_info);
     case ImagePreprocessorType::VAAPI_SYSTEM:
-    case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
         return IsModelProcSupportedForVaapi(model_input_processor_info, input_video_info);
+    case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
+        return !isNpu && IsModelProcSupportedForVaapi(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::OPENCV:
         return true;
     case ImagePreprocessorType::AUTO:
@@ -212,7 +233,7 @@ bool IsPreprocSupported(ImagePreprocessorType preproc,
 // Returns default suitable preprocessor according to caps and custom preprocessing options
 ImagePreprocessorType
 GetPreferredImagePreproc(CapsFeature caps, const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
-                         GstVideoInfo *input_video_info) {
+                         GstVideoInfo *input_video_info, const std::string device) {
     ImagePreprocessorType result = ImagePreprocessorType::OPENCV;
     switch (caps) {
     case SYSTEM_MEMORY_CAPS_FEATURE:
@@ -233,8 +254,9 @@ GetPreferredImagePreproc(CapsFeature caps, const std::vector<ModelInputProcessor
     }
 
     // Fallback to OPENCV
-    if (!IsPreprocSupported(result, model_input_processor_info, input_video_info))
+    if (!IsPreprocSupported(result, model_input_processor_info, input_video_info, device)) {
         result = ImagePreprocessorType::OPENCV;
+    }
 
     return result;
 }
@@ -247,11 +269,21 @@ void SetPreprocessor(InferenceConfig &config,
     const auto current = static_cast<ImagePreprocessorType>(std::stoi(config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE]));
 
     if (current == ImagePreprocessorType::AUTO) {
-        const auto preferred = GetPreferredImagePreproc(caps, model_input_processor_info, input_video_info);
+        const auto preferred =
+            GetPreferredImagePreproc(caps, model_input_processor_info, input_video_info, config[KEY_BASE][KEY_DEVICE]);
         config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(preferred));
-    } else if (!IsPreprocSupported(current, model_input_processor_info, input_video_info)) {
+    } else if (!IsPreprocSupported(current, model_input_processor_info, input_video_info,
+                                   config[KEY_BASE][KEY_DEVICE])) {
         if (current == ImagePreprocessorType::IE) { // if pre-processing params not supported by IE, change to OpenCV
             config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(ImagePreprocessorType::OPENCV));
+            GVA_WARNING("'pre-process-backend=ie' not supported with current settings, falling back to "
+                        "'pre-process-backend=opencv'");
+        } else if (current == ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
+            config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] =
+                std::to_string(static_cast<int>(ImagePreprocessorType::VAAPI_SYSTEM));
+            GVA_WARNING(
+                "'pre-process-backend=vaapi-surface-sharing' not supported with current settings, falling back to "
+                "'pre-process-backend=vaapi'");
         } else {
             throw std::runtime_error(
                 "Specified pre-process-backend can not be chosen due to unsupported operations defined in model-proc. "
@@ -377,7 +409,9 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
 
     auto display = gva_base_inference->priv->va_display;
     if (display) {
-        GVA_INFO("Using shared VADisplay (%p) from element %" GST_PTR_FORMAT, display.get(), gva_base_inference);
+        std::string display_info = fmt::format("Using shared VADisplay ({}) from element {}", fmt::ptr(display),
+                                               GST_ELEMENT_NAME(gva_base_inference));
+        GVA_INFO("%s", display_info.c_str());
         return display;
     }
 
@@ -399,21 +433,29 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
     assert(gva_base_inference && "Expected a valid pointer to GvaBaseInference");
 
     if (!Utils::fileExists(model_file))
-        throw std::invalid_argument("Model file '" + model_file + "' does not exist");
+        throw std::invalid_argument("ERROR: model file '" + model_file + "' does not exist");
+
+    if (Utils::symLink(model_file))
+        throw std::invalid_argument("ERROR: model file '" + model_file + "' is a symbolic link");
 
     Model model;
 
     if (!model_proc_path.empty()) {
         const constexpr size_t MAX_MODEL_PROC_SIZE = 10 * 1024 * 1024; // 10 Mb
         if (!Utils::CheckFileSize(model_proc_path, MAX_MODEL_PROC_SIZE))
-            throw std::invalid_argument("\'model-proc\' file " + model_proc_path +
+            throw std::invalid_argument("ERROR: model-proc file '" + model_proc_path +
                                         "' size exceeds the allowable size (10 MB).");
+        if (Utils::symLink(model_proc_path))
+            throw std::invalid_argument("ERROR: model-proc file '" + model_proc_path + "' is a symbolic link");
 
         ModelProcProvider model_proc_provider;
         model_proc_provider.readJsonFile(model_proc_path);
         model.input_processor_info = model_proc_provider.parseInputPreproc();
         model.output_processor_info = model_proc_provider.parseOutputPostproc();
     }
+
+    if (Utils::symLink(labels_str))
+        throw std::invalid_argument("ERROR: labels-file '" + labels_str + "' is a symbolic link");
 
     // It will be parsed in PostProcessor
     model.labels = labels_str;
@@ -436,9 +478,24 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         // Modify IE config for surface sharing
         if (static_cast<ImagePreprocessorType>(std::stoi(ie_config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE])) ==
             ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
-            ie_config[KEY_INFERENCE][InferenceEngine::GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS] =
-                InferenceEngine::PluginConfigParams::YES;
+            // ie_config[KEY_INFERENCE][InferenceEngine::GPUConfigParams::KEY_GPU_NV12_TWO_INPUTS] =
+            //    InferenceEngine::PluginConfigParams::YES;
+            if (!ie_config[KEY_BASE][KEY_IMAGE_FORMAT].compare("I420")) {
+                // I420 source pads are converted internally to NV12 tensors by vaapi-surface-sharing pre-processor
+                GVA_INFO("Overwrite input tensor format to NV12");
+                ie_config[KEY_BASE][KEY_IMAGE_FORMAT] = "NV12";
+            }
         }
+    }
+
+    if (gva_base_inference->inference_region == FULL_FRAME) {
+        ie_config[KEY_BASE]["img-width"] = std::to_string(gva_base_inference->info->width);
+        ie_config[KEY_BASE]["img-height"] = std::to_string(gva_base_inference->info->height);
+    } else {
+        ie_config[KEY_BASE]["img-width"] = "0";
+        ie_config[KEY_BASE]["img-height"] = "0";
+        ie_config[KEY_BASE]["frame-width"] = std::to_string(gva_base_inference->info->width);
+        ie_config[KEY_BASE]["frame-height"] = std::to_string(gva_base_inference->info->height);
     }
 
     auto image_inference = ImageInference::make_shared(
@@ -471,10 +528,8 @@ InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) {
 
     allocator = CreateAllocator(gva_base_inference->allocator_name);
 
-    GST_WARNING_OBJECT(gva_base_inference, "Loading model: device=%s, path=%s", gva_base_inference->device,
-                       model_file.c_str());
-    GST_WARNING_OBJECT(gva_base_inference, "Initial settings batch_size=%d, nireq=%d", gva_base_inference->batch_size,
-                       gva_base_inference->nireq);
+    GVA_INFO("Loading model: device=%s, path=%s", std::string(gva_base_inference->device).c_str(), model_file.c_str());
+    GVA_INFO("Initial settings: batch_size=%u, nireq=%u", gva_base_inference->batch_size, gva_base_inference->nireq);
     this->model = CreateModel(gva_base_inference, model_file, model_proc, labels_str);
 }
 
@@ -498,13 +553,15 @@ void InferenceImpl::UpdateModelReshapeInfo(GvaBaseInference *gva_base_inference)
             return;
 
         if (gva_base_inference->reshape_width || gva_base_inference->reshape_height) {
-            GVA_WARNING("reshape switched to TRUE because reshape_width or reshape_height more than 0");
+            GVA_WARNING("reshape switched to TRUE because reshape-width (%u) or reshape-height (%u) is non-zero",
+                        gva_base_inference->reshape_width, gva_base_inference->reshape_height);
             gva_base_inference->reshape = true;
             return;
         }
 
         if (gva_base_inference->batch_size > 1) {
-            GVA_WARNING("reshape switched to TRUE because batch-size more than 1");
+            GVA_WARNING("reshape switched to TRUE because batch-size (%u) is greater than one",
+                        gva_base_inference->batch_size);
             gva_base_inference->reshape = true;
             return;
         }
@@ -538,8 +595,13 @@ bool InferenceImpl::IsRoiSizeValid(const GstVideoRegionOfInterestMeta *roi_meta)
     return roi_meta->w > 1 && roi_meta->h > 1;
 }
 
+/**
+ * Acquires output_frames_mutex with std::lock_guard.
+ */
 void InferenceImpl::PushOutput() {
     ITT_TASK(__FUNCTION__);
+    std::lock_guard<std::mutex> guard(output_frames_mutex);
+
     while (!output_frames.empty()) {
         auto &front = output_frames.front();
         if (front.inference_count != 0) {
@@ -563,7 +625,8 @@ void InferenceImpl::PushBufferToSrcPad(OutputFrame &output_frame) {
     if (!check_gva_base_inference_stopped(output_frame.filter)) {
         GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(output_frame.filter), buffer);
         if (ret != GST_FLOW_OK) {
-            GVA_WARNING("Inference gst_pad_push returned status: %d", ret);
+            std::string returned_status = fmt::format("Inference gst_pad_push returned status: {}", ret);
+            GVA_WARNING("%s", returned_status.c_str());
         }
     }
 }
@@ -708,8 +771,7 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     size_t inference_count = (status == INFERENCE_EXECUTED) ? metas.size() : 0;
     gva_base_inference->frame_num++;
     if (gva_base_inference->frame_num == G_MAXUINT64) {
-        GST_WARNING_OBJECT(gva_base_inference,
-                           "The frame counter value limit has been reached. This value will be reset.");
+        GVA_WARNING("The frame counter value limit has been reached. This value will be reset.");
     }
 
     // push into output_frames queue
@@ -760,11 +822,13 @@ void InferenceImpl::PushFramesIfInferenceFailed(
 /**
  * Updates buffer pointers for corresponding to 'inference_roi' output_frame, decreases it's inference_count.
  * May affect buffer if it's not writable.
+ * Acquires output_frames_mutex with std::lock_guard.
  *
  * @param[in] inference_roi - InferenceFrame to provide buffer's and inference element's info
  */
 void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inference_roi) {
     assert(inference_roi && "Inference frame is null");
+    std::lock_guard<std::mutex> guard(output_frames_mutex);
 
     /* we must iterate through std::list because it has no lookup operations */
     for (auto &output_frame : output_frames) {
@@ -790,7 +854,6 @@ void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inferenc
 /**
  * Callback called when the inference request is completed. Updates output_frames and invokes post-processing for
  * corresponding inference element then makes gst_pad_push to send buffer further down the pipeline.
- * Acquires output_frames_mutex with std::lock_guard.
  * Nullifies shared_ptr for InferenceBackend::Image created during 'SubmitImages'.
  *
  * @param[in] blobs - the resulting blobs obtained after executing inference
@@ -801,7 +864,6 @@ void InferenceImpl::UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inferenc
 void InferenceImpl::InferenceCompletionCallback(
     std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,
     std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames) {
-    std::lock_guard<std::mutex> guard(output_frames_mutex);
     ITT_TASK(__FUNCTION__);
     if (frames.empty())
         return;
@@ -819,7 +881,6 @@ void InferenceImpl::InferenceCompletionCallback(
         inference_result->image.reset(); // deleter will to not make buffer_unref, see 'SubmitImages' method
         post_proc = inference_roi->gva_base_inference->post_proc;
 
-        UpdateOutputFrames(inference_roi);
         inference_frames.push_back(inference_roi);
     }
 
@@ -833,5 +894,8 @@ void InferenceImpl::InferenceCompletionCallback(
         GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());
     }
 
+    for (auto &inference_roi : inference_frames) {
+        UpdateOutputFrames(inference_roi);
+    }
     PushOutput();
 }

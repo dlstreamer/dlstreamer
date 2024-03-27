@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,8 +14,13 @@ static GstDebugCategory *init_gva_debug_cat() {
     return gva_common;
 }
 
-void GST_logger(int level, const char *file, const char *function, int line, const char *format, va_list args) {
+_GstDebugCategory *get_gva_debug_category() {
     static auto *gva_debug = init_gva_debug_cat();
+    return gva_debug;
+}
+
+void GST_logger(int level, const char *file, const char *function, int line, const char *format, va_list args) {
+    static auto *gva_debug = get_gva_debug_category();
 
 // Workaround for GCC poison mark
 #ifndef GST_DISABLE_GST_DEBUG

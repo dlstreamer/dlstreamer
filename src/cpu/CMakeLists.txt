@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -15,4 +15,7 @@ add_subdirectory(tensor_sliding_window)
 add_subdirectory(tensor_postproc)
 
 add_subdirectory(_plugin/dlstreamer/cpu/elements)
+
+target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/_plugin)
+
 add_subdirectory(_gst_plugin)

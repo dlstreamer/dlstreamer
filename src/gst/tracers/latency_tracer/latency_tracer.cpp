@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -390,6 +390,7 @@ static void on_element_new(LatencyTracer *lt, guint64 ts, GstElement *elem) {
 }
 
 static void latency_tracer_init(LatencyTracer *lt) {
+    GST_OBJECT_LOCK(lt);
     lt->toal_latency = 0;
     lt->frame_count = 0;
     lt->first_frame_init_ts = 0;
@@ -403,6 +404,7 @@ static void latency_tracer_init(LatencyTracer *lt) {
     GstTracer *tracer = GST_TRACER(lt);
     gst_tracing_register_hook(tracer, "element-new", G_CALLBACK(on_element_new));
     gst_tracing_register_hook(tracer, "element-change-state-post", G_CALLBACK(on_element_change_state_post));
+    GST_OBJECT_UNLOCK(lt);
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {

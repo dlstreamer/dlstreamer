@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -15,6 +15,7 @@ add_subdirectory(meta_aggregate)
 add_subdirectory(roi_split)
 add_subdirectory(video_frames_buffer)
 add_subdirectory(meta_smooth)
+add_subdirectory(gvainference)
 
 file(GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -40,6 +41,7 @@ PRIVATE
     video_frames_buffer
     dlstreamer_gst
     gstvideoanalyticsmeta
+    gvainference
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})

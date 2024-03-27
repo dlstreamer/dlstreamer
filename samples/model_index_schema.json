@@ -1,0 +1,918 @@
+{
+    "$schema": "http://json-schema.org/draft-06/schema#",
+    "$ref": "#/definitions/Welcome6",
+    "definitions": {
+        "Welcome6": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "aclnet": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "action-recognition-0001": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "age-gender-recognition-retail-0013": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "alexnet": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "anti-spoof-mn3": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "densenet-121": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "densenet-121-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "dla-34": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "driver-action-recognition-adas-0002": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "efficientdet-d0-tf": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "efficientdet-d1-tf": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "efficientnet-b0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "efficientnet-b0-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "emotions-recognition-retail-0003": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-0200": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-0202": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-0204": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-0205": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-0206": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-adas-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-retail-0004": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-retail-0005": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "face-detection-retail-0044": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "facial-landmarks-35-adas-0002": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "facial-landmarks-98-detection-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "faster_rcnn_inception_resnet_v2_atrous_coco": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "faster_rcnn_resnet50_coco": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v1": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v1-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v2": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v2-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v3": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v3-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "googlenet-v4-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "hbonet-0.25": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "hbonet-1.0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "head-pose-estimation-adas-0001": {
+                    "$ref": "#/definitions/HeadPoseEstimationAdas0001"
+                },
+                "horizontal-text-detection-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "human-pose-estimation-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "inception-resnet-v2-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "instance-segmentation-person-0007": {
+                    "$ref": "#/definitions/InstanceSegmentationPerson0007"
+                },
+                "instance-segmentation-security-0002": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "instance-segmentation-security-0091": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "instance-segmentation-security-0228": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "instance-segmentation-security-1039": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "instance-segmentation-security-1040": {
+                    "$ref": "#/definitions/ActionRecognition0001"
+                },
+                "landmarks-regression-retail-0009": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "license-plate-recognition-barrier-0007": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "mixnet-l": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-ssd": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "mobilenet-v1-0.25-128": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v1-1.0-224": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v1-1.0-224-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v2": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v2-1.0-224": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v2-1.4-224": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v2-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v3-large-1.0-224-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-v3-small-1.0-224-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "mobilenet-yolo-v4-syg": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "nfnet-f0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "octave-resnet-26-0.25": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "open-closed-eye-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "pedestrian-and-vehicle-detector-adas-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "pedestrian-detection-adas-0002": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "pelee-coco": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "person-attributes-recognition-crossroad-0230": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-attributes-recognition-crossroad-0234": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-attributes-recognition-crossroad-0238": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-detection-0200": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-detection-0201": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-detection-0202": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-detection-0203": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-detection-asl-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-detection-retail-0013": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-2000": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-2001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-2002": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-2003": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-2004": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-crossroad-0078": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-crossroad-1016": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "person-vehicle-bike-detection-crossroad-yolov3-1020": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "product-detection-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "regnetx-3.2gf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "repvgg-a0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "repvgg-b1": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "repvgg-b3": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "resnest-50-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "resnet-18-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "resnet-34-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "resnet-50-pytorch": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "resnet-50-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "resnet18-xnor-binary-onnx-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "resnet50-binary-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "retinanet-tf": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "rexnet-v1-x1.0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "rfcn-resnet101-coco-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "se-inception": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "se-resnet-50": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "se-resnext-50": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "shufflenet-v2-x0.5": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "shufflenet-v2-x1.0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "single-human-pose-estimation-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "squeezenet1.0": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "squeezenet1.1": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "ssd300": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "ssd512": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "ssd_mobilenet_v1_coco": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "ssd_mobilenet_v1_fpn_coco": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "ssdlite_mobilenet_v2": {
+                    "$ref": "#/definitions/EfficientdetD0Tf"
+                },
+                "swin-tiny-patch4-window7-224": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "vehicle-attributes-recognition-barrier-0039": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-attributes-recognition-barrier-0042": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-detection-0200": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-detection-0201": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-detection-0202": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-detection-adas-0002": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-license-plate-detection-barrier-0106": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vehicle-license-plate-detection-barrier-0123": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "vgg16": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "vgg19": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "weld-porosity-detection-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "yolo-v3-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "yolo-v3-tiny-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "yolo-v4-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "yolo-v4-tiny-tf": {
+                    "$ref": "#/definitions/Alexnet"
+                },
+                "icnet-camvid-ava-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "road-segmentation-adas-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "semantic-segmentation-adas-0001": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "text-detection-0003": {
+                    "$ref": "#/definitions/Aclnet"
+                },
+                "mobilenetv2-7": {
+                    "$ref": "#/definitions/EmotionFerplus8"
+                },
+                "emotion-ferplus-8": {
+                    "$ref": "#/definitions/EmotionFerplus8"
+                },
+                "yolov5s": {
+                    "$ref": "#/definitions/Yolov5"
+                },
+                "yolov5m": {
+                    "$ref": "#/definitions/Yolov5"
+                },
+                "efficientnet-b0_INT8": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "horizontal-text-detection-0002": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "resnet-50-tf_INT8": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "ssdlite_mobilenet_v2_INT8": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "ssd_mobilenet_v1_coco_INT8": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "text-recognition-0012-mod": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "yolo-v4-tf_INT8": {
+                    "$ref": "#/definitions/EfficientnetB0Int8"
+                },
+                "yolov5s-416": {
+                    "$ref": "#/definitions/Yolov5S416"
+                },
+                "yolov5s-416_INT8": {
+                    "$ref": "#/definitions/Yolov5S416"
+                },
+                "torchvision.models.detection.ssdlite320_mobilenet_v3_large": {
+                    "$ref": "#/definitions/TorchvisionModelsDetectionSsdlite320MobilenetV3Large"
+                }
+            },
+            "required": [
+                "aclnet",
+                "action-recognition-0001",
+                "age-gender-recognition-retail-0013",
+                "alexnet",
+                "anti-spoof-mn3",
+                "densenet-121",
+                "densenet-121-tf",
+                "dla-34",
+                "driver-action-recognition-adas-0002",
+                "efficientdet-d0-tf",
+                "efficientdet-d1-tf",
+                "efficientnet-b0",
+                "efficientnet-b0-pytorch",
+                "efficientnet-b0_INT8",
+                "emotion-ferplus-8",
+                "emotions-recognition-retail-0003",
+                "face-detection-0200",
+                "face-detection-0202",
+                "face-detection-0204",
+                "face-detection-0205",
+                "face-detection-0206",
+                "face-detection-adas-0001",
+                "face-detection-retail-0004",
+                "face-detection-retail-0005",
+                "face-detection-retail-0044",
+                "facial-landmarks-35-adas-0002",
+                "facial-landmarks-98-detection-0001",
+                "faster_rcnn_inception_resnet_v2_atrous_coco",
+                "faster_rcnn_resnet50_coco",
+                "googlenet-v1",
+                "googlenet-v1-tf",
+                "googlenet-v2",
+                "googlenet-v2-tf",
+                "googlenet-v3",
+                "googlenet-v3-pytorch",
+                "googlenet-v4-tf",
+                "hbonet-0.25",
+                "hbonet-1.0",
+                "head-pose-estimation-adas-0001",
+                "horizontal-text-detection-0001",
+                "horizontal-text-detection-0002",
+                "human-pose-estimation-0001",
+                "icnet-camvid-ava-0001",
+                "inception-resnet-v2-tf",
+                "instance-segmentation-person-0007",
+                "instance-segmentation-security-0002",
+                "instance-segmentation-security-0091",
+                "instance-segmentation-security-0228",
+                "instance-segmentation-security-1039",
+                "instance-segmentation-security-1040",
+                "landmarks-regression-retail-0009",
+                "license-plate-recognition-barrier-0007",
+                "mixnet-l",
+                "mobilenet-ssd",
+                "mobilenet-v1-0.25-128",
+                "mobilenet-v1-1.0-224",
+                "mobilenet-v1-1.0-224-tf",
+                "mobilenet-v2",
+                "mobilenet-v2-1.0-224",
+                "mobilenet-v2-1.4-224",
+                "mobilenet-v2-pytorch",
+                "mobilenet-v3-large-1.0-224-tf",
+                "mobilenet-v3-small-1.0-224-tf",
+                "mobilenet-yolo-v4-syg",
+                "mobilenetv2-7",
+                "nfnet-f0",
+                "octave-resnet-26-0.25",
+                "open-closed-eye-0001",
+                "pedestrian-and-vehicle-detector-adas-0001",
+                "pedestrian-detection-adas-0002",
+                "pelee-coco",
+                "person-attributes-recognition-crossroad-0230",
+                "person-attributes-recognition-crossroad-0234",
+                "person-attributes-recognition-crossroad-0238",
+                "person-detection-0200",
+                "person-detection-0201",
+                "person-detection-0202",
+                "person-detection-0203",
+                "person-detection-asl-0001",
+                "person-detection-retail-0013",
+                "person-vehicle-bike-detection-2000",
+                "person-vehicle-bike-detection-2001",
+                "person-vehicle-bike-detection-2002",
+                "person-vehicle-bike-detection-2003",
+                "person-vehicle-bike-detection-2004",
+                "person-vehicle-bike-detection-crossroad-0078",
+                "person-vehicle-bike-detection-crossroad-1016",
+                "person-vehicle-bike-detection-crossroad-yolov3-1020",
+                "product-detection-0001",
+                "regnetx-3.2gf",
+                "repvgg-a0",
+                "repvgg-b1",
+                "repvgg-b3",
+                "resnest-50-pytorch",
+                "resnet-18-pytorch",
+                "resnet-34-pytorch",
+                "resnet-50-pytorch",
+                "resnet-50-tf",
+                "resnet-50-tf_INT8",
+                "resnet18-xnor-binary-onnx-0001",
+                "resnet50-binary-0001",
+                "retinanet-tf",
+                "rexnet-v1-x1.0",
+                "rfcn-resnet101-coco-tf",
+                "road-segmentation-adas-0001",
+                "se-inception",
+                "se-resnet-50",
+                "se-resnext-50",
+                "semantic-segmentation-adas-0001",
+                "shufflenet-v2-x0.5",
+                "shufflenet-v2-x1.0",
+                "single-human-pose-estimation-0001",
+                "squeezenet1.0",
+                "squeezenet1.1",
+                "ssd300",
+                "ssd512",
+                "ssd_mobilenet_v1_coco",
+                "ssd_mobilenet_v1_coco_INT8",
+                "ssd_mobilenet_v1_fpn_coco",
+                "ssdlite_mobilenet_v2",
+                "ssdlite_mobilenet_v2_INT8",
+                "swin-tiny-patch4-window7-224",
+                "text-detection-0003",
+                "text-recognition-0012-mod",
+                "torchvision.models.detection.ssdlite320_mobilenet_v3_large",
+                "vehicle-attributes-recognition-barrier-0039",
+                "vehicle-attributes-recognition-barrier-0042",
+                "vehicle-detection-0200",
+                "vehicle-detection-0201",
+                "vehicle-detection-0202",
+                "vehicle-detection-adas-0002",
+                "vehicle-license-plate-detection-barrier-0106",
+                "vehicle-license-plate-detection-barrier-0123",
+                "vgg16",
+                "vgg19",
+                "weld-porosity-detection-0001",
+                "yolo-v3-tf",
+                "yolo-v3-tiny-tf",
+                "yolo-v4-tf",
+                "yolo-v4-tf_INT8",
+                "yolo-v4-tiny-tf",
+                "yolov5m",
+                "yolov5s",
+                "yolov5s-416",
+                "yolov5s-416_INT8"
+            ],
+            "title": "Welcome6"
+        },
+        "Aclnet": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "model-proc": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "model-proc"
+            ],
+            "title": "Aclnet"
+        },
+        "ActionRecognition0001": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "labels-file": {
+                    "type": "string"
+                },
+                "dlstreamer_support": {
+                    "type": "string"
+                },
+                "dlstreamer_gst_openvino": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "dlstreamer_gst_openvino",
+                "dlstreamer_support",
+                "labels-file"
+            ],
+            "title": "ActionRecognition0001"
+        },
+        "Alexnet": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "labels-file": {
+                    "$ref": "#/definitions/LabelsFile"
+                },
+                "model-proc": {
+                    "$ref": "#/definitions/ModelProc"
+                }
+            },
+            "required": [
+                "labels-file",
+                "model-proc"
+            ],
+            "title": "Alexnet"
+        },
+        "EfficientdetD0Tf": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "labels-file": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "labels-file"
+            ],
+            "title": "EfficientdetD0Tf"
+        },
+        "EfficientnetB0Int8": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "source",
+                "task_type"
+            ],
+            "title": "EfficientnetB0Int8"
+        },
+        "EmotionFerplus8": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "readme": {
+                    "type": "string",
+                    "format": "uri",
+                    "qt-uri-protocols": [
+                        "https"
+                    ]
+                },
+                "model-proc": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "format",
+                "model-proc",
+                "readme",
+                "source",
+                "task_type"
+            ],
+            "title": "EmotionFerplus8"
+        },
+        "HeadPoseEstimationAdas0001": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "dlstreamer_support": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "dlstreamer_support"
+            ],
+            "title": "HeadPoseEstimationAdas0001"
+        },
+        "InstanceSegmentationPerson0007": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "labels": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "dlstreamer_support": {
+                    "type": "string"
+                },
+                "dlstreamer_gst_openvino": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "dlstreamer_gst_openvino",
+                "dlstreamer_support",
+                "labels"
+            ],
+            "title": "InstanceSegmentationPerson0007"
+        },
+        "TorchvisionModelsDetectionSsdlite320MobilenetV3Large": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "readme": {
+                    "type": "string",
+                    "format": "uri",
+                    "qt-uri-protocols": [
+                        "https"
+                    ],
+                    "qt-uri-extensions": [
+                        ".html"
+                    ]
+                },
+                "GFLOPs": {
+                    "type": "string"
+                },
+                "labels-file": {
+                    "$ref": "#/definitions/LabelsFile"
+                },
+                "dlstreamer_support": {
+                    "type": "string"
+                },
+                "dlstreamer_gva": {
+                    "type": "string"
+                },
+                "dlstreamer_gst_openvino": {
+                    "type": "string"
+                },
+                "dlstreamer_gst_pytorch": {
+                    "type": "string"
+                },
+                "dlstreamer_ffmpeg_openvino": {
+                    "type": "string"
+                }
+            },
+            "required": [
+                "GFLOPs",
+                "dlstreamer_ffmpeg_openvino",
+                "dlstreamer_gst_openvino",
+                "dlstreamer_gst_pytorch",
+                "dlstreamer_gva",
+                "dlstreamer_support",
+                "format",
+                "labels-file",
+                "readme",
+                "source",
+                "task_type"
+            ],
+            "title": "TorchvisionModelsDetectionSsdlite320MobilenetV3Large"
+        },
+        "Yolov5": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "format": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "readme": {
+                    "type": "string",
+                    "format": "uri",
+                    "qt-uri-protocols": [
+                        "https"
+                    ],
+                    "qt-uri-extensions": [
+                        ".0"
+                    ]
+                },
+                "labels-file": {
+                    "$ref": "#/definitions/LabelsFile"
+                },
+                "model-proc": {
+                    "type": "string"
+                },
+                "files": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/File"
+                    }
+                }
+            },
+            "required": [
+                "files",
+                "format",
+                "labels-file",
+                "model-proc",
+                "readme",
+                "source",
+                "task_type"
+            ],
+            "title": "Yolov5"
+        },
+        "File": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string",
+                    "format": "uri",
+                    "qt-uri-protocols": [
+                        "https"
+                    ],
+                    "qt-uri-extensions": [
+                        ".pt"
+                    ]
+                }
+            },
+            "required": [
+                "source"
+            ],
+            "title": "File"
+        },
+        "Yolov5S416": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "task_type": {
+                    "type": "string"
+                },
+                "labels-file": {
+                    "$ref": "#/definitions/LabelsFile"
+                }
+            },
+            "required": [
+                "labels-file",
+                "source",
+                "task_type"
+            ],
+            "title": "Yolov5S416"
+        },
+        "LabelsFile": {
+            "type": "string",
+            "enum": [
+                "labels/imagenet_2012.txt",
+                "labels/coco_91cl_bkgr.txt",
+                "labels/imagenet_2015.txt",
+                "labels/imagenet_2012_bkgr.txt",
+                "labels/coco_80cl.txt"
+            ],
+            "title": "LabelsFile"
+        },
+        "ModelProc": {
+            "type": "string",
+            "enum": [
+                "gstreamer/model_proc/public/preproc-aspect-ratio.json",
+                "gstreamer/model_proc/public/preproc-image-info.json",
+                "gstreamer/model_proc/public/yolo-v3-tf.json",
+                "gstreamer/model_proc/public/yolo-v3-tiny-tf.json",
+                "gstreamer/model_proc/public/yolo-v4-tf.json",
+                "gstreamer/model_proc/public/yolo-v4-tiny-tf.json"
+            ],
+            "title": "ModelProc"
+        }
+    }
+}
+

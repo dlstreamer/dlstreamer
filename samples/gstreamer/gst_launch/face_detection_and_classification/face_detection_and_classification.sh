@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,7 +10,6 @@ INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pos
 DEVICE=${2:-CPU}
 OUTPUT=${3:-display} # Supported values: display, fps, json, display-and-json
 
-MODEL1=face-detection-adas-0001
 MODEL2=age-gender-recognition-retail-0013
 MODEL3=emotions-recognition-retail-0003
 MODEL4=landmarks-regression-retail-0009
@@ -40,7 +39,7 @@ else
 fi
 
 PROC_PATH() {
-    echo $(dirname "$0")/model_proc/$1.json
+    echo "$(dirname "$0")"/model_proc/"$1".json
 }
 
 DETECT_MODEL_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
@@ -59,5 +58,5 @@ gvaclassify model=$CLASS_MODEL_PATH1 model-proc=$MODEL3_PROC device=$DEVICE ! qu
 gvaclassify model=$CLASS_MODEL_PATH2 model-proc=$MODEL4_PROC device=$DEVICE ! queue ! \
 $SINK_ELEMENT"
 
-echo ${PIPELINE}
+echo "${PIPELINE}"
 $PIPELINE

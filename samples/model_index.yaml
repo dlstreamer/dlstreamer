@@ -339,13 +339,13 @@ mobilenetv2-7:
   source: public
   format: onnx
   task_type: classification
-  readme: https://github.com/onnx/models/tree/main/vision/classification/mobilenet/model
+  readme: https://github.com/onnx/models/tree/main/validated/vision/classification/mobilenet
   model-proc: gstreamer/model_proc/onnx/mobilenetv2-7.json
 emotion-ferplus-8:
   source: public
   format: onnx
   task_type: classification
-  readme: https://github.com/onnx/models/blob/main/vision/body_analysis/emotion_ferplus/README.md
+  readme: https://github.com/onnx/models/tree/main/validated/vision/body_analysis/emotion_ferplus
   model-proc: gstreamer/model_proc/onnx/emotion-ferplus-8.json
 yolov5s:
   source: public

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2021-2022 Intel Corporation
+# Copyright (C) 2021-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -37,7 +37,7 @@ else
 fi
 
 PROC_PATH() {
-    echo $(dirname "$0")/model_proc/$1.json
+    echo "$(dirname "$0")"/model_proc/"$1".json
 }
 
 HPE_MODEL_PATH=${MODELS_PATH}/intel/${HPE_MODEL}/FP32/${HPE_MODEL}.xml
@@ -47,5 +47,5 @@ PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! \
 gvaclassify model=$HPE_MODEL_PATH model-proc=$HPE_MODEL_PROC device=$DEVICE inference-region=full-frame ! queue ! \
 $SINK_ELEMENT"
 
-echo ${PIPELINE}
+echo "${PIPELINE}"
 $PIPELINE

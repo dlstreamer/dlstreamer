@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -11,9 +11,6 @@ INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/bottle-d
 DEVICE=${2:-CPU}
 OUTPUT=${3:-display} # Supported values: display, fps, json, display-and-json
 SEGMENTATION_MODEL=${4:-instance-segmentation-security-1040}
-
-SCRIPTDIR="$(dirname "$(realpath "$0")")"
-PYTHON_SCRIPT=$SCRIPTDIR/tensor_to_box_mask.py
 
 if [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="opencv_find_contours ! gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
@@ -39,25 +36,17 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-MODEL_PATH=${MODELS_PATH}/intel/${SEGMENTATION_MODEL}/FP32/${SEGMENTATION_MODEL}.xml
+MODEL_PATH="${MODELS_PATH:=.}"/intel/${SEGMENTATION_MODEL}/FP32/${SEGMENTATION_MODEL}.xml
 CLASSIFICATION_MODEL_PATH=${MODELS_PATH}/public/efficientnet-b0/FP32/efficientnet-b0.xml
 
 echo Running sample with the following parameters:
-echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
+echo GST_PLUGIN_PATH="${GST_PLUGIN_PATH}"
 
 LABELS_PATH=$(dirname "$0")/../../../labels
 
-PIPELINE="gst-launch-1.0 \
-$SOURCE_ELEMENT ! decodebin force-sw-decoders=true ! \
-object_detect \
-  model=$MODEL_PATH device=$DEVICE \
-  labels-file=$(realpath $LABELS_PATH/coco_80cl.txt) ! \
-object_classify nireq=32 \
-  preprocess=\"videoconvert ! roi_split ! opencv_cropscale ! opencv_remove_background ! \
-    videoconvert ! videoscale ! tensor_convert\" \
-  model=$CLASSIFICATION_MODEL_PATH device=$DEVICE \
-  postprocess=\"tensor_postproc_label threshold=0.2 \
-    labels-file=$(realpath $LABELS_PATH/imagenet_2012.txt) method=softmax\" ! \
-$SINK_ELEMENT"
-echo ${PIPELINE}
+read -r PIPELINE << EOM
+gst-launch-1.0 $SOURCE_ELEMENT ! decodebin force-sw-decoders=true ! object_detect model=$MODEL_PATH device=$DEVICE labels-file=$(realpath "$LABELS_PATH"/coco_80cl.txt) ! object_classify nireq=32 preprocess="videoconvert ! roi_split ! opencv_cropscale ! opencv_remove_background ! videoconvert ! videoscale ! tensor_convert" model=$CLASSIFICATION_MODEL_PATH device=$DEVICE postprocess="tensor_postproc_label threshold=0.2 labels-file=$(realpath "$LABELS_PATH"/imagenet_2012.txt) method=softmax" ! $SINK_ELEMENT
+EOM
+
+echo "${PIPELINE}"
 $PIPELINE

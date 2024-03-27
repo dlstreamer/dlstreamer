@@ -1,14 +1,19 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 set (TARGET_NAME "image_inference_openvino")
 
-find_IE_package()
-find_package(ngraph REQUIRED)
+# FIXME: update macro below
 find_package(PkgConfig REQUIRED)
+find_package(OpenVINO REQUIRED Runtime)
+
+set(OpenVINO_MIN_VERSION "2024.0.0")
+if(${OpenVINO_VERSION} VERSION_LESS ${OpenVINO_MIN_VERSION})
+        message(FATAL_ERROR "OpenVINO version should be >= ${OpenVINO_MIN_VERSION}. Found: ${OpenVINO_VERSION}")
+endif()
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -16,6 +21,7 @@ file (GLOB MAIN_SRC
         )
 
 file (GLOB MAIN_HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp
         ${CMAKE_CURRENT_SOURCE_DIR}/*.h
         )
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -34,14 +40,13 @@ PUBLIC
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${InferenceEngine_LIBRARIES}
+        openvino::runtime
         utils
         logger
-PRIVATE
-        ngraph::ngraph
+        dlstreamer_logger
 )
 
-if (${ENABLE_VAAPI} AND ${InferenceEngine_VERSION} VERSION_GREATER_EQUAL "2022.1.0")
+if (${ENABLE_VAAPI} AND ${OpenVINO_VERSION} VERSION_GREATER_EQUAL "2023.3")
         add_definitions(-DENABLE_GPU_TILE_AFFINITY)
         target_link_libraries(${TARGET_NAME} PUBLIC va_api_wrapper)
 endif()

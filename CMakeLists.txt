@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -7,6 +7,7 @@
 cmake_minimum_required(VERSION 3.12)
 
 project(DL_Streamer C CXX)
+
 
 if(NOT(UNIX) AND NOT(WIN32))
     message(FATAL_ERROR "Only UNIX and Windows supported")
@@ -18,8 +19,8 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Define version
-set(VERSION_MAJOR 1)
-set(VERSION_MINOR 9)
+set(VERSION_MAJOR 2)
+set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
@@ -42,17 +43,6 @@ add_definitions(-DPLUGIN_LICENSE="MIT/X11")
 add_definitions(-DPRODUCT_FULL_NAME="Intel\(R\) DL Streamer")
 
 # Helper macros and functions
-macro(find_IE_package)
-    set(IE_MIN_VERSION "2022.3.0")
-    find_package(InferenceEngine REQUIRED)
-    if (${InferenceEngine_VERSION} VERSION_EQUAL "0.0.0")
-        message(WARNING "InferenceEngine version is 0.0.0. If you built OpenVINO™ toolkit from source, you can skip this warning")
-    else()
-        if (${InferenceEngine_VERSION} VERSION_LESS ${IE_MIN_VERSION})
-            message(FATAL_ERROR "InferenceEngine version should be >= ${IE_MIN_VERSION}. Found: ${InferenceEngine_VERSION}")
-        endif()
-    endif()
-endmacro(find_IE_package)
 
 function (set_compile_flags TARGET)
     target_compile_options(${TARGET} PRIVATE $<$<COMPILE_LANGUAGE:C>:${C_FLAGS}> $<$<COMPILE_LANGUAGE:CXX>:${CXX_FLAGS}>)
@@ -168,6 +158,45 @@ else()
     set (CMAKE_C_STANDARD 11)
     set (CMAKE_CXX_STANDARD 17)
     set (CMAKE_POSITION_INDEPENDENT_CODE ON)
+    
+    ## Control Flow Integrity (CFI)
+    set(C_FLAGS flto -fsanitize=cfi)
+    set(CXX_FLAGS flto -fsanitize=cfi)
+    
+    ## Format String Defense
+    set(C_FLAGS -Wformat -Wformat-security)
+    set(CXX_FLAGS -Wformat -Wformat-security)
+
+    if (CMAKE_BUILD_TYPE STREQUAL "Release")
+        ## Control Flow Integrity (CFI)
+        set(C_FLAGS -fvisibility=hidden)
+        set(CXX_FLAGS -fvisibility=hidden)
+
+        ## Format String Defense
+        set(C_FLAGS -Werror=format-security)
+        set(CXX_FLAGS -Werror=format-security)
+        
+        ## Inexecutable Stack
+        set(C_FLAGS -z noexecstack)
+        set(CXX_FLAGS -z noexecstack)
+
+        ## Read-only Relocationz
+        set(C_FLAGS -Wl,-z,relro)
+        set(CXX_FLAGS -Wl,-z,relro)    
+    endif()
+
+    ## Position Independent Code (PIC)
+    set(C_FLAGS -fPIC)
+    set(CXX_FLAGS -fPIC)
+
+    ## Position Independent Execution (PIE)
+    set(C_FLAGS -fPIE -pie)
+    set(CXX_FLAGS -fPIE -pie)
+    
+    ## Pre-processor Macros
+    set(C_FLAGS -D_FORTIFY_SOURCE=2)
+    set(CXX_FLAGS -D_FORTIFY_SOURCE=2)
+
 endif()
 
 if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})

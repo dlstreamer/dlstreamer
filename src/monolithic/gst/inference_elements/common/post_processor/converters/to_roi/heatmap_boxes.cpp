@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -87,6 +87,13 @@ TensorsTable HeatMapBoxesConverter::convert(const OutputBlobs &output_blobs) con
                 if (!blob)
                     throw std::invalid_argument("Output blob is nullptr.");
                 size_t unbatched_size = blob->GetSize() / batch_size;
+
+                if (!blob->GetData())
+                    throw std::runtime_error("Output blob data is nullptr.");
+
+                if (blob->GetPrecision() != InferenceBackend::Blob::Precision::FP32)
+                    throw std::runtime_error("Unsupported label precision.");
+
                 parseOutputBlob(reinterpret_cast<const float *>(blob->GetData()) + unbatched_size * batch_number,
                                 blob->GetDims(), objects);
             }

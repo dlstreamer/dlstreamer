@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -30,12 +30,24 @@ BoxesLabelsConverter::getLabelIdConfidence(const InferenceBackend::OutputBlob::P
                                            float conf) const {
     if (!labels_blob)
         throw std::runtime_error("Output blob is nullptr.");
-
-    const uint32_t *labels_data = reinterpret_cast<const uint32_t *>(labels_blob->GetData());
-    if (!labels_data)
+    if (!labels_blob->GetData())
         throw std::runtime_error("Output blob data is nullptr.");
 
-    return std::make_pair(safe_convert<size_t>(labels_data[bbox_i]), conf);
+    const uint32_t *labels_data32;
+    const uint64_t *labels_data64;
+
+    switch (labels_blob->GetPrecision()) {
+    case InferenceBackend::Blob::Precision::U32:
+    case InferenceBackend::Blob::Precision::I32:
+        labels_data32 = reinterpret_cast<const uint32_t *>(labels_blob->GetData());
+        return std::make_pair(safe_convert<size_t>(labels_data32[bbox_i]), conf);
+    case InferenceBackend::Blob::Precision::U64:
+    case InferenceBackend::Blob::Precision::I64:
+        labels_data64 = reinterpret_cast<const uint64_t *>(labels_blob->GetData());
+        return std::make_pair(safe_convert<size_t>(safe_convert<uint32_t>(labels_data64[bbox_i])), conf);
+    default:
+        throw std::runtime_error("Unsupported label precision.");
+    }
 }
 
 bool BoxesLabelsConverter::isValidModelOutputs(const std::map<std::string, std::vector<size_t>> &model_outputs_info) {

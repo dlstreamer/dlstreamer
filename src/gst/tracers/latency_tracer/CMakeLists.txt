@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2023 Intel Corporation
+# Copyright (C) 2023-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -19,7 +19,7 @@ set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
-        ${CMAKE_SOURCE_DIR}/utils/
+        ${CMAKE_SOURCE_DIR}/src/utils/
 PRIVATE
         ${GSTREAMER_INCLUDE_DIRS}
         ${GLIB2_INCLUDE_DIRS}

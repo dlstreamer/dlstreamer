@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -33,10 +33,17 @@ struct DetectionBlobElement {
 
 void DetectionOutputConverter::parseOutputBlob(const InferenceBackend::OutputBlob::Ptr &blob,
                                                DetectedObjectsTable &objects, double roi_scale) const {
-    const float *data = reinterpret_cast<const float *>(blob->GetData());
-    if (not data)
-        throw std::invalid_argument("Output blob data is nullptr");
 
+    if (!blob)
+        throw std::invalid_argument("Output blob is nullptr.");
+
+    if (!blob->GetData())
+        throw std::runtime_error("Output blob data is nullptr.");
+
+    if (blob->GetPrecision() != InferenceBackend::Blob::Precision::FP32)
+        throw std::runtime_error("Unsupported label precision.");
+
+    const float *data = reinterpret_cast<const float *>(blob->GetData());
     auto dims = blob->GetDims();
     size_t dims_size = dims.size();
 

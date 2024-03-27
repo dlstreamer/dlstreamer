@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -48,9 +48,13 @@ BoxesScoresConverter::getLabelIdConfidence(const InferenceBackend::OutputBlob::P
     if (!scores_blob)
         throw std::invalid_argument("Output blob is nullptr.");
 
-    const float *data = reinterpret_cast<const float *>(scores_blob->GetData());
-    if (!data)
+    if (!scores_blob->GetData())
         throw std::runtime_error("Output blob data is nullptr.");
+
+    if (scores_blob->GetPrecision() != InferenceBackend::Blob::Precision::FP32)
+        throw std::runtime_error("Unsupported label precision.");
+
+    const float *data = reinterpret_cast<const float *>(scores_blob->GetData());
 
     const auto &dims = scores_blob->GetDims();
     const size_t classes_num = dims[2];

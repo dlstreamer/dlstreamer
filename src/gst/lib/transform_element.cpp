@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -396,6 +396,7 @@ GstCaps *GstDlsTransform::transform_caps(GstPadDirection direction, GstCaps *cap
 }
 
 gboolean GstDlsTransform::set_caps(GstCaps *incaps, GstCaps *outcaps) {
+
     std::lock_guard<std::mutex> guard(_mutex);
     GST_DEBUG_OBJECT(_base, "set_caps");
 

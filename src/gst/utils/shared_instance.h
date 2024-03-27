@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,6 +34,9 @@ class SharedInstance {
     };
 
     ElementPtr init_or_reuse(const InstanceId &id, ElementPtr element, std::function<void()> init) {
+        // This code path is work in progress and not active in DLStreamer architecture 1.0
+        assert(false);
+
         std::lock_guard<std::mutex> guard(_mutex);
         auto it = _shared_elements.find(id);
         if (it != _shared_elements.end()) {

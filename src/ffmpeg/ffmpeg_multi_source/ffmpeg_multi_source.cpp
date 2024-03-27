@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -51,7 +51,7 @@ class MultiSourceFFMPEG : public BaseSource {
         DLS_CHECK_GE0(avformat_open_input(&input_ctx, url.data(), input_format, NULL));
 
         // av_find_best_stream
-        AVCodec *codec = nullptr;
+        const AVCodec *codec = nullptr;
         int video_stream = av_find_best_stream(input_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, &codec, 0);
         DLS_CHECK_GE0(video_stream);
         AVCodecParameters *codecpar = input_ctx->streams[video_stream]->codecpar;

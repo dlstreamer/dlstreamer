@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -23,16 +23,19 @@ class Pool {
     }
 
     T get_or_create() {
-        std::lock_guard<std::mutex> lock(_mutex);
+
         for (;;) {
-            for (T &object : _pool) {
-                if (_is_available(object))
+            {
+                std::lock_guard<std::mutex> lock(_mutex);
+                for (T &object : _pool) {
+                    if (_is_available(object))
+                        return object;
+                }
+                if (!_max_pool_size || _pool.size() < _max_pool_size) { // allocate new object
+                    T object = _allocator();
+                    _pool.push_back(object);
                     return object;
-            }
-            if (!_max_pool_size || _pool.size() < _max_pool_size) { // allocate new object
-                T object = _allocator();
-                _pool.push_back(object);
-                return object;
+                }
             }
             std::this_thread::sleep_for(std::chrono::milliseconds(1)); // TODO optimize
         }

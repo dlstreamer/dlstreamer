@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -11,9 +11,6 @@ INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/classroo
 DEVICE=${2:-CPU}
 OUTPUT=${3:-display} # Supported values: display, fps, json, display-and-json
 SEGMENTATION_MODEL=${4:-instance-segmentation-security-1040}
-
-SCRIPTDIR="$(dirname "$(realpath "$0")")"
-PYTHON_SCRIPT=$SCRIPTDIR/tensor_to_box_mask.py
 
 if [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
@@ -39,10 +36,10 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-MODEL_PATH=${MODELS_PATH}/intel/${SEGMENTATION_MODEL}/FP32/${SEGMENTATION_MODEL}.xml
+MODEL_PATH="${MODELS_PATH:=.}"/intel/${SEGMENTATION_MODEL}/FP32/${SEGMENTATION_MODEL}.xml
 
 echo Running sample with the following parameters:
-echo GST_PLUGIN_PATH=${GST_PLUGIN_PATH}
+echo GST_PLUGIN_PATH="${GST_PLUGIN_PATH}"
 
 LABELS_PATH=$(dirname "$0")/../../../labels
 
@@ -50,9 +47,9 @@ PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! decodebin ! \
 object_detect
   model=$MODEL_PATH device=$DEVICE \
-  labels-file=$(realpath $LABELS_PATH/coco_80cl.txt) ! \
+  labels-file=$(realpath "$LABELS_PATH"/coco_80cl.txt) ! \
 opencv_find_contours ! \
 $SINK_ELEMENT"
 
-echo ${PIPELINE}
+echo "${PIPELINE}"
 $PIPELINE

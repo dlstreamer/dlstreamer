@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,7 +9,6 @@
 #include "converters/to_roi/blob_to_roi_converter.h"
 #include "converters/to_roi/boxes_labels.h"
 #include "converters/to_roi/detection_output.h"
-#include "converters/to_roi/heatmap_boxes.h"
 #include "converters/to_roi/yolo_v2.h"
 #include "converters/to_roi/yolo_v3.h"
 #include "converters/to_tensor/keypoints_3d.h"

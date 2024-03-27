@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,10 +9,10 @@
 #include "boxes_labels.h"
 #include "boxes_scores.h"
 #include "detection_output.h"
-#include "heatmap_boxes.h"
 #include "yolo_base.h"
 #include "yolo_v2.h"
 #include "yolo_v3.h"
+#include "yolo_v4.h"
 #include "yolo_v5.h"
 
 #include "inference_backend/logger.h"
@@ -47,10 +47,8 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     else if (converter_name == BoxesConverter::getName())
         return BlobToMetaConverter::Ptr(new BoxesConverter(std::move(initializer), confidence_threshold));
     else if (converter_name == YOLOv2Converter::getName() || converter_name == YOLOv3Converter::getName() ||
-             converter_name == YOLOv5Converter::getName())
+             converter_name == YOLOv4Converter::getName() || converter_name == YOLOv5Converter::getName())
         return YOLOBaseConverter::create(std::move(initializer), converter_name, confidence_threshold);
-    else if (converter_name == HeatMapBoxesConverter::getName())
-        return BlobToMetaConverter::Ptr(new HeatMapBoxesConverter(std::move(initializer), confidence_threshold));
     throw std::runtime_error("Converter \"" + converter_name + "\" is not implemented.");
 }
 

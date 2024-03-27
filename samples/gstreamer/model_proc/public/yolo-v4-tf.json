@@ -3,7 +3,7 @@
     "input_preproc": [],
     "output_postproc": [
         {
-            "converter": "yolo_v3",
+            "converter": "yolo_v4",
             "iou_threshold": 0.4,
             "do_cls_softmax": true,
             "output_sigmoid_activation": true,

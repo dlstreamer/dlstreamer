@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2021-2022 Intel Corporation
+# Copyright (C) 2021-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -57,5 +57,5 @@ video_inference \
     tensor_postproc_label labels-file=$DIR/kinetics_400.txt method=softmax' ! \
 $SINK_ELEMENT"
 
-echo ${PIPELINE}
-eval $PIPELINE
+echo "${PIPELINE}"
+eval "$PIPELINE"

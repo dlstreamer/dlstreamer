@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -13,7 +13,7 @@ if(${ENABLE_VAAPI})
 endif()
 
 find_package(PkgConfig REQUIRED)
-find_IE_package()
+find_package(OpenVINO REQUIRED Runtime)
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -36,7 +36,7 @@ PUBLIC
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC
-        ${InferenceEngine_LIBRARIES}
+        openvino::runtime
         logger
         utils
 )

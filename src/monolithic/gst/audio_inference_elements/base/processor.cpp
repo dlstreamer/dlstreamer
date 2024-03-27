@@ -1,15 +1,14 @@
 /*******************************************************************************
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "processor.h"
 
-#include "audio_defs.h"
 #include "audio_infer_impl.h"
-#include "inference.h"
 #include "model_proc_provider.h"
+#include "ov_inference.h"
 #include <utils.h>
 
 #include <assert.h>

@@ -1,26 +1,25 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
-#include "audio_processor_types.h"
 
-#include <inference_engine.hpp>
+#include "base/audio_processor_types.h"
+#include "dlstreamer/frame_info.h"
+#include "inference_backend/image_inference.h"
+
 #include <math.h>
 #include <memory>
+#include <openvino/openvino.hpp>
 #include <string>
 #include <vector>
 
-#ifdef ENABLE_VPUX
-#include <ie_remote_context.hpp>
-#endif
-
 class OpenVINOAudioInference {
   public:
-    OpenVINOAudioInference(const char *model, char *device, AudioInferenceOutput &infOutput);
-    virtual ~OpenVINOAudioInference();
+    OpenVINOAudioInference(const std::string &model_path, const std::string &device, AudioInferenceOutput &infOutput);
+    virtual ~OpenVINOAudioInference() = default;
     std::vector<uint8_t> convertFloatToU8(std::vector<float> &normalized_samples);
     void setInputBlob(void *buffer_ptr, int dma_fd = 0);
     void infer();
@@ -29,10 +28,13 @@ class OpenVINOAudioInference {
   private:
     void CreateRemoteContext(const std::string &device);
 
-    InferenceEngine::InferRequest inferRequest;
-    InferenceEngine::RemoteContext::Ptr remote_context;
-    std::string model_name;
-    InferenceEngine::TensorDesc tensor_desc;
-    std::string input_name;
+    ov::Core _core;
+    std::shared_ptr<ov::Model> _model;
+    ov::CompiledModel _compiled_model;
+    ov::InferRequest _infer_request;
+
+    dlstreamer::FrameInfo _model_input_info;
+
+    // InferenceEngine::RemoteContext::Ptr remote_context;
     AudioInferenceOutput infOut;
 };

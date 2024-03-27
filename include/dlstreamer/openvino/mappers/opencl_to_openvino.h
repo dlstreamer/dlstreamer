@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,7 +11,7 @@
 #include "dlstreamer/openvino/context.h"
 #include "dlstreamer/openvino/tensor.h"
 
-#include <ie/gpu/gpu_params.hpp> // for GPU_PARAM_KEY
+#include <openvino/runtime/intel_gpu/properties.hpp>
 
 namespace dlstreamer {
 
@@ -26,8 +26,8 @@ class MemoryMapperOpenCLToOpenVINO : public BaseMemoryMapper {
         cl_mem clmem = *ptr_cast<OpenCLTensor>(src);
         auto &info = src->info();
 
-        ov::AnyMap params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(OCL_BUFFER)},
-                             {GPU_PARAM_KEY(MEM_HANDLE), static_cast<void *>(clmem)}};
+        ov::AnyMap params = {{ov::intel_gpu::shared_mem_type.name(), "OCL_BUFFER"},
+                             {ov::intel_gpu::mem_handle.name(), static_cast<void *>(clmem)}};
         auto tensor = _ov_context.create_tensor(data_type_to_openvino(info.dtype), info.shape, params);
 
         auto ret = std::make_shared<OpenVINOTensor>(tensor, _output_context);

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 #include "yolo_base.h"
 #include "yolo_v2.h"
 #include "yolo_v3.h"
+#include "yolo_v4.h"
 #include "yolo_v5.h"
 
 #include "inference_backend/image_inference.h"
@@ -327,6 +328,17 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(BlobToMetaConverter::Initiali
             return BlobToMetaConverter::Ptr(new YOLOv3Converter(std::move(initializer), confidence_threshold,
                                                                 iou_threshold, yolo_initializer, masks));
         }
+        if (converter_name == YOLOv4Converter::getName()) {
+            const auto masks =
+                YOLOv4Converter::getMask(model_proc_output_info, bbox_number_on_cell,
+                                         std::min(cells_number.first, cells_number.second), outputs_info.size());
+
+            YOLOv4Converter::checkModelProcOutputs(cells_number, bbox_number_on_cell, classes_number, masks,
+                                                   outputs_info, dims_layout, initializer.input_image_info);
+
+            return BlobToMetaConverter::Ptr(new YOLOv4Converter(std::move(initializer), confidence_threshold,
+                                                                iou_threshold, yolo_initializer, masks));
+        }
         if (converter_name == YOLOv5Converter::getName()) {
             const auto masks =
                 YOLOv5Converter::getMask(model_proc_output_info, bbox_number_on_cell,
@@ -357,8 +369,14 @@ TensorsTable YOLOBaseConverter::convert(const OutputBlobs &output_blobs) const {
 
             for (const auto &blob_iter : output_blobs) {
                 const InferenceBackend::OutputBlob::Ptr &blob = blob_iter.second;
-                if (not blob)
+                if (!blob)
                     throw std::invalid_argument("Output blob is nullptr.");
+
+                if (!blob->GetData())
+                    throw std::runtime_error("Output blob data is nullptr.");
+
+                if (blob->GetPrecision() != InferenceBackend::Blob::Precision::FP32)
+                    throw std::runtime_error("Unsupported label precision.");
 
                 size_t unbatched_size = blob->GetSize() / batch_size;
                 parseOutputBlob(reinterpret_cast<const float *>(blob->GetData()) + unbatched_size * batch_number,

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,10 +9,10 @@
 #include "dlstreamer/base/context.h"
 #include "dlstreamer/tensor.h"
 
-#include <ie/gpu/gpu_params.hpp> // for GPU_PARAM_KEY
 #include <openvino/openvino.hpp>
 #include <openvino/runtime/intel_gpu/properties.hpp>
 #include <openvino/runtime/intel_gpu/remote_properties.hpp>
+
 //#include <openvino/runtime/intel_gpu/ocl/va.hpp>
 
 namespace dlstreamer {
@@ -37,10 +37,13 @@ class OpenVINOContext : public BaseContext {
         if (device.find("GPU") != std::string::npos && context) {
             auto va_display = context->handle(BaseContext::key::va_display);
             //_remote_context = ov::intel_gpu::ocl::VAContext(core, va_display);
-            if (va_display)
-                context_params = {{GPU_PARAM_KEY(CONTEXT_TYPE), GPU_PARAM_VALUE(VA_SHARED)},
-                                  {GPU_PARAM_KEY(VA_DEVICE), static_cast<void *>(va_display)},
-                                  {GPU_PARAM_KEY(TILE_ID), -1}};
+            if (va_display) {
+                int tile_id =
+                    static_cast<int>(reinterpret_cast<intptr_t>(context->handle(BaseContext::key::va_tile_id)));
+                context_params = {{ov::intel_gpu::context_type.name(), "VA_SHARED"},
+                                  {ov::intel_gpu::va_device.name(), static_cast<void *>(va_display)},
+                                  {ov::intel_gpu::tile_id.name(), tile_id}};
+            }
         }
         _remote_context = core.create_context(device, context_params);
     }

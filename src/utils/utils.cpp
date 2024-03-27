@@ -19,6 +19,7 @@
 #endif
 
 #include <cassert>
+#include <filesystem>
 #include <fstream>
 #include <regex>
 #include <sstream>
@@ -64,6 +65,10 @@ std::map<std::string, std::string> stringToMap(const std::string &s, char rec_de
 
 bool fileExists(const std::string &path) {
     return std::ifstream(path).good();
+}
+
+bool symLink(const std::string &path) {
+    return std::filesystem::is_symlink(path);
 }
 
 size_t GetFileSize(const std::string &file_path) {

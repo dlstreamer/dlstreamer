@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -21,7 +21,7 @@ OUTPUT_PROPERTY=""
 if [[ "$METHOD" == "file" ]]; then
     if [ "${OUTPUT}" != "" ]; then # default output file is stdout - print to console
         OUTPUT_PROPERTY="file-path=${OUTPUT}"
-        rm -f ${OUTPUT} # TODO - is removing file needed?
+        rm -f "${OUTPUT}" # TODO - is removing file needed?
     fi
     if [ "${FORMAT}" == "" ]; then
         FORMAT="json"
@@ -54,9 +54,9 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-MODEL1_PATH=${MODELS_PATH}/intel/$MODEL1/$PRECISION/$MODEL1.xml
-MODEL2_PATH=${MODELS_PATH}/intel/$MODEL2/$PRECISION/$MODEL2.xml
-MODEL2_PROC=$(dirname "$0")/model_proc/$MODEL2.json
+MODEL1_PATH="${MODELS_PATH:=.}"/intel/$MODEL1/$PRECISION/$MODEL1.xml
+MODEL2_PATH="${MODELS_PATH:=.}"/intel/$MODEL2/$PRECISION/$MODEL2.xml
+MODEL2_PROC="$(dirname "$0")"/model_proc/$MODEL2.json
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! \
 decodebin ! \
@@ -66,6 +66,6 @@ gvametaconvert json-indent=$JSON_INDENT ! \
 gvametapublish method=$METHOD file-format=$FORMAT $OUTPUT_PROPERTY ! \
 fakesink sync=false"
 
-echo ${PIPELINE}
+echo "${PIPELINE}"
 #LAUNCH
 ${PIPELINE}

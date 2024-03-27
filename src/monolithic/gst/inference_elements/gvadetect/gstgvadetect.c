@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,6 +34,9 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_detect_debug_category);
 G_DEFINE_TYPE_WITH_CODE(GstGvaDetect, gst_gva_detect, GST_TYPE_GVA_BASE_INFERENCE,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_detect_debug_category, "gvadetect", 0,
                                                 "debug category for gvadetect element"));
+
+// FIXME
+#define gst_gva_detect_parent_class gst_gva_detect_parent_class
 
 gboolean gst_gva_detect_start(GstBaseTransform *trans) {
     GstGvaDetect *gvadetect = GST_GVA_DETECT(trans);

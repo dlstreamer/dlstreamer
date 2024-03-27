@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,6 @@
 
 #include "inference_backend/input_image_layer_descriptor.h"
 
-#include <inference_engine.hpp>
 #include <opencv2/core/core.hpp>
 
 #include <string>

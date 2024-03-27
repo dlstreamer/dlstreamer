@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -17,9 +17,9 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-MODEL1_PATH=${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
-MODEL2_PATH=${MODELS_PATH}/intel/emotions-recognition-retail-0003/FP32/emotions-recognition-retail-0003.xml
-MODEL3_PATH=${MODELS_PATH}/intel/landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
+MODEL1_PATH="${MODELS_PATH:=.}"/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml
+MODEL2_PATH="${MODELS_PATH:=.}"/intel/emotions-recognition-retail-0003/FP32/emotions-recognition-retail-0003.xml
+MODEL3_PATH="${MODELS_PATH:=.}"/intel/landmarks-regression-retail-0009/FP32/landmarks-regression-retail-0009.xml
 
 if [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="autovideosink sync=false"

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2022 Intel Corporation
+# Copyright (C) 2020-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -20,6 +20,6 @@ if ! python3 -m pip show -qq openvino-dev; then
   exit 1
 fi
 
-mkdir -p ${MODELS_PATH} && \
-omz_downloader --list $(dirname "$0")/models.lst -o $MODELS_PATH && \
-omz_converter --list $(dirname "$0")/models.lst -o $MODELS_PATH -d $MODELS_PATH
+mkdir -p "${MODELS_PATH}" && \
+omz_downloader --list "$(dirname "$0")"/models.lst -o "$MODELS_PATH" && \
+omz_converter --list "$(dirname "$0")"/models.lst -o "$MODELS_PATH" -d "$MODELS_PATH"

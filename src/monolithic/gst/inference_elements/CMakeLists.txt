@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,10 +8,10 @@ set (TARGET_NAME "inference_elements")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
+find_package(OpenVINO REQUIRED Runtime)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
-find_IE_package()
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
@@ -29,7 +29,6 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -43,7 +42,6 @@ file (GLOB MAIN_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.h
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.h
-    ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/*.h
 )
 
 add_library(${TARGET_NAME} STATIC ${MAIN_SRC} ${MAIN_HEADERS})
@@ -63,11 +61,12 @@ PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
-    ${CMAKE_CURRENT_SOURCE_DIR}/model_proc/
+    ${DLSTREAMER_BASE_DIR}/src/base/dlstreamer_logger/
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
     ${GSTVIDEO_INCLUDE_DIRS}
     ${GSTALLOC_INCLUDE_DIRS}
+    ${DLSTREAMER_BASE_DIR}/src/utils
 )
 
 target_link_libraries(${TARGET_NAME}
@@ -77,6 +76,7 @@ PRIVATE
     ${GSTALLOC_LIBRARIES}
     ${OpenCV_LIBS}
     dlstreamer_api
+    dlstreamer_logger
     common
     image_inference
     image_inference_openvino
@@ -84,9 +84,8 @@ PRIVATE
     opencv_pre_proc
     logger
 PUBLIC
-    ${InferenceEngine_LIBRARIES}
+    openvino::runtime
     runtime_feature_toggling
-    common
     model_proc
 )
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -30,7 +30,7 @@ struct AudioInferenceFrame {
 struct AudioInferenceOutput {
     std::string model_name;
     std::map<std::string, std::map<uint32_t, std::pair<std::string, float>>> model_proc;
-    std::map<std::string, std::pair<InferenceBackend::OutputBlob::Ptr, int>> output_blobs;
+    std::map<std::string, InferenceBackend::OutputBlob::Ptr> output_tensors;
 };
 typedef int (*AudioNumOfSamplesRequired)(GvaAudioBaseInference *audio_base_inference);
 typedef std::vector<float> (*AudioPreProcFunction)(AudioInferenceFrame *frame);

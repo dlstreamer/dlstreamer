@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -52,7 +52,6 @@ typedef struct _GvaBaseInference {
     gchar *pre_proc_config;
     gchar *allocator_name;
     gchar *pre_proc_type;
-    gchar *device_extensions;
     gchar *object_class;
     gchar *labels;
     gchar *scale_method;

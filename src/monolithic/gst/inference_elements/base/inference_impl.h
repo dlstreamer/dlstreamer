@@ -1,9 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 #pragma once
+
+#include "dlstreamer_logger.h"
 
 #include "classification_history.h"
 #include "gstgvaclassify.h"

@@ -1,13 +1,13 @@
 /*******************************************************************************
- * Copyright (C) 2018 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "gstgvaaudiodetect.h"
-#include "audio_defs.h"
 #include "post_processors.h"
 #include "pre_processors.h"
+#include "utils.h"
 
 #define ELEMENT_LONG_NAME "Audio event detection based on input audio"
 #define ELEMENT_DESCRIPTION "Performs audio event detection using AclNet model."

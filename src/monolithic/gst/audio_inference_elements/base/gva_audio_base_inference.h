@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,6 +8,7 @@
 
 #include "audio_processor_types.h"
 #include "processor.h"
+#include "utils.h"
 #include <gst/audio/audio.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>

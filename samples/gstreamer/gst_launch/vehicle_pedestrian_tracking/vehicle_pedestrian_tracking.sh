@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2022 Intel Corporation
+# Copyright (C) 2020-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -57,7 +57,7 @@ else
 fi
 
 PROC_PATH() {
-    echo $(dirname "$0")/model_proc/$1.json
+    echo "$(dirname "$0")"/model_proc/"$1".json
 }
 
 DETECTION_MODEL=${MODELS_PATH}/intel/${MODEL_1}/FP32/${MODEL_1}.xml
@@ -92,5 +92,5 @@ PIPELINE="gst-launch-1.0 \
   queue ! \
   $SINK_ELEMENT"
 
-echo ${PIPELINE}
-eval $PIPELINE
+echo "${PIPELINE}"
+eval "$PIPELINE"

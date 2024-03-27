@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,7 +10,6 @@
 #include "converters/to_roi/boxes_labels.h"
 #include "converters/to_roi/boxes_scores.h"
 #include "converters/to_roi/detection_output.h"
-#include "converters/to_roi/heatmap_boxes.h"
 #include "converters/to_tensor/raw_data_copy.h"
 
 #include "inference_backend/logger.h"

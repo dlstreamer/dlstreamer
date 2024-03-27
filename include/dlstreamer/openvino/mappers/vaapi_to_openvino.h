@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,7 +11,7 @@
 #include "dlstreamer/openvino/tensor.h"
 #include "dlstreamer/vaapi/frame.h"
 
-#include <ie/gpu/gpu_params.hpp> // for GPU_PARAM_KEY
+#include <openvino/runtime/intel_gpu/remote_properties.hpp>
 
 namespace dlstreamer {
 
@@ -64,13 +64,13 @@ class MemoryMapperVAAPIToOpenVINO : public BaseMemoryMapper {
         auto width = image_info.width();
         auto height = image_info.height();
 
-        ov::AnyMap tensor_params = {{GPU_PARAM_KEY(SHARED_MEM_TYPE), GPU_PARAM_VALUE(VA_SURFACE)},
-                                    {GPU_PARAM_KEY(DEV_OBJECT_HANDLE), va_surface},
-                                    {GPU_PARAM_KEY(VA_PLANE), uint32_t(0)}};
+        ov::AnyMap tensor_params = {{ov::intel_gpu::shared_mem_type.name(), "VA_SURFACE"},
+                                    {ov::intel_gpu::dev_object_handle.name(), va_surface},
+                                    {ov::intel_gpu::va_plane.name(), uint32_t(0)}};
         auto y_tensor = _ov_context.create_tensor(ov::element::u8, {1, 1, height, width}, tensor_params);
 
         // FIXME: should we get width/height from second tensor ?
-        tensor_params[GPU_PARAM_KEY(VA_PLANE)] = uint32_t(1);
+        tensor_params[ov::intel_gpu::va_plane.name()] = uint32_t(1);
         auto uv_tensor = _ov_context.create_tensor(ov::element::u8, {1, 2, height / 2, width / 2}, tensor_params);
 
         return {y_tensor, uv_tensor};

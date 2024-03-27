@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -466,12 +466,8 @@ static gboolean gst_gva_watermark_sink_event(GstPad *pad, GstObject *parent, Gst
 
         auto target_memtype = get_caps_feature(incaps);
 
-        /* FIXME: BGRx does not work with vaapipostproc
-         * and in order to make such pipelines work
-         * we put videoconvert between identity and vaapipostproc.
-         * Relevant only for WatermarkPathVaapi
-         */
-        if (!is_caps_format_equal(incaps, "BGRx"))
+        // Non-system memory (WatermarkPathVaapi path) accepts BGRx images only
+        if ((target_memtype != SYSTEM_MEMORY_CAPS_FEATURE) && !is_caps_format_equal(incaps, "BGRx"))
             if (!unlink_videoconvert(self))
                 return FALSE;
 

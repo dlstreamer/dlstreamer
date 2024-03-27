@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -192,33 +192,29 @@ void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name,
 TensorsTable LabelConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
-    try {
-        const size_t batch_size = getModelInputImageInfo().batch_size;
-        tensors_table.resize(batch_size);
 
-        for (const auto &blob_iter : output_blobs) {
-            const std::string layer_name = blob_iter.first;
-            OutputBlob::Ptr blob = blob_iter.second;
-            if (not blob) {
-                throw std::invalid_argument("Output blob is empty.");
-            }
+    const size_t batch_size = getModelInputImageInfo().batch_size;
+    tensors_table.resize(batch_size);
 
-            if (blob->GetData() == nullptr)
-                throw std::invalid_argument("Output blob data is nullptr");
-
-            // get buffer and its size from classification_result
-            if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP32)
-                ExecuteMethod<float>(reinterpret_cast<const float *>(blob->GetData()), layer_name, blob, tensors_table);
-            else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP64)
-                ExecuteMethod<double>(reinterpret_cast<const double *>(blob->GetData()), layer_name, blob,
-                                      tensors_table);
-            else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::I32)
-                ExecuteMethod<int>(reinterpret_cast<const int *>(blob->GetData()), layer_name, blob, tensors_table);
-            else
-                throw std::runtime_error("Unsupported data type");
+    for (const auto &blob_iter : output_blobs) {
+        const std::string layer_name = blob_iter.first;
+        OutputBlob::Ptr blob = blob_iter.second;
+        if (not blob) {
+            throw std::invalid_argument("Output blob is empty.");
         }
-    } catch (const std::exception &e) {
-        GVA_ERROR("An error occurred in the label converter: %s", e.what());
+
+        if (blob->GetData() == nullptr)
+            throw std::invalid_argument("Output blob data is nullptr");
+
+        // get buffer and its size from classification_result
+        if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP32)
+            ExecuteMethod<float>(reinterpret_cast<const float *>(blob->GetData()), layer_name, blob, tensors_table);
+        else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP64)
+            ExecuteMethod<double>(reinterpret_cast<const double *>(blob->GetData()), layer_name, blob, tensors_table);
+        else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::I32)
+            ExecuteMethod<int>(reinterpret_cast<const int *>(blob->GetData()), layer_name, blob, tensors_table);
+        else
+            throw std::runtime_error("Unsupported data type");
     }
 
     return tensors_table;

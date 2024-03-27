@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -33,6 +33,7 @@ class YOLOv3Converter : public YOLOBaseConverter {
 
     void parseOutputBlob(const float *blob_data, const std::vector<size_t> &blob_dims, size_t blob_size,
                          std::vector<DetectedObject> &objects) const override;
+
     virtual YOLOv3Converter::DetectedObject calculateBoundingBox(size_t col, size_t row, float raw_x, float raw_y,
                                                                  float raw_w, float raw_h, size_t side_w, size_t side_h,
                                                                  float input_width, float input_height, size_t mask_0,

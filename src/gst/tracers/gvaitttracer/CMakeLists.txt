@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -26,7 +26,7 @@ add_definitions(-DGST_USE_UNSTABLE_API)
 
 target_include_directories(${TARGET_NAME}
 PUBLIC
-        ${CMAKE_SOURCE_DIR}/utils/
+        ${CMAKE_SOURCE_DIR}/src/utils/
 PRIVATE
         ${GSTREAMER_INCLUDE_DIRS}
         ${GLIB2_INCLUDE_DIRS}

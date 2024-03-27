@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -61,6 +61,8 @@ class VaapiBatchProc : public BaseTransform {
 
     FramePtr process(FramePtr src) override {
         DLS_CHECK(init());
+        // This code path is work in progress and not active in DLStreamer architecture 1.0
+        assert(false);
         // Is it required?
         std::lock_guard<std::mutex> guard(_mutex);
         auto dst = create_output();

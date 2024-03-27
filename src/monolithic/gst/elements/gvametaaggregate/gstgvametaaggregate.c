@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -258,18 +258,16 @@ static GstFlowReturn gst_gva_meta_aggregate_update_src_caps(GstAggregator *agg, 
 
         needs_reconfigure = FALSE;
     }
-    GST_OBJECT_UNLOCK(gvametaaggregate);
 
     if (needs_reconfigure) {
         gst_pad_mark_reconfigure(agg->srcpad);
+        GST_OBJECT_UNLOCK(gvametaaggregate);
         return GST_AGGREGATOR_FLOW_NEED_DATA;
     }
 
-    GST_OBJECT_LOCK(gvametaaggregate);
     GList *sinkpads = GST_ELEMENT(gvametaaggregate)->sinkpads;
     GstGvaMetaAggregatePad *first_pad = sinkpads->data;
     GstCaps *first_caps = gst_gva_meta_aggregate_pad_get_caps(first_pad);
-    GST_OBJECT_UNLOCK(gvametaaggregate);
 
     if (!gst_caps_can_intersect(caps, first_caps)) {
         GST_ELEMENT_ERROR(
@@ -278,12 +276,12 @@ static GstFlowReturn gst_gva_meta_aggregate_update_src_caps(GstAggregator *agg, 
              gst_caps_to_string(caps), gst_caps_to_string(first_caps)),
             (NULL));
         gst_caps_unref(first_caps);
+        GST_OBJECT_UNLOCK(gvametaaggregate);
         return GST_FLOW_ERROR;
     }
 
     // update src caps pad
     GstFlowReturn flow_return = GST_FLOW_OK;
-    GST_OBJECT_LOCK(gvametaaggregate);
     GstGvaMetaAggregatePad *src_pad = GST_GVA_META_AGGREGATE_PAD(GST_AGGREGATOR_SRC_PAD(gvametaaggregate));
     if (gst_video_info_from_caps(&src_pad->info, first_caps)) {
         // send caps update event
