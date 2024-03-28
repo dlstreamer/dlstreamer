@@ -1,0 +1,21 @@
+{
+  "json_schema_version": "2.2.0",
+  "input_preproc": [
+    {
+      "params": {
+        "resize": "aspect-ratio"
+      }
+    }
+  ],
+  "output_postproc": [
+    {
+      "converter": "resnet_10",
+      "labels": [
+        "Car",
+        "Bicycle",
+        "Person",
+        "Roadsign"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+    "json_schema_version": "2.2.0",
+    "input_preproc": [
+        {
+            "precision": "FP32",
+            "params": {
+                "color_space": "BGR",
+                "resize": "aspect-ratio",
+                "mean": [
+                103.939,
+                116.779,
+                123.68
+                ]
+            }
+        }
+    ],
+    "output_postproc": [
+        {
+            "converter": "label",
+            "method": "max",
+            "labels": [
+                "acura",
+                "audi",
+                "bmw",
+                "chevrolet",
+                "chrysler",
+                "dodge",
+                "ford",
+                "gmc",
+                "honda",
+                "hyundai",
+                "infiniti",
+                "jeep",
+                "kia",
+                "lexus",
+                "mercedes",
+                "nissan",
+                "subaru",
+                "toyota",
+                "volkswagen"
+            ]
+        }
+    ]
+}
