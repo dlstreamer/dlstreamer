@@ -44,6 +44,9 @@ static void update_caps_feature(GstCaps *caps, CapsFeature feature) {
     case VA_SURFACE_CAPS_FEATURE:
         gst_caps_set_features_simple(caps, gst_caps_features_from_string(VASURFACE_FEATURE_STR));
         break;
+    case VA_MEMORY_CAPS_FEATURE:
+        gst_caps_set_features_simple(caps, gst_caps_features_from_string(VAMEMORY_FEATURE_STR));
+        break;
     case DMA_BUF_CAPS_FEATURE:
         gst_caps_set_features_simple(caps, gst_caps_features_from_string(DMABUF_FEATURE_STR));
         break;

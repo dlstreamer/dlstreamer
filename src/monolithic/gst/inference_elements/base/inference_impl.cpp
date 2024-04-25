@@ -86,6 +86,8 @@ ImagePreprocessorType ImagePreprocessorTypeFromString(const std::string &image_p
         {"ie", ImagePreprocessorType::IE},
         {"vaapi", ImagePreprocessorType::VAAPI_SYSTEM},
         {"vaapi-surface-sharing", ImagePreprocessorType::VAAPI_SURFACE_SHARING},
+        {"va", ImagePreprocessorType::VAAPI_SYSTEM},
+        {"va-surface-sharing", ImagePreprocessorType::VAAPI_SURFACE_SHARING},
         {"opencv", ImagePreprocessorType::OPENCV}};
 
     for (auto &elem : preprocessor_types) {
@@ -182,7 +184,7 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
 
     return config;
 }
-
+/*
 bool DoesModelProcDefinePreProcessing(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
     for (const auto &it : model_input_processor_info) {
         if (!it || it->format != "image")
@@ -192,6 +194,21 @@ bool DoesModelProcDefinePreProcessing(const std::vector<ModelInputProcessorInfo:
             return true;
     }
     return false;
+}
+*/
+bool IsModelProcSupportedForIE(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
+                               GstVideoInfo *input_video_info) {
+    auto format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(input_video_info));
+    for (const auto &it : model_input_processor_info) {
+        if (!it || it->format != "image")
+            continue;
+        auto input_desc = PreProcParamsParser(it->params).parse();
+        if (input_desc &&
+            (input_desc->doNeedDistribNormalization() || input_desc->doNeedCrop() || input_desc->doNeedPadding() ||
+             input_desc->doNeedColorSpaceConversion(static_cast<int>(format))))
+            return false;
+    }
+    return true;
 }
 
 bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
@@ -211,17 +228,32 @@ bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr
     return true;
 }
 
+bool IsModelProcSupportedForVaapiSurfaceSharing(
+    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info, GstVideoInfo *input_video_info) {
+    auto format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(input_video_info));
+    for (const auto &it : model_input_processor_info) {
+        if (!it || it->format != "image")
+            continue;
+        auto input_desc = PreProcParamsParser(it->params).parse();
+        if (input_desc && (input_desc->doNeedDistribNormalization() ||
+                           (input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
+                            input_desc->doNeedColorSpaceConversion(static_cast<int>(format)))))
+            return false;
+    }
+    return true;
+}
+
 bool IsPreprocSupported(ImagePreprocessorType preproc,
                         const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
                         GstVideoInfo *input_video_info, const std::string device) {
     bool isNpu = (device.find("NPU") != std::string::npos);
     switch (preproc) {
     case ImagePreprocessorType::IE:
-        return !isNpu && !DoesModelProcDefinePreProcessing(model_input_processor_info);
+        return !isNpu && IsModelProcSupportedForIE(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::VAAPI_SYSTEM:
         return IsModelProcSupportedForVaapi(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
-        return !isNpu && IsModelProcSupportedForVaapi(model_input_processor_info, input_video_info);
+        return !isNpu && IsModelProcSupportedForVaapiSurfaceSharing(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::OPENCV:
         return true;
     case ImagePreprocessorType::AUTO:
@@ -240,6 +272,7 @@ GetPreferredImagePreproc(CapsFeature caps, const std::vector<ModelInputProcessor
         result = ImagePreprocessorType::IE;
         break;
     case VA_SURFACE_CAPS_FEATURE:
+    case VA_MEMORY_CAPS_FEATURE:
         result = ImagePreprocessorType::VAAPI_SYSTEM;
         break;
     case DMA_BUF_CAPS_FEATURE:
@@ -274,11 +307,16 @@ void SetPreprocessor(InferenceConfig &config,
         config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(preferred));
     } else if (!IsPreprocSupported(current, model_input_processor_info, input_video_info,
                                    config[KEY_BASE][KEY_DEVICE])) {
-        if (current == ImagePreprocessorType::IE) { // if pre-processing params not supported by IE, change to OpenCV
+        if (current == ImagePreprocessorType::IE &&
+            IsPreprocSupported(
+                ImagePreprocessorType::OPENCV, model_input_processor_info, input_video_info,
+                config[KEY_BASE][KEY_DEVICE])) { // if pre-processing params not supported by IE, change to OpenCV
             config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(ImagePreprocessorType::OPENCV));
             GVA_WARNING("'pre-process-backend=ie' not supported with current settings, falling back to "
                         "'pre-process-backend=opencv'");
-        } else if (current == ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
+        } else if (current == ImagePreprocessorType::VAAPI_SURFACE_SHARING &&
+                   IsPreprocSupported(ImagePreprocessorType::VAAPI_SYSTEM, model_input_processor_info, input_video_info,
+                                      config[KEY_BASE][KEY_DEVICE])) {
             config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] =
                 std::to_string(static_cast<int>(ImagePreprocessorType::VAAPI_SYSTEM));
             GVA_WARNING(
@@ -288,6 +326,23 @@ void SetPreprocessor(InferenceConfig &config,
             throw std::runtime_error(
                 "Specified pre-process-backend can not be chosen due to unsupported operations defined in model-proc. "
                 "If you want to use it, please remove inappropriate parameters for desired pre-process-backend.");
+        }
+    }
+}
+
+void SetScaleFactor(InferenceConfig &config,
+                    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
+    for (const auto &it : model_input_processor_info) {
+        if (!it || it->format != "image")
+            continue;
+        auto input_desc = PreProcParamsParser(it->params).parse();
+        if (input_desc && input_desc->doNeedRangeNormalization()) {
+            assert(it->precision == "U8");
+            const auto &range = input_desc->getRangeNormalization();
+            const float scale = 255.0 / (range.max - range.min);
+            std::string scale_str = std::to_string(scale);
+            config[KEY_BASE][KEY_SCALE_FACTOR] = scale_str;
+            return;
         }
     }
 }
@@ -361,6 +416,7 @@ MemoryType GetMemoryType(CapsFeature caps_feature) {
         return MemoryType::DMA_BUFFER;
 #endif
     case CapsFeature::VA_SURFACE_CAPS_FEATURE:
+    case CapsFeature::VA_MEMORY_CAPS_FEATURE:
         return MemoryType::VAAPI;
     case CapsFeature::ANY_CAPS_FEATURE:
     default:
@@ -467,6 +523,7 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
     InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference, model_file);
     UpdateConfigWithLayerInfo(model.input_processor_info, ie_config);
     SetPreprocessor(ie_config, model.input_processor_info, gva_base_inference->info);
+    SetScaleFactor(ie_config, model.input_processor_info);
     memory_type =
         GetMemoryType(GetMemoryType(static_cast<CapsFeature>(std::stoi(ie_config[KEY_BASE][KEY_CAPS_FEATURE]))),
                       static_cast<ImagePreprocessorType>(std::stoi(ie_config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE])));

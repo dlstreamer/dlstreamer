@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -52,6 +52,11 @@ class GSTContextQuery : public BaseContext {
                 gst_object_unref(display_obj);
                 GST_INFO("Got VADisplay from VAAPI context: %p", value);
             }
+            if (gst_structure_get(_structure, VA_DISPLAY_FIELD_NAME, GST_TYPE_OBJECT, &display_obj, NULL)) {
+                g_object_get(display_obj, VA_DISPLAY_PROPERTY_NAME, &value, nullptr);
+                gst_object_unref(display_obj);
+                GST_INFO("Got VADisplay from VA context: %p", value);
+            }
         } else {
             gst_structure_get(_structure, key.data(), G_TYPE_POINTER, &value, NULL);
         }
@@ -62,12 +67,21 @@ class GSTContextQuery : public BaseContext {
     GstContext *_context = nullptr;
     const GstStructure *_structure = nullptr;
 
-    // TODO different naming in gst-vaapi and gst-va plugins
     static constexpr auto VAAPI_CONTEXT_NAME = "gst.vaapi.Display";
     static constexpr auto VAAPI_DISPLAY_FIELD_NAME = "gst.vaapi.Display.GObject";
     static constexpr auto VAAPI_DISPLAY_PROPERTY_NAME = "va-display";
 
+    static constexpr auto VA_CONTEXT_NAME = "gst.va.display.handle";
+    static constexpr auto VA_DISPLAY_FIELD_NAME = "gst-display";
+    static constexpr auto VA_DISPLAY_PROPERTY_NAME = "va-display";
+
     const char *get_context_name(MemoryType memory_type) {
+        if (memory_type == MemoryType::VA) {
+            // Load GST-VA and reuse VAAPI path.
+            set_memory_type(MemoryType::VAAPI);
+            return VA_CONTEXT_NAME;
+        }
+
         if (memory_type == MemoryType::VAAPI)
             return VAAPI_CONTEXT_NAME;
         else

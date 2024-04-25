@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -41,7 +41,7 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value, const 
         switch (value.type()) {
         case nlohmann::json::value_t::string:
             g_value_init(&gvalue, G_TYPE_STRING);
-            g_value_set_string(&gvalue, ((std::string)value).data());
+            g_value_set_string(&gvalue, ((std::string)value).c_str());
             break;
         case nlohmann::json::value_t::boolean:
             g_value_init(&gvalue, G_TYPE_BOOLEAN);
@@ -58,6 +58,8 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value, const 
             break;
         case nlohmann::json::value_t::array: {
             g_value_init(&gvalue, GST_TYPE_ARRAY);
+            if (!G_IS_VALUE(&gvalue))
+                throw std::runtime_error("Failed to create GST_TYPE_ARRAY : gst_init() not called?");
             for (auto &el : value) {
                 GValue a = convertToGValue(el);
                 gst_value_array_append_value(&gvalue, &a);
@@ -68,13 +70,15 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value, const 
         // TODO: need to be implemented in case of nested dict
         case nlohmann::json::value_t::object: {
             g_value_init(&gvalue, GST_TYPE_STRUCTURE);
+            if (!G_IS_VALUE(&gvalue))
+                throw std::runtime_error("Failed to create GST_TYPE_STRUCTURE : gst_init() not called?");
             json obj = static_cast<json>(value);
             GstStructure *s = gst_structure_new_empty(key);
             for (auto it = obj.begin(); it != obj.end(); ++it) {
                 const std::string &key = it.key();
                 auto value = it.value();
                 GValue gvalue = JsonReader::convertToGValue(value, key.c_str());
-                gst_structure_set_value(s, key.data(), &gvalue);
+                gst_structure_set_value(s, key.c_str(), &gvalue);
             }
             gst_value_set_structure(&gvalue, s);
             break;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 #pragma once
 
 #include <functional>
+#include <gst/gst.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -66,6 +67,7 @@ class ImageInference {
     virtual std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const = 0;
     // TODO: return map<OutputLayerDesc>
     virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const = 0;
+    virtual std::map<std::string, GstStructure *> GetModelInfoPostproc() const = 0;
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -172,6 +174,7 @@ __DECLARE_CONFIG_KEY(image);
 __DECLARE_CONFIG_KEY(CAPS_FEATURE);
 __DECLARE_CONFIG_KEY(VAAPI_THREAD_POOL_SIZE);
 __DECLARE_CONFIG_KEY(VAAPI_FAST_SCALE_LOAD_FACTOR);
+__DECLARE_CONFIG_KEY(SCALE_FACTOR);
 #undef __DECLARE_CONFIG_KEY
 #undef __CONFIG_KEY
 

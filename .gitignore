@@ -9,6 +9,8 @@ install_manifest.txt
 compile_commands.json
 CTestTestfile.cmake
 build
+/build_afl
+/results
 .vscode
 .idea
 _release

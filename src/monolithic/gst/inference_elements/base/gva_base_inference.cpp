@@ -737,12 +737,14 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     // Need to acquire inference model instance
     try {
         if (!base_inference->priv->va_display && (base_inference->caps_feature == VA_SURFACE_CAPS_FEATURE ||
+                                                  base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE ||
                                                   base_inference->caps_feature == DMA_BUF_CAPS_FEATURE)) {
 
             // Try to query VADisplay from decoder
             try {
-                base_inference->priv->va_display =
-                    std::make_shared<dlstreamer::GSTContextQuery>(trans, dlstreamer::MemoryType::VAAPI);
+                base_inference->priv->va_display = std::make_shared<dlstreamer::GSTContextQuery>(
+                    trans, (base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE) ? dlstreamer::MemoryType::VA
+                                                                                    : dlstreamer::MemoryType::VAAPI);
                 GST_INFO_OBJECT(trans, "Got VADisplay (%p) from query", base_inference->priv->va_display.get());
             } catch (...) {
                 GST_WARNING_OBJECT(trans, "Couldn't query VADisplay from gstreamer-vaapi elements. Possible reason: "

@@ -28,6 +28,7 @@ class VAAPIContext : public BaseContext {
     };
 
     static inline VAAPIContextPtr create(const ContextPtr &another_context) {
+        // FIXME: Add support for VA only
         return create_from_another<VAAPIContext>(another_context, MemoryType::VAAPI);
     }
 

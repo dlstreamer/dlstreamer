@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -38,13 +38,14 @@ struct _GstGvaWatermark {
     enum WatermarkPath active_path;
     bool is_active_nv12;
     bool have_vaapi;
+    bool have_va;
     gulong block_probe_id;
 
     /* for all */
     GstElement *identity;
     GstElement *watermarkimpl;
     GstElement *postproc;
-    /* for VA_API path */
+    /* for VA_API, VA path */
     GstElement *preproc;
     GstElement *capsfilter;
     GstElement *convert;

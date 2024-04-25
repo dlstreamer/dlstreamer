@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -194,6 +194,14 @@ std::map<std::string, std::vector<size_t>> ImageInferenceAsync::GetModelOutputsI
     }
 
     return _inference->GetModelOutputsInfo();
+}
+
+std::map<std::string, GstStructure *> ImageInferenceAsync::GetModelInfoPostproc() const {
+    if (not _inference) {
+        throw std::runtime_error("Inference not set");
+    }
+
+    return _inference->GetModelInfoPostproc();
 }
 
 bool ImageInferenceAsync::IsQueueFull() {

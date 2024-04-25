@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -78,6 +78,7 @@ InferenceBackend::MemoryType memoryTypeFromCaps(GstCaps *caps) {
         return InferenceBackend::MemoryType::SYSTEM;
 
     case VA_SURFACE_CAPS_FEATURE:
+    case VA_MEMORY_CAPS_FEATURE:
         return InferenceBackend::MemoryType::VAAPI;
 
     case DMA_BUF_CAPS_FEATURE:
@@ -297,7 +298,9 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     VaApiDisplayPtr va_dpy;
     if (mem_type == MemoryType::VAAPI) {
         try {
-            va_dpy = std::make_shared<dlstreamer::GSTContextQuery>(trans, dlstreamer::MemoryType::VAAPI);
+            va_dpy = std::make_shared<dlstreamer::GSTContextQuery>(
+                trans, (get_caps_feature(incaps) == VA_MEMORY_CAPS_FEATURE) ? dlstreamer::MemoryType::VA
+                                                                            : dlstreamer::MemoryType::VAAPI);
         } catch (const std::exception &e) {
             GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not create VAAPI context"),
                               ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));

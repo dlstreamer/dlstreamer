@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -28,7 +28,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
       "$id": "#/properties/json_schema_version",
       "type": "string",
       "title": "The Json_schema_version Schema",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "pattern": "^\\d{1,10}\\.\\d{1,10}\\.\\d{1,10}$",
       "default": "2.0.0",
       "examples": [
         "2.0.0"
@@ -50,8 +50,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "default": "ANY",
             "examples": [
               "0"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/input_preproc/items/properties/format",
@@ -60,8 +59,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "default": "image",
             "examples": [
               "image"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "params": {
             "$id": "#/properties/input_preproc/items/properties/params",
@@ -87,8 +85,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "default": "",
             "examples": [
               "658"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "layer_names": {
             "$id": "#/properties/output_postproc/items/properties/layer_names",
@@ -97,7 +94,6 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "items": {
               "$id": "#/properties/input_preproc/items/properties/alignment_points/items",
               "type": "string",
-              "pattern": "^(.*)$",
               "title": "The Items Schema",
               "default": "",
               "examples": [
@@ -113,8 +109,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "default": "",
             "examples": [
               "face_id"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/output_postproc/items/properties/format",
@@ -123,8 +118,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "default": "",
             "examples": [
               "cosine_distance"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "labels": {
             "$id": "#/properties/output_postproc/items/properties/labels",
@@ -133,7 +127,6 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "items": {
               "$id": "#/properties/output_postproc/items/properties/labels/items",
               "type": ["string", "object"],
-              "pattern": "^(.*)$",
               "title": "The Items Schema",
               "default": "",
               "examples": [
@@ -144,8 +137,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_2 = R"({
             "examples": [
               ["dog", "cat"],
               "path"
-            ],
-            "pattern": "^(.*)$"
+            ]
           }
         }
       }
@@ -173,7 +165,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
       "$id": "#/properties/json_schema_version",
       "type": "string",
       "title": "The Json_schema_version Schema",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "pattern": "^\\d{1,10}\\.\\d{1,10}\\.\\d{1,10}$",
       "default": "2.0.0",
       "examples": [
         "2.0.0"
@@ -199,8 +191,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
             "default": "",
             "examples": [
               "0"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/input_preproc/items/properties/format",
@@ -209,8 +200,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
             "default": "",
             "examples": [
               "image"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "params": {
             "$id": "#/properties/input_preproc/items/properties/params",
@@ -236,8 +226,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
             "default": "",
             "examples": [
               "658"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "layer_names": {
             "$id": "#/properties/output_postproc/items/properties/layer_names",
@@ -246,7 +235,6 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
             "items": {
               "$id": "#/properties/input_preproc/items/properties/alignment_points/items",
               "type": "string",
-              "pattern": "^(.*)$",
               "title": "The Items Schema",
               "default": "",
               "examples": [
@@ -262,8 +250,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
             "default": "",
             "examples": [
               "face_id"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/output_postproc/items/properties/format",
@@ -272,8 +259,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2_1 = R"({
             "default": "",
             "examples": [
               "cosine_distance"
-            ],
-            "pattern": "^(.*)$"
+            ]
           }
         }
       }
@@ -301,7 +287,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2 = R"({
       "$id": "#/properties/json_schema_version",
       "type": "string",
       "title": "The Json_schema_version Schema",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "pattern": "^\\d{1,10}\\.\\d{1,10}\\.\\d{1,10}$",
       "default": "2.0.0",
       "examples": [
         "2.0.0"
@@ -327,8 +313,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2 = R"({
             "default": "",
             "examples": [
               "0"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/input_preproc/items/properties/format",
@@ -337,8 +322,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2 = R"({
             "default": "",
             "examples": [
               "image"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "params": {
             "$id": "#/properties/input_preproc/items/properties/params",
@@ -364,8 +348,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2 = R"({
             "default": "",
             "examples": [
               "658"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "attribute_name": {
             "$id": "#/properties/output_postproc/items/properties/attribute_name",
@@ -374,8 +357,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2 = R"({
             "default": "",
             "examples": [
               "face_id"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/output_postproc/items/properties/format",
@@ -384,8 +366,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V2 = R"({
             "default": "",
             "examples": [
               "cosine_distance"
-            ],
-            "pattern": "^(.*)$"
+            ]
           }
         }
       }
@@ -413,7 +394,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
       "$id": "#/properties/json_schema_version",
       "type": "string",
       "title": "The Json_schema_version Schema",
-      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "pattern": "^\\d{1,10}\\.\\d{1,10}\\.\\d{1,10}$",
       "default": "1.0.0",
       "examples": [
         "1.0.0"
@@ -435,8 +416,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
             "default": "",
             "examples": [
               "0"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "color_format": {
             "$id": "#/properties/input_preproc/items/properties/color_format",
@@ -445,8 +425,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
             "default": "",
             "examples": [
               "BGR"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "converter": {
             "$id": "#/properties/input_preproc/items/properties/converter",
@@ -455,8 +434,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
             "default": "",
             "examples": [
               "alignment"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "alignment_points": {
             "$id": "#/properties/input_preproc/items/properties/alignment_points",
@@ -500,8 +478,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
             "default": "",
             "examples": [
               "658"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "attribute_name": {
             "$id": "#/properties/output_postproc/items/properties/attribute_name",
@@ -510,8 +487,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
             "default": "",
             "examples": [
               "face_id"
-            ],
-            "pattern": "^(.*)$"
+            ]
           },
           "format": {
             "$id": "#/properties/output_postproc/items/properties/format",
@@ -520,8 +496,7 @@ const nlohmann::json MODEL_PROC_SCHEMA_V1 = R"({
             "default": "",
             "examples": [
               "cosine_distance"
-            ],
-            "pattern": "^(.*)$"
+            ]
           }
         }
       }

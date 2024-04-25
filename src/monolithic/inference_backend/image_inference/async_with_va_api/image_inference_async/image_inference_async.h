@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -44,6 +44,7 @@ class ImageInferenceAsync : public ImageInference {
 
     std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const override;
     std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const override;
+    std::map<std::string, GstStructure *> GetModelInfoPostproc() const override;
 
     bool IsQueueFull() override;
 

@@ -90,6 +90,8 @@ size_t getKeypointsNumber(GstStructure *s) {
 }
 
 std::string checkOnNameDeprecation(const std::string &converter_name) {
+    const std::string GetiDetection = "ssd";
+    const std::string GetiClassification = "Classification";
     const std::unordered_map<std::string, std::string> deprecatedNameToName = {
         {DetectionOutputConverter::getDepricatedName(), DetectionOutputConverter::getName()},
         {BoxesLabelsConverter::getDepricatedName(), BoxesLabelsConverter::getName()},
@@ -99,7 +101,9 @@ std::string checkOnNameDeprecation(const std::string &converter_name) {
         {TextConverter::getDepricatedName(), TextConverter::getName()},
         {KeypointsHRnetConverter::getDepricatedName(), KeypointsHRnetConverter::getName()},
         {Keypoints3DConverter::getDepricatedName(), Keypoints3DConverter::getName()},
-        {KeypointsOpenPoseConverter::getDepricatedName(), KeypointsOpenPoseConverter::getName()}};
+        {KeypointsOpenPoseConverter::getDepricatedName(), KeypointsOpenPoseConverter::getName()},
+        {GetiDetection, BoxesLabelsConverter::getName()},
+        {GetiClassification, LabelConverter::getName()}};
 
     const auto it = deprecatedNameToName.find(converter_name);
     if (it != deprecatedNameToName.cend()) {

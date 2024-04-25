@@ -58,9 +58,9 @@ void soft_max_method(const DataType *data, size_t size, const std::vector<std::s
 }
 
 template <typename DataType>
-void compound_method(const DataType *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
+void compound_method(const DataType *data, size_t size, const std::vector<std::string> &labels, double threshold,
+                     GVA::Tensor &result) {
     std::string result_label;
-    double threshold = result.get_double("threshold", 0.5);
     double confidence = 0;
     for (size_t j = 0; j < size; j++) {
         std::string label;
@@ -68,6 +68,28 @@ void compound_method(const DataType *data, size_t size, const std::vector<std::s
             label = labels.at(j * 2);
         } else if (data[j] > 0) {
             label = labels.at(j * 2 + 1);
+        }
+        if (!label.empty()) {
+            if (!result_label.empty() and !isspace(result_label.back()))
+                result_label += " ";
+            result_label += label;
+        }
+        if (data[j] >= confidence)
+            confidence = data[j];
+    }
+    result.set_string("label", result_label);
+    result.set_double("confidence", confidence);
+}
+
+template <typename DataType>
+void multi_method(const DataType *data, size_t size, const std::vector<std::string> &labels, double threshold,
+                  GVA::Tensor &result) {
+    std::string result_label;
+    double confidence = 0;
+    for (size_t j = 0; j < size; j++) {
+        std::string label;
+        if (data[j] >= threshold) {
+            label = labels.at(j);
         }
         if (!label.empty()) {
             if (!result_label.empty() and !isspace(result_label.back()))
@@ -109,6 +131,7 @@ LabelConverter::Method method_from_string(const std::string &method_string) {
         {"max", LabelConverter::Method::Max},
         {"softmax", LabelConverter::Method::SoftMax},
         {"compound", LabelConverter::Method::Compound},
+        {"multi", LabelConverter::Method::Multi},
         {"index", LabelConverter::Method::Index}};
 
     const auto found = method_to_string_map.find(method_string);
@@ -132,6 +155,7 @@ LabelConverter::LabelConverter(BlobToMetaConverter::Initializer initializer)
     } else {
         _method = method_from_string(method_string);
     }
+    gst_structure_get_double(s, "confidence_threshold", &_confidence_threshold);
 }
 
 template <typename T>
@@ -167,7 +191,10 @@ void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name,
             soft_max_method<T>(item_data, item_data_size, labels_raw, classification_result);
             break;
         case Method::Compound:
-            compound_method<T>(item_data, item_data_size, labels_raw, classification_result);
+            compound_method<T>(item_data, item_data_size, labels_raw, _confidence_threshold, classification_result);
+            break;
+        case Method::Multi:
+            multi_method<T>(item_data, item_data_size, labels_raw, _confidence_threshold, classification_result);
             break;
         case Method::Index:
             index_method<T>(item_data, item_data_size, labels_raw, classification_result);

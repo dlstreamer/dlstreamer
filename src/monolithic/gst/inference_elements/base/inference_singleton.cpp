@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -117,6 +117,8 @@ std::string capsFeatureString(CapsFeature newCapsFeature) {
         return "System";
     case VA_SURFACE_CAPS_FEATURE:
         return "VASurface";
+    case VA_MEMORY_CAPS_FEATURE:
+        return "VAMemory";
     case DMA_BUF_CAPS_FEATURE:
         return "DMABuf";
     }

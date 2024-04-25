@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,7 +10,7 @@ if(status EQUAL 0)
     set(TARGET_NAME "dlstreamer_sycl")
 
     set(CMAKE_CXX_COMPILER icpx)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -Wno-unused-command-line-argument")
     set(CMAKE_CXX_STANDARD 17)
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR}/_plugin)

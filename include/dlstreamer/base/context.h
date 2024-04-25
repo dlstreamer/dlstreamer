@@ -56,6 +56,10 @@ class BaseContext : public Context {
         _parent = parent;
     }
 
+    void set_memory_type(MemoryType memory_type) {
+        _memory_type = memory_type;
+    }
+
     void attach_mapper(MemoryMapperPtr mapper) {
         if (mapper)
             _mappers[{mapper->input_context().get(), mapper->output_context().get()}] = mapper;

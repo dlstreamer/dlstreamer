@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,6 +34,7 @@ enum class MemoryType {
     OpenVINO = 0x8000,
     PyTorch = 0x10000,
     TensorFlow = 0x20000,
+    VA = 0x40000,
 };
 
 template <typename T_DOWN, typename T_UP>
@@ -70,6 +71,8 @@ inline const char *memory_type_to_string(MemoryType type) {
         return "PyTorch";
     case MemoryType::TensorFlow:
         return "TensorFlow";
+    case MemoryType::VA:
+        return "VAMemory";
     case MemoryType::Any:
         return "Any";
     }

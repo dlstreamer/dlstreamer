@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -99,7 +99,7 @@ def gst_caps_to_tensor_info(caps: Gst.Caps, caps_index: int) -> List[TensorInfo]
     if not strides_str:
         strides_str = ""
 
-    types_array = types_str.split(',') if types_str else list()
+    types_array = types_str.split(',')
     shapes_array = shapes_str.split(',') if shapes_str else list()
     strides_array = strides_str.split(',') if strides_str else list()
 

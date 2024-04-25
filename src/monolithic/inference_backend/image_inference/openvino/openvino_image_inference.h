@@ -13,6 +13,7 @@
 #include <openvino/openvino.hpp>
 
 #include <atomic>
+#include <gst/gst.h>
 #include <map>
 #include <string>
 #include <thread>
@@ -40,6 +41,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
     std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const override;
     std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const override;
+    std::map<std::string, GstStructure *> GetModelInfoPostproc() const override;
 
     bool IsQueueFull() override;
 

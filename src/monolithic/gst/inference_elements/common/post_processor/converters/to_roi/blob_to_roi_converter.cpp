@@ -14,6 +14,9 @@
 #include "yolo_v3.h"
 #include "yolo_v4.h"
 #include "yolo_v5.h"
+#include "yolo_v7.h"
+#include "yolo_v8.h"
+#include "yolo_x.h"
 
 #include "inference_backend/logger.h"
 
@@ -36,7 +39,7 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
 
     double confidence_threshold;
     if (not gst_structure_get_double(model_proc_output_info.get(), "confidence_threshold", &confidence_threshold))
-        throw std::runtime_error("Have not been gotten confidence_threshold.");
+        throw std::runtime_error("Post-processor parameter undefined: confidence_threshold.");
 
     if (converter_name == DetectionOutputConverter::getName())
         return BlobToMetaConverter::Ptr(new DetectionOutputConverter(std::move(initializer), confidence_threshold));
@@ -49,6 +52,21 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     else if (converter_name == YOLOv2Converter::getName() || converter_name == YOLOv3Converter::getName() ||
              converter_name == YOLOv4Converter::getName() || converter_name == YOLOv5Converter::getName())
         return YOLOBaseConverter::create(std::move(initializer), converter_name, confidence_threshold);
+    else if (converter_name == YOLOv7Converter::getName())
+        return BlobToMetaConverter::Ptr(new YOLOv7Converter(std::move(initializer), confidence_threshold));
+    else if (converter_name == YOLOv8Converter::getName())
+        return BlobToMetaConverter::Ptr(new YOLOv8Converter(std::move(initializer), confidence_threshold));
+    else if (converter_name == YOLOxConverter::getName()) {
+        double iou_threshold;
+        int classes;
+        if (not gst_structure_get_double(model_proc_output_info.get(), "iou_threshold", &iou_threshold))
+            throw std::runtime_error("Post-processor parameter undefined: iou_threshold.");
+        if (not gst_structure_get_int(model_proc_output_info.get(), "classes", &classes))
+            throw std::runtime_error("Post-processor parameter undefined: classes.");
+        return BlobToMetaConverter::Ptr(
+            new YOLOxConverter(std::move(initializer), confidence_threshold, iou_threshold, classes));
+    }
+
     throw std::runtime_error("Converter \"" + converter_name + "\" is not implemented.");
 }
 

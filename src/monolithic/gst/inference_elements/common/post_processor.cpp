@@ -100,6 +100,9 @@ void loadLabelsFromFile(const std::string &layer_name, const std::string &labels
     if (!Utils::fileExists(labels_file))
         throw std::invalid_argument("Labels file '" + labels_file + "' does not exist");
 
+    if (Utils::symLink(labels_file))
+        throw std::invalid_argument("Labels file '" + labels_file + "' is a symbolic link");
+
     std::ifstream file_stream(labels_file);
     labels[layer_name] = std::vector<std::string>();
     for (std::string line; std::getline(file_stream, line);)
@@ -173,6 +176,10 @@ PostProcessor::PostProcessor(InferenceImpl *inference_impl, GvaBaseInference *ba
     initializer.model_outputs = model.inference->GetModelOutputsInfo();
     /* set output processors from model proc */
     initializer.output_processors = model.output_processor_info;
+    /* if model proc is empty check if post-processing info can be derived from model metadata */
+    if (initializer.output_processors.empty()) {
+        initializer.output_processors = model.inference->GetModelInfoPostproc();
+    }
     /* set output labels */
     // NOTE: must be called after setting output_processors
     fillModelLabels(initializer, model.labels);

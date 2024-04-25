@@ -52,7 +52,7 @@ function (set_compile_flags TARGET)
         if (CMAKE_BUILD_TYPE STREQUAL "Debug")
             target_compile_options(${TARGET} PRIVATE -Wno-debug-disables-optimization -Rno-debug-disables-optimization -Wno-unknown-warning-option)
         endif()
-        
+
         string(REPLACE "-fno-strict-overflow" "" CXX_TMP_FLAGS "${CMAKE_CXX_FLAGS}")
         set(CMAKE_CXX_FLAGS ${CXX_TMP_FLAGS} PARENT_SCOPE)
     endif()
@@ -158,44 +158,14 @@ else()
     set (CMAKE_C_STANDARD 11)
     set (CMAKE_CXX_STANDARD 17)
     set (CMAKE_POSITION_INDEPENDENT_CODE ON)
-    
-    ## Control Flow Integrity (CFI)
-    set(C_FLAGS flto -fsanitize=cfi)
-    set(CXX_FLAGS flto -fsanitize=cfi)
-    
-    ## Format String Defense
-    set(C_FLAGS -Wformat -Wformat-security)
-    set(CXX_FLAGS -Wformat -Wformat-security)
 
     if (CMAKE_BUILD_TYPE STREQUAL "Release")
-        ## Control Flow Integrity (CFI)
-        set(C_FLAGS -fvisibility=hidden)
-        set(CXX_FLAGS -fvisibility=hidden)
-
-        ## Format String Defense
-        set(C_FLAGS -Werror=format-security)
-        set(CXX_FLAGS -Werror=format-security)
-        
-        ## Inexecutable Stack
-        set(C_FLAGS -z noexecstack)
-        set(CXX_FLAGS -z noexecstack)
-
-        ## Read-only Relocationz
-        set(C_FLAGS -Wl,-z,relro)
-        set(CXX_FLAGS -Wl,-z,relro)    
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat -Wformat-security -Werror=format-security -z noexecstack -fPIE -pie -fPIC -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -fstack-protector-strong")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat -Wformat-security -Werror=format-security -z noexecstack -fPIE -pie -fPIC -D_FORTIFY_SOURCE=2 -Wl,-z,relro,-z,now -fstack-protector-strong")
+    else()
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wformat -Wformat-security -fPIE -pie -fPIC -D_FORTIFY_SOURCE=2 -fstack-protector")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wformat -Wformat-security -fPIE -pie -fPIC -D_FORTIFY_SOURCE=2 -fstack-protector")
     endif()
-
-    ## Position Independent Code (PIC)
-    set(C_FLAGS -fPIC)
-    set(CXX_FLAGS -fPIC)
-
-    ## Position Independent Execution (PIE)
-    set(C_FLAGS -fPIE -pie)
-    set(CXX_FLAGS -fPIE -pie)
-    
-    ## Pre-processor Macros
-    set(C_FLAGS -D_FORTIFY_SOURCE=2)
-    set(CXX_FLAGS -D_FORTIFY_SOURCE=2)
 
 endif()
 

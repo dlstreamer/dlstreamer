@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,7 +21,7 @@ namespace post_processing {
 
 class LabelConverter : public BlobToTensorConverter {
   public:
-    enum class Method { Max, SoftMax, Compound, Index, Default = Max };
+    enum class Method { Max, SoftMax, Compound, Multi, Index, Default = Max };
 
     LabelConverter(BlobToMetaConverter::Initializer initializer);
 
@@ -36,6 +36,7 @@ class LabelConverter : public BlobToTensorConverter {
 
   private:
     Method _method = Method::Max;
+    double _confidence_threshold = 0.5;
     template <typename T>
     void ExecuteMethod(const T *data, const std::string &layer_name, InferenceBackend::OutputBlob::Ptr blob,
                        TensorsTable &tensors_table) const;

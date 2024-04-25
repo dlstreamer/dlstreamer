@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -11,6 +11,7 @@ set_compile_flags(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
+    logger
     dlstreamer_openvino
     dlstreamer_gst
 )

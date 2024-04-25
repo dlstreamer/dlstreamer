@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -64,8 +64,8 @@ static dlstreamer::MemoryMapperPtr create_mapper(GstGvaTrack *gva_track, dlstrea
         return BufferMapperFactory::createMapper(InferenceBackend::MemoryType::SYSTEM);
 
 #ifdef ENABLE_VAAPI
-    // GPU tracker expects VASurface as input
-    if (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE)
+    // GPU tracker expects VASurface or VAMemory as input.
+    if (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE || gva_track->caps_feature == VA_MEMORY_CAPS_FEATURE)
         return BufferMapperFactory::createMapper(InferenceBackend::MemoryType::VAAPI, context);
 
     // In case of DMA memory create additional chain of mappers GST -> DMA -> VAAPI
@@ -84,9 +84,12 @@ static bool init_tracker_obj(GstGvaTrack *gva_track) {
     g_assert(!gva_track->tracker);
     try {
         dlstreamer::ContextPtr gst_vaapi_ctx;
-        if (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE || gva_track->caps_feature == DMA_BUF_CAPS_FEATURE)
-            gst_vaapi_ctx = std::make_shared<dlstreamer::GSTContextQuery>(GST_BASE_TRANSFORM(gva_track),
-                                                                          dlstreamer::MemoryType::VAAPI);
+        if (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE || gva_track->caps_feature == VA_MEMORY_CAPS_FEATURE ||
+            gva_track->caps_feature == DMA_BUF_CAPS_FEATURE)
+            gst_vaapi_ctx = std::make_shared<dlstreamer::GSTContextQuery>(
+                GST_BASE_TRANSFORM(gva_track), (gva_track->caps_feature == VA_MEMORY_CAPS_FEATURE)
+                                                   ? dlstreamer::MemoryType::VA
+                                                   : dlstreamer::MemoryType::VAAPI);
 
         auto mapper = create_mapper(gva_track, gst_vaapi_ctx);
         gva_track->tracker = TrackerFactory::Create(gva_track, mapper, gst_vaapi_ctx);
@@ -252,7 +255,7 @@ static GstStateChangeReturn gst_gva_track_change_state(GstElement *element, GstS
 
 static gboolean _check_device_correctness(GstGvaTrack *gva_track) {
     return strcmp(gva_track->device, DEVICE_GPU) == 0 && gva_track->caps_feature != VA_SURFACE_CAPS_FEATURE &&
-           gva_track->caps_feature != DMA_BUF_CAPS_FEATURE;
+           gva_track->caps_feature != DMA_BUF_CAPS_FEATURE && gva_track->caps_feature != VA_MEMORY_CAPS_FEATURE;
 }
 
 static gboolean _check_device_capabilities(GstGvaTrack *gva_track) {
@@ -267,6 +270,7 @@ static void _try_to_create_default_gpu_tracker(GstGvaTrack *gva_track) {
     if (gva_track->device != NULL && gva_track->device[0] != '\0')
         return;
     gboolean tryGPU = gva_track->tracking_type == ZERO_TERM && (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE ||
+                                                                gva_track->caps_feature == VA_MEMORY_CAPS_FEATURE ||
                                                                 gva_track->caps_feature == DMA_BUF_CAPS_FEATURE);
     tryGPU = FALSE; // disable default loading of libvasot_gpu, will be removed
     if (tryGPU) {

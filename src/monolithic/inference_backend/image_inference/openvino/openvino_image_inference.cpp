@@ -236,6 +236,25 @@ struct ConfigHelper {
         return base_get_or_empty(KEY_IMAGE_FORMAT);
     }
 
+    float image_scale() const {
+        try {
+            std::string scale_str = base_get_or_empty(KEY_SCALE_FACTOR);
+            if (scale_str == empty_str) {
+                return 1.0;
+            }
+            float scale_factor = std::stof(scale_str);
+            return scale_factor;
+        } catch (const std::invalid_argument &e) {
+            // Handle the exception if the conversion fails
+            GVA_ERROR("Invalid argument: %s", e.what());
+            std::throw_with_nested(std::runtime_error("Pre-processing was failed."));
+        } catch (const std::out_of_range &e) {
+            // Handle the exception if the value is out of range for the float type
+            GVA_ERROR("Out of range: %s", e.what());
+            std::throw_with_nested(std::runtime_error("Pre-processing was failed."));
+        }
+    }
+
     bool need_reshape() const {
         const auto it = base_config.find(KEY_RESHAPE);
         if (it == base_config.cend())
@@ -426,8 +445,82 @@ class OpenVinoNewApiImpl {
         std::map<std::string, std::vector<size_t>> res;
         for (auto &node : _model->outputs()) {
             auto shape = node.get_node()->is_dynamic() ? node.get_partial_shape().get_min_shape() : node.get_shape();
-            res.emplace(node.get_any_name(), std::move(shape));
+            auto name = node.get_names().size() > 0 ? node.get_any_name() : std::string("output");
+            res.emplace(name, std::move(shape));
         }
+        return res;
+    }
+
+    // convert ov::Any to GstStructure
+    auto get_model_info_postproc() const {
+        std::map<std::string, GstStructure *> res;
+        std::string layer_name("ANY");
+        GstStructure *s = nullptr;
+        ov::AnyMap modelConfig;
+
+        if (_model->has_rt_info({"model_info"})) {
+            modelConfig = _model->get_rt_info<ov::AnyMap>("model_info");
+            s = gst_structure_new_empty(layer_name.data());
+        }
+
+        // the parameter parsing loop may use locale-dependent floating point conversion
+        // save current locale and restore after the loop
+        std::string oldlocale = std::setlocale(LC_ALL, nullptr);
+        std::setlocale(LC_ALL, "C");
+
+        for (auto &element : modelConfig) {
+            if (element.first.find("model_type") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, element.second.as<std::string>().c_str());
+                gst_structure_set_value(s, "converter", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if ((element.first.find("multilabel") != std::string::npos) &&
+                (element.second.as<std::string>().find("True") != std::string::npos)) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "multi");
+                gst_structure_set_value(s, "method", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("confidence_threshold") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_DOUBLE);
+                g_value_set_double(&gvalue, element.second.as<double>());
+                gst_structure_set_value(s, "confidence_threshold", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("iou_threshold") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_DOUBLE);
+                g_value_set_double(&gvalue, element.second.as<double>());
+                gst_structure_set_value(s, "iou_threshold", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("labels") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, GST_TYPE_ARRAY);
+                std::string labels_string = element.second.as<std::string>();
+                std::vector<std::string> labels = split(labels_string, ' ');
+                for (auto &el : labels) {
+                    GValue label = G_VALUE_INIT;
+                    g_value_init(&label, G_TYPE_STRING);
+                    g_value_set_string(&label, el.c_str());
+                    gst_value_array_append_value(&gvalue, &label);
+                    g_value_unset(&label);
+                }
+                gst_structure_set_value(s, "labels", &gvalue);
+                g_value_unset(&gvalue);
+            }
+        }
+
+        // restore system locale
+        std::setlocale(LC_ALL, oldlocale.c_str());
+
+        if (s != nullptr)
+            res[layer_name] = s;
+
         return res;
     }
 
@@ -649,7 +742,6 @@ class OpenVinoNewApiImpl {
     ImageInference::ErrorHandlingFunc _error_handler;
 
     void configure_model(const ConfigHelper &config) {
-        _batch_size = config.batch_size();
 
         auto [reshape_width, reshape_height] = config.reshape_size();
         if (config.need_reshape() && (reshape_width || reshape_height))
@@ -667,10 +759,9 @@ class OpenVinoNewApiImpl {
             reshape_model(frame_height, frame_width);
         }
 
-        if (_batch_size > 1) {
-            GVA_DEBUG("Setting batch size of %d to model", _batch_size);
-            ov::set_batch(_model, _batch_size);
-        }
+        _batch_size = config.batch_size();
+        GVA_DEBUG("Setting batch size of %d to model", _batch_size);
+        ov::set_batch(_model, _batch_size);
 
         GVA_DEBUG("Model inputs after configuration:");
         size_t idx = 0;
@@ -751,7 +842,8 @@ class OpenVinoNewApiImpl {
 
     /// @brief Get layout for input node
     /// @param node input node
-    /// @param from_shape_fallback if the node has no layout information, try determining the layout from the node shape
+    /// @param from_shape_fallback if the node has no layout information, try determining the layout from the node
+    /// shape
     /// @return layout of node or empty layout
     ov::Layout get_ov_node_layout(const ov::Output<ov::Node> &node, bool from_shape_fallback = false) {
         ov::Layout result;
@@ -838,7 +930,13 @@ class OpenVinoNewApiImpl {
         if (node_element_type != input_config.type)
             input.preprocess().convert_element_type(node_element_type);
 
-        // Inference Engine does implicit layout conversion. If original layout is unknown, assume it is NCHW.
+        // If defined, scale the image by the defined value
+        float scale_factor = config.image_scale();
+        if (scale_factor != 1.0) {
+            input.preprocess().scale(scale_factor);
+        }
+
+        // OV preprocessor does implicit layout conversion. If original layout is unknown, assume it is NCHW.
         ov::Layout model_layout = get_ov_node_layout(node);
         if (model_layout.empty()) {
             // Need to specify H and W dimensions in model, others are not important
@@ -890,7 +988,7 @@ class OpenVinoNewApiImpl {
             GVA_INFO("using remote context");
         }
 
-        // print_input_and_outputs_info(*_model, *_logger);
+        // print_input_and_outputs_info(*_model);
         if (_openvino_context) {
             _compiled_model = core().compile_model(_model, _openvino_context->remote_context(), ov_params);
         } else {
@@ -1337,6 +1435,11 @@ std::map<std::string, std::vector<size_t>> OpenVINOImageInference::GetModelOutpu
     return info;
 }
 
+std::map<std::string, GstStructure *> OpenVINOImageInference::GetModelInfoPostproc() const {
+    auto info = _impl->get_model_info_postproc();
+    return info;
+}
+
 void OpenVINOImageInference::Flush() {
     ITT_TASK(__FUNCTION__);
 
@@ -1393,8 +1496,8 @@ void OpenVINOImageInference::WorkingFunction(const std::shared_ptr<BatchRequest>
     std::map<std::string, OutputBlob::Ptr> output_blobs;
     const auto &outputs = _impl->_compiled_model.outputs();
     for (size_t i = 0; i < outputs.size(); i++) {
-        output_blobs[outputs[i].get_any_name()] =
-            std::make_shared<OpenvinoOutputTensor>(request->infer_request_new.get_output_tensor(i));
+        auto name = outputs[i].get_names().size() > 0 ? outputs[i].get_any_name() : std::string("output");
+        output_blobs[name] = std::make_shared<OpenvinoOutputTensor>(request->infer_request_new.get_output_tensor(i));
     }
     callback(output_blobs, request->buffers);
 }
