@@ -98,7 +98,7 @@
                 "toothbrush",
                 "hair brush"
             ],
-            "layer_name": "DetectionOutput"
+            "layer_name": "detection_boxes"
         }
     ]
 }

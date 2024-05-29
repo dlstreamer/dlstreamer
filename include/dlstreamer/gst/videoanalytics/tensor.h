@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -243,6 +243,24 @@ class Tensor {
         double val = default_value;
         gst_structure_get_double(_structure, field_name.c_str(), &val);
         return val;
+    }
+
+    /**
+     * @brief Get float vector contained in value stored at field_name
+     * @param field_name field name
+     * @return float vector stored at field_name if field_name is found and contains an float array, empty vector
+     * otherwise
+     */
+    std::vector<float> get_float_vector(const std::string &field_name) const {
+        GValueArray *arr = NULL;
+        gst_structure_get_array(_structure, field_name.c_str(), &arr);
+        std::vector<float> result;
+        if (arr) {
+            for (guint i = 0; i < arr->n_values; ++i)
+                result.push_back(g_value_get_float(g_value_array_get_nth(arr, i)));
+            g_value_array_free(arr);
+        }
+        return result;
     }
 
     /**

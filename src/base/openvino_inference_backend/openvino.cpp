@@ -65,7 +65,7 @@ class OpenVinoInference {
             batch_request->frame = frames[idx];
             idx++;
 
-            batch_request->complete_cb = std::move(complete_cb);
+            batch_request->complete_cb = complete_cb;
             batch_request->infer_request.start_async();
         }
     }

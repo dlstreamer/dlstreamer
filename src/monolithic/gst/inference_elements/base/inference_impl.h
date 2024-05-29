@@ -34,6 +34,9 @@ class InferenceImpl {
 
     InferenceImpl(GvaBaseInference *gva_base_inference);
 
+    static dlstreamer::ContextPtr GetDisplay(GvaBaseInference *gva_base_inference);
+    static void SetDisplay(GvaBaseInference *gva_base_inference, const dlstreamer::ContextPtr &display);
+
     GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer);
     void FlushInference();
     const Model &GetModel() const;

@@ -69,7 +69,7 @@ void HeatMapBoxesConverter::parseOutputBlob(const float *data, const std::vector
         double bbox_h = box.height / input_height;
 
         // Object detection of single type i.e text, has no multiple labels
-        DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, confidence, 0, getLabelByLabelId(0));
+        DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, 0, confidence, 0, getLabelByLabelId(0));
         objects.push_back(bbox);
     }
 }

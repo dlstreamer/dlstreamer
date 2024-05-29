@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -20,6 +20,10 @@ ImagePreprocessorType getPreProcType(const std::map<std::string, std::string> &b
 }
 
 } // namespace
+
+std::map<std::string, GstStructure *> ImageInference::GetModelInfoPreproc(const std::string model_file) {
+    return OpenVINOImageInference::GetModelInfoPreproc(model_file);
+}
 
 ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_type, const InferenceConfig &config,
                                                 Allocator *allocator, CallbackFunc callback,

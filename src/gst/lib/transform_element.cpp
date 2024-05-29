@@ -363,16 +363,18 @@ GstCaps *GstDlsTransform::transform_caps(GstPadDirection direction, GstCaps *cap
             FrameInfo info1 = gst_caps_to_frame_info(caps, i);
             FrameInfoVector info2vector;
 
-            if (direction == GST_PAD_SRC) {
-                log_frame_info(GST_LEVEL_INFO, "set_output_info", info1);
-                _transform->set_output_info(info1);
-                info2vector = _transform->get_input_info();
-                log_frame_infos(GST_LEVEL_INFO, "get_input_info", info2vector);
-            } else {
-                log_frame_info(GST_LEVEL_INFO, "set_input_info", info1);
-                _transform->set_input_info(info1);
-                info2vector = _transform->get_output_info();
-                log_frame_infos(GST_LEVEL_INFO, "get_output_info", info2vector);
+            if (_transform) {
+                if (direction == GST_PAD_SRC) {
+                    log_frame_info(GST_LEVEL_INFO, "set_output_info", info1);
+                    _transform->set_output_info(info1);
+                    info2vector = _transform->get_input_info();
+                    log_frame_infos(GST_LEVEL_INFO, "get_input_info", info2vector);
+                } else {
+                    log_frame_info(GST_LEVEL_INFO, "set_input_info", info1);
+                    _transform->set_input_info(info1);
+                    info2vector = _transform->get_output_info();
+                    log_frame_infos(GST_LEVEL_INFO, "get_output_info", info2vector);
+                }
             }
 
             if (!info2vector.empty()) {

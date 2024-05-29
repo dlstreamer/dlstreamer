@@ -77,7 +77,7 @@ void YOLOxConverter::parseOutputBlob(const float *data, const std::vector<size_t
                     continue;
 
                 // add box to detected objects list
-                objects.push_back(DetectedObject(x, y, w, h, confidence, main_class,
+                objects.push_back(DetectedObject(x, y, w, h, 0, confidence, main_class,
                                                  BlobToMetaConverter::getLabelByLabelId(main_class), 1.0f / input_width,
                                                  1.0f / input_height, true));
             } // height loop

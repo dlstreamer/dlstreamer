@@ -37,10 +37,10 @@ set(PLUGIN_VERSION ${PRODUCT_VERSION}.${GIT_INFO})
 
 add_definitions(-DPLUGIN_VERSION="${PLUGIN_VERSION}")
 add_definitions(-DPACKAGE="dlstreamer")
-add_definitions(-DPACKAGE_NAME="Intel\(R\) DL Streamer elements")
+add_definitions(-DPACKAGE_NAME="Intel® DL Streamer elements")
 add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/dlstreamer/dlstreamer")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
-add_definitions(-DPRODUCT_FULL_NAME="Intel\(R\) DL Streamer")
+add_definitions(-DPRODUCT_FULL_NAME="Intel® DL Streamer")
 
 # Helper macros and functions
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -33,6 +33,18 @@ cv::Point2i calc_point_for_u_v_planes(cv::Point2i pt) {
 
 } // namespace
 
+template <typename T>
+T clamp(T value, T low, T high) {
+    return value < low ? low : (value > high ? high : value);
+}
+
+cv::Rect expand_box(const cv::Rect2f &box, float w_scale, float h_scale) {
+    float w_half = box.width * 0.5f * w_scale, h_half = box.height * 0.5f * h_scale;
+    const cv::Point2f &center = (box.tl() + box.br()) * 0.5f;
+    return {cv::Point(int(center.x - w_half), int(center.y - h_half)),
+            cv::Point(int(center.x + w_half), int(center.y + h_half))};
+}
+
 RendererCPU::~RendererCPU() {
 }
 
@@ -51,6 +63,8 @@ void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<r
             draw_circle(image_planes, std::get<render::Circle>(p));
         } else if (std::holds_alternative<render::Text>(p)) {
             draw_text(image_planes, std::get<render::Text>(p));
+        } else if (std::holds_alternative<render::Mask>(p)) {
+            draw_mask(image_planes, std::get<render::Mask>(p));
         }
     }
 }
@@ -133,6 +147,12 @@ void RendererI420::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     cv::line(v, pos1_u_v, pos2_u_v, line.color[2], thick);
 }
 
+void RendererI420::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
+    (void)mats;
+    (void)mask;
+    throw std::logic_error("Function not yet implemented");
+}
+
 void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
     check_planes<2>(mats);
     cv::Mat &y = mats[0];
@@ -180,8 +200,25 @@ void RendererNV12::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     cv::line(u_v, pos1_u_v, pos2_u_v, {line.color[1], line.color[2]}, calc_thick_for_u_v_planes(line.thick));
 }
 
+void RendererNV12::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
+    (void)mats;
+    (void)mask;
+    throw std::logic_error("Function not yet implemented");
+}
+
 void RendererBGR::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
-    cv::rectangle(mats[0], rect.rect.tl(), rect.rect.br(), rect.color, rect.thick);
+    if (rect.radius == 0.0)
+        cv::rectangle(mats[0], rect.rect.tl(), rect.rect.br(), rect.color, rect.thick);
+    else {
+        cv::RotatedRect rotatedRectangle(
+            cv::Point2f(rect.rect.x + rect.rect.width / 2, rect.rect.y + rect.rect.height / 2),
+            cv::Size2f(rect.rect.width, rect.rect.height), rect.radius * 180 / CV_PI);
+
+        cv::Point2f vertices2f[4];
+        rotatedRectangle.points(vertices2f);
+        for (int i = 0; i < 4; i++)
+            line(mats[0], vertices2f[i], vertices2f[(i + 1) % 4], rect.color, rect.thick);
+    }
 }
 
 void RendererBGR::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {
@@ -194,4 +231,38 @@ void RendererBGR::draw_text(std::vector<cv::Mat> &mats, render::Text text) {
 
 void RendererBGR::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     cv::line(mats[0], line.pt1, line.pt2, line.color, line.thick);
+}
+
+void RendererBGR::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
+    cv::Mat unpadded{mask.size, CV_32F, mask.data.data()};
+    cv::Mat raw_cls_mask;
+    cv::copyMakeBorder(unpadded, raw_cls_mask, 1, 1, 1, 1, cv::BORDER_CONSTANT, {0});
+    cv::Rect extended_box = expand_box(mask.box, float(raw_cls_mask.cols) / (raw_cls_mask.cols - 2),
+                                       float(raw_cls_mask.rows) / (raw_cls_mask.rows - 2));
+
+    int w = std::max(extended_box.width + 1, 1);
+    int h = std::max(extended_box.height + 1, 1);
+    int x0 = clamp(extended_box.x, 0, mats[0].cols);
+    int y0 = clamp(extended_box.y, 0, mats[0].rows);
+    int x1 = clamp(extended_box.x + extended_box.width + 1, 0, mats[0].cols);
+    int y1 = clamp(extended_box.y + extended_box.height + 1, 0, mats[0].rows);
+
+    cv::Mat resized;
+    cv::resize(raw_cls_mask, resized, {w, h});
+
+    cv::Mat binaryMask;
+    cv::threshold(resized({cv::Point(x0 - extended_box.x, y0 - extended_box.y),
+                           cv::Point(x1 - extended_box.x, y1 - extended_box.y)}),
+                  binaryMask, 0.5f, 1.0f, cv::THRESH_BINARY);
+    binaryMask.convertTo(binaryMask, mats[0].type());
+
+    cv::Rect roi(x0, y0, x1 - x0, y1 - y0);
+    cv::Mat colorMask(roi.size(), mats[0].type(), mask.color);
+
+    cv::Mat roiSrc = mats[0](roi);
+    cv::Mat dst;
+    float alpha = 0.5f;
+    cv::addWeighted(colorMask, alpha, roiSrc, 1.0 - alpha, 0.0, dst);
+
+    dst.copyTo(roiSrc, binaryMask);
 }

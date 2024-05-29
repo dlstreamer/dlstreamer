@@ -23,7 +23,7 @@ typedef struct _GstGvaWatermarkClass GstGvaWatermarkClass;
 
 enum WatermarkPath {
     WatermarkPathNone = 0,
-    WatermarkPathVaapi,
+    WatermarkPathVaVaapi,
     WatermarkPathDirect,
 };
 
@@ -33,6 +33,7 @@ struct _GstGvaWatermark {
     GstPad *sinkpad;
     GstPad *srcpad;
     gchar *device;
+    bool obb;
 
     enum WatermarkPath preferred_path;
     enum WatermarkPath active_path;

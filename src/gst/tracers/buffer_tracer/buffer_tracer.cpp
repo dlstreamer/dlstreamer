@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -128,7 +128,7 @@ struct BufferStatistic {
             while (GST_IS_GHOST_PAD(pad.get())) {
                 pad = auto_ptr<GstPad>(gst_ghost_pad_get_target(GST_GHOST_PAD(pad.get())), gst_object_unref);
             }
-            auto elem2 = auto_ptr<GstElement>(gst_pad_get_parent_element(pad.get()), gst_object_unref);
+            auto elem2 = std::shared_ptr<GstElement>(gst_pad_get_parent_element(pad.get()), gst_object_unref);
             if (elem2 && elem2.get() != elem.get())
                 _stat[elem2.get()].Update(buffer, ts, inc);
 
@@ -179,8 +179,8 @@ struct _BufferTracerClass {
 G_GNUC_INTERNAL GType buffer_tracer_get_type(void);
 
 // GST_DEBUG_CATEGORY_STATIC(gst_itt_debug);
-//#define GST_CAT_DEFAULT gst_itt_debug
-//#define _do_init GST_DEBUG_CATEGORY_INIT(gst_itt_debug, "itt", 0, "itt tracer");
+// #define GST_CAT_DEFAULT gst_itt_debug
+// #define _do_init GST_DEBUG_CATEGORY_INIT(gst_itt_debug, "itt", 0, "itt tracer");
 
 #define buffer_tracer_parent_class parent_class
 

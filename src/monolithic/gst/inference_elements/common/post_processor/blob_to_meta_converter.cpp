@@ -9,8 +9,10 @@
 #include "converters/to_roi/blob_to_roi_converter.h"
 #include "converters/to_roi/boxes_labels.h"
 #include "converters/to_roi/detection_output.h"
+#include "converters/to_roi/mask_rcnn.h"
 #include "converters/to_roi/yolo_v2.h"
 #include "converters/to_roi/yolo_v3.h"
+#include "converters/to_roi/yolo_v8.h"
 #include "converters/to_tensor/keypoints_3d.h"
 #include "converters/to_tensor/keypoints_hrnet.h"
 #include "converters/to_tensor/keypoints_openpose.h"
@@ -92,6 +94,10 @@ size_t getKeypointsNumber(GstStructure *s) {
 std::string checkOnNameDeprecation(const std::string &converter_name) {
     const std::string GetiDetection = "ssd";
     const std::string GetiClassification = "Classification";
+    const std::string GetiInstanceSegmentation = "MaskRCNN";
+    const std::string GetiOBB = "rotated_detection";
+    const std::string YOLOv8 = "YOLOv8";
+    const std::string YOLOv8OBB = "YOLOv8-OBB";
     const std::unordered_map<std::string, std::string> deprecatedNameToName = {
         {DetectionOutputConverter::getDepricatedName(), DetectionOutputConverter::getName()},
         {BoxesLabelsConverter::getDepricatedName(), BoxesLabelsConverter::getName()},
@@ -103,7 +109,11 @@ std::string checkOnNameDeprecation(const std::string &converter_name) {
         {Keypoints3DConverter::getDepricatedName(), Keypoints3DConverter::getName()},
         {KeypointsOpenPoseConverter::getDepricatedName(), KeypointsOpenPoseConverter::getName()},
         {GetiDetection, BoxesLabelsConverter::getName()},
-        {GetiClassification, LabelConverter::getName()}};
+        {GetiClassification, LabelConverter::getName()},
+        {GetiInstanceSegmentation, MaskRCNNConverter::getName()},
+        {GetiOBB, MaskRCNNConverter::getName()},
+        {YOLOv8, YOLOv8Converter::getName()},
+        {YOLOv8OBB, YOLOv8OBBConverter::getName()}};
 
     const auto it = deprecatedNameToName.find(converter_name);
     if (it != deprecatedNameToName.cend()) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -27,6 +27,7 @@ struct _GstGvaWatermarkImpl {
     GstBaseTransform base_transform;
     GstVideoInfo info;
     gchar *device;
+    bool obb;
     struct Impl *impl;
 };
 

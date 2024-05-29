@@ -116,7 +116,8 @@ class MultiSourceFFMPEG : public BaseSource {
                     break; // End of stream on av_read_frame() call
             }
 
-            _queue.push(nullptr);
+            FramePtr null_frame(nullptr);
+            _queue.push(null_frame);
             _streams[stream_id].active = false;
 
             AVFormatContext *in_ctx = input_ctx;

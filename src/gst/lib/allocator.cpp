@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -81,9 +81,10 @@ GstAllocator *gst_dlstreamer_allocator_new(MemoryType memory_type) {
 }
 
 GstMemory *gst_dlstreamer_allocator_wrap_tensor(GstAllocator *allocator, const TensorPtr &tensor) {
-    auto dls_mem = new GstDLStreamerMemory;
-    dls_mem->tensor = tensor;
-    GstMemory *mem = &dls_mem->mem;
+    // auto dls_mem = new GstDLStreamerMemory;
+    // dls_mem->tensor = tensor;
+    // GstMemory *mem = &dls_mem->mem;
+    auto mem = new GstMemory;
     auto size = tensor->info().nbytes();
     gst_memory_init(mem, static_cast<GstMemoryFlags>(0), allocator, NULL, size, 0, 0, size);
     return mem;

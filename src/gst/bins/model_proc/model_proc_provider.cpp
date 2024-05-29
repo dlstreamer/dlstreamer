@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -51,6 +51,22 @@ void ModelProcProvider::validateSchema(const nlohmann::json &json_schema) {
 std::vector<ModelInputProcessorInfo::Ptr> ModelProcProvider::parseInputPreproc() {
     const nlohmann::json &model_proc_content = json_reader.content();
     return model_proc_parser->parseInputPreproc(model_proc_content.at("input_preproc"));
+}
+
+std::vector<ModelInputProcessorInfo::Ptr>
+ModelProcProvider::parseInputPreproc(std::map<std::string, GstStructure *> info) {
+    std::vector<ModelInputProcessorInfo::Ptr> preproc_desc;
+    preproc_desc.reserve(info.size());
+    for (const auto &item : info) {
+        ModelInputProcessorInfo::Ptr preprocessor = std::make_shared<ModelInputProcessorInfo>();
+        preprocessor->layer_name = item.first;
+        preprocessor->format = std::string("image");
+        preprocessor->precision = std::string("U8");
+        preprocessor->params = item.second;
+        preproc_desc.push_back(preprocessor);
+    }
+
+    return preproc_desc;
 }
 
 std::map<std::string, GstStructure *> ModelProcProvider::parseOutputPostproc() {

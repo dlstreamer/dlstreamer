@@ -323,8 +323,10 @@ static void do_push_buffer_pre(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBu
     }
     if (lt->flags & LATENCY_TRACER_FLAG_ELEMENT) {
         ElementStats *stats = ElementStats::from_element(elem);
-        stats->cal_log_element_latency(ts, meta->last_pad_push_ts, lt->interval);
-        meta->last_pad_push_ts = ts;
+        if (stats != nullptr) {
+            stats->cal_log_element_latency(ts, meta->last_pad_push_ts, lt->interval);
+            meta->last_pad_push_ts = ts;
+        }
     }
     if (lt->flags & LATENCY_TRACER_FLAG_PIPELINE && lt->sink_element == get_real_pad_parent(GST_PAD_PEER(pad))) {
         cal_log_pipeline_latency(lt, ts, meta);

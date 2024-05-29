@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -139,13 +139,13 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
             ColorSpaceConvert(image_to_insert, image_to_insert, src_color_format, pre_proc_info->getTargetColorSpace());
         }
 
-        // Normalization
-        if (pre_proc_info->doNeedRangeNormalization()) {
-            const auto &range_norm = pre_proc_info->getRangeNormalization();
-            const double std = 255.0 / (range_norm.max - range_norm.min);
-            const double mean = 0 - range_norm.min;
-            Normalization(image_to_insert, mean, std);
-        }
+        // Normalization is handled in OV backend, as all input images are assumed to be U8
+        // if (pre_proc_info->doNeedRangeNormalization()) {
+        //     const auto &range_norm = pre_proc_info->getRangeNormalization();
+        //     const double std = 255.0 / (range_norm.max - range_norm.min);
+        //     const double mean = 0 - range_norm.min;
+        //     Normalization(image_to_insert, mean, std);
+        // }
         if (pre_proc_info->doNeedDistribNormalization()) {
             const auto &distrib_norm = pre_proc_info->getDistribNormalization();
             Normalization(image_to_insert, distrib_norm.mean, distrib_norm.std);

@@ -68,6 +68,7 @@ class ImageInference {
     // TODO: return map<OutputLayerDesc>
     virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const = 0;
     virtual std::map<std::string, GstStructure *> GetModelInfoPostproc() const = 0;
+    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file);
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -166,6 +167,7 @@ __DECLARE_CONFIG_KEY(GPU_THROUGHPUT_STREAMS);
 __DECLARE_CONFIG_KEY(VPU_DEVICE_ID);
 __DECLARE_CONFIG_KEY(PRE_PROCESSOR_TYPE);
 __DECLARE_CONFIG_KEY(IMAGE_FORMAT);
+__DECLARE_CONFIG_KEY(MODEL_FORMAT);
 __DECLARE_CONFIG_KEY(RESHAPE);
 __DECLARE_CONFIG_KEY(BATCH_SIZE);
 __DECLARE_CONFIG_KEY(RESHAPE_WIDTH);

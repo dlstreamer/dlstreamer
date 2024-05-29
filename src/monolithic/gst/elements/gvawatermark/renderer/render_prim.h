@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -33,10 +33,12 @@ struct Rect {
     cv::Rect rect;
     cv::Scalar color;
     int thick;
+    double radius;
 
     Rect() = default;
 
-    Rect(const cv::Rect &rect, const cv::Scalar &color, int thick = 1) : rect(rect), color(color), thick(thick) {
+    Rect(const cv::Rect &rect, const cv::Scalar &color, int thick = 1, double r = 0.0)
+        : rect(rect), color(color), thick(thick), radius(r) {
     }
 };
 
@@ -66,6 +68,19 @@ struct Line {
     }
 };
 
-using Prim = std::variant<Text, Rect, Circle, Line>;
+struct Mask {
+    std::vector<float> data;
+    cv::Size size;
+    cv::Scalar color;
+    cv::Rect2f box;
+
+    Mask() = default;
+
+    Mask(const std::vector<float> &data, const cv::Size &size, const cv::Scalar &color, const cv::Rect2f &box)
+        : data(data), size(size), color(color), box(box) {
+    }
+};
+
+using Prim = std::variant<Text, Rect, Circle, Line, Mask>;
 
 } // namespace render

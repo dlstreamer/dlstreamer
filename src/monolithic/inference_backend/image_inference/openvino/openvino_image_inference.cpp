@@ -202,7 +202,7 @@ ov::element::Type str_to_ov_type(const std::string &type_str) {
 struct ConfigHelper {
     const InferenceBackend::InferenceConfig &config;
     const std::map<std::string, std::string> &base_config = config.at(KEY_BASE);
-    std::string empty_str;
+    const std::string empty_str;
 
     struct InputConfig {
         ov::element::Type type;
@@ -234,6 +234,14 @@ struct ConfigHelper {
 
     const std::string &image_format() const {
         return base_get_or_empty(KEY_IMAGE_FORMAT);
+    }
+
+    const std::string &model_format() const {
+        static const std::string bgr_str = std::string("BGR");
+        const std::string &format = base_get_or_empty(KEY_MODEL_FORMAT);
+        if (format == empty_str)
+            return bgr_str;
+        return format;
     }
 
     float image_scale() const {
@@ -484,6 +492,14 @@ class OpenVinoNewApiImpl {
                 gst_structure_set_value(s, "method", &gvalue);
                 g_value_unset(&gvalue);
             }
+            if ((element.first.find("output_raw_scores") != std::string::npos) &&
+                (element.second.as<std::string>().find("True") != std::string::npos)) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "softmax");
+                gst_structure_set_value(s, "method", &gvalue);
+                g_value_unset(&gvalue);
+            }
             if (element.first.find("confidence_threshold") != std::string::npos) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_DOUBLE);
@@ -511,6 +527,61 @@ class OpenVinoNewApiImpl {
                     g_value_unset(&label);
                 }
                 gst_structure_set_value(s, "labels", &gvalue);
+                g_value_unset(&gvalue);
+            }
+        }
+
+        // restore system locale
+        std::setlocale(LC_ALL, oldlocale.c_str());
+
+        if (s != nullptr)
+            res[layer_name] = s;
+
+        return res;
+    }
+
+    // convert ov::Any to GstStructure
+    static std::map<std::string, GstStructure *> get_model_info_preproc(const std::string model_file) {
+        std::map<std::string, GstStructure *> res;
+        std::string layer_name("ANY");
+        GstStructure *s = nullptr;
+        ov::AnyMap modelConfig;
+
+        std::shared_ptr<ov::Model> _model;
+        _model = core().read_model(model_file);
+
+        if (_model->has_rt_info({"model_info"})) {
+            modelConfig = _model->get_rt_info<ov::AnyMap>("model_info");
+            s = gst_structure_new_empty(layer_name.data());
+        }
+
+        // the parameter parsing loop may use locale-dependent floating point conversion
+        // save current locale and restore after the loop
+        std::string oldlocale = std::setlocale(LC_ALL, nullptr);
+        std::setlocale(LC_ALL, "C");
+
+        for (auto &element : modelConfig) {
+            if (element.first.find("scale_values") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_DOUBLE);
+                g_value_set_double(&gvalue, element.second.as<double>());
+                gst_structure_set_value(s, "scale", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if ((element.first.find("resize_type") != std::string::npos) &&
+                (element.second.as<std::string>().find("fit_to_window_letterbox") != std::string::npos)) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "aspect-ratio");
+                gst_structure_set_value(s, "resize", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if ((element.first.find("reverse_input_channels") != std::string::npos) &&
+                (element.second.as<std::string>().find("YES") != std::string::npos)) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_INT);
+                g_value_set_int(&gvalue, gint(true));
+                gst_structure_set_value(s, "reverse_input_channels", &gvalue);
                 g_value_unset(&gvalue);
             }
         }
@@ -878,50 +949,49 @@ class OpenVinoNewApiImpl {
         // OPENCV and VAAPI pre-processors handle color coversion and scaling, input tensors in NCHW format
         if (pp_type == ImagePreprocessorType::OPENCV || pp_type == ImagePreprocessorType::VAAPI_SYSTEM) {
             input.tensor().set_layout("NCHW");
-            return;
         }
 
-        // Inference Engine preprocessing is configured only for IE or VAAPI_SURFACE_SHARING
-        if (pp_type != ImagePreprocessorType::VAAPI_SURFACE_SHARING && pp_type != ImagePreprocessorType::IE) {
-            throw std::runtime_error(fmt::format("Unsupported pre-processing type: {}", pp_type));
-        }
+        // OV preprocessing is configured only for IE or VAAPI_SURFACE_SHARING
+        if (pp_type == ImagePreprocessorType::VAAPI_SURFACE_SHARING || pp_type == ImagePreprocessorType::IE) {
 
-        // IE and VAAPI_SURFACE_SHARING assume input tensors in NHWC format
-        const auto color_format_pair = get_ov_color_format(config.image_format());
-        input.tensor().set_color_format(color_format_pair.first, color_format_pair.second);
-        input.tensor().set_layout("NHWC");
+            // IE and VAAPI_SURFACE_SHARING assume input tensors in NHWC format
+            const auto color_format_pair = get_ov_color_format(config.image_format());
+            input.tensor().set_color_format(color_format_pair.first, color_format_pair.second);
+            input.tensor().set_layout("NHWC");
 
-        // VAAPI_SURFACE_SHARING pre-processor requires NV12 input surface in GPU memory
-        if (pp_type == ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
-            assert(_memory_type == MemoryType::VAAPI);
-            assert(color_format_pair.first == ov::preprocess::ColorFormat::NV12_TWO_PLANES);
-            input.tensor().set_memory_type(ov::intel_gpu::memory_type::surface);
-        }
-
-        // Models assumed to be trained in BGR space, convert color space if necessary
-        if (color_format_pair.first != ov::preprocess::ColorFormat::BGR)
-            input.preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-
-        // Check if image resize is required (IE-only, VAAPI_SURFACE_SHARING does image resize)
-        if (pp_type == ImagePreprocessorType::IE) {
-            // System memory input
-            assert(_memory_type == MemoryType::SYSTEM);
-            // Validate _was_resize flag. We should not resize a model twice.
-            assert(_was_resize == false);
-
-            auto [img_width, img_height] = config.image_size();
-            bool apply_resize = img_width != _origin_model_in_w || img_height != _origin_model_in_h;
-
-            if (img_width && img_height) {
-                input.tensor().set_spatial_static_shape(img_height, img_width);
-            } else {
-                // Dynamic input, e.g. ROI
-                input.tensor().set_spatial_dynamic_shape();
+            // VAAPI_SURFACE_SHARING pre-processor requires NV12 input surface in GPU memory
+            if (pp_type == ImagePreprocessorType::VAAPI_SURFACE_SHARING) {
+                assert(_memory_type == MemoryType::VAAPI);
+                assert(color_format_pair.first == ov::preprocess::ColorFormat::NV12_TWO_PLANES);
+                input.tensor().set_memory_type(ov::intel_gpu::memory_type::surface);
             }
 
-            if (apply_resize) {
-                input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
-                _was_resize = true;
+            // Convert input tensor color space into model color space if necessary
+            const auto model_format_pair = get_ov_color_format(config.model_format());
+            if (color_format_pair.first != model_format_pair.first)
+                input.preprocess().convert_color(model_format_pair.first);
+
+            // Check if image resize is required (IE-only, VAAPI_SURFACE_SHARING does image resize)
+            if (pp_type == ImagePreprocessorType::IE) {
+                // System memory input
+                assert(_memory_type == MemoryType::SYSTEM);
+                // Validate _was_resize flag. We should not resize a model twice.
+                assert(_was_resize == false);
+
+                auto [img_width, img_height] = config.image_size();
+                bool apply_resize = img_width != _origin_model_in_w || img_height != _origin_model_in_h;
+
+                if (img_width && img_height) {
+                    input.tensor().set_spatial_static_shape(img_height, img_width);
+                } else {
+                    // Dynamic input, e.g. ROI
+                    input.tensor().set_spatial_dynamic_shape();
+                }
+
+                if (apply_resize) {
+                    input.preprocess().resize(ov::preprocess::ResizeAlgorithm::RESIZE_LINEAR);
+                    _was_resize = true;
+                }
             }
         }
 
@@ -1437,6 +1507,11 @@ std::map<std::string, std::vector<size_t>> OpenVINOImageInference::GetModelOutpu
 
 std::map<std::string, GstStructure *> OpenVINOImageInference::GetModelInfoPostproc() const {
     auto info = _impl->get_model_info_postproc();
+    return info;
+}
+
+std::map<std::string, GstStructure *> OpenVINOImageInference::GetModelInfoPreproc(const std::string model_file) {
+    auto info = OpenVinoNewApiImpl::get_model_info_preproc(model_file);
     return info;
 }
 

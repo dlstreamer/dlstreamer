@@ -25,6 +25,7 @@ declare -A MODEL_PROC_FILES=(
   ["yolov7"]="../../model_proc/public/yolo-v7.json"
   ["yolov8s"]="../../model_proc/public/yolo-v8.json"
   ["yolov9c"]="../../model_proc/public/yolo-v8.json"
+  ["yolov8n-obb"]=""
 )
 
 if ! [[ "${!MODEL_PROC_FILES[*]}" =~ $MODEL ]]; then
@@ -32,11 +33,14 @@ if ! [[ "${!MODEL_PROC_FILES[*]}" =~ $MODEL ]]; then
   exit 1
 fi
 
-MODEL_PROC=$(realpath "${MODEL_PROC_FILES[$MODEL]}")
+MODEL_PROC=""
+if ! [ -z ${MODEL_PROC_FILES[$MODEL]} ]; then
+  MODEL_PROC=$(realpath "${MODEL_PROC_FILES[$MODEL]}")
+fi
 
 cd - 1>/dev/null
 
-if [ -d "$PWD/public/$MODEL/FP16/$MODEL.xml" ]; then
+if [ -f "$PWD/public/$MODEL/FP16/$MODEL.xml" ]; then
   MODEL_PATH="$PWD/public/$MODEL/FP16/$MODEL.xml"
 else
   MODEL_PATH="$PWD/public/$MODEL/FP32/$MODEL.xml"
@@ -59,8 +63,8 @@ fi
 
 if [[ "$OUTPUT" == "file" ]]; then
   FILE=$(basename "${INPUT%.*}")
-  rm -f "${FILE}_output.avi"
-  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vaapih264enc ! avimux name=mux ! filesink location=${FILE}_output.avi"
+  rm -f "${FILE}_${DEVICE}.mp4"
+  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${FILE}_${DEVICE}.mp4"
 elif [[ "$OUTPUT" == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ "$OUTPUT" == "fps" ]]; then

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -111,7 +111,7 @@ void YOLOv2Converter::parseOutputBlob(const float *blob_data, const std::vector<
                 const float bbox_w = (std::exp(raw_w) * anchor_scale_w) / output_shape_info.cells_number_x;
                 const float bbox_h = (std::exp(raw_h) * anchor_scale_h) / output_shape_info.cells_number_y;
 
-                DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, bbox_confidence, bbox_class.first,
+                DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, 0, bbox_confidence, bbox_class.first,
                                     BlobToMetaConverter::getLabelByLabelId(bbox_class.first), 1.0, 1.0, true);
                 objects.push_back(bbox);
             }

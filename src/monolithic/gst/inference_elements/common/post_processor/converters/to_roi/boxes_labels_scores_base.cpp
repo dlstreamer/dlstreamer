@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -121,7 +121,7 @@ void BoxesLabelsScoresConverter::parseOutputBlob(const float *boxes_data, const 
             bbox_h = bbox_h * roi_scale;
         }
 
-        DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, confidence, label_id, getLabelByLabelId(label_id));
+        DetectedObject bbox(bbox_x, bbox_y, bbox_w, bbox_h, 0, confidence, label_id, getLabelByLabelId(label_id));
         objects.push_back(bbox);
     }
 }

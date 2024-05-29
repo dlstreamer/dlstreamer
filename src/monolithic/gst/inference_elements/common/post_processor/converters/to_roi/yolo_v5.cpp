@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,7 +26,7 @@ YOLOv3Converter::DetectedObject YOLOv5Converter::calculateBoundingBox(size_t col
     const size_t anchor_offset = 2 * mask_0;
     float width = std::pow(sigmoid(raw_w) * 2, 2) * anchors[anchor_offset + 2 * bbox_cell_num];
     float height = std::pow(sigmoid(raw_h) * 2, 2) * anchors[anchor_offset + 2 * bbox_cell_num + 1];
-    return DetectedObject(x, y, width, height, confidence, bbox_class_first,
+    return DetectedObject(x, y, width, height, 0, confidence, bbox_class_first,
                           BlobToMetaConverter::getLabelByLabelId(bbox_class_first), 1.0f / input_width,
                           1.0f / input_height, true);
 }

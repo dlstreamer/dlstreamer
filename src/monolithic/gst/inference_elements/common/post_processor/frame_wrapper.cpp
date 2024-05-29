@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -22,7 +22,8 @@ FrameWrapper::FrameWrapper(InferenceFrame &frame)
 // This constructor is only called for micro-elements, initialization of the rest of the fields is not required because
 // they are not used there
 FrameWrapper::FrameWrapper(GstBuffer *buf, const std::string &instance_id)
-    : buffer(buf), model_instance_id(instance_id) {
+    : buffer(buf), model_instance_id(instance_id), roi(nullptr), image_transform_info(nullptr), width(0), height(0),
+      roi_classifications(nullptr) {
 }
 
 /* class FramesWrapper */

@@ -57,5 +57,5 @@ static gboolean plugin_init(GstPlugin *plugin) {
     return TRUE;
 }
 
-GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, videoanalytics, PRODUCT_FULL_NAME " elements 3", plugin_init,
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, videoanalytics, PRODUCT_FULL_NAME " elements", plugin_init,
                   PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

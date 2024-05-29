@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -61,6 +61,14 @@ class RegionOfInterest {
     }
 
     /**
+     * @brief Get RegionOfInterest bounding box radius
+     * @return Bounding box radius of the RegionOfInterest
+     */
+    double radius() const {
+        return _detection ? _detection->get_double("radius", 0.0) : 0.0;
+    }
+
+    /**
      * @brief Get RegionOfInterest label
      * @return RegionOfInterest label
      */
@@ -88,6 +96,42 @@ class RegionOfInterest {
         int id = 0;
         gst_structure_get_int(object_id_struct, "id", &id);
         return id;
+    }
+
+    /**
+     * @brief Get the width of the mask of the RegionOfInterest. Element added by gvadetect if a mask is detected
+     * @return Mask width, or zero value if not found
+     */
+    size_t mask_width() {
+        Tensor det = detection();
+        return det.get_int("mask_width", 0);
+    }
+
+    /**
+     * @brief Get the height of the mask of the RegionOfInterest. Element added by gvadetect if a mask is detected
+     * @return Mask height, or zero value if not found
+     */
+    size_t mask_height() {
+        Tensor det = detection();
+        return det.get_int("mask_height", 0);
+    }
+
+    /**
+     * @brief Get the mask of the RegionOfInterest. Element added by gvadetect if a mask is detected
+     * @return Vector with mask values, or empty vector if not found
+     */
+    std::vector<float> mask() {
+        Tensor det = detection();
+        return det.get_float_vector("mask");
+    }
+
+    /**
+     * @brief Check whether RegionOfInterest has a mask defined
+     * @return True if RegionOfInterest has a mask, or false if it does not
+     */
+    bool has_mask() {
+        Tensor det = detection();
+        return det.has_field("mask");
     }
 
     /**
@@ -128,7 +172,7 @@ class RegionOfInterest {
         if (!_detection) {
             add_tensor("detection");
         }
-        return *_detection;
+        return _detection ? *_detection : nullptr;
     }
 
     /**

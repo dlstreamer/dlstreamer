@@ -9,6 +9,7 @@
 #include "boxes_labels.h"
 #include "boxes_scores.h"
 #include "detection_output.h"
+#include "mask_rcnn.h"
 #include "yolo_base.h"
 #include "yolo_v2.h"
 #include "yolo_v3.h"
@@ -40,6 +41,8 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     double confidence_threshold;
     if (not gst_structure_get_double(model_proc_output_info.get(), "confidence_threshold", &confidence_threshold))
         throw std::runtime_error("Post-processor parameter undefined: confidence_threshold.");
+    double iou_threshold = DEFAULT_IOU_THRESHOLD;
+    gst_structure_get_double(model_proc_output_info.get(), "iou_threshold", &iou_threshold);
 
     if (converter_name == DetectionOutputConverter::getName())
         return BlobToMetaConverter::Ptr(new DetectionOutputConverter(std::move(initializer), confidence_threshold));
@@ -53,14 +56,19 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
              converter_name == YOLOv4Converter::getName() || converter_name == YOLOv5Converter::getName())
         return YOLOBaseConverter::create(std::move(initializer), converter_name, confidence_threshold);
     else if (converter_name == YOLOv7Converter::getName())
-        return BlobToMetaConverter::Ptr(new YOLOv7Converter(std::move(initializer), confidence_threshold));
+        return BlobToMetaConverter::Ptr(
+            new YOLOv7Converter(std::move(initializer), confidence_threshold, iou_threshold));
     else if (converter_name == YOLOv8Converter::getName())
-        return BlobToMetaConverter::Ptr(new YOLOv8Converter(std::move(initializer), confidence_threshold));
+        return BlobToMetaConverter::Ptr(
+            new YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold));
+    else if (converter_name == YOLOv8OBBConverter::getName())
+        return BlobToMetaConverter::Ptr(
+            new YOLOv8OBBConverter(std::move(initializer), confidence_threshold, iou_threshold));
+    else if (converter_name == MaskRCNNConverter::getName())
+        return BlobToMetaConverter::Ptr(
+            new MaskRCNNConverter(std::move(initializer), confidence_threshold, iou_threshold));
     else if (converter_name == YOLOxConverter::getName()) {
-        double iou_threshold;
         int classes;
-        if (not gst_structure_get_double(model_proc_output_info.get(), "iou_threshold", &iou_threshold))
-            throw std::runtime_error("Post-processor parameter undefined: iou_threshold.");
         if (not gst_structure_get_int(model_proc_output_info.get(), "classes", &classes))
             throw std::runtime_error("Post-processor parameter undefined: classes.");
         return BlobToMetaConverter::Ptr(

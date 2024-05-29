@@ -35,8 +35,9 @@ The samples demonstrate deployment and inference with GStreamer command line too
 | yolov5s      | Pytorch -> OpenVINO™ converter from [YOLOv5 repository](https://github.com/ultralytics/yolov5)            | gvadetect model-proc=yolo-v7.json |
 | yolov5su     | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect model-proc=yolo-v8.json |
 | yolov7       | Pytorch -> ONNX -> OpenVINO™ converter from [YOLOv7 repository](https://github.com/WongKinYiu/yolov7.git) | gvadetect model-proc=yolo-v7.json |
-| yolov8s      | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect model-proc=yolo-v8.json |
-| yolov9c      | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect model-proc=yolo-v8.json |
+| yolov8s      | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
+| yolov8n-obb  | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
+| yolov9c      | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
 
 ## Samples
 

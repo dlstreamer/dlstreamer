@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -109,7 +109,7 @@ class AudioEvent {
         if (!_detection) {
             add_tensor("detection");
         }
-        return *_detection;
+        return _detection ? *_detection : nullptr;
     }
 
     /**

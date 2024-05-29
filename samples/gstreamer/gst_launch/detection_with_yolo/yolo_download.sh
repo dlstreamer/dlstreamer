@@ -18,6 +18,7 @@ SUPPORTED_MODELS=(
   "yolov7"
   "yolov8s"
   "yolov9c"
+  "yolov8n-obb"
 )
 
 if ! [[ "${SUPPORTED_MODELS[*]}" =~ $MODEL ]]; then
@@ -141,6 +142,30 @@ model.export(format='openvino', half=True)  # creates 'yolov8s_openvino_model/'
 EOF
     mv ./"${MODEL_NAME}"_openvino_model ./FP16
     cd ../..
+  fi
+fi
+
+if [[ "$MODEL" == "yolov8n-obb" ]] || [[ "$MODEL" == "yolo_all" ]]; then
+  MODEL_NAME="yolov8n-obb"
+  MODEL_PATH="$PWD/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
+  if [ ! -f "$MODEL_PATH" ]; then
+    echo "Downloading and converting: ${MODEL_PATH}"
+    mkdir -p ./public/"$MODEL_NAME"
+    cd ./public/"$MODEL_NAME"
+    python3 - <<EOF $MODEL_NAME
+from ultralytics import YOLO
+import openvino, sys, shutil
+model = YOLO(sys.argv[1] + '.pt')
+model.info()
+converted_path = model.export(format='openvino')
+converted_model = converted_path + '/' + sys.argv[1] +'.xml'
+core = openvino.Core()
+ov_model = core.read_model(model=converted_model)
+ov_model.set_rt_info("YOLOv8-OBB", ['model_info', 'model_type'])
+openvino.save_model(ov_model, './FP32/' + sys.argv[1] +'.xml', compress_to_fp16=False)
+openvino.save_model(ov_model, './FP16/' + sys.argv[1] +'.xml', compress_to_fp16=True)
+shutil.rmtree(converted_path)
+EOF
   fi
 fi
 

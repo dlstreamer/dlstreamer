@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -23,5 +23,6 @@ class ModelProcProvider {
     void readJsonFile(const std::string &file_path);
 
     std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc();
+    static std::vector<ModelInputProcessorInfo::Ptr> parseInputPreproc(std::map<std::string, GstStructure *>);
     std::map<std::string, GstStructure *> parseOutputPostproc();
 };

@@ -116,7 +116,7 @@ dlstreamer::MemoryMapperPtr createMapperToDMA(InferenceBackend::MemoryType in_me
 
 struct Impl {
     Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
-         dlstreamer::ContextPtr context);
+         dlstreamer::ContextPtr context, bool obb);
     bool render(GstBuffer *buffer);
     const std::string &getBackendType() const {
         return _backend_type;
@@ -155,9 +155,10 @@ struct Impl {
         const int type = cv::FONT_HERSHEY_TRIPLEX;
         const double scale = 1.0;
     } _font;
+    const bool _obb = false;
 };
 
-enum { PROP_0, PROP_DEVICE };
+enum { PROP_0, PROP_DEVICE, PROP_OBB };
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaWatermarkImpl, gst_gva_watermark_impl, GST_TYPE_BASE_TRANSFORM,
                         GST_DEBUG_CATEGORY_INIT(gst_gva_watermark_impl_debug_category, "gvawatermarkimpl", 0,
@@ -165,6 +166,7 @@ G_DEFINE_TYPE_WITH_CODE(GstGvaWatermarkImpl, gst_gva_watermark_impl, GST_TYPE_BA
 
 static void gst_gva_watermark_impl_init(GstGvaWatermarkImpl *gvawatermark) {
     gvawatermark->device = DEFAULT_DEVICE;
+    gvawatermark->obb = false;
 }
 
 void gst_gva_watermark_impl_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
@@ -176,6 +178,9 @@ void gst_gva_watermark_impl_set_property(GObject *object, guint prop_id, const G
     case PROP_DEVICE:
         g_free(gvawatermark->device);
         gvawatermark->device = g_value_dup_string(value);
+        break;
+    case PROP_OBB:
+        gvawatermark->obb = g_value_get_boolean(value);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -195,6 +200,9 @@ void gst_gva_watermark_impl_get_property(GObject *object, guint prop_id, GValue 
         } else {
             g_value_set_string(value, self->device);
         }
+        break;
+    case PROP_OBB:
+        g_value_set_boolean(value, self->obb);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -308,7 +316,7 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     }
 
     try {
-        gvawatermark->impl = new Impl(&gvawatermark->info, device, mem_type, va_dpy);
+        gvawatermark->impl = new Impl(&gvawatermark->info, device, mem_type, va_dpy, gvawatermark->obb);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not initialize"),
                           ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));
@@ -395,11 +403,16 @@ static void gst_gva_watermark_impl_class_init(GstGvaWatermarkImplClass *klass) {
             "device", "Target device",
             "Supported devices are CPU and GPU. Default is CPU on system memory and GPU on video memory",
             DEFAULT_DEVICE, (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
+    g_object_class_install_property(gobject_class, PROP_OBB,
+                                    g_param_spec_boolean("obb", "Oriented Bounding Box",
+                                                         "If true, draw oriented bounding box instead of object mask",
+                                                         false,
+                                                         (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
 Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
-           dlstreamer::ContextPtr context)
-    : _vinfo(info) {
+           dlstreamer::ContextPtr context, bool obb)
+    : _vinfo(info), _obb(obb) {
     assert(_vinfo);
     if (GST_VIDEO_INFO_COLORIMETRY(_vinfo).matrix == GstVideoColorMatrix::GST_VIDEO_COLOR_MATRIX_UNKNOWN)
         throw std::runtime_error("GST_VIDEO_COLOR_MATRIX_UNKNOWN");
@@ -450,7 +463,10 @@ bool Impl::render(GstBuffer *buffer) {
         if (tensor.is_detection())
             continue;
         preparePrimsForTensor(tensor, ff_rect, prims);
-        appendStr(ff_text, tensor.label());
+        if (tensor.label().size() > 1) {
+            appendStr(ff_text, tensor.label());
+            ff_text << int(tensor.confidence() * 100) << "%";
+        }
     }
 
     if (ff_text.tellp() != 0)
@@ -488,7 +504,10 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
         color_index = object_id;
     }
 
-    appendStr(text, roi.label());
+    if (roi.label().size() > 1) {
+        appendStr(text, roi.label());
+        text << int(roi.confidence() * 100) << "%";
+    }
 
     // Prepare primitives for tensors
     for (auto &tensor : roi.tensors()) {
@@ -501,7 +520,8 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
     // put rectangle
     Color color = indexToColor(color_index);
     cv::Rect bbox_rect(rect.x, rect.y, rect.w, rect.h);
-    prims.emplace_back(render::Rect(bbox_rect, color, _thickness));
+    if (!_obb)
+        prims.emplace_back(render::Rect(bbox_rect, color, _thickness, roi.radius()));
 
     // put text
     if (text.str().size() != 0) {
@@ -509,6 +529,33 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
         if (pos.y < 0)
             pos.y = rect.y + 30.f;
         prims.emplace_back(render::Text(text.str(), pos, _font.type, _font.scale, color));
+    }
+
+    if (roi.has_mask()) {
+        std::vector<float> mask = roi.mask();
+        const cv::Size &mask_size{int(roi.mask_width()), int(roi.mask_height())};
+        cv::Rect2f box(rect.x, rect.y, rect.w, rect.h);
+
+        if (!_obb) {
+            // overlay mask on top of image pixels
+            prims.emplace_back(render::Mask(mask, mask_size, color, box));
+        } else {
+            // resize mask to non-rotated bounding box and convert to binary
+            cv::Mat mask_resized, mask_converted;
+            cv::resize(cv::Mat{mask_size, CV_32F, mask.data()}, mask_resized, cv::Size(rect.w, rect.h));
+            cv::threshold(mask_resized, mask_resized, 0.5f, 1.0f, cv::THRESH_BINARY);
+            mask_resized.convertTo(mask_converted, CV_8UC1);
+            // find contours in binary mask and derive minimal bounding box
+            std::vector<std::vector<cv::Point>> contours;
+            cv::findContours(mask_converted, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+            cv::RotatedRect rotated = cv::minAreaRect(contours[0]);
+            // shift minimal rotated box to original box position and draw
+            rotated.center = rotated.center + cv::Point2f(bbox_rect.x, bbox_rect.y);
+            cv::Point2f vertices2f[4];
+            rotated.points(vertices2f);
+            for (int i = 0; i < 4; i++)
+                prims.emplace_back(render::Line(vertices2f[i], vertices2f[(i + 1) % 4], color, _thickness));
+        }
     }
 }
 

@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "inference_singleton.h"
+#include "inference_backend/buffer_mapper.h"
 
 #include "gva_base_inference.h"
 #include "inference_impl.h"
@@ -15,6 +16,7 @@
 struct InferenceRefs {
     std::set<GvaBaseInference *> refs;
     InferenceImpl *proxy = nullptr;
+    dlstreamer::ContextPtr context = nullptr;
     GstVideoFormat videoFormat = GST_VIDEO_FORMAT_UNKNOWN;
     CapsFeature capsFeature = ANY_CAPS_FEATURE;
 };
@@ -167,8 +169,12 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
         // if base_inference is not master element, it will get all master element's properties here
         initExistingElements(infRefs);
 
-        if (infRefs->proxy == nullptr)                          // no instance for current inference-id acquired yet
+        if (infRefs->proxy == nullptr) {                        // no instance for current inference-id acquired yet
             infRefs->proxy = new InferenceImpl(base_inference); // one instance for all elements with same inference-id
+            infRefs->context = InferenceImpl::GetDisplay(base_inference);
+        } else {
+            InferenceImpl::SetDisplay(base_inference, infRefs->context);
+        }
 
         return infRefs->proxy;
     } catch (const std::exception &e) {

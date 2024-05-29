@@ -220,7 +220,7 @@ bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr
         auto input_desc = PreProcParamsParser(it->params).parse();
         // In these cases we need to switch to opencv preproc
         // VAAPI converts color to RGBP by default
-        if (input_desc && (input_desc->doNeedDistribNormalization() || input_desc->doNeedRangeNormalization() ||
+        if (input_desc && (input_desc->doNeedDistribNormalization() ||
                            (input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
                             input_desc->doNeedColorSpaceConversion(static_cast<int>(format)))))
             return false;
@@ -298,9 +298,9 @@ void SetPreprocessor(InferenceConfig &config,
                      const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
                      GstVideoInfo *input_video_info) {
     const auto caps = static_cast<CapsFeature>(std::stoi(config[KEY_BASE][KEY_CAPS_FEATURE]));
-
     const auto current = static_cast<ImagePreprocessorType>(std::stoi(config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE]));
 
+    // Select preprocessor
     if (current == ImagePreprocessorType::AUTO) {
         const auto preferred =
             GetPreferredImagePreproc(caps, model_input_processor_info, input_video_info, config[KEY_BASE][KEY_DEVICE]);
@@ -330,23 +330,6 @@ void SetPreprocessor(InferenceConfig &config,
     }
 }
 
-void SetScaleFactor(InferenceConfig &config,
-                    const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info) {
-    for (const auto &it : model_input_processor_info) {
-        if (!it || it->format != "image")
-            continue;
-        auto input_desc = PreProcParamsParser(it->params).parse();
-        if (input_desc && input_desc->doNeedRangeNormalization()) {
-            assert(it->precision == "U8");
-            const auto &range = input_desc->getRangeNormalization();
-            const float scale = 255.0 / (range.max - range.min);
-            std::string scale_str = std::to_string(scale);
-            config[KEY_BASE][KEY_SCALE_FACTOR] = scale_str;
-            return;
-        }
-    }
-}
-
 void UpdateConfigWithLayerInfo(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
                                std::map<std::string, std::map<std::string, std::string>> &config) {
     std::map<std::string, std::string> input_layer_precision;
@@ -360,6 +343,29 @@ void UpdateConfigWithLayerInfo(const std::vector<ModelInputProcessorInfo::Ptr> &
 
     config[KEY_INPUT_LAYER_PRECISION] = input_layer_precision;
     config[KEY_FORMAT] = input_format;
+
+    // Setup range normalization for IE config
+    double scale = 1.0;
+    int reverse_channels = 0;
+    for (const auto &it : model_input_processor_info) {
+        if (!it || it->format != "image")
+            continue;
+        assert(it->precision == "U8");
+        auto input_desc = PreProcParamsParser(it->params).parse();
+        if (input_desc && input_desc->doNeedRangeNormalization()) {
+            const auto &range = input_desc->getRangeNormalization();
+            scale = 255.0 / (range.max - range.min);
+            std::string scale_str = std::to_string(scale);
+            config[KEY_BASE][KEY_SCALE_FACTOR] = scale_str;
+        }
+        if (gst_structure_get_double(it->params, "scale", &scale)) {
+            std::string scale_str = std::to_string(scale);
+            config[KEY_BASE][KEY_SCALE_FACTOR] = scale_str;
+        }
+        if (gst_structure_get_int(it->params, "reverse_input_channels", &reverse_channels)) {
+            config[KEY_BASE][KEY_MODEL_FORMAT] = reverse_channels ? "RGB" : "BGR";
+        }
+    }
 }
 
 void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, GstVideoRegionOfInterestMeta *meta,
@@ -508,6 +514,10 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         model_proc_provider.readJsonFile(model_proc_path);
         model.input_processor_info = model_proc_provider.parseInputPreproc();
         model.output_processor_info = model_proc_provider.parseOutputPostproc();
+    } else {
+        // use model metadata file to construct preprocessing info
+        model.input_processor_info =
+            ModelProcProvider::parseInputPreproc(ImageInference::GetModelInfoPreproc(model_file));
     }
 
     if (Utils::symLink(labels_str))
@@ -523,7 +533,6 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
     InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference, model_file);
     UpdateConfigWithLayerInfo(model.input_processor_info, ie_config);
     SetPreprocessor(ie_config, model.input_processor_info, gva_base_inference->info);
-    SetScaleFactor(ie_config, model.input_processor_info);
     memory_type =
         GetMemoryType(GetMemoryType(static_cast<CapsFeature>(std::stoi(ie_config[KEY_BASE][KEY_CAPS_FEATURE]))),
                       static_cast<ImagePreprocessorType>(std::stoi(ie_config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE])));
@@ -588,6 +597,13 @@ InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) {
     GVA_INFO("Loading model: device=%s, path=%s", std::string(gva_base_inference->device).c_str(), model_file.c_str());
     GVA_INFO("Initial settings: batch_size=%u, nireq=%u", gva_base_inference->batch_size, gva_base_inference->nireq);
     this->model = CreateModel(gva_base_inference, model_file, model_proc, labels_str);
+}
+
+dlstreamer::ContextPtr InferenceImpl::GetDisplay(GvaBaseInference *gva_base_inference) {
+    return gva_base_inference->priv->va_display;
+}
+void InferenceImpl::SetDisplay(GvaBaseInference *gva_base_inference, const dlstreamer::ContextPtr &display) {
+    gva_base_inference->priv->va_display = display;
 }
 
 void InferenceImpl::FlushInference() {
@@ -715,8 +731,10 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
                                           const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstBuffer *buffer) {
     ITT_TASK(__FUNCTION__);
     try {
-        if (!gva_base_inference || !gva_base_inference->priv)
+        if (!gva_base_inference)
             throw std::invalid_argument("GvaBaseInference is null");
+        if (!gva_base_inference->priv)
+            throw std::invalid_argument("GvaBaseInference priv is null");
         if (!gva_base_inference->priv->buffer_mapper)
             throw std::invalid_argument("Mapper is null");
         if (!buffer)
@@ -732,8 +750,15 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
         InferenceBackend::ImagePtr image =
             buf_mapper.map(buffer, GstMapFlags(GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF));
 
+        if (!image)
+            throw std::invalid_argument("image is null");
+
         size_t i = 0;
         for (const auto meta : metas) {
+            // Workaround for CodeCoverity
+            if (!image)
+                break;
+
             ApplyImageBoundaries(image, meta, gva_base_inference->inference_region);
             auto result = MakeInferenceResult(gva_base_inference, model, meta, image, buffer);
             // Because image is a shared pointer with custom deleter which performs buffer unmapping
@@ -868,7 +893,7 @@ void InferenceImpl::PushFramesIfInferenceFailed(
                 return output_frame.buffer == inference_roi->buffer;
             });
 
-        if (it != output_frames.end())
+        if (it == output_frames.end())
             continue;
 
         PushBufferToSrcPad(*it);

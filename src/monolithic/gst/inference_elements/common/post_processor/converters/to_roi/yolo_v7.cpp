@@ -65,7 +65,7 @@ void YOLOv7Converter::parseOutputBlob(const float *data, const std::vector<size_
             continue;
         }
 
-        objects.push_back(DetectedObject(x, y, w, h, confidence, main_class,
+        objects.push_back(DetectedObject(x, y, w, h, 0, confidence, main_class,
                                          BlobToMetaConverter::getLabelByLabelId(main_class), 1.0f / input_width,
                                          1.0f / input_height, true));
     }

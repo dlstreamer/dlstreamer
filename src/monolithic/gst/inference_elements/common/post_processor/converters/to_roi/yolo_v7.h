@@ -41,8 +41,8 @@ class YOLOv7Converter : public BlobToROIConverter {
                          std::vector<DetectedObject> &objects) const;
 
   public:
-    YOLOv7Converter(BlobToMetaConverter::Initializer initializer, double confidence_threshold)
-        : BlobToROIConverter(std::move(initializer), confidence_threshold, true, 0.4) {
+    YOLOv7Converter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold)
+        : BlobToROIConverter(std::move(initializer), confidence_threshold, true, iou_threshold) {
     }
 
     TensorsTable convert(const OutputBlobs &output_blobs) const override;

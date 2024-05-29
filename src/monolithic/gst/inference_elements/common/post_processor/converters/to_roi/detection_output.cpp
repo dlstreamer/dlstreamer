@@ -96,7 +96,7 @@ void DetectionOutputConverter::parseOutputBlob(const InferenceBackend::OutputBlo
         }
 
         size_t label_id = safe_convert<size_t>(blobElement->labelId);
-        objects[image_id].push_back(DetectedObject(bbox_x, bbox_y, bbox_w, bbox_h, blobElement->confidence, label_id,
+        objects[image_id].push_back(DetectedObject(bbox_x, bbox_y, bbox_w, bbox_h, 0, blobElement->confidence, label_id,
                                                    getLabelByLabelId(label_id)));
     }
 }
