@@ -185,11 +185,12 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_PROC_BACKEND,
-        g_param_spec_string("pre-process-backend", "Pre-processing method",
-                            "Select a pre-processing method (color conversion, resize and crop), "
-                            "one of 'ie', 'opencv', 'vaapi', 'vaapi-surface-sharing'. If not set, it will be selected "
-                            "automatically: 'vaapi' for VASurface and DMABuf, 'ie' for SYSTEM memory.",
-                            DEFAULT_PRE_PROC, param_flags));
+        g_param_spec_string(
+            "pre-process-backend", "Pre-processing method",
+            "Select a pre-processing method (color conversion, resize and crop), "
+            "one of 'ie', 'opencv', 'va', 'va-surface-sharing, 'vaapi', 'vaapi-surface-sharing'."
+            " If not set, it will be selected automatically: 'va' for VAMemory and DMABuf, 'ie' for SYSTEM memory.",
+            DEFAULT_PRE_PROC, param_flags));
 
     g_object_class_install_property(
         gobject_class, PROP_MODEL_PROC,
@@ -539,6 +540,12 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_PRE_PROC_BACKEND:
         g_free(base_inference->pre_proc_type);
         base_inference->pre_proc_type = g_value_dup_string(value);
+        if (strcmp(base_inference->pre_proc_type, "vaapi") == 0)
+            GST_WARNING("The property pre-process-backend=vaapi is deprecated and will be removed in "
+                        "future versions, please use pre-process-backend=va instead.");
+        if (strcmp(base_inference->pre_proc_type, "vaapi-surface-sharing") == 0)
+            GST_WARNING("The property pre-process-backend=vaapi-surface-sharing is deprecated and will be removed "
+                        "in future versions, please use pre-process-backend=va-surface-sharing instead.");
         break;
     case PROP_CPU_THROUGHPUT_STREAMS:
         GST_WARNING("The property <cpu-throughput-streams> is deprecated and will be removed in future versions, "
@@ -706,6 +713,17 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     gst_video_info_from_caps(&video_info, incaps);
     CapsFeature caps_feature = get_caps_feature(incaps);
 
+    // if DMA_DRM format detected, convert to 'traditional' video format
+    if (gst_video_is_dma_drm_caps(incaps)) {
+        GstVideoInfoDmaDrm dma_info;
+
+        if (!gst_video_info_dma_drm_from_caps(&dma_info, incaps))
+            return FALSE;
+
+        if (!gst_video_info_dma_drm_to_video_info(&dma_info, &video_info))
+            return FALSE;
+    }
+
     if (base_inference->inference && base_inference->info &&
         gst_video_info_is_equal(base_inference->info, &video_info) && base_inference->caps_feature == caps_feature) {
         // We alredy have an inference model instance.
@@ -740,11 +758,11 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
                                                   base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE ||
                                                   base_inference->caps_feature == DMA_BUF_CAPS_FEATURE)) {
 
-            // Try to query VADisplay from decoder
+            // Try to query VADisplay from decoder. Select dlstreamer::MemoryType::VA memory type as default.
             try {
                 base_inference->priv->va_display = std::make_shared<dlstreamer::GSTContextQuery>(
-                    trans, (base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE) ? dlstreamer::MemoryType::VA
-                                                                                    : dlstreamer::MemoryType::VAAPI);
+                    trans, (base_inference->caps_feature == VA_SURFACE_CAPS_FEATURE) ? dlstreamer::MemoryType::VAAPI
+                                                                                     : dlstreamer::MemoryType::VA);
                 GST_INFO_OBJECT(trans, "Got VADisplay (%p) from query", base_inference->priv->va_display.get());
             } catch (...) {
                 GST_WARNING_OBJECT(trans, "Couldn't query VADisplay from gstreamer-vaapi elements. Possible reason: "

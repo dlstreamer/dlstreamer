@@ -7,6 +7,13 @@
 
 set -e
 
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2 
+  exit 1
+else 
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 OUTPUT=${2:-display} # Output type, valid values: display, json ,display-and-json 
 

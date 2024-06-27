@@ -120,8 +120,14 @@ class OpenVinoTensorInference : public BaseTransform {
     }
 
     ContextPtr get_context(MemoryType memory_type) noexcept override {
-        if (memory_type == MemoryType::OpenCL) {
-            return create_remote_context();
+        try {
+            if (memory_type == MemoryType::OpenCL) {
+                return create_remote_context();
+            }
+        } catch (const std::out_of_range &e) {
+            GVA_ERROR("Out of range error in get_context: %s", e.what());
+        } catch (...) {
+            GVA_ERROR("Unknown exception occurred in get_context");
         }
         return nullptr;
     }

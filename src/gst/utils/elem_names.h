@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,8 +34,10 @@ constexpr const char *queue = "queue";
 constexpr const char *videoscale = "videoscale";
 constexpr const char *videoconvert = "videoconvert";
 constexpr const char *vaapipostproc = "vaapipostproc";
+constexpr const char *vapostproc = "vapostproc";
 constexpr const char *caps_system_memory = "capsfilter caps=video/x-raw";
 constexpr const char *caps_vasurface_memory = "capsfilter caps=video/x-raw(memory:VASurface)";
+constexpr const char *caps_vamemory_memory = "capsfilter caps=video/x-raw(memory:VAMemory)";
 
 constexpr const char *pipe_separator = " ! ";
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -223,8 +223,11 @@ void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerD
             additional_crop_scale_param = 1.125;
         }
 
-        resize_scale_param_x = safe_convert<double>(input_width_except_padding) / src_surface_region.width;
-        resize_scale_param_y = safe_convert<double>(input_height_except_padding) / src_surface_region.height;
+        if (src_surface_region.width)
+            resize_scale_param_x = safe_convert<double>(input_width_except_padding) / src_surface_region.width;
+
+        if (src_surface_region.height)
+            resize_scale_param_y = safe_convert<double>(input_height_except_padding) / src_surface_region.height;
 
         if (pre_proc_info->getResizeType() == InputImageLayerDesc::Resize::ASPECT_RATIO) {
             resize_scale_param_x = resize_scale_param_y = std::min(resize_scale_param_x, resize_scale_param_y);

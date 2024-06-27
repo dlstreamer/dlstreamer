@@ -392,14 +392,20 @@ class OpenVinoNewApiImpl {
     friend class OpenVINOImageInference;
 
     static void log_api_message() {
-        const std::string_view ov_build{ov::get_openvino_version().buildNumber};
-        std::string box = fmt::format("\n"
-                                      "┌{0:─^{3}}┐\n"
-                                      "│{1: ^{3}}│\n"
-                                      "│{2: ^{3}}│\n"
-                                      "└{0:─^{3}}┘\n",
-                                      "", ".:: OpenVINO™ via 2.0 API ::.", ov_build, ov_build.size() + 2);
-        GVA_DEBUG("%s", box.c_str());
+        try {
+            const std::string_view ov_build{ov::get_openvino_version().buildNumber};
+            std::string box = fmt::format("\n"
+                                          "┌{0:─^{3}}┐\n"
+                                          "│{1: ^{3}}│\n"
+                                          "│{2: ^{3}}│\n"
+                                          "└{0:─^{3}}┘\n",
+                                          "", ".:: OpenVINO™ via 2.0 API ::.", ov_build, ov_build.size() + 2);
+            GVA_DEBUG("%s", box.c_str());
+        } catch (const fmt::v8::format_error &e) {
+            GVA_ERROR("Formatting error in log_api_message: %s", e.what());
+        } catch (...) {
+            GVA_ERROR("Unknown exception in log_api_message");
+        }
     };
 
   public:

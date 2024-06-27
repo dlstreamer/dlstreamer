@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -43,7 +43,7 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
         const auto &tensor = tensors[i];
 
         for (size_t j = 0; j < tensor.size(); ++j) {
-            GstStructure *detection_tensor = tensor[j];
+            GstStructure *detection_tensor = tensor[j][DETECTION_TENSOR_ID];
 
             uint32_t x_abs, y_abs, w_abs, h_abs;
             gst_structure_get_uint(detection_tensor, "x_abs", &x_abs);
@@ -70,6 +70,12 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
             gst_structure_remove_field(detection_tensor, "h_abs");
 
             gst_video_region_of_interest_meta_add_param(roi_meta, detection_tensor);
+
+            // add tensors other than detection_tensor
+            for (size_t k = 1; k < tensor[j].size(); k++) {
+                gst_video_region_of_interest_meta_add_param(roi_meta, tensor[j][k]);
+                frames[i].roi_classifications->push_back(tensor[j][k]);
+            }
         }
     }
 }
@@ -80,7 +86,7 @@ void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, FramesWrap
     for (size_t i = 0; i < frames.size(); ++i) {
         GstBuffer **writable_buffer = &frames[i].buffer;
 
-        for (GstStructure *tensor_data : tensors_batch[i]) {
+        for (std::vector<GstStructure *> tensor_data : tensors_batch[i]) {
             gva_buffer_check_and_make_writable(writable_buffer, PRETTY_FUNCTION_NAME);
             GstGVATensorMeta *tensor = GST_GVA_TENSOR_META_ADD(*writable_buffer);
             /* Tensor Meta already creates GstStructure during initialization */
@@ -88,7 +94,8 @@ void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, FramesWrap
             if (tensor->data) {
                 gst_structure_free(tensor->data);
             }
-            tensor->data = tensor_data;
+            assert(tensor_data.size() == 1);
+            tensor->data = tensor_data[0];
             gst_structure_set(tensor->data, "element_id", G_TYPE_STRING, frames[i].model_instance_id.c_str(), NULL);
         }
     }
@@ -105,9 +112,10 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
             continue;
         }
 
-        for (GstStructure *tensor_data : tensors_batch[i]) {
-            gst_video_region_of_interest_meta_add_param(roi_meta, tensor_data);
-            frames[i].roi_classifications->push_back(tensor_data);
+        for (std::vector<GstStructure *> tensor_data : tensors_batch[i]) {
+            assert(tensor_data.size() == 1);
+            gst_video_region_of_interest_meta_add_param(roi_meta, tensor_data[0]);
+            frames[i].roi_classifications->push_back(tensor_data[0]);
         }
     }
 }
@@ -125,12 +133,13 @@ void TensorToFrameAttacherForMicro::attach(const TensorsTable &tensors, FramesWr
     for (size_t i = 0; i < frames.size(); ++i) {
         auto &frame = frames[i];
 
-        for (GstStructure *tensor_data : tensors[i]) {
+        for (std::vector<GstStructure *> tensor_data : tensors[i]) {
             auto tensor = GST_GVA_TENSOR_META_ADD(frame.buffer);
             if (tensor->data) {
                 gst_structure_free(tensor->data);
             }
-            tensor->data = tensor_data;
+            assert(tensor_data.size() == 1);
+            tensor->data = tensor_data[0];
             gst_structure_set(tensor->data, "element_id", G_TYPE_STRING, frame.model_instance_id.c_str(), NULL);
         }
     }

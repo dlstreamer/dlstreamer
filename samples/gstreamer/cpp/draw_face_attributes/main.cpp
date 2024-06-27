@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -19,6 +19,8 @@
 
 #include "draw_axes.h"
 #include "gst/videoanalytics/video_frame.h"
+
+#include <iostream>
 
 using namespace std;
 
@@ -282,21 +284,31 @@ int main(int argc, char *argv[]) {
     }
 
     if (env_models_path.empty()) {
-        throw std::runtime_error("Enviroment variable MODELS_PATH is not set");
+        std::cerr << "Enviroment variable MODELS_PATH is not set" << std::endl;
+        return -1;
     }
 
     std::map<std::string, std::string> model_paths;
     if (detection_model == NULL) {
-        for (const auto &model_to_path :
-             FindModels(SplitString(env_models_path), default_detection_model_names, model_precision))
-            model_paths.emplace(model_to_path);
+        try {
+            for (const auto &model_to_path :
+                 FindModels(SplitString(env_models_path), default_detection_model_names, model_precision))
+                model_paths.emplace(model_to_path);
+        } catch (const std::runtime_error &e) {
+            std::cerr << e.what() << '\n';
+        }
         detection_model = g_strdup(FixPath(model_paths["face-detection-adas-0001.xml"]).c_str());
     }
     std::vector<std::string> classification_model_paths;
     if (classification_models == NULL) {
-        for (const auto &model_to_path :
-             FindModels(SplitString(env_models_path), default_classification_model_names, model_precision))
-            classification_model_paths.push_back(model_to_path.second);
+        try {
+            for (const auto &model_to_path :
+                 FindModels(SplitString(env_models_path), default_classification_model_names, model_precision))
+                classification_model_paths.push_back(model_to_path.second);
+        } catch (const std::runtime_error &e) {
+            std::cerr << e.what() << '\n';
+        }
+
     } else {
         classification_model_paths = SplitString(classification_models, ',');
     }
@@ -317,8 +329,10 @@ int main(int argc, char *argv[]) {
             "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! autovideosink sync=false";
     else if (output_type_str == "json")
         sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false";
-    else
-        throw std::runtime_error("Unsupported output type: " + output_type_str);
+    else {
+        std::cerr << "Unsupported output type: " << output_type_str << std::endl;
+        return -1;
+    }
 
     // Build the pipeline
     auto launch_str = g_strdup_printf(
@@ -337,7 +351,11 @@ int main(int argc, char *argv[]) {
     auto pad = gst_element_get_static_pad(gvawatermark, "src");
     // The provided callback 'pad_probe_callback' is called for every state that
     // matches GST_PAD_PROBE_TYPE_BUFFER to probe buffers
-    gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, pad_probe_callback, nullptr, nullptr);
+    try {
+        gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, pad_probe_callback, nullptr, nullptr);
+    } catch (const std::runtime_error &e) {
+        std::cerr << e.what() << '\n';
+    }
     gst_object_unref(pad);
 
     // Start playing

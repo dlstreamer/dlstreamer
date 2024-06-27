@@ -21,7 +21,7 @@ The sample uses by default the following pre-trained models from OpenVINO™ too
 *   __action-recognition-0001-encoder__ encoder part of action recognition
 *   __action-recognition-0001-decoder__ decoder part of action recognition
 
-> **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 The sample contains `model_proc` subfolder with .json file with description of input/output formats and post-processing rules for action recognition models.
 

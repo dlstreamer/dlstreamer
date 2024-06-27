@@ -33,14 +33,11 @@ class BlobToROIConverter : public BlobToMetaConverter {
         size_t label_id;
         std::string label;
 
-        const float *mask_data;
-        size_t mask_width;
-        size_t mask_height;
+        std::vector<GstStructure *> tensors;
 
         DetectedObject(double x, double y, double w, double h, double r, double confidence, size_t label_id,
                        const std::string &label, double w_scale = 1.f, double h_scale = 1.f,
-                       bool relative_to_center = false, const float *mask_data = nullptr, size_t mask_width = 0,
-                       size_t mask_height = 0)
+                       bool relative_to_center = false)
             : confidence(confidence), label_id(label_id), label(label) {
             if (relative_to_center) {
                 this->x = (x - w / 2) * w_scale;
@@ -54,10 +51,6 @@ class BlobToROIConverter : public BlobToMetaConverter {
             this->h = h * h_scale;
 
             this->r = r;
-
-            this->mask_data = mask_data;
-            this->mask_width = mask_width;
-            this->mask_height = mask_height;
         }
 
         bool operator<(const DetectedObject &other) const {
@@ -68,7 +61,7 @@ class BlobToROIConverter : public BlobToMetaConverter {
             return this->confidence > other.confidence;
         }
 
-        GstStructure *toTensor(const GstStructureUniquePtr &detection_result) const {
+        std::vector<GstStructure *> toTensor(const GstStructureUniquePtr &detection_result) const {
             GstStructure *detection_tensor = gst_structure_copy(detection_result.get());
 
             gst_structure_set_name(detection_tensor, "detection"); // make sure name="detection"
@@ -79,33 +72,11 @@ class BlobToROIConverter : public BlobToMetaConverter {
             if (not label.empty())
                 gst_structure_set(detection_tensor, "label", G_TYPE_STRING, label.c_str(), NULL);
 
-            if (mask_data != nullptr) {
+            std::vector<GstStructure *> results{detection_tensor};
+            for (size_t i = 0; i < tensors.size(); i++)
+                results.push_back(tensors[i]);
 
-                size_t length = mask_height * mask_width;
-                GValueArray *g_arr = g_value_array_new(length);
-                if (not g_arr)
-                    throw std::runtime_error("Failed to create GValueArray with " + std::to_string(length) +
-                                             " elements");
-
-                try {
-                    GValue gvalue = G_VALUE_INIT;
-                    g_value_init(&gvalue, G_TYPE_FLOAT);
-                    for (guint i = 0; i < length; ++i) {
-                        g_value_set_float(&gvalue, mask_data[i]);
-                        g_value_array_append(g_arr, &gvalue);
-                    }
-                } catch (const std::exception &e) {
-                    if (g_arr)
-                        g_value_array_free(g_arr);
-                    std::throw_with_nested(std::runtime_error("Failed to convert mask_data to GValueArray"));
-                }
-
-                gst_structure_set(detection_tensor, "mask_width", G_TYPE_INT, mask_width, "mask_height", G_TYPE_INT,
-                                  mask_height, NULL);
-                gst_structure_set_array(detection_tensor, "mask", g_arr);
-            }
-
-            return detection_tensor;
+            return results;
         }
     };
     using DetectedObjectsTable = std::vector<std::vector<DetectedObject>>;

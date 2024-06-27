@@ -6,6 +6,14 @@
 # ==============================================================================
 
 set -e
+
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2 
+  exit 1
+else 
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 METHOD=${2:-file} # Accepts: file, kafka, mqtt
 OUTPUT=${3} # Path to file if method==file, host and port of message broker if method==kafka/mqtt. Default: "stdout" for file, "localhost:9092" for kafka, and "localhost:1883" for mqtt

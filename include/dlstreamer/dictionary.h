@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,6 +15,8 @@
 #include <typeinfo>
 #include <variant>
 #include <vector>
+
+#include <iostream>
 
 namespace dlstreamer {
 
@@ -33,7 +35,13 @@ using AnyMap = std::map<std::string, Any, std::less<void>>;
 
 template <typename T>
 inline T any_cast(const Any &any) {
-    return std::get<T>(any);
+    T result{};
+    try {
+        result = std::get<T>(any);
+    } catch (const std::bad_variant_access &e) {
+        std::cerr << e.what() << '\n';
+    }
+    return result;
 }
 
 template <typename T>

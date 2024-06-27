@@ -47,6 +47,22 @@ yolo-x:
   source_readme: https://github.com/Megvii-BaseDetection/YOLOX
   labels-file: https://github.com/dlstreamer/dlstreamer/blob/master/samples/labels/coco_80cl.txt
   model-proc: https://github.com/dlstreamer/dlstreamer/blob/master/samples/gstreamer/model_proc/public/yolo-x.json
+CenterFace:
+  source: public
+  format: onnx
+  task_type: detection
+  readme: https://github.com/Star-Clouds/CenterFace/tree/master
+  source_readme: https://github.com/Star-Clouds/CenterFace/tree/master
+  labels-file: 
+  model-proc: not required
+enet_b0_8_va_mtl:
+  source: public
+  format: onnx
+  task_type: emotion recognition
+  readme: https://github.com/av-savchenko/face-emotion-recognition/tree/main
+  source_readme: https://github.com/av-savchenko/face-emotion-recognition/tree/main
+  labels-file: 
+  model-proc: not required
 
 mask_rcnn_inception_resnet_v2_atrous_coco:
   Source framework: TensorFlow\*
@@ -65,6 +81,7 @@ mask_rcnn_inception_resnet_v2_atrous_coco:
   source: public
   task_type: instance_segmentation
   tf_devices: CPU
+  model-proc: https://github.com/dlstreamer/dlstreamer/tree/master/samples/gstreamer/model_proc/public/mask-rcnn.json
 mask_rcnn_resnet50_atrous_coco:
   Source framework: TensorFlow\*
   Type: Instance segmentation
@@ -82,6 +99,7 @@ mask_rcnn_resnet50_atrous_coco:
   source: public
   task_type: instance_segmentation
   tf_devices: CPU
+  model-proc: https://github.com/dlstreamer/dlstreamer/tree/master/samples/gstreamer/model_proc/public/mask-rcnn.json
 
 efficientnet-v2-b0:
   Source framework: PyTorch\*

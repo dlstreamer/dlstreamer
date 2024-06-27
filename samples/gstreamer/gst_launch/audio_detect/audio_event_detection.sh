@@ -17,7 +17,7 @@ then
 fi
 if [ ! -d "$AUDIO_MODELS_PATH" ]
 then
-  echo -e "\e[31mERROR: Invalid model directory $AUDIO_MODELS_PATH , execute $(samples/download_models.sh) to download models\e[0m" 1>&2
+  echo -e "\e[31mERROR: Invalid model directory $AUDIO_MODELS_PATH , execute $(samples/download_omz_models.sh) to download models\e[0m" 1>&2
   exit 1
 fi
 

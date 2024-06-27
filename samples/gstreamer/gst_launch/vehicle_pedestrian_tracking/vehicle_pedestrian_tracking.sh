@@ -7,6 +7,13 @@
 
 set -e
 
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2 
+  exit 1
+else 
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
 # Command-line parameters
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/person-bicycle-car-detection.mp4} # Input file or URL
 DETECTION_INTERVAL=${2:-3}     # Object detection interval: 1 means detection every frame, 2 means detection every second frame, etc.
@@ -33,7 +40,7 @@ fi
 if [[ $DEVICE == "CPU" ]]; then
   DECODE_ELEMENT="decodebin force-sw-decoders=true"
 elif [[ $DEVICE == "GPU" ]]; then
-  DECODE_ELEMENT="decodebin ! video/x-raw\(memory:VASurface\)"
+  DECODE_ELEMENT="qtdemux ! vah264dec ! video/x-raw\(memory:VAMemory\)"
 else
   DECODE_ELEMENT="decodebin"
 fi

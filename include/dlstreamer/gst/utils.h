@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -319,10 +319,18 @@ static inline void any_to_gvalue(Any value, GValue *gvalue, bool init = true, co
 
 template <typename T>
 static inline std::vector<T> gvalue_to_vector(const GValue *value) noexcept {
-    std::vector<T> vec(gst_value_array_get_size(value));
-    for (size_t i = 0; i < vec.size(); i++)
-        vec[i] = any_cast<T>(*gvalue_to_any(gst_value_array_get_value(value, i)));
-    return vec;
+    try {
+        std::vector<T> vec(gst_value_array_get_size(value));
+        for (size_t i = 0; i < vec.size(); i++)
+            vec[i] = any_cast<T>(*gvalue_to_any(gst_value_array_get_value(value, i)));
+        return vec;
+    } catch (const std::bad_variant_access &e) {
+        GST_ERROR("Bad variant access in gvalue_to_vector: %s", e.what());
+        return std::vector<T>();
+    } catch (...) {
+        GST_ERROR("Unknown exception occurred in gvalue_to_vector");
+        return std::vector<T>();
+    }
 }
 
 static inline std::optional<Any> gvalue_to_any(const GValue *gval, const ParamDesc *desc) noexcept {
@@ -425,7 +433,15 @@ static inline void any_to_gvalue(Any value, GValue *gvalue, bool init, const Par
     } else if (any_holds_type<std::pair<int, int>>(value)) {
         if (init)
             g_value_init(gvalue, GST_TYPE_FRACTION);
-        auto fraction = any_cast<std::pair<int, int>>(value);
+
+        std::pair<int, int> fraction;
+        try {
+            fraction = any_cast<std::pair<int, int>>(value);
+        } catch (const std::bad_variant_access &e) {
+            GST_ERROR("Bad variant access in gvalue_to_vector: %s", e.what());
+        } catch (...) {
+            GST_ERROR("Unknown exception occurred in gvalue_to_vector");
+        }
         gst_value_set_fraction(gvalue, fraction.first, fraction.second);
     }
 }

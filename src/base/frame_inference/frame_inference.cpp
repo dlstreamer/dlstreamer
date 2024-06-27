@@ -243,8 +243,6 @@ void FrameInference::init_post_processing(const FrameInferenceParams &params) {
             pp_item.second->set(param::logger_name, params.logger_name);
             _post_processing_elem = create_transform_inplace(*pp_desc, pp_item.second, nullptr);
             pp_name = pp_desc->name;
-
-            break;
         }
     } else { // default postprocess element
         // FIXME: better default
@@ -395,7 +393,7 @@ void FrameInference::fake_ov_worker() {
         FramePtr f;
         {
             std::unique_lock<std::mutex> lock(_stub.infer_list_mutex);
-            _stub.ov_signal.wait(lock);
+            _stub.ov_signal.wait(lock, [this] { return _stub.flush || !_stub.infer_list.empty(); });
 
             if (_stub.infer_list.empty())
                 continue;

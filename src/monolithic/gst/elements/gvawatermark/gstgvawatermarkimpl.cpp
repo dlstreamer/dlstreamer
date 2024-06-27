@@ -124,8 +124,8 @@ struct Impl {
 
   private:
     void preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Prim> &prims) const;
-    void preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> rect,
-                               std::vector<render::Prim> &prims) const;
+    void preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> rect, std::vector<render::Prim> &prims,
+                               size_t color_index = 0) const;
     void preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double> rectangle,
                                   std::vector<render::Prim> &prims) const;
     void preparePrimsForKeypointConnections(GstStructure *s, const std::vector<float> &keypoints_data,
@@ -511,7 +511,7 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
 
     // Prepare primitives for tensors
     for (auto &tensor : roi.tensors()) {
-        preparePrimsForTensor(tensor, rect, prims);
+        preparePrimsForTensor(tensor, rect, prims, color_index);
         if (!tensor.is_detection()) {
             appendStr(text, tensor.label());
         }
@@ -530,37 +530,10 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
             pos.y = rect.y + 30.f;
         prims.emplace_back(render::Text(text.str(), pos, _font.type, _font.scale, color));
     }
-
-    if (roi.has_mask()) {
-        std::vector<float> mask = roi.mask();
-        const cv::Size &mask_size{int(roi.mask_width()), int(roi.mask_height())};
-        cv::Rect2f box(rect.x, rect.y, rect.w, rect.h);
-
-        if (!_obb) {
-            // overlay mask on top of image pixels
-            prims.emplace_back(render::Mask(mask, mask_size, color, box));
-        } else {
-            // resize mask to non-rotated bounding box and convert to binary
-            cv::Mat mask_resized, mask_converted;
-            cv::resize(cv::Mat{mask_size, CV_32F, mask.data()}, mask_resized, cv::Size(rect.w, rect.h));
-            cv::threshold(mask_resized, mask_resized, 0.5f, 1.0f, cv::THRESH_BINARY);
-            mask_resized.convertTo(mask_converted, CV_8UC1);
-            // find contours in binary mask and derive minimal bounding box
-            std::vector<std::vector<cv::Point>> contours;
-            cv::findContours(mask_converted, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
-            cv::RotatedRect rotated = cv::minAreaRect(contours[0]);
-            // shift minimal rotated box to original box position and draw
-            rotated.center = rotated.center + cv::Point2f(bbox_rect.x, bbox_rect.y);
-            cv::Point2f vertices2f[4];
-            rotated.points(vertices2f);
-            for (int i = 0; i < 4; i++)
-                prims.emplace_back(render::Line(vertices2f[i], vertices2f[(i + 1) % 4], color, _thickness));
-        }
-    }
 }
 
-void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> rect,
-                                 std::vector<render::Prim> &prims) const {
+void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> rect, std::vector<render::Prim> &prims,
+                                 size_t color_index) const {
     // landmarks rendering
     if (tensor.model_name().find("landmarks") != std::string::npos || tensor.format() == "landmark_points") {
         std::vector<float> data = tensor.data<float>();
@@ -587,6 +560,36 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
                 y2 = safe_convert<int>(rect.y + rect.h * data[1]);
             }
             prims.emplace_back(render::Line(cv::Point2i(x, y), cv::Point2i(x2, y2), _default_color, _thickness));
+        }
+    }
+
+    if (tensor.format() == "segmentation_mask") {
+        std::vector<float> mask = tensor.data<float>();
+        std::vector<guint> dims = tensor.dims();
+        assert(dims.size() == 2);
+        const cv::Size &mask_size{int(dims[0]), int(dims[1])};
+        cv::Rect2f box(rect.x, rect.y, rect.w, rect.h);
+        Color color = indexToColor(color_index);
+
+        if (!_obb) {
+            // overlay mask on top of image pixels
+            prims.emplace_back(render::Mask(mask, mask_size, color, box));
+        } else {
+            // resize mask to non-rotated bounding box and convert to binary
+            cv::Mat mask_resized, mask_converted;
+            cv::resize(cv::Mat{mask_size, CV_32F, mask.data()}, mask_resized, cv::Size(rect.w, rect.h));
+            cv::threshold(mask_resized, mask_resized, 0.5f, 1.0f, cv::THRESH_BINARY);
+            mask_resized.convertTo(mask_converted, CV_8UC1);
+            // find contours in binary mask and derive minimal bounding box
+            std::vector<std::vector<cv::Point>> contours;
+            cv::findContours(mask_converted, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+            cv::RotatedRect rotated = cv::minAreaRect(contours[0]);
+            // shift minimal rotated box to original box position and draw
+            rotated.center = rotated.center + cv::Point2f(rect.x, rect.y);
+            cv::Point2f vertices2f[4];
+            rotated.points(vertices2f);
+            for (int i = 0; i < 4; i++)
+                prims.emplace_back(render::Line(vertices2f[i], vertices2f[(i + 1) % 4], color, _thickness));
         }
     }
 

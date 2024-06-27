@@ -58,7 +58,9 @@ class GSTContextQuery : public BaseContext {
                 GST_INFO("Got VADisplay from VA context: %p", value);
             }
         } else {
-            gst_structure_get(_structure, key.data(), G_TYPE_POINTER, &value, NULL);
+            if (!gst_structure_get(_structure, key.data(), G_TYPE_POINTER, &value, NULL)) {
+                GST_ERROR("Invalid gst_structure_get() method field(s) requested");
+            }
         }
         return value;
     }

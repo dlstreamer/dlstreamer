@@ -8,6 +8,7 @@
 #include "boxes.h"
 #include "boxes_labels.h"
 #include "boxes_scores.h"
+#include "centerface.h"
 #include "detection_output.h"
 #include "mask_rcnn.h"
 #include "yolo_base.h"
@@ -67,6 +68,9 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     else if (converter_name == MaskRCNNConverter::getName())
         return BlobToMetaConverter::Ptr(
             new MaskRCNNConverter(std::move(initializer), confidence_threshold, iou_threshold));
+    else if (converter_name == CenterfaceConverter::getName())
+        return BlobToMetaConverter::Ptr(
+            new CenterfaceConverter(std::move(initializer), confidence_threshold, iou_threshold));
     else if (converter_name == YOLOxConverter::getName()) {
         int classes;
         if (not gst_structure_get_int(model_proc_output_info.get(), "classes", &classes))

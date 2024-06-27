@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -42,7 +42,8 @@ TensorsTable RawDataCopyConverter::convert(const OutputBlobs &output_blobs) cons
                 // Thus, we identify our meta using tensor_id.
                 gst_structure_set(tensor_data, "tensor_id", G_TYPE_INT, safe_convert<int>(frame_index), NULL);
 
-                tensors_table[frame_index].push_back(tensor_data);
+                std::vector<GstStructure *> tensors{tensor_data};
+                tensors_table[frame_index].push_back(tensors);
             }
         }
     } catch (const std::exception &e) {

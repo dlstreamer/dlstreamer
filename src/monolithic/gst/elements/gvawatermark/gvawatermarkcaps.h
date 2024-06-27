@@ -8,6 +8,8 @@
 
 // Preferred format to use with VASurface and DMABuf
 #define WATERMARK_PREFERRED_REMOTE_FORMAT "RGBA"
+// Preferred format to use with VAMemory and DMABuf
+#define WATERMARK_VA_PREFERRED_REMOTE_FORMAT "NV12"
 
 #define WATERMARK_SYSTEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, RGBA, BGRA, BGR, NV12, I420 }") "; "
 
@@ -17,7 +19,7 @@
 #define WATERMARK_VAMEMORY_CAPS                                                                                        \
     GST_VIDEO_CAPS_MAKE_WITH_FEATURES(VAMEMORY_FEATURE_STR, WATERMARK_PREFERRED_REMOTE_FORMAT) "; "
 #define WATERMARK_DMA_BUFFER_CAPS                                                                                      \
-    GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, WATERMARK_PREFERRED_REMOTE_FORMAT) "; "
+    GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, WATERMARK_VA_PREFERRED_REMOTE_FORMAT) "; "
 #else
 #define WATERMARK_VASURFACE_CAPS
 #define WATERMARK_DMA_BUFFER_CAPS

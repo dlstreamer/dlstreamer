@@ -212,7 +212,8 @@ void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name,
         /* element_id - To identify model_instance_id. */
         gst_structure_set(classification_result.gst_structure(), "tensor_id", G_TYPE_INT,
                           safe_convert<int>(frame_index), "type", G_TYPE_STRING, "classification_result", NULL);
-        tensors_table[frame_index].push_back(classification_result.gst_structure());
+        std::vector<GstStructure *> tensors{classification_result.gst_structure()};
+        tensors_table[frame_index].push_back(tensors);
     }
 }
 

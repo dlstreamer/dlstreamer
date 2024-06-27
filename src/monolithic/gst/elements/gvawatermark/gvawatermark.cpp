@@ -47,7 +47,7 @@ static const gchar *get_caps_str_with_feature(CapsFeature mem_type) {
     if (mem_type == VA_MEMORY_CAPS_FEATURE)
         return "video/x-raw(" VAMEMORY_FEATURE_STR "), format=" WATERMARK_PREFERRED_REMOTE_FORMAT;
     if (mem_type == DMA_BUF_CAPS_FEATURE)
-        return "video/x-raw(" DMABUF_FEATURE_STR "), format=" WATERMARK_PREFERRED_REMOTE_FORMAT;
+        return "video/x-raw(" DMABUF_FEATURE_STR "), format=" WATERMARK_VA_PREFERRED_REMOTE_FORMAT;
     if (mem_type == SYSTEM_MEMORY_CAPS_FEATURE)
         return "video/x-raw";
     g_assert(FALSE && "Only VASurface, VAMemory, DMABuf, and System memory are supported !");

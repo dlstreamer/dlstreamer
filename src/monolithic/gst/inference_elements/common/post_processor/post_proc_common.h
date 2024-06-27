@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,7 +18,9 @@
 
 namespace post_processing {
 
-using TensorsTable = std::vector<std::vector<GstStructure *>>;
+// TensorTable = frames<objects<tensors>>>
+static const int DETECTION_TENSOR_ID = 0;
+using TensorsTable = std::vector<std::vector<std::vector<GstStructure *>>>;
 using OutputBlobs = std::map<std::string, InferenceBackend::OutputBlob::Ptr>;
 // <layer_name, blob_dims>
 using ModelOutputsInfo = std::map<std::string, std::vector<size_t>>;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -113,8 +113,10 @@ NamedPipe::NamedPipe(const std::string &name, NamedPipe::Mode mode) : _pipeName(
 NamedPipe::~NamedPipe() {
     try {
         close();
-        if (getOpenedByProcessesDescriptorsCount(_pipeName, "rw") == 0)
-            remove(_pipeName.c_str());
+        if (getOpenedByProcessesDescriptorsCount(_pipeName, "rw") == 0) {
+            if (remove(_pipeName.c_str()))
+                throw std::runtime_error("Failed to remove pipe " + _pipeName);
+        }
     } catch (...) {
     }
 }

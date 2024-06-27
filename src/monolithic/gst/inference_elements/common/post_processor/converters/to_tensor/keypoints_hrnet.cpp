@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -72,7 +72,8 @@ TensorsTable KeypointsHRnetConverter::convert(const OutputBlobs &output_blobs) c
             // set coordinates relative output map
             copyKeypointsToGstStructure(tensor_data, real_keypoints);
 
-            tensors.push_back(tensor_data);
+            std::vector<GstStructure *> result{tensor_data};
+            tensors.push_back(result);
         }
 
     } catch (const std::exception &e) {

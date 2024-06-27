@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -30,4 +30,5 @@ void debug_log(int level, const char *file, const char *function, int line, cons
     va_list args;
     va_start(args, format);
     (*inference_log_function)(level, file, function, line, format, args);
+    va_end(args);
 };

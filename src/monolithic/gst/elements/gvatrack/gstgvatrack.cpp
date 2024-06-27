@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -269,14 +269,14 @@ static void _try_to_create_default_gpu_tracker(GstGvaTrack *gva_track) {
     // Set default device if it wasn't specified by user
     if (gva_track->device != NULL && gva_track->device[0] != '\0')
         return;
-    gboolean tryGPU = gva_track->tracking_type == ZERO_TERM && (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE ||
-                                                                gva_track->caps_feature == VA_MEMORY_CAPS_FEATURE ||
-                                                                gva_track->caps_feature == DMA_BUF_CAPS_FEATURE);
-    tryGPU = FALSE; // disable default loading of libvasot_gpu, will be removed
-    if (tryGPU) {
-        gva_track->device = g_strdup(DEVICE_GPU);
-        init_tracker_obj(gva_track);
-    }
+    // gboolean tryGPU = gva_track->tracking_type == ZERO_TERM && (gva_track->caps_feature == VA_SURFACE_CAPS_FEATURE ||
+    //                                                             gva_track->caps_feature == VA_MEMORY_CAPS_FEATURE ||
+    //                                                             gva_track->caps_feature == DMA_BUF_CAPS_FEATURE);
+    // tryGPU = FALSE; // disable default loading of libvasot_gpu, will be removed
+    // if (tryGPU) {
+    //     gva_track->device = g_strdup(DEVICE_GPU);
+    //     init_tracker_obj(gva_track);
+    // }
 
     if (gva_track->tracker == NULL)
         gva_track->device = g_strdup(DEVICE_CPU);

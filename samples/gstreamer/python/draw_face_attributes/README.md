@@ -18,7 +18,7 @@ The sample uses by default the following pre-trained models from OpenVINO™ Too
 *   __facial-landmarks-35-adas-0002-0009__ generates facial landmark points
 *   __head-pose-estimation-adas-0001__ estimates head pose
 
-> **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 ## Running
 

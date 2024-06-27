@@ -32,7 +32,7 @@ The sample can also run using below models with no modifications.
 *   __instance-segmentation-security-1039__
 *   __instance-segmentation-security-0228__
 
-> **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 ## Running
 

@@ -20,7 +20,7 @@ This sample builds GStreamer pipeline of the following elements
 The sample uses by default the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 *   __human-pose-estimation-0001__ generates poses keypoints
 
-> **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 The sample contains `model_proc` subfolder with .json files for each model with description of model input/output formats and post-processing rules for classification models.
 

@@ -7,6 +7,13 @@
 
 set -e
 
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2 
+  exit 1
+else 
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
 VIDEO_FILE_NAME=${1}
 MODEL_PATH=${2:-"${MODELS_PATH}/intel/face-detection-adas-0001/FP16-INT8/face-detection-adas-0001.xml"}
 DECODE_DEVICE=${3:-CPU}     # Supported values: "CPU", "GPU", "AUTO"
@@ -16,6 +23,12 @@ NUMBER_PROCESSES=${6:-1}
 DECODE_ELEMENT=${7:-"decodebin"}
 INFERENCE_ELEMENT=${8:-"gvainference"}
 SINK_ELEMENT=${9:-"fakesink async=false"}
+
+# check if model exists in local directory
+if [ ! -f $MODEL_PATH ]; then
+  echo "Model not found: ${MODEL_PATH}"
+  exit 
+fi
 
 if [ -z "${1}" ]; then
   echo "ERROR set path to video"
@@ -39,7 +52,8 @@ fi
 if [ "$DECODE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw"
 elif [ "$DECODE_DEVICE" == "GPU" ]; then
-    DECODE_ELEMENT+=" ! video/x-raw\(memory:VASurface\)"
+    DECODE_ELEMENT=" qtdemux ! vah264dec"
+    DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
 elif [ "$DECODE_DEVICE" != "AUTO" ]; then
   echo "Incorrect parameter DECODE_DEVICE. Supported values: CPU, GPU, AUTO"
   exit
@@ -48,10 +62,10 @@ fi
 # Inference parameters
 PARAMS=''
 if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "GPU" ]; then
-    PARAMS+="batch-size=64 nireq=4 pre-process-backend=vaapi-surface-sharing" # scale-method=fast
+    PARAMS+="batch-size=64 nireq=4 pre-process-backend=va-surface-sharing" # scale-method=fast
 fi
 if [ "$DECODE_DEVICE" == "GPU" ] && [ "$INFERENCE_DEVICE" == "CPU" ]; then
-    PARAMS+="pre-process-backend=vaapi"
+    PARAMS+="pre-process-backend=va"
 fi
 if [ "$INFERENCE_DEVICE" == "CPU" ] && [ "$NUMBER_PROCESSES" -gt 1 ]; then # limit number inference threads per process
     CORES=$(nproc)

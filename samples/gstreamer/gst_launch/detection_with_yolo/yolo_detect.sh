@@ -10,6 +10,13 @@
 
 set -euo pipefail
 
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2 
+  exit 1
+else 
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
 MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov9c
 DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
 INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
@@ -40,10 +47,12 @@ fi
 
 cd - 1>/dev/null
 
-if [ -f "$PWD/public/$MODEL/FP16/$MODEL.xml" ]; then
-  MODEL_PATH="$PWD/public/$MODEL/FP16/$MODEL.xml"
-else
-  MODEL_PATH="$PWD/public/$MODEL/FP32/$MODEL.xml"
+MODEL_PATH="${MODELS_PATH}/public/$MODEL/FP32/$MODEL.xml"
+
+# check if model exists in local directory
+if [ ! -f $MODEL_PATH ]; then
+  echo "Model not found: ${MODEL_PATH}"
+  exit 
 fi
 
 if [[ "$INPUT" == "/dev/video"* ]]; then
@@ -54,17 +63,17 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-DECODE_ELEMENT=""
+DECODE_ELEMENT="! decodebin !"
 PREPROC_BACKEND="ie"
 if [[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]; then
-  DECODE_ELEMENT="vaapipostproc ! video/x-raw(memory:VASurface) !"
-  PREPROC_BACKEND="vaapi-surface-sharing"
+  DECODE_ELEMENT="! vapostproc ! video/x-raw(memory:VAMemory) !"
+  PREPROC_BACKEND="va-surface-sharing"
 fi
 
 if [[ "$OUTPUT" == "file" ]]; then
   FILE=$(basename "${INPUT%.*}")
   rm -f "${FILE}_${DEVICE}.mp4"
-  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${FILE}_${DEVICE}.mp4"
+  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! h264parse ! mp4mux ! filesink location=${FILE}_${DEVICE}.mp4"
 elif [[ "$OUTPUT" == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ "$OUTPUT" == "fps" ]]; then
@@ -81,7 +90,7 @@ else
   exit
 fi
 
-PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! $DECODE_ELEMENT \
+PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
 gvadetect model=$MODEL_PATH"
 if [[ -n "$MODEL_PROC" ]]; then
   PIPELINE="$PIPELINE model-proc=$MODEL_PROC"

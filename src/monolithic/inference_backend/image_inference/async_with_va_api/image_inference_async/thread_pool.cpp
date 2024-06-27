@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2021 Intel Corporation
+ * Copyright (C) 2019-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -46,10 +46,12 @@ std::future<void> ThreadPool::schedule(const std::function<void()> &callable) {
     std::shared_ptr<std::promise<void>> p = std::make_shared<std::promise<void>>();
     std::future<void> future = p->get_future();
 
+    std::unique_lock<std::mutex> lock(_mutex);
     _tasks.push([callable, p]() {
         callable();
         p->set_value();
     });
+    lock.unlock();
 
     _condition_variable.notify_one();
     return future;

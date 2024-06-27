@@ -41,7 +41,8 @@ class Pool {
         }
     }
 
-    size_t size() const {
+    size_t size() {
+        std::lock_guard<std::mutex> lock(_mutex);
         return _pool.size();
     }
 

@@ -109,6 +109,7 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
 }
 
 LRUCache<int, ClassificationHistory::ROIClassificationHistory> &ClassificationHistory::GetHistory() {
+    std::lock_guard<std::mutex> guard(history_mutex);
     return history;
 }
 

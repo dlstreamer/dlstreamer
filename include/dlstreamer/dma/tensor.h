@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -46,7 +46,14 @@ class DMATensor : public BaseTensor {
     ~DMATensor() {
 #ifdef __linux__
         if (_take_ownership) {
-            close(handle(tensor::key::dma_fd));
+            try {
+                int fd = handle(tensor::key::dma_fd);
+                close(fd);
+            } catch (const std::runtime_error &e) {
+                // GST_ERROR("Failed to close DMA handle: %s", e.what());
+            } catch (...) {
+                // GST_ERROR("Unknown exception occurred while closing DMA handle");
+            }
         }
 #endif
     }

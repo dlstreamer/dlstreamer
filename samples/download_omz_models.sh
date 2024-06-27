@@ -21,5 +21,5 @@ if ! python3 -m pip show -qq openvino-dev; then
 fi
 
 mkdir -p "${MODELS_PATH}" && \
-omz_downloader --list "$(dirname "$0")"/models.lst -o "$MODELS_PATH" && \
-omz_converter --list "$(dirname "$0")"/models.lst -o "$MODELS_PATH" -d "$MODELS_PATH"
+omz_downloader --list "$(dirname "$0")"/models_omz_samples.lst -o "$MODELS_PATH" && \
+omz_converter --list "$(dirname "$0")"/models_omz_samples.lst -o "$MODELS_PATH" -d "$MODELS_PATH"

@@ -17,7 +17,7 @@ The sample uses by default the following pre-trained models from OpenVINO™ Too
 *   __face-detection-adas-0001__ is primary detection network for finding faces
 *   __age-gender-recognition-retail-0013__ age and gender estimation on detected faces
 
-> **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 ## Running
 

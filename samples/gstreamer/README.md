@@ -32,8 +32,8 @@ Other samples (without C/C++ code) provide .sh script for constructing and execu
 
 Intel® DL Streamer samples use pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 
-Before running samples, run script `download_models.sh` once to download all models required for samples. The script located in `samples` top folder.
-> **NOTE**: To install all necessary requirements for `download_models.sh` script run this command:
+Before running samples, run script `download_omz_models.sh` once to download all models required for samples. The script located in `samples` top folder.
+> **NOTE**: To install all necessary requirements for `download_omz_models.sh` script run this command:
 ```sh
 python3 -m pip install --upgrade pip
 python3 -m pip install openvino-dev[onnx]

@@ -20,6 +20,7 @@ GST_DEBUG_CATEGORY_STATIC(meta_aggregate_debug);
 enum { PROP_0, PROP_ATTACH_TENSOR_DATA };
 
 #define DEFAULT_ATTACH_TENSOR_DATA TRUE
+#define EVENT_TAG 0
 
 // ---
 // MetaAggregatePadPriv and MetaAggregatePad
@@ -650,7 +651,10 @@ class MetaAggregatePrivate {
 G_DEFINE_TYPE_WITH_PRIVATE(MetaAggregate, meta_aggregate, GST_TYPE_AGGREGATOR);
 
 gboolean MetaAggregatePrivate::sinkEvent(GstAggregatorPad *pad, GstEvent *event) {
+
+#if EVENT_TAG
     gboolean ret = TRUE;
+#endif
 
     switch (GST_EVENT_TYPE(event)) {
     case GST_EVENT_CAPS: {
@@ -684,26 +688,28 @@ gboolean MetaAggregatePrivate::sinkEvent(GstAggregatorPad *pad, GstEvent *event)
     }
 #endif
 
-#if 0
-        case GST_EVENT_TAG: {
-            GstTagList *list;
-            GstTagSetter *setter = GST_TAG_SETTER(mux);
-            const GstTagMergeMode mode = gst_tag_setter_get_tag_merge_mode(setter);
+#if EVENT_TAG
+    case GST_EVENT_TAG: {
+        GstTagList *list;
+        GstTagSetter *setter = GST_TAG_SETTER(mux);
+        const GstTagMergeMode mode = gst_tag_setter_get_tag_merge_mode(setter);
 
-            gst_event_parse_tag(event, &list);
-            gst_tag_setter_merge_tags(setter, list, mode);
-            gst_flv_mux_store_codec_tags(mux, flvpad, list);
-            mux->new_tags = TRUE;
-            ret = TRUE;
-            break;
-        }
+        gst_event_parse_tag(event, &list);
+        gst_tag_setter_merge_tags(setter, list, mode);
+        gst_flv_mux_store_codec_tags(mux, flvpad, list);
+        mux->new_tags = TRUE;
+        ret = TRUE;
+        break;
+    }
 #endif
     default:
         break;
     }
 
+#if EVENT_TAG
     if (!ret)
         return FALSE;
+#endif
 
     return GST_AGGREGATOR_CLASS(meta_aggregate_parent_class)->sink_event(mybase_, pad, event);
 }

@@ -25,7 +25,7 @@ The sample uses by default the following pre-trained models from OpenVINO™ Too
 *   __face-detection-adas-0001__ is primary detection network for detecting faces that appear within video frames.
 *   __age-gender-recognition-retail-0013__ classifies age and gender of detected face(s).
 
-> **NOTE**: Before running samples (including this one), run script `download_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
 
 The sample contains `model_proc` subfolder with .json files for each model with description of model input/output formats and post-processing rules for classification models.
 

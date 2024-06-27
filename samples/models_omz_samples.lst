@@ -13,3 +13,5 @@ action-recognition-0001-encoder
 action-recognition-0001-decoder
 instance-segmentation-security-1040
 efficientnet-b0
+mask_rcnn_inception_resnet_v2_atrous_coco
+mask_rcnn_resnet50_atrous_coco

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -109,8 +109,12 @@ void ROICoordinatesRestorer::updateCoordinatesToFullFrame(double &x_min, double 
 
 void ROICoordinatesRestorer::getRealCoordinates(GstStructure *detection_tensor, double &x_min_real, double &y_min_real,
                                                 double &x_max_real, double &y_max_real) {
-    gst_structure_get(detection_tensor, "x_min", G_TYPE_DOUBLE, &x_min_real, "x_max", G_TYPE_DOUBLE, &x_max_real,
-                      "y_min", G_TYPE_DOUBLE, &y_min_real, "y_max", G_TYPE_DOUBLE, &y_max_real, NULL);
+
+    if (!gst_structure_get(detection_tensor, "x_min", G_TYPE_DOUBLE, &x_min_real, "x_max", G_TYPE_DOUBLE, &x_max_real,
+                           "y_min", G_TYPE_DOUBLE, &y_min_real, "y_max", G_TYPE_DOUBLE, &y_max_real, NULL)) {
+
+        throw std::runtime_error("Invalid gst_structure_get() method field(s) requested");
+    }
 }
 
 void ROICoordinatesRestorer::getCoordinates(GstStructure *detection_tensor, const FrameWrapper &frame,
@@ -142,7 +146,7 @@ void ROICoordinatesRestorer::restore(TensorsTable &tensors_batch, const FramesWr
             const auto &tensor = tensors_batch[i];
 
             for (size_t j = 0; j < tensor.size(); ++j) {
-                GstStructure *detection_tensor = tensor[j];
+                GstStructure *detection_tensor = tensor[j][DETECTION_TENSOR_ID];
 
                 double x_min_real, y_min_real, x_max_real, y_max_real;
                 uint32_t x_abs, y_abs, w_abs, h_abs;
@@ -169,7 +173,7 @@ void KeypointsCoordinatesRestorer::restore(TensorsTable &tensors, const FramesWr
             const auto &tensor = tensors[i];
 
             for (size_t j = 0; j < tensor.size(); ++j) {
-                GstStructure *result_tensor_raw = tensor[j];
+                GstStructure *result_tensor_raw = tensor[j][DETECTION_TENSOR_ID];
                 GVA::Tensor result_tensor(result_tensor_raw);
 
                 auto data = result_tensor.data<float>();
@@ -177,14 +181,14 @@ void KeypointsCoordinatesRestorer::restore(TensorsTable &tensors, const FramesWr
                 if (data.empty())
                     throw std::runtime_error("Keypoints is empty.");
 
-                const auto &dimention = result_tensor.dims();
-                size_t points_num = dimention[0];
-                size_t point_dimension = dimention[1];
+                const auto &dimension = result_tensor.dims();
+                size_t points_num = dimension[0];
+                size_t point_dimension = dimension[1];
 
                 if (data.size() != points_num * point_dimension)
                     throw std::logic_error("The size of the keypoints data does not match the dimension: Size=" +
-                                           std::to_string(data.size()) + " Dimension=[" + std::to_string(dimention[0]) +
-                                           "," + std::to_string(dimention[1]) + "].");
+                                           std::to_string(data.size()) + " Dimension=[" + std::to_string(dimension[0]) +
+                                           "," + std::to_string(dimension[1]) + "].");
 
                 auto &updated_points = data;
                 for (size_t i = 0; i < points_num; ++i) {

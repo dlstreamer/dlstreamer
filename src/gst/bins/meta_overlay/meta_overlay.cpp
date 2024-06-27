@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -30,6 +30,12 @@ inline bool is_vaapipostproc_available() {
     gst_object_unref(GST_OBJECT(element));
     return res;
 }
+inline bool is_vapostproc_available() {
+    GstElement *element = gst_element_factory_make(elem::vapostproc, "postproc");
+    bool res = (element) ? true : false;
+    gst_object_unref(GST_OBJECT(element));
+    return res;
+}
 } // namespace
 
 /* Properties */
@@ -53,13 +59,17 @@ class PipeBuilder {
 class CPUPipeBuilder : public PipeBuilder {
   private:
     bool _vaapipostproc_avaliable;
+    bool _vapostproc_avaliable;
 
   public:
-    CPUPipeBuilder() : _vaapipostproc_avaliable(is_vaapipostproc_available()) {
+    CPUPipeBuilder()
+        : _vaapipostproc_avaliable(is_vaapipostproc_available()), _vapostproc_avaliable(is_vapostproc_available()) {
     }
 
     std::string get_preproc() const override {
-        if (_vaapipostproc_avaliable)
+        if (_vapostproc_avaliable)
+            return std::string(elem::vapostproc) + elem::pipe_separator + elem::caps_system_memory;
+        else if (_vaapipostproc_avaliable)
             return std::string(elem::vaapipostproc) + elem::pipe_separator + elem::caps_system_memory;
         return elem::videoconvert;
     }
@@ -68,7 +78,9 @@ class CPUPipeBuilder : public PipeBuilder {
     }
     std::string get_postproc() const override {
         std::string res = elem::videoconvert;
-        if (_vaapipostproc_avaliable)
+        if (_vapostproc_avaliable)
+            res += std::string(elem::pipe_separator) + elem::vapostproc;
+        else if (_vaapipostproc_avaliable)
             res += std::string(elem::pipe_separator) + elem::vaapipostproc;
         return res;
     }

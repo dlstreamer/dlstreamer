@@ -9,14 +9,21 @@
 # ==============================================================================
 set -e
 
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2 
+  exit 1
+else 
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
 MODEL=${1:-detection} # Supported values: detection, classification_single, classification_multi
 DEVICE=${2:-GPU} # Supported values: CPU, GPU, NPU
 INPUT=${3:-https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4}
 OUTPUT=${4:-file} # Supported values: file, display, fps, json, display-and-json
 
-MODEL_PATH="${PWD}/geti/${MODEL}/FP16/openvino.xml"
+MODEL_PATH="${MODELS_PATH}/intel/$MODEL/FP16/$MODEL.xml"
 
-# check if model exists in local director
+# check if model exists in local directory
 if [ ! -f $MODEL_PATH ]; then
   echo "Model not found: ${MODEL_PATH}"
   exit 
@@ -30,11 +37,13 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-DECODE_ELEMENT=""
-PREPROC_BACKEND="ie"
-if [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
-  DECODE_ELEMENT="vaapipostproc ! video/x-raw(memory:VASurface) !"
-  PREPROC_BACKEND="vaapi-surface-sharing"
+if [[ $DEVICE == "CPU" ]]; then
+  DECODE_ELEMENT=" ! decodebin !"
+  PREPROC_BACKEND="ie"
+elif [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
+  DECODE_ELEMENT="! qtdemux ! vah264dec"
+  DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
+  PREPROC_BACKEND="va-surface-sharing"
 fi
 
 INFERENCE_ELEMENT="gvadetect"
@@ -45,7 +54,7 @@ fi
 if [[ $OUTPUT == "file" ]]; then
   FILE="$(basename ${INPUT%.*})"
   rm -f ${FILE}_output.avi
-  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vaapih264enc ! avimux name=mux ! filesink location=${FILE}_${MODEL}.avi"
+  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}_${MODEL}.avi"
 elif [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ $OUTPUT == "fps" ]]; then
@@ -62,7 +71,7 @@ else
   exit
 fi
 
-PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! $DECODE_ELEMENT \
+PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
 $INFERENCE_ELEMENT model=$MODEL_PATH device=$DEVICE pre-process-backend=$PREPROC_BACKEND ! queue ! \
 $SINK_ELEMENT"
 

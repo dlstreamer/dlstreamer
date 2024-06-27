@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -58,14 +58,16 @@ TensorsTable KeypointsOpenPoseConverter::convert(const OutputBlobs &output_blobs
             extractor.correctCoordinates(poses,
                                          {safe_convert<int>(feature_map_width), safe_convert<int>(feature_map_height)});
 
-            std::vector<GstStructure *> tensor_poses;
+            std::vector<std::vector<GstStructure *>> tensor_poses;
             for (const auto &pose : poses) {
                 GstStructure *tensor_data = createTensor(GVA_PRECISION_FP32, {pose.keypoints.size(), 2});
 
                 // set coordinates relative output map
                 copyKeypointsToGstStructure(tensor_data, pose.keypoints);
-                tensor_poses.push_back(tensor_data);
+                std::vector<GstStructure *> result{tensor_data};
+                tensor_poses.push_back(result);
             }
+
             tensors_table.push_back(tensor_poses);
         }
 

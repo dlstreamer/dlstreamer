@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,6 +14,7 @@
 #include "load_labels_file.h"
 
 #include <algorithm>
+#include <iostream>
 #include <map>
 #include <mutex>
 #include <numeric>
@@ -429,7 +430,13 @@ class PostProcYolo : public BaseTransformInplace {
         if (_labels.empty())
             return empty_label;
         if (label_id >= _labels.size()) {
-            _logger->warn("Label ID {} is out of range", label_id);
+            try {
+                _logger->warn("Label ID {} is out of range", label_id);
+            } catch (const fmt::v8::format_error &e) {
+                std::cerr << "Formatting error in get_label_by_id: " << e.what() << std::endl;
+            } catch (...) {
+                std::cerr << "Unknown exception occurred in get_label_by_id" << std::endl;
+            }
             return empty_label;
         }
         return _labels[label_id];

@@ -99,42 +99,6 @@ class RegionOfInterest {
     }
 
     /**
-     * @brief Get the width of the mask of the RegionOfInterest. Element added by gvadetect if a mask is detected
-     * @return Mask width, or zero value if not found
-     */
-    size_t mask_width() {
-        Tensor det = detection();
-        return det.get_int("mask_width", 0);
-    }
-
-    /**
-     * @brief Get the height of the mask of the RegionOfInterest. Element added by gvadetect if a mask is detected
-     * @return Mask height, or zero value if not found
-     */
-    size_t mask_height() {
-        Tensor det = detection();
-        return det.get_int("mask_height", 0);
-    }
-
-    /**
-     * @brief Get the mask of the RegionOfInterest. Element added by gvadetect if a mask is detected
-     * @return Vector with mask values, or empty vector if not found
-     */
-    std::vector<float> mask() {
-        Tensor det = detection();
-        return det.get_float_vector("mask");
-    }
-
-    /**
-     * @brief Check whether RegionOfInterest has a mask defined
-     * @return True if RegionOfInterest has a mask, or false if it does not
-     */
-    bool has_mask() {
-        Tensor det = detection();
-        return det.has_field("mask");
-    }
-
-    /**
      * @brief Get all Tensor instances added to this RegionOfInterest
      * @return vector of Tensor instances added to this RegionOfInterest
      */

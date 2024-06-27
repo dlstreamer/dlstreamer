@@ -6,6 +6,7 @@
 
 #include "mask_rcnn.h"
 
+#include "copy_blob_to_gststruct.h"
 #include "inference_backend/image_inference.h"
 #include "inference_backend/logger.h"
 #include "safe_arithmetic.hpp"
@@ -134,9 +135,31 @@ TensorsTable MaskRCNNConverter::convert(const OutputBlobs &output_blobs) const {
                     continue;
                 }
 
-                objects.push_back(DetectedObject(x, y, w, h, 0, confidence, main_class,
-                                                 BlobToMetaConverter::getLabelByLabelId(main_class), 1.0f / input_width,
-                                                 1.0f / input_height, false, mask, masks_width, masks_height));
+                auto detected_object = DetectedObject(x, y, w, h, 0, confidence, main_class,
+                                                      BlobToMetaConverter::getLabelByLabelId(main_class),
+                                                      1.0f / input_width, 1.0f / input_height, false);
+
+                // create segmentation mask tensor
+                GstStructure *tensor = gst_structure_copy(getModelProcOutputInfo().get());
+                gst_structure_set_name(tensor, "mask_rcnn");
+                gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
+                gst_structure_set(tensor, "format", G_TYPE_STRING, "segmentation_mask", NULL);
+
+                GValueArray *data = g_value_array_new(2);
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_UINT);
+                g_value_set_uint(&gvalue, safe_convert<uint32_t>(masks_height));
+                g_value_array_append(data, &gvalue);
+                g_value_set_uint(&gvalue, safe_convert<uint32_t>(masks_width));
+                g_value_array_append(data, &gvalue);
+                gst_structure_set_array(tensor, "dims", data);
+                g_value_array_free(data);
+
+                copy_buffer_to_structure(tensor, reinterpret_cast<const void *>(mask),
+                                         masks_height * masks_width * sizeof(float));
+                detected_object.tensors.push_back(tensor);
+
+                objects.push_back(detected_object);
             }
         }
 
