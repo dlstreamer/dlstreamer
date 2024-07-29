@@ -146,10 +146,11 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
         //     const double mean = 0 - range_norm.min;
         //     Normalization(image_to_insert, mean, std);
         // }
-        if (pre_proc_info->doNeedDistribNormalization()) {
-            const auto &distrib_norm = pre_proc_info->getDistribNormalization();
-            Normalization(image_to_insert, distrib_norm.mean, distrib_norm.std);
-        }
+        // Ditto
+        // if (pre_proc_info->doNeedDistribNormalization()) {
+        //     const auto &distrib_norm = pre_proc_info->getDistribNormalization();
+        //     Normalization(image_to_insert, distrib_norm.mean, distrib_norm.std);
+        // }
 
         // Set background color
         cv::Scalar background_color;

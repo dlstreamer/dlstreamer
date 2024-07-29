@@ -61,11 +61,8 @@ class VaapiBatchProc : public BaseTransform {
 
     FramePtr process(FramePtr src) override {
         DLS_CHECK(init());
-        // This code path is work in progress and not active in DLStreamer architecture 1.0
-        assert(false);
-        // Is it required?
-        std::lock_guard<std::mutex> guard(_mutex);
         auto dst = create_output();
+        std::lock_guard<std::mutex> guard(_mutex);
         ImageInfo src_info0(src->tensor(0)->info());
         ImageInfo dst_info0(dst->tensor(0)->info());
         uint16_t dst_w = dst_info0.width();
@@ -76,60 +73,62 @@ class VaapiBatchProc : public BaseTransform {
         if (src->media_type() == MediaType::Image && src->format())
             batch_size = 1;
 
-        std::vector<VAProcPipelineParameterBuffer> pipeline_param_bufs(batch_size);
         std::vector<VABufferID> pipeline_param_buf_ids(batch_size);
         std::vector<VARectangle> src_rects(batch_size);
         std::vector<VARectangle> dst_rects(batch_size);
+        {
+            std::vector<VAProcPipelineParameterBuffer> pipeline_param_bufs(batch_size);
 
-        for (int i = 0; i < batch_size; i++) {
-            auto tensor = src->tensor(i).map<VAAPITensor>(_vaapi_context, AccessMode::Read);
-            auto &info = src->tensor(i)->info();
-            ImageInfo image_info(info);
-            uint16_t src_w = image_info.width();
-            uint16_t src_h = image_info.height();
+            for (int i = 0; i < batch_size; i++) {
+                auto tensor = src->tensor(i).map<VAAPITensor>(_vaapi_context, AccessMode::Read);
+                auto &info = src->tensor(i)->info();
+                ImageInfo image_info(info);
+                uint16_t src_w = image_info.width();
+                uint16_t src_h = image_info.height();
 
-            // input and output regions
-            auto &src_rect = src_rects[i];
-            auto &dst_rect = dst_rects[i];
-            int16_t src_x = tensor->offset_x();
-            int16_t src_y = tensor->offset_y();
-            src_rect = {.x = src_x, .y = src_y, .width = src_w, .height = src_h};
-            dst_rect = {.x = 0, .y = static_cast<int16_t>(i * dst_h), .width = dst_w, .height = dst_h};
-            pipeline_param_bufs[i] = {};
-            pipeline_param_bufs[i].surface = tensor->va_surface();
-            pipeline_param_bufs[i].surface_region = nullptr;
-            pipeline_param_bufs[i].surface_region = &src_rect;
-            pipeline_param_bufs[i].output_region = &dst_rect;
+                // input and output regions
+                auto &src_rect = src_rects[i];
+                auto &dst_rect = dst_rects[i];
+                int16_t src_x = tensor->offset_x();
+                int16_t src_y = tensor->offset_y();
+                src_rect = {.x = src_x, .y = src_y, .width = src_w, .height = src_h};
+                dst_rect = {.x = 0, .y = static_cast<int16_t>(i * dst_h), .width = dst_w, .height = dst_h};
+                pipeline_param_bufs[i] = {};
+                pipeline_param_bufs[i].surface = tensor->va_surface();
+                // coverity[wrapper_escape:FALSE]
+                pipeline_param_bufs[i].surface_region = &src_rects[i];
+                // coverity[wrapper_escape:FALSE]
+                pipeline_param_bufs[i].output_region = &dst_rects[i];
 
-            if (_aspect_ratio) {
-                double scale_x = static_cast<double>(dst_rect.width) / src_rect.width;
-                double scale_y = static_cast<double>(dst_rect.height) / src_rect.height;
-                double scale = std::min(scale_x, scale_y);
-                dst_rect.width = src_rect.width * scale;
-                dst_rect.height = src_rect.height * scale;
+                if (_aspect_ratio) {
+                    double scale_x = static_cast<double>(dst_rect.width) / src_rect.width;
+                    double scale_y = static_cast<double>(dst_rect.height) / src_rect.height;
+                    double scale = std::min(scale_x, scale_y);
+                    dst_rect.width = src_rect.width * scale;
+                    dst_rect.height = src_rect.height * scale;
+                }
+
+                VA_CALL(_va_vtable->vaCreateBuffer(_va_driver, _va_context_id, VAProcPipelineParameterBufferType,
+                                                   sizeof(pipeline_param_bufs[i]), 1, &pipeline_param_bufs[i],
+                                                   &pipeline_param_buf_ids[i]));
+
+                // Store metadata with coefficients for src<>dst coordinates conversion
+                auto affine_meta = dst->metadata().add(AffineTransformInfoMetadata::name);
+                dst_rect.y -= i * dst_h;
+                AffineTransformInfoMetadata(affine_meta).set_rect(src_w, src_h, dst_w, dst_h, src_rect, dst_rect);
             }
 
-            VA_CALL(_va_vtable->vaCreateBuffer(_va_driver, _va_context_id, VAProcPipelineParameterBufferType,
-                                               sizeof(pipeline_param_bufs[i]), 1, &pipeline_param_bufs[i],
-                                               &pipeline_param_buf_ids[i]));
+            VAAPIFramePtr dst_vaapi = ptr_cast<VAAPIFrame>(dst);
+            VASurfaceID dst_surface = dst_vaapi->va_surface();
 
-            // Store metadata with coefficients for src<>dst coordinates conversion
-            auto affine_meta = dst->metadata().add(AffineTransformInfoMetadata::name);
-            dst_rect.y -= i * dst_h;
-            AffineTransformInfoMetadata(affine_meta).set_rect(src_w, src_h, dst_w, dst_h, src_rect, dst_rect);
+            VA_CALL(_va_vtable->vaBeginPicture(_va_driver, _va_context_id, dst_surface));
+            VA_CALL(_va_vtable->vaRenderPicture(_va_driver, _va_context_id, pipeline_param_buf_ids.data(), batch_size));
+            VA_CALL(_va_vtable->vaEndPicture(_va_driver, _va_context_id));
+
+            for (int i = 0; i < batch_size; i++) {
+                VA_CALL(_va_vtable->vaDestroyBuffer(_va_driver, pipeline_param_buf_ids[i]));
+            }
         }
-
-        VAAPIFramePtr dst_vaapi = ptr_cast<VAAPIFrame>(dst);
-        VASurfaceID dst_surface = dst_vaapi->va_surface();
-
-        VA_CALL(_va_vtable->vaBeginPicture(_va_driver, _va_context_id, dst_surface));
-        VA_CALL(_va_vtable->vaRenderPicture(_va_driver, _va_context_id, pipeline_param_buf_ids.data(), batch_size));
-        VA_CALL(_va_vtable->vaEndPicture(_va_driver, _va_context_id));
-
-        for (int i = 0; i < batch_size; i++) {
-            VA_CALL(_va_vtable->vaDestroyBuffer(_va_driver, pipeline_param_buf_ids[i]));
-        }
-
         return dst;
     }
 

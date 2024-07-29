@@ -5,8 +5,9 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-VIDEO_FILE=${1}
+VIDEO_FILE=$(realpath "$1")
 MODEL=${2:-${MODELS_PATH}/intel/face-detection-adas-0001/FP32/face-detection-adas-0001.xml}
+MODEL=$(realpath "$MODEL")
 OUTPUT=${3:-STDOUT} #Valid STDOUT FILE
 
 EXE_NAME=ffmpeg_openvino_decode_resize_inference

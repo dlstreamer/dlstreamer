@@ -5,8 +5,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-VIDEO_FILE=${1}
-
+VIDEO_FILE=$(realpath "$1")
 EXE_NAME=ffmpeg_dpcpp_rgb_to_grayscale
 BUILD_DIR=$HOME/intel/dl_streamer/samples/${EXE_NAME}/build
 BASE_DIR=$(realpath "$(dirname "$0")")

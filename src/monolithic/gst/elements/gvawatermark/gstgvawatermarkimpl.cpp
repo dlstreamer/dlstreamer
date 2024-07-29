@@ -521,7 +521,7 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
     Color color = indexToColor(color_index);
     cv::Rect bbox_rect(rect.x, rect.y, rect.w, rect.h);
     if (!_obb)
-        prims.emplace_back(render::Rect(bbox_rect, color, _thickness, roi.radius()));
+        prims.emplace_back(render::Rect(bbox_rect, color, _thickness, roi.rotation()));
 
     // put text
     if (text.str().size() != 0) {

@@ -60,10 +60,21 @@ if [ "$MODEL" == "yolox_s" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all
     echo "Model not found: ${MODEL_PATH}"
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
-    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s_openvino.tar.gz
-    tar -xvf ./yolox_s_openvino.tar.gz
-    rm ./yolox_s_openvino.tar.gz
-    cd -
+    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
+    ovc yolox_s.onnx --compress_to_fp16=False
+    rm -rf yolox_s
+    cd ..
+  fi
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP16/$MODEL_NAME.xml"
+  MODEL_DIR=$(dirname "$MODEL_PATH")
+  if [ ! -f "$MODEL_PATH" ]; then
+    echo "Model not found: ${MODEL_PATH}"
+    mkdir -p "$MODEL_DIR"
+    cd "$MODEL_DIR"
+    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
+    ovc yolox_s.onnx
+    rm -rf yolox_s
+    cd ..
   fi
 fi
 
@@ -109,6 +120,7 @@ EOF
   fi
 fi
 
+# Model yolov5s with FP32 precision only
 if [ "$MODEL" == "yolov5s" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
   MODEL_NAME="yolov5s"
   MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
@@ -154,6 +166,23 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
     cd yolov7
     python3 export.py --weights  yolov7.pt  --grid --dynamic-batch
     ovc yolov7.onnx
+    mv yolov7.xml "$MODEL_PATH"
+    mv yolov7.bin "$MODEL_DIR"
+    cd ..
+    rm -rf yolov7
+    cd "$PREV_DIR"
+  fi
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
+  MODEL_DIR=$(dirname "$MODEL_PATH")
+  PREV_DIR=$MODELS_PATH
+  if [ ! -f "$MODEL_PATH" ]; then
+    echo "Downloading and converting: ${MODEL_PATH}"
+    mkdir -p "$MODEL_DIR"
+    cd "$MODEL_DIR"
+    git clone https://github.com/WongKinYiu/yolov7.git
+    cd yolov7
+    python3 export.py --weights  yolov7.pt  --grid --dynamic-batch
+    ovc yolov7.onnx --compress_to_fp16=False
     mv yolov7.xml "$MODEL_PATH"
     mv yolov7.bin "$MODEL_DIR"
     cd ..

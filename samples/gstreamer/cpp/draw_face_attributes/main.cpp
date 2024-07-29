@@ -17,8 +17,8 @@
 #include <gst/gst.h>
 #include <opencv2/opencv.hpp>
 
+#include "dlstreamer/gst/videoanalytics/video_frame.h"
 #include "draw_axes.h"
-#include "gst/videoanalytics/video_frame.h"
 
 #include <iostream>
 
@@ -329,6 +329,9 @@ int main(int argc, char *argv[]) {
             "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! autovideosink sync=false";
     else if (output_type_str == "json")
         sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false";
+    else if (output_type_str == "file")
+        sink = "gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! h264parse ! mp4mux ! filesink "
+               "location=output.mp4";
     else {
         std::cerr << "Unsupported output type: " << output_type_str << std::endl;
         return -1;

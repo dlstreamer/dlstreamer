@@ -61,11 +61,11 @@ class RegionOfInterest {
     }
 
     /**
-     * @brief Get RegionOfInterest bounding box radius
-     * @return Bounding box radius of the RegionOfInterest
+     * @brief Get RegionOfInterest bounding box rotation
+     * @return Bounding box rotation of the RegionOfInterest
      */
-    double radius() const {
-        return _detection ? _detection->get_double("radius", 0.0) : 0.0;
+    double rotation() const {
+        return _detection ? _detection->get_double("rotation", 0.0) : 0.0;
     }
 
     /**

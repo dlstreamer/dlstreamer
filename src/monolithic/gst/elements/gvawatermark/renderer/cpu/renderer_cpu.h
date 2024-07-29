@@ -19,6 +19,8 @@ class RendererCPU : public Renderer {
 
   protected:
     dlstreamer::FramePtr buffer_map(dlstreamer::FramePtr buffer) override;
+    void DrawRotatedRectangle(cv::InputOutputArray img, cv::Point pt1, cv::Point pt2, double rotation,
+                              const cv::Scalar &color, int thickness = 1, int lineType = cv::LINE_8, int shift = 0);
 
     dlstreamer::MemoryMapperPtr _buffer_mapper;
 };
@@ -38,7 +40,7 @@ class RendererYUV : public RendererCPU {
     virtual void draw_line(std::vector<cv::Mat> &mats, render::Line line) = 0;
     virtual void draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) = 0;
 
-    void draw_rect_y_plane(cv::Mat &y, cv::Point2i pt1, cv::Point2i pt2, double color, int thick);
+    void draw_rect_y_plane(cv::Mat &y, cv::Point2i pt1, cv::Point2i pt2, double rotation, double color, int thick);
 };
 
 class RendererI420 : public RendererYUV {

@@ -53,6 +53,20 @@ dlstreamer::FramePtr RendererCPU::buffer_map(dlstreamer::FramePtr buffer) {
     return result;
 }
 
+void RendererCPU::DrawRotatedRectangle(cv::InputOutputArray img, cv::Point pt1, cv::Point pt2, double rotation,
+                                       const cv::Scalar &color, int thickness, int lineType, int shift) {
+    if (rotation == 0.0)
+        cv::rectangle(img, pt1, pt2, color, thickness, lineType, shift);
+    else {
+        cv::RotatedRect rotatedRectangle(cv::Point2f((pt1.x + pt2.x) / 2, (pt1.y + pt2.y) / 2),
+                                         cv::Size2f(abs(pt2.x - pt1.x), abs(pt2.y - pt1.y)), rotation * 180 / CV_PI);
+        cv::Point2f vertices2f[4];
+        rotatedRectangle.points(vertices2f);
+        for (int i = 0; i < 4; i++)
+            line(img, vertices2f[i], vertices2f[(i + 1) % 4], color, thickness);
+    }
+}
+
 void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<render::Prim> &prims) {
     for (auto &p : prims) {
         if (std::holds_alternative<render::Line>(p)) {
@@ -69,7 +83,8 @@ void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<r
     }
 }
 
-void RendererYUV::draw_rect_y_plane(cv::Mat &y, cv::Point2i pt1, cv::Point2i pt2, double color, int thick) {
+void RendererYUV::draw_rect_y_plane(cv::Mat &y, cv::Point2i pt1, cv::Point2i pt2, double rotation, double color,
+                                    int thick) {
     // Half thickness
     thick = calc_thick_for_u_v_planes(thick);
 
@@ -78,14 +93,14 @@ void RendererYUV::draw_rect_y_plane(cv::Mat &y, cv::Point2i pt1, cv::Point2i pt2
     // So, to avoid shadows, there's need to fill two pixels on Y plane, for every single pixel on U & V planes.
     // Since coordinates may not be a multiple of two, the two rectangles should be drawn with half thickness on Y
     // plane.
-    cv::rectangle(y, pt1, pt2, color, thick);
+    DrawRotatedRectangle(y, pt1, pt2, rotation, color, thick);
     float offset_min_x = pt1.x % 2 ? -1 : 1;
     float offset_min_y = pt1.y % 2 ? -1 : 1;
     float offset_max_x = pt2.x % 2 ? -1 : 1;
     float offset_max_y = pt2.y % 2 ? -1 : 1;
     cv::Point2i p1(offset_min_x + pt1.x, offset_min_y + pt1.y);
     cv::Point2i p2(offset_max_x + pt2.x, offset_max_y + pt2.y);
-    cv::rectangle(y, p1, p2, color, thick);
+    DrawRotatedRectangle(y, p1, p2, rotation, color, thick);
 }
 
 void RendererI420::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
@@ -99,12 +114,12 @@ void RendererI420::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect)
     const cv::Point2i bottom_right = rect.rect.br() - cv::Point2i(1, 1);
 
     const int thick = calc_thick_for_u_v_planes(rect.thick);
-    cv::rectangle(u, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right), rect.color[1],
-                  thick);
-    cv::rectangle(v, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right), rect.color[2],
-                  thick);
+    DrawRotatedRectangle(u, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right), rect.rotation,
+                         rect.color[1], thick);
+    DrawRotatedRectangle(v, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right), rect.rotation,
+                         rect.color[2], thick);
 
-    draw_rect_y_plane(y, top_left, bottom_right, rect.color[0], rect.thick);
+    draw_rect_y_plane(y, top_left, bottom_right, rect.rotation, rect.color[0], rect.thick);
 }
 
 void RendererI420::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {
@@ -162,10 +177,10 @@ void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect)
     // align with render::render behavior
     const cv::Point2i bottom_right = rect.rect.br() - cv::Point2i(1, 1);
 
-    cv::rectangle(u_v, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right),
-                  {rect.color[1], rect.color[2]}, calc_thick_for_u_v_planes(rect.thick));
+    DrawRotatedRectangle(u_v, calc_point_for_u_v_planes(top_left), calc_point_for_u_v_planes(bottom_right),
+                         rect.rotation, {rect.color[1], rect.color[2]}, calc_thick_for_u_v_planes(rect.thick));
 
-    draw_rect_y_plane(y, top_left, bottom_right, rect.color[0], rect.thick);
+    draw_rect_y_plane(y, top_left, bottom_right, rect.rotation, rect.color[0], rect.thick);
 }
 
 void RendererNV12::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {
@@ -201,24 +216,66 @@ void RendererNV12::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
 }
 
 void RendererNV12::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
-    (void)mats;
-    (void)mask;
-    throw std::logic_error("Function not yet implemented");
+    check_planes<2>(mats);
+    cv::Mat &y = mats[0];
+    cv::Mat &u_v = mats[1];
+
+    cv::Mat unpadded{mask.size, CV_32F, mask.data.data()};
+    cv::Mat raw_cls_mask;
+    cv::copyMakeBorder(unpadded, raw_cls_mask, 1, 1, 1, 1, cv::BORDER_CONSTANT, {0});
+    cv::Rect extended_box = expand_box(mask.box, float(raw_cls_mask.cols) / (raw_cls_mask.cols - 2),
+                                       float(raw_cls_mask.rows) / (raw_cls_mask.rows - 2));
+
+    int w = std::max(extended_box.width + 1, 1);
+    int h = std::max(extended_box.height + 1, 1);
+    int x0_y = clamp(extended_box.x, 0, y.cols);
+    int y0_y = clamp(extended_box.y, 0, y.rows);
+    int x1_y = clamp(extended_box.x + extended_box.width + 1, 0, y.cols);
+    int y1_y = clamp(extended_box.y + extended_box.height + 1, 0, y.rows);
+
+    auto p0_u_v = calc_point_for_u_v_planes(cv::Point(x0_y, y0_y));
+    auto p1_u_v = calc_point_for_u_v_planes(cv::Point(x1_y, y1_y));
+
+    int x0_u_v = p0_u_v.x;
+    int y0_u_v = p0_u_v.y;
+    int x1_u_v = p1_u_v.x;
+    int y1_u_v = p1_u_v.y;
+
+    cv::Mat resized_y;
+    cv::resize(raw_cls_mask, resized_y, {w, h});
+
+    cv::Mat resized_u_v;
+    auto max_point = calc_point_for_u_v_planes(cv::Point(w, h));
+    cv::resize(raw_cls_mask, resized_u_v, {max_point.x + 1, max_point.y + 1});
+
+    cv::Mat binaryMask_y;
+    cv::threshold(resized_y({cv::Point(x0_y - extended_box.x, y0_y - extended_box.y),
+                             cv::Point(x1_y - extended_box.x, y1_y - extended_box.y)}),
+                  binaryMask_y, 0.5f, 1.0f, cv::THRESH_BINARY);
+    binaryMask_y.convertTo(binaryMask_y, y.type());
+
+    cv::Mat binaryMask_u_v;
+    auto extended_box_u_v = calc_point_for_u_v_planes(cv::Point(extended_box.x, extended_box.y));
+    cv::threshold(resized_u_v({cv::Point((x0_u_v - extended_box_u_v.x), (y0_u_v - extended_box_u_v.y)),
+                               cv::Point((x1_u_v - extended_box_u_v.x), (y1_u_v - extended_box_u_v.y))}),
+                  binaryMask_u_v, 0.5f, 1.0f, cv::THRESH_BINARY);
+    binaryMask_u_v.convertTo(binaryMask_u_v, u_v.type());
+
+    cv::Rect roi_y(x0_y, y0_y, x1_y - x0_y, y1_y - y0_y);
+    cv::Rect roi_u_v(x0_u_v, y0_u_v, x1_u_v - x0_u_v, y1_u_v - y0_u_v);
+    cv::Mat colorMask_u_v(roi_u_v.size(), u_v.type(), mask.color[2]);
+
+    cv::Mat roiSrc_y = y(roi_y);
+    cv::Mat roiSrc_u_v = u_v(roi_u_v);
+    cv::Mat dst_y, dst_u_v;
+    float alpha = 0.5f;
+    cv::addWeighted(colorMask_u_v, alpha, roiSrc_u_v, 1.0 - alpha, 0.0, dst_u_v);
+
+    dst_u_v.copyTo(roiSrc_u_v, binaryMask_u_v);
 }
 
 void RendererBGR::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
-    if (rect.radius == 0.0)
-        cv::rectangle(mats[0], rect.rect.tl(), rect.rect.br(), rect.color, rect.thick);
-    else {
-        cv::RotatedRect rotatedRectangle(
-            cv::Point2f(rect.rect.x + rect.rect.width / 2, rect.rect.y + rect.rect.height / 2),
-            cv::Size2f(rect.rect.width, rect.rect.height), rect.radius * 180 / CV_PI);
-
-        cv::Point2f vertices2f[4];
-        rotatedRectangle.points(vertices2f);
-        for (int i = 0; i < 4; i++)
-            line(mats[0], vertices2f[i], vertices2f[(i + 1) % 4], rect.color, rect.thick);
-    }
+    DrawRotatedRectangle(mats[0], rect.rect.tl(), rect.rect.br(), rect.rotation, rect.color, rect.thick);
 }
 
 void RendererBGR::draw_circle(std::vector<cv::Mat> &mats, render::Circle circle) {

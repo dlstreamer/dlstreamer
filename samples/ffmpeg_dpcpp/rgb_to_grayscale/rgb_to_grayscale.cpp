@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -29,8 +29,25 @@ int main(int argc, char *argv[]) {
     size_t width = FLAGS_width;
     size_t height = FLAGS_height;
 
+    for (auto platform : sycl::platform::get_platforms()) {
+        std::cout << "Platform: " << platform.get_info<sycl::info::platform::name>() << std::endl;
+
+        for (auto device : platform.get_devices()) {
+            std::cout << "\tDevice: " << device.get_info<sycl::info::device::name>() << std::endl;
+        }
+    }
+
     // DPC++ queue
-    sycl::queue sycl_queue = sycl::queue(sycl::gpu_selector());
+    sycl::queue sycl_queue = sycl::queue([](const sycl::device &dev) -> int {
+        std::cout << "Device backend: " << dev.get_backend() << std::endl;
+        return dev.get_backend() == sycl::backend::ext_oneapi_level_zero;
+    });
+    if (sycl_queue.get_backend() != sycl::backend::ext_oneapi_level_zero) {
+        std::cerr
+            << "No Intel® oneAPI Level Zero device found. This sample works only with Intel® oneAPI Level Zero API."
+            << std::endl;
+        return 1;
+    }
 
     // Initialize FFmpeg context and ffmpeg_multi_source element (decode and resize to specified resolution)
     auto ffmpeg_ctx = std::make_shared<FFmpegContext>(AV_HWDEVICE_TYPE_VAAPI);

@@ -67,7 +67,7 @@ class BlobToROIConverter : public BlobToMetaConverter {
             gst_structure_set_name(detection_tensor, "detection"); // make sure name="detection"
             gst_structure_set(detection_tensor, "label_id", G_TYPE_INT, label_id, "confidence", G_TYPE_DOUBLE,
                               confidence, "x_min", G_TYPE_DOUBLE, x, "x_max", G_TYPE_DOUBLE, x + w, "y_min",
-                              G_TYPE_DOUBLE, y, "y_max", G_TYPE_DOUBLE, y + h, "radius", G_TYPE_DOUBLE, r, NULL);
+                              G_TYPE_DOUBLE, y, "y_max", G_TYPE_DOUBLE, y + h, "rotation", G_TYPE_DOUBLE, r, NULL);
 
             if (not label.empty())
                 gst_structure_set(detection_tensor, "label", G_TYPE_STRING, label.c_str(), NULL);

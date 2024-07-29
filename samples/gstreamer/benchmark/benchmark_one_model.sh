@@ -52,7 +52,7 @@ fi
 if [ "$DECODE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw"
 elif [ "$DECODE_DEVICE" == "GPU" ]; then
-    DECODE_ELEMENT=" qtdemux ! vah264dec"
+    DECODE_ELEMENT+="! vapostproc"
     DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
 elif [ "$DECODE_DEVICE" != "AUTO" ]; then
   echo "Incorrect parameter DECODE_DEVICE. Supported values: CPU, GPU, AUTO"
@@ -84,6 +84,8 @@ PIPELINE=" filesrc location=${VIDEO_FILE_NAME} ! \
 ${DECODE_ELEMENT} ! \
 ${INFERENCE_ELEMENT} model-instance-id=inf0 model=${MODEL_PATH} device=${INFERENCE_DEVICE} ${PARAMS} ! queue ! \
 gvafpscounter ! ${SINK_ELEMENT}"
+
+echo -e "$PIPELINE"
 
 # Launch multiple streams
 "$(dirname "$0")"/gst-launch-multi.sh "$PIPELINE" "$NUMBER_STREAMS" "$NUMBER_PROCESSES"

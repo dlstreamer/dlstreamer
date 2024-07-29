@@ -33,6 +33,12 @@ Another example uses CPU device for the first two streams and GPU for two other 
 ./multi_stream_sample.sh video.mp4 CPU GPU
 ```
 
+Next example uses CPU device and YOLOv8 model for the first two streams and GPU and YOLOv9 model for two other streams using the same input video mp4 file.
+
+```sh
+./multi_stream_sample.sh video.mp4 CPU GPU yolov8s yolov9c
+```
+
 ## Multi-stream Pipeline Templates
 This section lists example command line templates to constructs multi-stream pipelines. 
 

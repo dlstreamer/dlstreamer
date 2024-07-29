@@ -33,12 +33,12 @@ struct Rect {
     cv::Rect rect;
     cv::Scalar color;
     int thick;
-    double radius;
+    double rotation;
 
     Rect() = default;
 
     Rect(const cv::Rect &rect, const cv::Scalar &color, int thick = 1, double r = 0.0)
-        : rect(rect), color(color), thick(thick), radius(r) {
+        : rect(rect), color(color), thick(thick), rotation(r) {
     }
 };
 

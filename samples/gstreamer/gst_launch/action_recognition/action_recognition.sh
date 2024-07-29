@@ -7,15 +7,15 @@
 set -e
 
 if [ -z "${MODELS_PATH:-}" ]; then
-  echo "Error: MODELS_PATH is not set." >&2 
+  echo "Error: MODELS_PATH is not set." >&2
   exit 1
-else 
+else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-INPUT=${1}
+INPUT=${1:-https://videos.pexels.com/video-files/5144823/5144823-uhd_3840_2160_25fps.mp4}
 DEVICE=${2:-CPU}
-OUTPUT=${3:-display} # Supported values: display, fps, json, display-and-json
+OUTPUT=${3:-file} # Supported values: display, fps, json, display-and-json, file
 
 MODEL_ENCODER=${MODELS_PATH}/intel/action-recognition-0001/action-recognition-0001-encoder/FP32/action-recognition-0001-encoder.xml
 MODEL_DECODER=${MODELS_PATH}/intel/action-recognition-0001/action-recognition-0001-decoder/FP32/action-recognition-0001-decoder.xml
@@ -36,9 +36,13 @@ elif [[ $OUTPUT == "json" ]]; then
 elif [[ $OUTPUT == "display-and-json" ]]; then
   rm -f output.json
   SINK_ELEMENT="gvawatermark ! gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+elif [[ $OUTPUT == "file" ]]; then
+  FILE="$(basename ${INPUT%.*})"
+  rm -f "${FILE}_${DEVICE}.mp4"
+  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}_${DEVICE}.mp4"
 else
   echo Error wrong value for OUTPUT parameter
-  echo Valid values: "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
+  echo Valid values: "display" - render to screen, "file" - render to file, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
   exit
 fi
 

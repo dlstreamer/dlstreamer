@@ -20,7 +20,7 @@ fi
 MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov9c
 DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
 INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
-OUTPUT=${4:-"file"} # Supported values: file, display, fps, json, display-and-json
+OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-json
 
 cd "$(dirname "$0")"
 
@@ -66,7 +66,7 @@ fi
 DECODE_ELEMENT="! decodebin !"
 PREPROC_BACKEND="ie"
 if [[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]; then
-  DECODE_ELEMENT="! vapostproc ! video/x-raw(memory:VAMemory) !"
+  DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"
   PREPROC_BACKEND="va-surface-sharing"
 fi
 

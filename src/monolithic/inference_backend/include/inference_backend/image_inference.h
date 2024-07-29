@@ -176,7 +176,10 @@ __DECLARE_CONFIG_KEY(image);
 __DECLARE_CONFIG_KEY(CAPS_FEATURE);
 __DECLARE_CONFIG_KEY(VAAPI_THREAD_POOL_SIZE);
 __DECLARE_CONFIG_KEY(VAAPI_FAST_SCALE_LOAD_FACTOR);
-__DECLARE_CONFIG_KEY(SCALE_FACTOR);
+// 'mean' parameter for OpenVINO™ (gets subtracted from input values prior to division)
+// 'scale' parameter for OpenVINO™ (divides pixel values)
+__DECLARE_CONFIG_KEY(PIXEL_VALUE_MEAN);
+__DECLARE_CONFIG_KEY(PIXEL_VALUE_SCALE);
 #undef __DECLARE_CONFIG_KEY
 #undef __CONFIG_KEY
 

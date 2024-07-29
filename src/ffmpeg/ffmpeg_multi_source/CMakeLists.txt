@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.12)
 set(TARGET_NAME ffmpeg_multi_source)
 
 find_package(PkgConfig)
-find_package(LIBAV COMPONENTS libavformat libavcodec libswscale libavutil)
+pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)
 
 file(GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -35,6 +35,8 @@ PRIVATE
         ${LIBAV_INCLUDE_DIRS}
         ${DLSTREAMER_DIR}/include
 )
+
+target_link_directories(${TARGET_NAME} PUBLIC ${LIBAV_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC

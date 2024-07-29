@@ -34,7 +34,7 @@ The command-line parameter INPUT_VIDEO allows to change input video and supports
 * web camera device (ex. `/dev/video0`)
 * RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)
 
-> **NOTE**: Execution of ./build_and_run.sh script may need to install build prerequisites: 
+> **NOTE**: You may need the following dependencies to build the sample:
 ```sh
 sudo apt install cmake make build-essential
 ```

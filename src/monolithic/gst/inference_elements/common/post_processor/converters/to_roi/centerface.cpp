@@ -96,6 +96,17 @@ void CenterfaceConverter::addLandmarksTensor(DetectedObject &detected_object, co
     gst_structure_set_name(tensor, "centerface");
     gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
     gst_structure_set(tensor, "format", G_TYPE_STRING, "landmark_points", NULL);
+    gst_structure_set(tensor, "confidence", G_TYPE_DOUBLE, detected_object.confidence, NULL);
+
+    GValueArray *data = g_value_array_new(2);
+    GValue gvalue = G_VALUE_INIT;
+    g_value_init(&gvalue, G_TYPE_UINT);
+    g_value_set_uint(&gvalue, safe_convert<uint32_t>(getModelInputImageInfo().batch_size));
+    g_value_array_append(data, &gvalue);
+    g_value_set_uint(&gvalue, safe_convert<uint32_t>(2 * num_of_landmarks));
+    g_value_array_append(data, &gvalue);
+    gst_structure_set_array(tensor, "dims", data);
+    g_value_array_free(data);
 
     copy_buffer_to_structure(tensor, reinterpret_cast<const void *>(landmarks), 2 * num_of_landmarks * sizeof(float));
 

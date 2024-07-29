@@ -40,7 +40,7 @@ fi
 if [[ $DEVICE == "CPU" ]]; then
   DECODE_ELEMENT="decodebin force-sw-decoders=true"
 elif [[ $DEVICE == "GPU" ]]; then
-  DECODE_ELEMENT="qtdemux ! vah264dec ! video/x-raw\(memory:VAMemory\)"
+  DECODE_ELEMENT="decodebin ! vapostproc ! video/x-raw\(memory:VAMemory\)"
 else
   DECODE_ELEMENT="decodebin"
 fi

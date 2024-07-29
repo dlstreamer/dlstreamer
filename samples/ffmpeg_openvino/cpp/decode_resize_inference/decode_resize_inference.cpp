@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -68,110 +68,119 @@ void print_tensor(std::vector<FramePtr> batched_frames, ov::Tensor output_tensor
 
 int main(int argc, char *argv[]) {
     gflags::ParseCommandLineFlags(&argc, &argv, true);
-    DLS_CHECK(!FLAGS_i.empty() && !FLAGS_m.empty());
-
-    // Read OpenVINO™ toolkit model
-    ov::Core ov_core;
-    auto ov_model = ov_core.read_model(FLAGS_m);
-    auto input = ov_model->inputs()[0];
-    auto input_shape = input.get_shape();
-    auto input_layout = ov::layout::get_layout(input);
-    auto input_width = input_shape[ov::layout::width_idx(input_layout)];
-    auto input_height = input_shape[ov::layout::height_idx(input_layout)];
-
-    // Initialize FFmpeg context and ffmpeg_multi_source element (decode and resize to inference input resolution)
-    auto ffmpeg_ctx = std::make_shared<FFmpegContext>(AV_HWDEVICE_TYPE_VAAPI);
-    auto inputs = split_string(FLAGS_i, FLAGS_delimiter[0]);
-    auto ffmpeg_source = create_source(ffmpeg_multi_source, {{"inputs", inputs}}, ffmpeg_ctx);
-    TensorInfo model_input_info({input_height, input_width, 1}, DataType::UInt8);
-    ffmpeg_source->set_output_info(FrameInfo(ImageFormat::NV12, MemoryType::VAAPI, {model_input_info}));
-
-    // Configure model pre-processing
-    ov::preprocess::PrePostProcessor ppp(ov_model);
-    if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
-        // https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API.html#direct-nv12-video-surface-input
-        ppp.input()
-            .tensor()
-            .set_element_type(ov::element::u8)
-            .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
-            .set_memory_type(ov::intel_gpu::memory_type::surface);
-        ppp.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
-        ppp.input().model().set_layout("NCHW");
-    } else if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_NONE) {
-        auto input_tensor_name = input.get_any_name();
-        ppp.input(input_tensor_name).tensor().set_layout({"NHWC"}).set_element_type(ov::element::u8);
-        ppp.input(input_tensor_name).model().set_layout(input_layout);
-    } else {
-        throw std::runtime_error("Unsupported hw_device_type");
+    if (FLAGS_i.empty() || FLAGS_m.empty()) {
+        std::cerr << "Required command line arguments were not set: -i input_video.mp4 -m model_file.xml" << std::endl;
+        return 1;
     }
-    ov_model = ppp.build();
+    try {
+        // Read OpenVINO™ toolkit model
+        ov::Core ov_core;
+        auto ov_model = ov_core.read_model(FLAGS_m);
+        auto input = ov_model->inputs()[0];
+        auto input_shape = input.get_shape();
+        auto input_layout = ov::layout::get_layout(input);
+        auto input_width = input_shape[ov::layout::width_idx(input_layout)];
+        auto input_height = input_shape[ov::layout::height_idx(input_layout)];
 
-    // Set batch size
-    if (FLAGS_batch_size > 1)
-        ov::set_batch(ov_model, FLAGS_batch_size);
+        // Initialize FFmpeg context and ffmpeg_multi_source element (decode and resize to inference input resolution)
+        auto ffmpeg_ctx = std::make_shared<FFmpegContext>(AV_HWDEVICE_TYPE_VAAPI);
+        auto inputs = split_string(FLAGS_i, FLAGS_delimiter[0]);
+        auto ffmpeg_source = create_source(ffmpeg_multi_source, {{"inputs", inputs}}, ffmpeg_ctx);
+        TensorInfo model_input_info({input_height, input_width, 1}, DataType::UInt8);
+        ffmpeg_source->set_output_info(FrameInfo(ImageFormat::NV12, MemoryType::VAAPI, {model_input_info}));
 
-    // Compile model on VAContext
-    auto vaapi_ctx = VAAPIContext::create(ffmpeg_ctx);
-    ov::intel_gpu::ocl::VAContext ov_context(ov_core, vaapi_ctx->va_display());
-    ov::CompiledModel ov_compiled_model = ov_core.compile_model(ov_model, ov_context);
+        // Configure model pre-processing
+        ov::preprocess::PrePostProcessor ppp(ov_model);
+        if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_VAAPI) {
+            // https://docs.openvino.ai/latest/openvino_docs_OV_UG_supported_plugins_GPU_RemoteTensor_API.html#direct-nv12-video-surface-input
+            ppp.input()
+                .tensor()
+                .set_element_type(ov::element::u8)
+                .set_color_format(ov::preprocess::ColorFormat::NV12_TWO_PLANES, {"y", "uv"})
+                .set_memory_type(ov::intel_gpu::memory_type::surface);
+            ppp.input().preprocess().convert_color(ov::preprocess::ColorFormat::BGR);
+            ppp.input().model().set_layout("NCHW");
+        } else if (ffmpeg_ctx->hw_device_type() == AV_HWDEVICE_TYPE_NONE) {
+            auto input_tensor_name = input.get_any_name();
+            ppp.input(input_tensor_name).tensor().set_layout({"NHWC"}).set_element_type(ov::element::u8);
+            ppp.input(input_tensor_name).model().set_layout(input_layout);
+        } else {
+            throw std::runtime_error("Unsupported hw_device_type");
+        }
+        ov_model = ppp.build();
 
-    // Create inference requests
-    BlockingQueue<ov::InferRequest> free_requests;
-    for (int i = 0; i < FLAGS_nireq; i++)
-        free_requests.push(ov_compiled_model.create_infer_request());
+        // Set batch size
+        if (FLAGS_batch_size > 1)
+            ov::set_batch(ov_model, FLAGS_batch_size);
 
-    // async thread waiting for inference completion and printing inference results
-    BlockingQueue<std::pair<std::vector<FramePtr>, ov::InferRequest>> busy_requests;
-    std::thread thread([&] {
+        // Compile model on VAContext
+        auto vaapi_ctx = VAAPIContext::create(ffmpeg_ctx);
+        ov::intel_gpu::ocl::VAContext ov_context(ov_core, vaapi_ctx->va_display());
+        ov::CompiledModel ov_compiled_model = ov_core.compile_model(ov_model, ov_context);
+
+        // Create inference requests
+        BlockingQueue<ov::InferRequest> free_requests;
+        for (int i = 0; i < FLAGS_nireq; i++)
+            free_requests.push(ov_compiled_model.create_infer_request());
+
+        // async thread waiting for inference completion and printing inference results
+        BlockingQueue<std::pair<std::vector<FramePtr>, ov::InferRequest>> busy_requests;
+        std::thread thread([&] {
+            for (;;) {
+                auto res = busy_requests.pop();
+                auto batched_frames = res.first;
+                auto infer_request = res.second;
+                if (!infer_request)
+                    break;
+                infer_request.wait();
+                print_tensor(batched_frames, infer_request.get_output_tensor(0));
+                free_requests.push(infer_request);
+            }
+            printf("print_tensor() thread completed\n");
+        });
+
+        // Frame loop
+        std::vector<FramePtr> batched_frames;
         for (;;) {
-            auto res = busy_requests.pop();
-            auto batched_frames = res.first;
-            auto infer_request = res.second;
-            if (!infer_request)
+            // FFmpeg video input, decode, resize
+            auto frame = ffmpeg_source->read();
+            if (!frame) // End-Of-Stream or error
                 break;
-            infer_request.wait();
-            print_tensor(batched_frames, infer_request.get_output_tensor(0));
-            free_requests.push(infer_request);
-        }
-        printf("print_tensor() thread completed\n");
-    });
 
-    // Frame loop
-    std::vector<FramePtr> batched_frames;
-    for (;;) {
-        // FFmpeg video input, decode, resize
-        auto frame = ffmpeg_source->read();
-        if (!frame) // End-Of-Stream or error
-            break;
+            // fill full batch
+            batched_frames.push_back(frame);
+            if (batched_frames.size() < FLAGS_batch_size)
+                continue;
 
-        // fill full batch
-        batched_frames.push_back(frame);
-        if (batched_frames.size() < FLAGS_batch_size)
-            continue;
+            // zero-copy conversion from VASurfaceID to OpenVINO™ VASurfaceTensor (one tensor for Y plane, another for
+            // UV)
+            std::vector<ov::Tensor> y_tensors;
+            std::vector<ov::Tensor> uv_tensors;
+            for (auto va_frame : batched_frames) {
+                VASurfaceID va_surface = ptr_cast<VAAPIFrame>(va_frame)->va_surface();
+                auto nv12_tensor = ov_context.create_tensor_nv12(input_height, input_width, va_surface);
+                y_tensors.push_back(nv12_tensor.first);
+                uv_tensors.push_back(nv12_tensor.second);
+            }
 
-        // zero-copy conversion from VASurfaceID to OpenVINO™ VASurfaceTensor (one tensor for Y plane, another for UV)
-        std::vector<ov::Tensor> y_tensors;
-        std::vector<ov::Tensor> uv_tensors;
-        for (auto va_frame : batched_frames) {
-            VASurfaceID va_surface = ptr_cast<VAAPIFrame>(va_frame)->va_surface();
-            auto nv12_tensor = ov_context.create_tensor_nv12(input_height, input_width, va_surface);
-            y_tensors.push_back(nv12_tensor.first);
-            uv_tensors.push_back(nv12_tensor.second);
+            // Get inference request and start asynchronously
+            ov::InferRequest infer_request = free_requests.pop();
+            infer_request.set_input_tensors(0, y_tensors);  // first input is batch of Y planes
+            infer_request.set_input_tensors(1, uv_tensors); // second input is batch of UV planes
+            infer_request.start_async();
+            busy_requests.push({batched_frames, infer_request});
+
+            batched_frames.clear();
         }
 
-        // Get inference request and start asynchronously
-        ov::InferRequest infer_request = free_requests.pop();
-        infer_request.set_input_tensors(0, y_tensors);  // first input is batch of Y planes
-        infer_request.set_input_tensors(1, uv_tensors); // second input is batch of UV planes
-        infer_request.start_async();
-        busy_requests.push({batched_frames, infer_request});
-
-        batched_frames.clear();
+        // wait for all inference requests in queue
+        busy_requests.push({});
+        thread.join();
+    } catch (const std::runtime_error &e) {
+        std::cerr << "Runtime error: " << e.what() << std::endl;
+    } catch (const std::exception &e) {
+        std::cerr << "Exception: " << e.what() << std::endl;
     }
-
-    // wait for all inference requests in queue
-    busy_requests.push({});
-    thread.join();
 
     return 0;
 }

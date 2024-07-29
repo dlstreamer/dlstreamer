@@ -41,35 +41,34 @@ The samples demonstrate deployment and inference with GStreamer command line too
 
 ## Samples
 
-There are two scripts developed to demonstrate deployment of Yolo models: 'yolo_download.sh' to prepare a model and 'yolo_detect.sh' to run object detection pipeline.
+
+The sample `yolo_detect.sh` script can be used to build and run an object detection pipeline.
 
 ```sh
-./yolo_download.sh <MODEL>
 ./yolo_detect.sh <MODEL> <DEVICE>
 ```
+> **NOTE**: Prior to running `yolo_detect.sh`, ensure that you execute the `download_public_models.sh` script found in the top-level `samples` directory. This will allow you to download the full suite of YOLO models or select an individual model from the options presented above.
 
-Example run of 'yolox_s' model with NPU device, saving results into local video file.
+
+Example run of `yolox_s` model with NPU device, saving results into local video file.
 
 ```sh
-./yolo_download.sh yolox_s
 ./yolo_detect.sh yolox_s NPU
 ```
 
-Another example run of 'yolov7' model with GPU device, saving results into local video file.
+Another example run of `yolov7` model with GPU device, saving results into local video file.
 
 ```sh
-./yolo_download.sh yolov7s
-./yolo_detect.sh yolov7s GPU
+./yolo_detect.sh yolov7 GPU
 ```
 
-Yet antoher example run of 'yolov9c' model with CPU device, saving results into local video file.
+Yet antoher example run of `yolov9c` model with CPU device, saving results into local video file.
 
 ```sh
-./yolo_download.sh yolov9c
 ./yolo_detect.sh yolov9c CPU
 ```
 
-Please examine 'yolo_detect.sh' script to see how to source data from input camera and how to generate output other than local video file. 
+Please examine `yolo_detect.sh` script to see how to source data from input camera and how to generate output other than local video file. 
 
 ## See also
 * [Samples overview](../../README.md)

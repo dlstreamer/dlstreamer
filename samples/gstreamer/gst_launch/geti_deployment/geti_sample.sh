@@ -16,7 +16,7 @@ else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL=${1:-detection} # Supported values: detection, classification_single, classification_multi
+MODEL=${1:-geti-segmentation} # Supported values: geti-obb, geti-segmentation, geti-detection, geti-classification-single, geti-classification-multi
 DEVICE=${2:-GPU} # Supported values: CPU, GPU, NPU
 INPUT=${3:-https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4}
 OUTPUT=${4:-file} # Supported values: file, display, fps, json, display-and-json
@@ -39,24 +39,28 @@ fi
 
 if [[ $DEVICE == "CPU" ]]; then
   DECODE_ELEMENT=" ! decodebin !"
-  PREPROC_BACKEND="ie"
+  PREPROC_BACKEND="ie" 
 elif [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
-  DECODE_ELEMENT="! qtdemux ! vah264dec"
-  DECODE_ELEMENT+=" ! video/x-raw\(memory:VAMemory\)"
+  DECODE_ELEMENT="! decodebin ! vapostproc ! video/x-raw(memory:VAMemory) !"
   PREPROC_BACKEND="va-surface-sharing"
 fi
 
 INFERENCE_ELEMENT="gvadetect"
-if [[ $MODEL == "classification_single" ]] || [[ $MODEL == "classification_multi" ]]; then
+if [[ $MODEL == "geti-classification-single" ]] || [[ $MODEL == "geti-classification-multi" ]]; then
   INFERENCE_ELEMENT="gvaclassify inference-region=full-frame"
+fi
+
+WT_OBB_ELEMENT=" "
+if [[ $MODEL == "geti-obb" ]]; then
+  WT_OBB_ELEMENT=" obb=true "
 fi
 
 if [[ $OUTPUT == "file" ]]; then
   FILE="$(basename ${INPUT%.*})"
-  rm -f ${FILE}_output.avi
-  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}_${MODEL}.avi"
+  rm -f "${FILE}_${MODEL}_${DEVICE}.mp4"
+  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT}! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}_${MODEL}_${DEVICE}.mp4"
 elif [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
-  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
+  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT}! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ $OUTPUT == "fps" ]]; then
   SINK_ELEMENT="gvafpscounter ! fakesink async=false"
 elif [[ $OUTPUT == "json" ]]; then
@@ -64,7 +68,7 @@ elif [[ $OUTPUT == "json" ]]; then
   SINK_ELEMENT="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false"
 elif [[ $OUTPUT == "display-and-json" ]]; then
   rm -f output.json
-  SINK_ELEMENT="gvawatermark ! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT}! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
 else
   echo Error wrong value for SINK_ELEMENT parameter
   echo Valid values: "file" - render to file, "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json

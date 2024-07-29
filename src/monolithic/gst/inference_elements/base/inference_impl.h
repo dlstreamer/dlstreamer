@@ -38,6 +38,7 @@ class InferenceImpl {
     static void SetDisplay(GvaBaseInference *gva_base_inference, const dlstreamer::ContextPtr &display);
 
     GstFlowReturn TransformFrameIp(GvaBaseInference *element, GstBuffer *buffer);
+    void FlushOutputs();
     void FlushInference();
     const Model &GetModel() const;
 
@@ -91,6 +92,7 @@ class InferenceImpl {
     std::mutex output_frames_mutex;
 
     void PushOutput();
+    bool CheckSrcPadBlocked(GstObject *src);
     void PushBufferToSrcPad(OutputFrame &output_frame);
     void PushFramesIfInferenceFailed(std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
     void InferenceCompletionCallback(std::map<std::string, InferenceBackend::OutputBlob::Ptr> blobs,

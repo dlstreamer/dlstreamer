@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -30,6 +30,7 @@ else()
     target_include_directories(${TARGET_NAME}
     PRIVATE
         ${DLSTREAMER_BASE_DIR}/include/dlstreamer/gst
+        ${DLSTREAMER_BASE_DIR}/include/
     )
 endif()
 

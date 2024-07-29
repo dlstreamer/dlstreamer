@@ -12,7 +12,7 @@
 #ifndef __TENSOR_H__
 #define __TENSOR_H__
 
-#include "metadata/gva_tensor_meta.h"
+#include "../metadata/gva_tensor_meta.h"
 
 #include <gst/gst.h>
 #include <gst/video/gstvideometa.h>

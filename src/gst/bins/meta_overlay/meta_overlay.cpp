@@ -87,16 +87,33 @@ class CPUPipeBuilder : public PipeBuilder {
 };
 
 class GPUPipeBuilder : public PipeBuilder {
+  private:
+    bool _vaapipostproc_avaliable;
+    bool _vapostproc_avaliable;
+
   public:
+    GPUPipeBuilder()
+        : _vaapipostproc_avaliable(is_vaapipostproc_available()), _vapostproc_avaliable(is_vapostproc_available()) {
+    }
+
     std::string get_preproc() const override {
-        return std::string(elem::videoconvert) + elem::pipe_separator + elem::vaapipostproc;
+        if (_vapostproc_avaliable)
+            return std::string(elem::videoconvert) + elem::pipe_separator + elem::vapostproc;
+        else if (_vaapipostproc_avaliable)
+            return std::string(elem::videoconvert) + elem::pipe_separator + elem::vaapipostproc;
+        else
+            return std::string(elem::videoconvert);
     }
     std::string get_process() const override {
-        return std::string(elem::opencv_meta_overlay) + "  attach-label-mask=true" + elem::pipe_separator +
-               elem::sycl_meta_overlay;
+        return std::string(elem::opencv_meta_overlay);
     }
     std::string get_postproc() const override {
-        return std::string(elem::vaapipostproc) + elem::pipe_separator + elem::videoconvert;
+        if (_vapostproc_avaliable)
+            return std::string(elem::vapostproc) + elem::pipe_separator + elem::videoconvert;
+        else if (_vaapipostproc_avaliable)
+            return std::string(elem::vaapipostproc) + elem::pipe_separator + elem::videoconvert;
+        else
+            return elem::videoconvert;
     }
 };
 
@@ -150,13 +167,13 @@ class MetaOverlayBinPrivate {
   private:
     GstMetaOverlayBin *_self = nullptr;
     GstProcessBin *_base = nullptr;
+    std::unique_ptr<PipeBuilder> pipe_builder;
 
     // properties
     MetaOverlayDevice _device = DEFAULT_DEVICE;
 
     bool link_elements() {
         GObject *gobject = G_OBJECT(_base);
-        std::unique_ptr<PipeBuilder> pipe_builder;
         switch (_device) {
         case CPU:
             pipe_builder = std::make_unique<CPUPipeBuilder>();

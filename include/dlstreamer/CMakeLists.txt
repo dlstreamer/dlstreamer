@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -14,3 +14,5 @@ target_include_directories(${TARGET_NAME}
 INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/..
         )
+
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} DESTINATION ${DLSTREAMER_HEADERS_INSTALL_PATH} FILES_MATCHING PATTERN "*.h")

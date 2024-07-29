@@ -330,6 +330,14 @@ void SetPreprocessor(InferenceConfig &config,
     }
 }
 
+std::string three_doubles_to_str(const std::array<double, 3> &v) {
+    std::string result = std::to_string(v[0]);
+    if (v[1] != v[0] || v[2] != v[0]) {
+        result += " " + std::to_string(v[1]) + " " + std::to_string(v[2]);
+    }
+    return result;
+}
+
 void UpdateConfigWithLayerInfo(const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
                                std::map<std::string, std::map<std::string, std::string>> &config) {
     std::map<std::string, std::string> input_layer_precision;
@@ -344,24 +352,70 @@ void UpdateConfigWithLayerInfo(const std::vector<ModelInputProcessorInfo::Ptr> &
     config[KEY_INPUT_LAYER_PRECISION] = input_layer_precision;
     config[KEY_FORMAT] = input_format;
 
-    // Setup range normalization for IE config
-    double scale = 1.0;
-    int reverse_channels = 0;
     for (const auto &it : model_input_processor_info) {
         if (!it || it->format != "image")
             continue;
         assert(it->precision == "U8");
         auto input_desc = PreProcParamsParser(it->params).parse();
+
+        // It is clearer to composition arbitrary set of pixel value transformations as affine transformations like v' =
+        // v*affine_multiply + affine_add than to composition them as v' = (v-mean)/std However, this involves
+        // conversion to OpenCV format
+        double affine_multiply = 1.0;
+        double affine_add = 0.0;
+        bool had_range_or_scale = false;
         if (input_desc && input_desc->doNeedRangeNormalization()) {
             const auto &range = input_desc->getRangeNormalization();
-            scale = 255.0 / (range.max - range.min);
-            std::string scale_str = std::to_string(scale);
-            config[KEY_BASE][KEY_SCALE_FACTOR] = scale_str;
+            affine_multiply = (range.max - range.min) / 255.0;
+            affine_add += range.min;
+            had_range_or_scale = true;
         }
+        double scale = 0;
         if (gst_structure_get_double(it->params, "scale", &scale)) {
-            std::string scale_str = std::to_string(scale);
-            config[KEY_BASE][KEY_SCALE_FACTOR] = scale_str;
+            affine_multiply /= scale;
+            affine_add /= scale;
+            had_range_or_scale = true;
         }
+        std::array<double, 3> affine_add_3 = {affine_add, affine_add, affine_add};
+        std::array<double, 3> affine_multiply_3 = {affine_multiply, affine_multiply, affine_multiply};
+
+        if (input_desc && input_desc->doNeedDistribNormalization()) {
+
+            // If no range nor scale are given but distrib normalization is specified, normalize values to 0..1 range so
+            // that distrib normalization works same as in Pytorch and matches what one would expect from our own
+            // documentation
+            if (!had_range_or_scale)
+                affine_multiply /= 255.0;
+
+            // mean and std works as
+            // v ' = (v-mean)/std
+            // v ' = (v-mean) * 1/std
+            // v ' = v * 1/std + (-mean/std)
+            // multiplier = 1/std
+            // add = (-mean/std)
+            auto norm = input_desc->getDistribNormalization();
+            for (int i = 0; i < 3; ++i) {
+                affine_multiply_3[i] /= norm.std[i];
+                affine_add_3[i] -= norm.mean[i] / norm.std[i];
+            }
+        }
+        std::array<double, 3> mean, std_dev;
+        // multiplier = 1/std
+        // std = 1/multiplier
+        // add = -mean/std
+        // -add*std = mean
+        for (int i = 0; i < 3; ++i) {
+            std_dev[i] = 1.0 / affine_multiply_3[i];
+            mean[i] = -affine_add_3[i] * std_dev[i];
+        }
+        if (std_dev != std::array<double, 3>({1.0, 1.0, 1.0})) {
+            config[KEY_BASE][KEY_PIXEL_VALUE_SCALE] = three_doubles_to_str(std_dev);
+        }
+        if (mean != std::array<double, 3>({0.0, 0.0, 0.0})) {
+            config[KEY_BASE][KEY_PIXEL_VALUE_MEAN] = three_doubles_to_str(mean);
+        }
+
+        int reverse_channels = 0; // TODO: verify that channel reversal works correctly with mean and std!
         if (gst_structure_get_int(it->params, "reverse_input_channels", &reverse_channels)) {
             config[KEY_BASE][KEY_MODEL_FORMAT] = reverse_channels ? "RGB" : "BGR";
         }
@@ -610,6 +664,10 @@ void InferenceImpl::FlushInference() {
     model.inference->Flush();
 }
 
+void InferenceImpl::FlushOutputs() {
+    PushOutput();
+}
+
 void InferenceImpl::UpdateObjectClasses(const gchar *obj_classes_str) {
     // Lock mutex to avoid data race in case of shared inference instance in multichannel mode
     std::unique_lock<std::mutex> lock(_mutex);
@@ -675,21 +733,51 @@ void InferenceImpl::PushOutput() {
     ITT_TASK(__FUNCTION__);
     std::lock_guard<std::mutex> guard(output_frames_mutex);
 
-    while (!output_frames.empty()) {
-        auto &front = output_frames.front();
-        if (front.inference_count != 0) {
+    // track output queues that are full
+    std::map<std::string, bool> output_full;
+
+    auto frame = output_frames.begin();
+    while (frame != output_frames.end()) {
+        if ((*frame).inference_count != 0) {
             break; // inference not completed yet
         }
 
-        for (const std::shared_ptr<InferenceFrame> &inference_roi : front.inference_rois) {
+        for (const std::shared_ptr<InferenceFrame> &inference_roi : (*frame).inference_rois) {
             for (const GstStructure *roi_classification : inference_roi->roi_classifications) {
-                UpdateClassificationHistory(&inference_roi->roi, front.filter, roi_classification);
+                UpdateClassificationHistory(&inference_roi->roi, (*frame).filter, roi_classification);
             }
         }
 
-        PushBufferToSrcPad(front);
-        output_frames.pop_front();
+        // 'output_frames' queue can be shared across streams and it is subject to HOL blocking
+        // do not send frame to a blocked output, but check if there frames ready to non-blocked outputs
+        GstObject *src = &(*frame).filter->base_transform.element.object;
+        if (CheckSrcPadBlocked(src) || output_full[src->name]) {
+            output_full[src->name] = true;
+            frame++; // output blocked, try next frame
+        } else {
+            PushBufferToSrcPad(*frame);
+            frame = output_frames.erase(frame);
+        }
     }
+}
+
+bool InferenceImpl::CheckSrcPadBlocked(GstObject *src) {
+    bool blocked = false;
+
+    GstObject *dst = gst_pad_get_parent(gst_pad_get_peer(GST_BASE_TRANSFORM_SRC_PAD(src)));
+    if (strcmp(dst->name, "queue") > 0) {
+        guint buf_cnt;
+        g_object_get(dst, "current-level-buffers", &buf_cnt, NULL);
+        GstState state, pending;
+        gst_element_get_state(GST_ELEMENT(dst), &state, &pending, GST_CLOCK_TIME_NONE);
+
+        if ((buf_cnt > 1) && (state == GST_STATE_PAUSED)) {
+            blocked = true;
+        }
+    }
+    gst_object_unref(dst);
+
+    return blocked;
 }
 
 void InferenceImpl::PushBufferToSrcPad(OutputFrame &output_frame) {
@@ -859,7 +947,19 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     // push into output_frames queue
     {
         ITT_TASK("InferenceImpl::TransformFrameIp pushIntoOutputFramesQueue");
-        std::lock_guard<std::mutex> guard(output_frames_mutex);
+        std::unique_lock output_lock(output_frames_mutex);
+
+        // pause on accepting a new frame if downstream already blocks
+        GstObject *src = &gva_base_inference->base_transform.element.object;
+        while (CheckSrcPadBlocked(src)) {
+            output_lock.unlock();
+            lock.unlock();
+            GVA_INFO("Wait on blocking output <%s>", src->name);
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+            lock.lock();
+            output_lock.lock();
+        }
+
         if (!inference_count && output_frames.empty()) {
             // If we don't need to run inference and there are no frames queued for inference then finish transform
             return GST_FLOW_OK;

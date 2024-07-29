@@ -437,6 +437,11 @@ GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstSta
     GvaBaseInference *base_inference = GVA_BASE_INFERENCE(element);
     GST_DEBUG_OBJECT(base_inference, "gva_base_inference_change_state");
 
+    if (base_inference->inference && (transition == GST_STATE_CHANGE_PAUSED_TO_PLAYING)) {
+        GST_DEBUG_OBJECT(base_inference, "Flushing outputs on transition to PLAYING state");
+        base_inference->inference->FlushOutputs();
+    }
+
     return GST_ELEMENT_CLASS(gva_base_inference_parent_class)->change_state(element, transition);
 }
 

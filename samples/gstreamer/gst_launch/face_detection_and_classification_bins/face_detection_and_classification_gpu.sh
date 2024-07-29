@@ -7,7 +7,7 @@
 set -e
 
 INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
-OUTPUT=${2:-display} # Supported values: display, fps, json, display-and-json
+OUTPUT=${2:-display} # Supported values: display, fps, json, display-and-json, file
 
 if [[ $INPUT == "/dev/video"* ]]; then
   SOURCE_ELEMENT="v4l2src device=${INPUT}"
@@ -31,9 +31,13 @@ elif [[ $OUTPUT == "json" ]]; then
 elif [[ $OUTPUT == "display-and-json" ]]; then
   rm -f output.json
   SINK_ELEMENT="gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+elif [[ $OUTPUT == "file" ]]; then
+  FILE="$(basename ${INPUT%.*})"
+  rm -f "${FILE}.mp4"
+  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}.mp4"
 else
   echo Error wrong value for OUTPUT parameter
-  echo Valid values: "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
+  echo Valid values: "file" - render to file, "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
   exit
 fi
 
@@ -41,17 +45,17 @@ gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
 decodebin ! \
 processbin \
-    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! vaapipostproc ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
+    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! vaapipostproc ! videoscale ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL1_PATH device=GPU" \
     postprocess="tensor_postproc_detection threshold=0.5" \
     aggregate="meta_aggregate attach-tensor-data=false" ! \
 processbin \
-    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! roi_split ! vaapipostproc ! videoconvert ! tensor_convert" \
+    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! roi_split ! vaapipostproc ! videoscale ! videoconvert ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL2_PATH device=GPU" \
     postprocess="tensor_postproc_label labels=<neutral,happy,sad,surprise,anger> attribute-name=emotion method=max" \
     aggregate=meta_aggregate ! \
 processbin \
-    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! roi_split ! vaapipostproc ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
+    preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! roi_split ! vaapipostproc ! videoscale ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL3_PATH device=GPU" \
     postprocess="tensor_postproc_add_params format=landmark_points" \
     aggregate=meta_aggregate ! \

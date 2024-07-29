@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,8 +14,8 @@
 
 #include "region_of_interest.h"
 
-#include "metadata/gva_json_meta.h"
-#include "metadata/gva_tensor_meta.h"
+#include "../metadata/gva_json_meta.h"
+#include "../metadata/gva_tensor_meta.h"
 
 #include <algorithm>
 #include <assert.h>

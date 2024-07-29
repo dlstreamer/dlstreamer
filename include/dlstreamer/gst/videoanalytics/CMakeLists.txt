@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -53,5 +53,3 @@ endif()
 configure_file(${CMAKE_SOURCE_DIR}/cmake/dl-streamer.pc.in ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc @ONLY)
 
 install(FILES ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/pkgconfig/dl-streamer.pc DESTINATION ${DLSTREAMER_LIBRARIES_INSTALL_PATH}/pkgconfig/)
-
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} DESTINATION ${DLSTREAMER_HEADERS_INSTALL_PATH}/gst FILES_MATCHING PATTERN "*.h")

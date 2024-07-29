@@ -1,62 +1,162 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2021-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
+# This sample refers to a video file by Rihard-Clement-Ciprian Diac via Pexels
+# (https://www.pexels.com)
+# ==============================================================================
 
-set -e
+# Define model proc files
+declare -A MODEL_PROC_FILES
+MODEL_PROC_FILES["mask_rcnn_inception_resnet_v2_atrous_coco"]="../../model_proc/public/mask-rcnn.json"
+MODEL_PROC_FILES["mask_rcnn_resnet50_atrous_coco"]="../../model_proc/public/mask-rcnn.json"
 
-if [ -z "${MODELS_PATH:-}" ]; then
-  echo "Error: MODELS_PATH is not set." >&2 
-  exit 1
-else 
-  echo "MODELS_PATH: $MODELS_PATH"
+# Allowed choices for arguments
+ALLOWED_MODELS=("mask_rcnn_inception_resnet_v2_atrous_coco" "mask_rcnn_resnet50_atrous_coco")
+ALLOWED_DEVICES=("CPU" "GPU" "NPU")
+ALLOWED_OUTPUTS=("file" "display" "fps" "json" "display-and-json" "jpeg")
+
+# Default values
+MODEL="mask_rcnn_inception_resnet_v2_atrous_coco"
+DEVICE="CPU"
+INPUT="https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"
+OUTPUT="file"
+BENCHMARK_SINK=""
+
+# Function to check if an item is in an array
+containsElement () {
+  local element match="$1"
+  shift
+  for element; do
+    [[ "$element" == "$match" ]] && return 0
+  done
+  return 1
+}
+
+# Parse arguments
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --model)
+            MODEL="$2"
+            if ! containsElement "$MODEL" "${ALLOWED_MODELS[@]}"; then
+                echo "Invalid model choice. Allowed choices are: ${ALLOWED_MODELS[*]}"
+                exit 1
+            fi
+            shift
+            ;;
+        --device)
+            DEVICE="$2"
+            if ! containsElement "$DEVICE" "${ALLOWED_DEVICES[@]}"; then
+                echo "Invalid device choice. Allowed choices are: ${ALLOWED_DEVICES[*]}"
+                exit 1
+            fi
+            shift
+            ;;
+        --input)
+            INPUT="$2"
+            shift
+            ;;
+        --benchmark_sink)
+            BENCHMARK_SINK="$2"
+            shift
+            ;;
+        --output)
+            OUTPUT="$2"
+            if ! containsElement "$OUTPUT" "${ALLOWED_OUTPUTS[@]}"; then
+                echo "Invalid output choice. Allowed choices are: ${ALLOWED_OUTPUTS[*]}"
+                exit 1
+            fi
+            shift
+            ;;
+        *)
+            echo "Unknown parameter passed: $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+# Check if MODELS_PATH is set
+if [ -z "$MODELS_PATH" ]; then
+    echo "ERROR - MODELS_PATH is not set." >&2
+    exit 1
 fi
 
-INPUT=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/classroom.mp4}
-DEVICE=${2:-CPU}
-OUTPUT=${3:-display} # Supported values: display, fps, json, display-and-json
-SEGMENTATION_MODEL=${4:-instance-segmentation-security-1040}
+# Print MODELS_PATH
+echo "MODELS_PATH: $MODELS_PATH"
 
-if [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
-  SINK_ELEMENT="gvawatermark ! videoconvert ! gvafpscounter ! autovideosink sync=false"
-elif [[ $OUTPUT == "fps" ]]; then
-  SINK_ELEMENT="gvafpscounter ! fakesink async=false "
-elif [[ $OUTPUT == "json" ]]; then
-  rm -f output.json
-  SINK_ELEMENT="gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false "
-elif [[ $OUTPUT == "display-and-json" ]]; then
-  rm -f output.json
-  SINK_ELEMENT="gvawatermark ! gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+# Save the original directory
+orig_dir=$(pwd) || exit
+
+# Change directory to the script's location
+cd "$(dirname "$0")" || exit
+
+# Get the model proc file path
+MODEL_PROC=${MODEL_PROC_FILES[$MODEL]}
+MODEL_PROC=$(realpath "$MODEL_PROC")
+
+if [ ! -f "$MODEL_PROC" ]; then
+    echo "ERROR - model-proc file not found: $MODEL_PROC." >&2
+    exit 1
+fi
+
+# Change back to the previous directory
+cd "$orig_dir" || exit
+
+# Construct the model path
+MODEL_PATH="${MODELS_PATH}/public/${MODEL}/FP16/${MODEL}.xml"
+
+# Check if model exists in local directory
+if [ ! -f "$MODEL_PATH" ]; then
+    echo "ERROR - model not found: $MODEL_PATH" >&2
+    exit 1
+fi
+
+# Determine the source element based on the input
+if [[ "$INPUT" == "/dev/video"* ]]; then
+    SOURCE_ELEMENT="v4l2src device=${INPUT}"
+elif [[ "$INPUT" == *"://"* ]]; then
+    SOURCE_ELEMENT="urisourcebin buffer-size=4096 uri=${INPUT}"
 else
-  echo Error wrong value for SINK_ELEMENT parameter
-  echo Valid values: "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
-  exit
+    SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-if [[ $INPUT == "/dev/video"* ]]; then
-  SOURCE_ELEMENT="v4l2src device=${INPUT}"
-elif [[ $INPUT == *"://"* ]]; then
-  SOURCE_ELEMENT="urisourcebin buffer-size=4096 uri=${INPUT}"
-else
-  SOURCE_ELEMENT="filesrc location=${INPUT}"
+# Set decode and preprocessing elements based on the device
+DECODE_ELEMENT="! decodebin !"
+PREPROC_BACKEND="ie"
+if [[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]; then
+    DECODE_ELEMENT+="vapostproc ! video/x-raw(memory:VAMemory) !"
+    PREPROC_BACKEND="va"
 fi
 
-MODEL_PATH="${MODELS_PATH:=.}"/intel/${SEGMENTATION_MODEL}/FP32/${SEGMENTATION_MODEL}.xml
+FILE=$(basename "$INPUT" | cut -d. -f1)
 
-echo Running sample with the following parameters:
-echo GST_PLUGIN_PATH="${GST_PLUGIN_PATH}"
+# Determine SINK_ELEMENT based on output argument
+declare -A sink_elements
+sink_elements["file"]="gvawatermark ! gvafpscounter ! vah264enc ! h264parse ! mp4mux ! filesink location=DLS_${FILE}_${DEVICE}.mp4"
+sink_elements['display']="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
+sink_elements['fps']="gvafpscounter ! fakesink sync=false"
+sink_elements['json']="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! fakesink sync=false"
+sink_elements['display-and-json']="gvawatermark ! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=DLS_${FILE}_${DEVICE}.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+sink_elements["jpeg"]="gvawatermark ! videoconvertscale ! jpegenc ! multifilesink location=DLS_${FILE}_${DEVICE}_%05d.jpeg"
+SINK_ELEMENT=${sink_elements[$OUTPUT]}
 
-LABELS_PATH=$(dirname "$0")/../../../labels
+# Construct the GStreamer pipeline
+PIPELINE="gst-launch-1.0 ${SOURCE_ELEMENT} ${BENCHMARK_SINK} ${DECODE_ELEMENT} gvadetect model=${MODEL_PATH} "
+if [ -n "$MODEL_PROC" ]; then
+    PIPELINE+="model-proc=${MODEL_PROC} "
+fi
+PIPELINE+="device=${DEVICE} pre-process-backend=${PREPROC_BACKEND} ! queue ! ${SINK_ELEMENT}"
 
-PIPELINE="gst-launch-1.0 \
-$SOURCE_ELEMENT ! decodebin ! \
-object_detect
-  model=$MODEL_PATH device=$DEVICE \
-  labels-file=$(realpath "$LABELS_PATH"/coco_80cl.txt) ! \
-opencv_find_contours ! \
-$SINK_ELEMENT"
+# Get the width of the terminal
+term_width=$(tput cols)
+# Create a horizontal line with the correct number of asterisks
+line=$(printf '%*s' "$term_width" '' | tr ' ' '*')
+# Print the message with new lines and dynamic asterisks
+echo -e "\n$line"
+echo -e "$PIPELINE"
+echo -e "$line\n"
 
-echo "${PIPELINE}"
 $PIPELINE

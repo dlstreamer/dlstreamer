@@ -1,38 +1,41 @@
 # Instance Segmentation Sample (gst-launch command line)
 
-This sample demonstrates demonstrates instance segmentation pipeline constructed via `gst-launch-1.0` command-line utility.
+This sample demonstrates an instance segmentation pipeline built using the `gst-launch-1.0` command-line utility.
 
-![example](./classroom.png)
+![example](./street.jpeg)
 
 ## How It Works
-The sample utilizes GStreamer command-line tool `gst-launch-1.0` which can build and run GStreamer pipeline described in a string format.
-The string contains a list of GStreamer elements separated by exclamation mark `!`, each element may have properties specified in the format `property`=`value`.
+The sample utilizes the GStreamer command-line tool `gst-launch-1.0`, which can construct and execute a GStreamer pipeline defined in a string format. This string comprises a sequence of GStreamer and DLStreamer elements, each separated by an exclamation mark (`!`). Properties for each element can be specified using the format `property`=`value`.
 
-This sample builds GStreamer pipeline of the following elements
-* `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
-* `decodebin` for video decoding
-* `videoconvert` for converting video frame into different color formats
-* [object_detect] for converting video frame into custom tensor, inferencing using OpenVINO™ toolkit and post process data to bounding box and mask.
-* [object_classify] for setting preprocess to crop bounding box, remove background, run inferencing using OpenVINO™ toolkit and post process data to attach classification results.
-* [roi_split] cropping all ROI regions to images and push.
-* [opencv_remove_background] Removes background for each ROI image.
-* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
-* `autovideosink` for rendering output video into screen
-> **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
+The sample constructs GStreamer pipelines with the following elements:
+* `filesrc` or `urisourcebin` or `v4l2src` for input from a file, URL, or web camera
+* `decodebin` to construct a decoding pipeline using available decoders and demuxers via auto-plugging
+* `vapostproc ! video/x-raw(memory:VAMemory)` to facilitate video processing on the GPU
+* [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) for performing object detection using Mask RCNN models
+* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) to visualize segmentation masks on the video
+* [gvafpscounter](https://dlstreamer.github.io/elements/gvafpscounter.html) to measure and display frames per second
+* [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) o transform the metadata into JSON format
+* [gvametapublish](https://dlstreamer.github.io/elements/gvametapublish.html) to save the metadata as a JSON file
+* `videoconvertscale` to automatically convert the video to a format understood by the sink, and to resize video frames if necessary
+* `vah264enc ! h264parse ! mp4mux` to encode the raw video into H.264 bitstream, ensure that the stream is correctly formatted and contains the necessary headers and metadata, and to create the MP4 file structure
+* `jpegenc` for encoding frames as JPEG images
+* `autovideosink` for displaying the output video on the screen
+* `filesink` and `multifilesink` for writing data to a file or multiple files
+> **NOTE**: The `sync=false` property in sink elements is used to disable real-time synchronization, allowing the pipeline to run at maximum speed.
+
+The pipeline created by the example script is displayed for inspection before the pipeline starts.
 
 ## Models
 
-The sample uses by default the following pre-trained model from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
-*   __instance-segmentation-security-1040__ is primary detection to detect boxes and masks
+The sample uses the following pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+*   [__mask_rcnn_inception_resnet_v2_atrous_coco__](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mask_rcnn_inception_resnet_v2_atrous_coco) (default)
+*   [__mask_rcnn_resnet50_atrous_coco__](https://github.com/openvinotoolkit/open_model_zoo/tree/master/models/public/mask_rcnn_resnet50_atrous_coco)
 
-The sample can also run using below models with no modifications.
-*   __instance-segmentation-security-0002__
-*   __instance-segmentation-security-0091__
-*   __instance-segmentation-security-1039__
-*   __instance-segmentation-security-0228__
 
-> **NOTE**: Before running samples (including this one), run script `download_omz_models.sh` once (the script located in `samples` top folder) to download all models required for this and other samples.
+> **NOTE**: Before running samples (including this one), run the script `download_omz_models.sh` once (the script is located in `samples` top folder) to download all models required for this and other samples.
+
+
 
 ## Running
 
@@ -43,45 +46,36 @@ python3 -m pip install --upgrade pip
 python3 -m pip install -r ../../../../requirements.txt
 cd -
 ```
-Run sample:
-#### Segmentation
+The sample script __instance_segmentation.sh__ accepts the following command line optional arguments:
+* --input - a web camera device (ex. `/dev/video0`), an url or a path to an MP4 video file (*a sample video from videos.pexels.com is used by default*)
+* --model - mask_rcnn_inception_resnet_v2_atrous_coco (*default*) or  mask_rcnn_resnet50_atrous_coco
+* --output - file (*default*), display, fps, json, display-and-json, jpeg
+* --device - CPU (*default*), GPU, NPU
+
+The --output option is described below in __Sample Output__ section.
+
+For example:
+
 ```sh
-./instance_segmentation.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT] [SEGMENTATION_MODEL]
-```
-#### Classification with background removal
-```sh
-./classification_with_background_removal.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT] [SEGMENTATION_MODEL]
+./instance_segmentation.sh --input my_video.mp4 --output json --device GPU
 ```
 
-#### ROI background removal
-```sh
-./roi_background_removal.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT] [SEGMENTATION_MODEL]
-```
+will run the default model (mask_rcnn_inception_resnet_v2_atrous_coco) on a GPU to detect object boundaries in my_video.mp4. The detection results will be stored in a file named DLS_my_video_GPU.json.
 
-The sample takes three command-line *optional* parameters:
-1. [INPUT_VIDEO] to specify input video file.
-The input could be
-* local video file
-* web camera device (ex. `/dev/video0`)
-* RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)
-If parameter is not specified, the sample by default streams video example from HTTPS link (utilizing `urisourcebin` element) so requires internet conection.
-2. [DEVICE] to specify device for detection and classification.
-        Please refer to OpenVINO™ toolkit documentation for supported devices.
-        https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_Supported_Devices.html
-        You can find what devices are supported on your system by running following OpenVINO™ toolkit sample:
-        https://docs.openvinotoolkit.org/latest/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html
-3. [SINK_ELEMENT] to choose between render mode and fps throughput mode:
-    * display - render (default)
-    * fps - FPS only
-4. [SEGMENTATION_MODEL] to set different supported models.:
-    * instance-segmentation-security-1040 (default)
 
 ## Sample Output
 
-The sample
-* prints gst-launch-1.0 full command line into console
-* starts the command and either visualizes video with bounding boxes and contour points around detected objects or
-prints out fps if you set SINK_ELEMENT = fps
+The sample script will save the detection results in a file within the current directory. The file naming convention is as follows:  DLS_{*file*}_{*device*}.{*extension*}. Here, *file* is the name of the original input file without its extension, *device* denotes the computing device utilized for inference (which can be specified using the --device option), and *extension* is "mp4", "jpeg" or "json", depending on the requested output type.
+
+
+The script's output is determined by the --output parameter value:
+
+* file - segmentation results are overlaid on the video frames and saved as an MP4 video file
+* jpeg - similar to *file*, but the frames are saved as individual JPEG images
+* display - the results are displayed on the screen in real-time
+* json - the model's output is stored in a JSON file
+* display-and-json - the results are both displayed on the screen and saved in a JSON file
+* fps - the script measures and displays the frames per second without saving any visual output
 
 ## See also
 * [Samples overview](../../README.md)

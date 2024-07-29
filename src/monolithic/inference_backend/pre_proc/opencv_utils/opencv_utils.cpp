@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -337,6 +337,15 @@ void AddPadding(cv::Mat &image, const cv::Size dst_size, size_t stride_x, size_t
 
 void Normalization(cv::Mat &image, double mean, double std) {
     ITT_TASK("cv::convertTo");
+    switch (image.depth()) {
+    case CV_32F:
+    case CV_64F:
+    case CV_16F:
+        break;
+    default:
+        throw std::runtime_error("model_proc file specifies 'mean' and 'std' parameters, but the input data is not in "
+                                 "a floating point format. You should use 'range' parameter instead.");
+    }
     image.convertTo(image, CV_MAKETYPE(CV_32F, image.channels()), (1 / std), (0 - mean));
 }
 
@@ -347,8 +356,18 @@ void Normalization(cv::Mat &image, const std::vector<double> &mean, const std::v
     if (channels_num != mean.size())
         throw std::runtime_error("Image\'s channels number does not match with size of mean/std parameters.");
 
-    if (image.depth() != CV_32F)
+    switch (image.depth()) {
+    case CV_32F:
+        break;
+    case CV_64F:
+    case CV_16F:
+        // TODO: eliminate need for conversion?
         image.convertTo(image, CV_MAKETYPE(CV_32F, image.channels()));
+        break;
+    default:
+        throw std::runtime_error("model_proc file specifies 'mean' and 'std' parameters, but the input data is not in "
+                                 "a floating point format. You should use 'range' parameter instead.");
+    }
 
     switch (channels_num) {
     case 1:

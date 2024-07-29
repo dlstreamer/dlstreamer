@@ -249,8 +249,8 @@ class MetaAggregatePrivate {
             return GST_AGGREGATOR_FLOW_NEED_DATA;
         }
 
-        // auto deleter = [](GstBuffer *ptr) { gst_buffer_unref(ptr); };
-        // auto sg_buf = std::unique_ptr<GstBuffer, decltype(deleter)>(buf, deleter);
+        auto deleter = [](GstBuffer *ptr) { gst_buffer_unref(ptr); };
+        auto sg_buf = std::unique_ptr<GstBuffer, decltype(deleter)>(buf, deleter);
 
         GstClockTime time_start = GST_BUFFER_PTS(buf);
         if (!GST_CLOCK_TIME_IS_VALID(time_start)) {
@@ -265,7 +265,7 @@ class MetaAggregatePrivate {
             return GST_AGGREGATOR_FLOW_NEED_DATA;
         }
 
-        // sg_buf.release();
+        sg_buf.release();
 
         GstClockTime buf_duration;
         if (!GST_BUFFER_DURATION_IS_VALID(buf)) {

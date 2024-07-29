@@ -9,7 +9,7 @@ cmake_minimum_required(VERSION 3.12)
 set (TARGET_NAME "ffmpeg_dpcpp_rgb_to_grayscale")
 
 find_package(PkgConfig REQUIRED)
-find_package(LIBAV COMPONENTS libavformat libavcodec libswscale libavutil)
+pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)
 pkg_check_modules(LIBVA libva libva-drm)
 pkg_check_modules(LEVEL_ZERO libze_loader)
 find_package(gflags)
@@ -18,8 +18,11 @@ execute_process(COMMAND which icpx RESULT_VARIABLE status OUTPUT_VARIABLE out OU
 if (status EQUAL 0 AND LIBAV_FOUND AND LIBVA_FOUND AND LEVEL_ZERO_FOUND AND gflags_FOUND)
 
 set(CMAKE_CXX_COMPILER icpx)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl")
+# Because we are not compiling with the same compile as the main CMakefile, we have to disable some of the f
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsycl -Wno-error=unused-command-line-argument")
+set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wno-error=unused-command-line-argument")
 string(REPLACE "-fno-strict-overflow" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+string(REPLACE "-pie" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization -Rno-debug-disables-optimization -Wno-unknown-warning-option")
 endif()
@@ -42,6 +45,7 @@ target_include_directories(${TARGET_NAME}
 PRIVATE
         ${DLSTREAMER_INCLUDE_DIRS}
 )
+target_link_directories(${TARGET_NAME} PRIVATE  ${LIBAV_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE

@@ -244,14 +244,18 @@ struct ConfigHelper {
         return format;
     }
 
-    float image_scale() const {
+    static std::vector<float> string_to_floats(const std::string &str) {
+        if (str.empty()) {
+            return {};
+        }
         try {
-            std::string scale_str = base_get_or_empty(KEY_SCALE_FACTOR);
-            if (scale_str == empty_str) {
-                return 1.0;
+            std::istringstream ss(str);
+            std::vector<float> result;
+            float val = 0.0f;
+            while (ss >> val) {
+                result.push_back(val);
             }
-            float scale_factor = std::stof(scale_str);
-            return scale_factor;
+            return result;
         } catch (const std::invalid_argument &e) {
             // Handle the exception if the conversion fails
             GVA_ERROR("Invalid argument: %s", e.what());
@@ -261,6 +265,14 @@ struct ConfigHelper {
             GVA_ERROR("Out of range: %s", e.what());
             std::throw_with_nested(std::runtime_error("Pre-processing was failed."));
         }
+    }
+
+    std::vector<float> pixel_value_mean() const {
+        return string_to_floats(base_get_or_empty(KEY_PIXEL_VALUE_MEAN));
+    }
+
+    std::vector<float> pixel_value_scale() const {
+        return string_to_floats(base_get_or_empty(KEY_PIXEL_VALUE_SCALE));
     }
 
     bool need_reshape() const {
@@ -423,7 +435,6 @@ class OpenVinoNewApiImpl {
         // read model & configure model
         _model = core().read_model(config.model_path());
 
-        // FIXME: saving original model input width a height
         {
             size_t bs;
             int fmt, mt;
@@ -810,7 +821,6 @@ class OpenVinoNewApiImpl {
     int _nireq = 0;
     int _batch_size = 0;
 
-    // FIXME: get rid of these. "Original" model input width/height
     size_t _origin_model_in_w = 0;
     size_t _origin_model_in_h = 0;
     bool _was_resize = false;
@@ -1007,9 +1017,19 @@ class OpenVinoNewApiImpl {
             input.preprocess().convert_element_type(node_element_type);
 
         // If defined, scale the image by the defined value
-        float scale_factor = config.image_scale();
-        if (scale_factor != 1.0) {
-            input.preprocess().scale(scale_factor);
+        auto mean = config.pixel_value_mean();
+        auto scale = config.pixel_value_scale();
+
+        if (mean.size() == 1) {
+            input.preprocess().mean(mean[0]);
+        } else if (mean.size() >= 1) {
+            input.preprocess().mean(mean);
+        }
+
+        if (scale.size() == 1) {
+            input.preprocess().scale(scale[0]);
+        } else if (scale.size() > 1) {
+            input.preprocess().scale(scale);
         }
 
         // OV preprocessor does implicit layout conversion. If original layout is unknown, assume it is NCHW.

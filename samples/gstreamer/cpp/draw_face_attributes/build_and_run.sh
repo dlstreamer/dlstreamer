@@ -5,12 +5,26 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
+#If you want to use your own input file, provide an absolute path
 FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
-OUTPUT=${2:-display} # Valid values: display, display-and-json, json
+OUTPUT=${2:-json} # Valid values: display, display-and-json, json, file
+DEVICE=${3:-CPU} # Valid devices: CPU, GPU,NPU?
 
+if [ -z "${MODELS_PATH:-}" ]; then
+  echo "Error: MODELS_PATH is not set." >&2
+  exit 1
+else
+  echo "MODELS_PATH: $MODELS_PATH"
+fi
+
+e
 BASE_DIR="$(realpath "$(dirname "$0")")"
-BUILD_DIR=$HOME/intel/dl_streamer/samples/draw_face_attributes/build
-rm -rf "${BUILD_DIR}"
+BUILD_DIR=$HOME/build
+
+if [ -d "${BUILD_DIR}" ]; then
+  rm -rf "${BUILD_DIR}"
+fi
+
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}" || exit
 
@@ -22,4 +36,5 @@ fi
 
 make -j "$(nproc)"
 
-"${BUILD_DIR}"/draw_face_attributes -i "$FILE" -o "$OUTPUT"
+"${BUILD_DIR}"/draw_face_attributes -i "$FILE" -o "$OUTPUT" -d "$DEVICE"
+cp ${BUILD_DIR}/output.json /home/dlstreamer/

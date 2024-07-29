@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -13,12 +13,10 @@ set (CMAKE_C_STANDARD 11)
 set (CMAKE_CXX_STANDARD 17)
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil)
-find_package(OpenVINO COMPONENTS Runtime)
-find_package(OpenCL)
-find_package(gflags)
-
-if (LIBAV_FOUND AND OpenVINO_FOUND AND OpenCL_FOUND AND gflags_FOUND)
+pkg_check_modules(LIBAV libavformat libavcodec libswscale libavutil REQUIRED)
+find_package(OpenVINO COMPONENTS Runtime REQUIRED)
+find_package(OpenCL REQUIRED)
+find_package(gflags REQUIRED)
 
 file (GLOB MAIN_SRC *.cpp)
 file (GLOB MAIN_HEADERS *.h)
@@ -40,6 +38,7 @@ target_include_directories(${TARGET_NAME}
 PRIVATE
         ${DLSTREAMER_INCLUDE_DIRS}
 )
+target_link_directories(${TARGET_NAME} PRIVATE ${LIBAV_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
@@ -49,5 +48,3 @@ PRIVATE
         ${LIBAV_LIBRARIES}
         ${OpenCL_LIBRARY}
         gflags)
-
-endif()
