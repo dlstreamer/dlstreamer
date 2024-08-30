@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,6 +8,7 @@
 
 #include <common.hpp>
 
+#include <cstdint>
 #include <stdexcept>
 #include <string>
 

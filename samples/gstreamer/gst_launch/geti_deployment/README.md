@@ -9,25 +9,28 @@ In all cases, the platform outputs AI models in Intel® OpenVINO™ format: 'ope
 This sample assumes a user has already trained models using Intel® Geti™ Platform and stored the output models in the followign folder structure: 
 
 ```sh
--geti
- |-detection/FP16               # model trained with Geti™ 'Detection bounding box' project
-   |-openvino.xml                   # detection model metadata
-   |-openvino.bin                   # detection model weights
- |-classification_single/FP16   # model trained with Geti™ 'Classification single label' project
-   |-openvino.xml                   # classifcation model metadata
-   |-openvino.bin                   # classifcation model weights 
- |-classification_multi/FP16    # model trained with Geti™ 'Classification multi label' project       
-   |-openvino.xml                   # detection model metadata
-   |-openvino.bin                   # detection model weights 
+-intel
+ |-geti-detection/FP16              # model trained with Geti™ 'Detection bounding box' project
+   |-openvino.xml                   # model metadata
+   |-openvino.bin                   # model weights
+ |-geti-classification-single/FP16  # model trained with Geti™ 'Classification single label' project
+   |-openvino.xml                   # model metadata
+   |-openvino.bin                   # model weights
+ |-geti-classification-multi/FP16   # model trained with Geti™ 'Classification multi label' project
+   |-openvino.xml                   # model metadata
+   |-openvino.bin                   # model weights
+ |-geti-classification-multi/FP16   # model trained with Geti™ 'Classification multi label' project
+   |-openvino.xml                   # model metadata
+   |-openvino.bin                   # model weights
+ |-geti-obb/FP16                    # model trained with Geti™ 'Oriented Bounding Box Detection' project
+   |-openvino.xml                   # model metadata
+   |-openvino.bin                   # model weights
+ |-geti-segmentation/FP16           # model trained with Geti™ 'Instance Seggmentation' project
+   |-openvino.xml                   # model metadata
+   |-openvino.bin                   # model weights
 ```
 
 The set of samples demonstrates how to deploy above models to run inference with GStreamer command line tool `gst-launch-1.0` and Intel® DL StreamerDL Streamer framework components.
-
-| Geti™ project               | Intel® DL Streamer component                                                                        | Outcome                                            |
-| --------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Detection bounding box      | gvadetect model=./geti/detection/FP16/openvino.xml                                           | detects objects in a frame and mark bounding-boxes |
-| Classification single label | gvaclassify model=./geti/classification_single/FP16/openvino.xml inference-region=full-frame | classifies each frame by a single label            |
-| Classification multi label  | gvaclassify model=./geti/classification_multi/FP16/openvino.xml inference-region=full-frame  | classifies each frame by multiple labels           |  
 
 ## Samples
 
@@ -39,7 +42,7 @@ The 'geti_sample.sh' script sample builds GStreamer pipeline composed of the fol
 * [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) uses for full-frame object classficiation
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
 * `autovideosink` for rendering output video into screen
-* `vaapih264enc` and `filesink` for encoding video stream and storing in a local file
+* `vah264enc` or `vah264lpenc` and `filesink` for encoding video stream and storing in a local file
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
 Example deployment of Geti™ bounding-box detection model using GPU device, saving results into a file on local disk. 
@@ -49,12 +52,12 @@ Example deployment of Geti™ bounding-box detection model using GPU device, sav
 
 Example deployment of Geti™ single-label classification model using NPU device, saving results into a file on local disk. 
 ```sh
-./yolox_sample.sh classification_single NPU
+./geti_sample.sh classification_single NPU
 ```
 
 Example deployment of Geti™ multi-label classification model using CPU device, saving results into a file on local disk. 
 ```sh
-./yolox_sample.sh classification_multi CPU
+./geti_sample.sh classification_multi CPU
 ```
 
 ## See also

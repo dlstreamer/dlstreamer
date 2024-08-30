@@ -98,6 +98,7 @@ std::string checkOnNameDeprecation(const std::string &converter_name) {
     const std::string GetiOBB = "rotated_detection";
     const std::string YOLOv8 = "YOLOv8";
     const std::string YOLOv8OBB = "YOLOv8-OBB";
+    const std::string YOLOv8SEG = "YOLOv8-SEG";
     const std::unordered_map<std::string, std::string> deprecatedNameToName = {
         {DetectionOutputConverter::getDepricatedName(), DetectionOutputConverter::getName()},
         {BoxesLabelsConverter::getDepricatedName(), BoxesLabelsConverter::getName()},
@@ -113,7 +114,8 @@ std::string checkOnNameDeprecation(const std::string &converter_name) {
         {GetiInstanceSegmentation, MaskRCNNConverter::getName()},
         {GetiOBB, MaskRCNNConverter::getName()},
         {YOLOv8, YOLOv8Converter::getName()},
-        {YOLOv8OBB, YOLOv8OBBConverter::getName()}};
+        {YOLOv8OBB, YOLOv8ObbConverter::getName()},
+        {YOLOv8SEG, YOLOv8SegConverter::getName()}};
 
     const auto it = deprecatedNameToName.find(converter_name);
     if (it != deprecatedNameToName.cend()) {

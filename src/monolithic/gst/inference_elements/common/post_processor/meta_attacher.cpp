@@ -8,6 +8,7 @@
 
 #include "gva_utils.h"
 #include "processor_types.h"
+#include <gst/analytics/analytics.h>
 
 #include <exception>
 
@@ -55,6 +56,27 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
 
             GstBuffer **writable_buffer = &frame.buffer;
             gva_buffer_check_and_make_writable(writable_buffer, PRETTY_FUNCTION_NAME);
+
+            if (NEW_METADATA) {
+                GQuark gquark_label = g_quark_from_string(label);
+
+                gdouble conf;
+                gst_structure_get_double(detection_tensor, "confidence", &conf);
+
+                GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(*writable_buffer);
+
+                if (not relation_meta)
+                    throw std::runtime_error("Failed to add GstAnalyticsRelationMeta to buffer");
+
+                GstAnalyticsODMtd od_mtd;
+                if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, gquark_label, x_abs, y_abs, w_abs, h_abs,
+                                                            conf, &od_mtd)) {
+                    throw std::runtime_error("Failed to add detection data to meta");
+                }
+
+                continue;
+            }
+
             GstVideoRegionOfInterestMeta *roi_meta =
                 gst_buffer_add_video_region_of_interest_meta(*writable_buffer, label, x_abs, y_abs, w_abs, h_abs);
 

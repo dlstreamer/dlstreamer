@@ -484,17 +484,21 @@ bool Impl::render(GstBuffer *buffer) {
 void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Prim> &prims) const {
     size_t color_index = roi.label_id();
 
-    auto rect = roi.normalized_rect();
-    if (rect.w && rect.h) {
-        rect.x *= _vinfo->width;
-        rect.y *= _vinfo->height;
-        rect.w *= _vinfo->width;
-        rect.h *= _vinfo->height;
-    } else {
-        auto rect_u32 = roi.rect();
-        rect = {safe_convert<double>(rect_u32.x), safe_convert<double>(rect_u32.y), safe_convert<double>(rect_u32.w),
-                safe_convert<double>(rect_u32.h)};
-    }
+    auto rect_u32 = roi.rect();
+    GVA::Rect<double> rect = {safe_convert<double>(rect_u32.x), safe_convert<double>(rect_u32.y),
+                              safe_convert<double>(rect_u32.w), safe_convert<double>(rect_u32.h)};
+
+    // auto rect = roi.normalized_rect(_vinfo->width, _vinfo->height);
+    // if (rect.w && rect.h) {
+    //     rect.x *= _vinfo->width;
+    //     rect.y *= _vinfo->height;
+    //     rect.w *= _vinfo->width;
+    //     rect.h *= _vinfo->height;
+    // } else {
+    //     auto rect_u32 = roi.rect();
+    //     rect = {safe_convert<double>(rect_u32.x), safe_convert<double>(rect_u32.y), safe_convert<double>(rect_u32.w),
+    //             safe_convert<double>(rect_u32.h)};
+    // }
     clip_rect(rect.x, rect.y, rect.w, rect.h, _vinfo);
 
     std::ostringstream text;

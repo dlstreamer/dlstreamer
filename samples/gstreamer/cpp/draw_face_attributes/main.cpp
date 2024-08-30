@@ -86,6 +86,25 @@ std::vector<std::string> FindModel(const std::vector<std::string> &search_dirs, 
     return result;
 }
 
+std::string FindEncoder() {
+    const char *inspect_cmd = "gst-inspect-1.0 va | grep vah264enc";
+    auto pipe = std::unique_ptr<FILE, int (*)(FILE *)>(popen(inspect_cmd, "r"), pclose);
+    if (!pipe) {
+        std::cerr << "Error while checking: gst-inspect-1.0 va" << std::endl;
+        return "";
+    }
+    std::array<char, 128> buffer;
+    std::string result;
+    while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+        result += buffer.data();
+    }
+    if (std::strlen(result.c_str()) > 0) {
+        return "vah264enc";
+    } else {
+        return "vah264lpenc";
+    }
+}
+
 std::map<std::string, std::string> FindModels(const std::vector<std::string> &search_dirs,
                                               const std::vector<std::string> &model_names,
                                               const std::string &precision) {
@@ -329,10 +348,12 @@ int main(int argc, char *argv[]) {
             "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! autovideosink sync=false";
     else if (output_type_str == "json")
         sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false";
-    else if (output_type_str == "file")
-        sink = "gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! h264parse ! mp4mux ! filesink "
-               "location=output.mp4";
-    else {
+    else if (output_type_str == "file") {
+        std::string encoder = FindEncoder();
+        sink = g_strdup_printf("gvawatermark ! videoconvertscale ! gvafpscounter ! %s ! h264parse ! mp4mux ! filesink "
+                               "location=output.mp4",
+                               encoder.c_str());
+    } else {
         std::cerr << "Unsupported output type: " << output_type_str << std::endl;
         return -1;
     }

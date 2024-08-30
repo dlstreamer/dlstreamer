@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,6 +26,7 @@ class Task {
 } // namespace itt
 
 namespace log {
-std::shared_ptr<spdlog::logger> get_or_nullsink(const std::string &name);
+
+std::shared_ptr<spdlog::logger> get_or_nullsink(std::string const &);
 } // namespace log
 } // namespace dlstreamer

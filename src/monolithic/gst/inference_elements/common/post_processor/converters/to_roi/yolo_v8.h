@@ -20,20 +20,24 @@
 namespace post_processing {
 
 /*
-yolo_v8 tensor output = [B, 84, N] where:
+yolo_v8 object tensor output = [B, 84, N] where:
     B - batch size
     N - number of detection boxes
-Detection box has the [x, y, w, h, [r], class_no_1, …, class_no_80] format, where:
+Detection box has the [x, y, w, h, [r], class_no_1, …, class_no_80, [mask_1, ..., mask_2]] format, where:
     (x, y) - raw coordinates of box center
     (w, h) - raw width and height of box
     class_no_1, …, class_no_80 - probability distribution over the classes
     [optional] r - radius of boudning box (object-oriented box models)
+    [optional] nm - mask (instance segmentation models)
 */
 const int YOLOV8_OFFSET_X = 0;  // x coordinate of bounding box center
 const int YOLOV8_OFFSET_Y = 1;  // y coordinate of bounding box center
 const int YOLOV8_OFFSET_W = 2;  // width of bounding box center
 const int YOLOV8_OFFSET_H = 3;  // height of bounding box center
 const int YOLOV8_OFFSET_CS = 4; // class probability
+
+const std::string TENSORS_BOXES_KEY = "boxes";
+const std::string TENSORS_MASKS_KEY = "masks";
 
 class YOLOv8Converter : public BlobToROIConverter {
   protected:
@@ -56,9 +60,9 @@ class YOLOv8Converter : public BlobToROIConverter {
     }
 };
 
-class YOLOv8OBBConverter : public YOLOv8Converter {
+class YOLOv8ObbConverter : public YOLOv8Converter {
   public:
-    YOLOv8OBBConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold)
+    YOLOv8ObbConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold)
         : YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold) {
     }
 
@@ -66,6 +70,23 @@ class YOLOv8OBBConverter : public YOLOv8Converter {
 
     static std::string getName() {
         return "yolo_v8_obb";
+    }
+};
+
+class YOLOv8SegConverter : public YOLOv8Converter {
+  protected:
+    void parseOutputBlob(const float *boxes_data, const std::vector<size_t> &boxes_dims, const float *masks_data,
+                         const std::vector<size_t> &masks_dims, std::vector<DetectedObject> &objects) const;
+
+  public:
+    YOLOv8SegConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold)
+        : YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold) {
+    }
+
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static std::string getName() {
+        return "yolo_v8_seg";
     }
 };
 

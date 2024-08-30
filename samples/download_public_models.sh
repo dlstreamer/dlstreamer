@@ -19,7 +19,9 @@ SUPPORTED_MODELS=(
   "yolov7"
   "yolov8s"
   "yolov9c"
+  "yolov10s"
   "yolov8n-obb"
+  "yolov8n-seg"
   "centerface"
   "hsemotion"
 )
@@ -240,6 +242,32 @@ EOF
   fi
 fi
 
+if [ "$MODEL" == "yolov8n-seg" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
+  MODEL_NAME="yolov8n-seg"
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
+  if [ ! -f "$MODEL_PATH" ]; then
+    echo "Downloading and converting: ${MODEL_PATH}"
+    mkdir -p "$MODELS_PATH"/public/"$MODEL_NAME"
+    cd "$MODELS_PATH"/public/"$MODEL_NAME"
+    python3 - <<EOF $MODEL_NAME
+from ultralytics import YOLO
+import openvino, sys, shutil
+model = YOLO(sys.argv[1] + '.pt')
+model.info()
+converted_path = model.export(format='openvino')
+converted_model = converted_path + '/' + sys.argv[1] +'.xml'
+core = openvino.Core()
+ov_model = core.read_model(model=converted_model)
+ov_model.output(0).set_names({"boxes"})
+ov_model.output(1).set_names({"masks"})
+ov_model.set_rt_info("YOLOv8-SEG", ['model_info', 'model_type'])
+openvino.save_model(ov_model, './FP32/' + sys.argv[1] +'.xml', compress_to_fp16=False)
+openvino.save_model(ov_model, './FP16/' + sys.argv[1] +'.xml', compress_to_fp16=True)
+shutil.rmtree(converted_path)
+EOF
+  fi
+fi
+
 if [ "$MODEL" == "yolov9c" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
   MODEL_NAME="yolov9c"
   MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
@@ -262,6 +290,30 @@ model.export(format='openvino', half=True)  # creates 'yolov9c_openvino_model/'
 EOF
     mv "${MODEL_NAME}"_openvino_model FP16/
     cd ../..
+  fi
+fi
+
+if [ "$MODEL" == "yolov10s" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
+  MODEL_NAME="yolov10s"
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
+  if [ ! -f "$MODEL_PATH" ]; then
+    echo "Downloading and converting: ${MODEL_PATH}"
+    mkdir -p "$MODELS_PATH"/public/"$MODEL_NAME"
+    cd "$MODELS_PATH"/public/"$MODEL_NAME"
+    python3 - <<EOF $MODEL_NAME
+from ultralytics import YOLO
+import openvino, sys, shutil
+model = YOLO(sys.argv[1] + '.pt')
+model.info()
+converted_path = model.export(format='openvino')
+converted_model = converted_path + '/' + sys.argv[1] +'.xml'
+core = openvino.Core()
+ov_model = core.read_model(model=converted_model)
+ov_model.set_rt_info("yolo_v10", ['model_info', 'model_type'])
+openvino.save_model(ov_model, './FP32/' + sys.argv[1] +'.xml', compress_to_fp16=False)
+openvino.save_model(ov_model, './FP16/' + sys.argv[1] +'.xml', compress_to_fp16=True)
+shutil.rmtree(converted_path)
+EOF
   fi
 fi
 

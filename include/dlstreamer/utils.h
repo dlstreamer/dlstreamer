@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 #include "dlstreamer/frame_info.h"
 
 #include <algorithm>
+#include <functional>
 #include <sstream>
 #include <stdexcept>
 #include <string>

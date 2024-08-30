@@ -16,6 +16,26 @@
 #include <gflags/gflags.h>
 #include <memory>
 
+std::string version_to_string(int version) {
+    return std::to_string(AV_VERSION_MAJOR(version)) + "." + std::to_string(AV_VERSION_MINOR(version)) + "." +
+           std::to_string(AV_VERSION_MICRO(version));
+}
+
+bool version_check(int binary_version, int header_version, const char *name) {
+    if (AV_VERSION_MAJOR(binary_version) != AV_VERSION_MAJOR(header_version)) {
+        std::cerr << "Warning: " << name << " ABI mismatch! Library version: " << version_to_string(binary_version)
+                  << " header version: " << version_to_string(header_version) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool version_ok() {
+    return version_check(avformat_version(), LIBAVFORMAT_VERSION_INT, "avformat") &&
+           version_check(avcodec_version(), LIBAVCODEC_VERSION_INT, "avcodec") &&
+           version_check(avutil_version(), LIBAVUTIL_VERSION_INT, "avutil");
+}
+
 DEFINE_string(i, "", "Required. Path to input video file");
 DEFINE_string(o, "", "Required. Path to output grayscale file");
 DEFINE_uint64(width, 640, "Width of output grayscale images");
@@ -24,6 +44,12 @@ DEFINE_uint64(height, 480, "Height of output grayscale images");
 using namespace dlstreamer;
 
 int main(int argc, char *argv[]) {
+    if (!version_ok()) {
+        std::cerr << "Header and binary mismatch for ffmpeg libav.\nPlease re-compile the sample ensuring that headers "
+                     "are the same version as libraries linked by the executable."
+                  << std::endl;
+        return 1;
+    }
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     DLS_CHECK(!FLAGS_i.empty() && !FLAGS_o.empty());
     size_t width = FLAGS_width;

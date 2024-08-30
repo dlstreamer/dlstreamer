@@ -190,7 +190,7 @@ class GvaInferencePrivate final {
           _gst_context(std::make_shared<dls::GSTContext>(GST_ELEMENT(_base))) {
         try {
             _logger = dls::log::init_logger(GST_CAT_DEFAULT, G_OBJECT(_base));
-        } catch (const fmt::v8::format_error &e) {
+        } catch (const std::runtime_error &e) {
             GST_ERROR("Failed to initialize logger: %s", e.what());
         } catch (...) {
             GST_ERROR("Unknown exception occurred while initializing logger");

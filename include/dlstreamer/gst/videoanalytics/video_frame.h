@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include <gst/analytics/analytics.h>
 #include <gst/gstbuffer.h>
 #include <gst/gstutils.h>
 #include <gst/video/gstvideometa.h>
@@ -107,7 +108,7 @@ class VideoFrame {
         info->height = meta->height;
 
         // Perform secure assignment of buffer similar to memcpy_s
-        if (meta->stride == NULL || sizeof(info->stride) < sizeof(meta->stride)) {
+        if (sizeof(info->stride) < sizeof(meta->stride)) {
             memset(info->stride, 0, sizeof(info->stride));
             throw std::logic_error("GVA::VideoFrame: stride copy failed");
         }
@@ -312,9 +313,21 @@ class VideoFrame {
 
     std::vector<RegionOfInterest> get_regions() const {
         std::vector<RegionOfInterest> regions;
-        GstMeta *meta = NULL;
         gpointer state = NULL;
+        GstAnalyticsRelationMeta *relation_meta;
 
+        relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+
+        if (relation_meta) {
+            GstAnalyticsODMtd od_meta;
+            while (gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(),
+                                                       &od_meta)) {
+                regions.emplace_back(od_meta);
+            }
+            return regions;
+        }
+
+        GstMeta *meta = NULL;
         while ((meta = gst_buffer_iterate_meta_filtered(buffer, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE)))
             regions.emplace_back((GstVideoRegionOfInterestMeta *)meta);
         return regions;

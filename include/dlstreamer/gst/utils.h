@@ -405,9 +405,24 @@ static inline void any_to_gvalue(Any value, GValue *gvalue, bool init, const Par
         g_value_set_boolean(gvalue, any_cast<bool>(value));
     } else if (any_holds_type<std::string>(value)) {
         if (desc && !desc->range.empty()) {
-            size_t index = std::find(desc->range.begin(), desc->range.end(), value) - desc->range.begin();
             if (init)
                 g_value_init(gvalue, G_TYPE_ENUM);
+            size_t index = desc->range.size();
+            try {
+                // This code shouldn't be throwing anything (comparisons fail if values are incompatible).
+                auto it = std::find(desc->range.begin(), desc->range.end(), value);
+                if (it == desc->range.end()) {
+                    GST_ERROR("Unknown enum name %s. Valid names are:", any_cast<std::string>(value).c_str());
+                    for (auto &a : desc->range) {
+                        GST_ERROR("\t%s", any_cast<std::string>(a).c_str());
+                    }
+                }
+                index = it - desc->range.begin();
+            } catch (const std::bad_variant_access &e) {
+                GST_ERROR("Bad variant access: %s", e.what());
+            } catch (...) {
+                GST_ERROR("Unknown exception occurred");
+            }
             g_value_set_enum(gvalue, index);
         } else {
             if (init)
@@ -433,14 +448,15 @@ static inline void any_to_gvalue(Any value, GValue *gvalue, bool init, const Par
     } else if (any_holds_type<std::pair<int, int>>(value)) {
         if (init)
             g_value_init(gvalue, GST_TYPE_FRACTION);
-
-        std::pair<int, int> fraction;
+        std::pair<int, int> fraction{0, 1};
         try {
             fraction = any_cast<std::pair<int, int>>(value);
         } catch (const std::bad_variant_access &e) {
-            GST_ERROR("Bad variant access in gvalue_to_vector: %s", e.what());
-        } catch (...) {
-            GST_ERROR("Unknown exception occurred in gvalue_to_vector");
+            GST_ERROR("Bad variant access in any_to_gvalue: %s", e.what());
+        } catch (const std::bad_cast &e) {
+            GST_ERROR("Bad cast in any_to_gvalue: %s", e.what());
+        } catch (const std::exception &e) {
+            GST_ERROR("Unknown exception in any_to_gvalue: %s", e.what());
         }
         gst_value_set_fraction(gvalue, fraction.first, fraction.second);
     }

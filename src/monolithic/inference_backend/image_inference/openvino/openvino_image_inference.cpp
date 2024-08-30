@@ -413,8 +413,6 @@ class OpenVinoNewApiImpl {
                                           "└{0:─^{3}}┘\n",
                                           "", ".:: OpenVINO™ via 2.0 API ::.", ov_build, ov_build.size() + 2);
             GVA_DEBUG("%s", box.c_str());
-        } catch (const fmt::v8::format_error &e) {
-            GVA_ERROR("Formatting error in log_api_message: %s", e.what());
         } catch (...) {
             GVA_ERROR("Unknown exception in log_api_message");
         }
@@ -505,7 +503,11 @@ class OpenVinoNewApiImpl {
                 (element.second.as<std::string>().find("True") != std::string::npos)) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
-                g_value_set_string(&gvalue, "multi");
+                const gchar *oldvalue = gst_structure_get_string(s, "method");
+                if ((oldvalue != nullptr) && (strcmp(oldvalue, "softmax") == 0))
+                    g_value_set_string(&gvalue, "softmax_multi");
+                else
+                    g_value_set_string(&gvalue, "multi");
                 gst_structure_set_value(s, "method", &gvalue);
                 g_value_unset(&gvalue);
             }
@@ -513,7 +515,11 @@ class OpenVinoNewApiImpl {
                 (element.second.as<std::string>().find("True") != std::string::npos)) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
-                g_value_set_string(&gvalue, "softmax");
+                const gchar *oldvalue = gst_structure_get_string(s, "method");
+                if ((oldvalue != nullptr) && (strcmp(oldvalue, "multi") == 0))
+                    g_value_set_string(&gvalue, "softmax_multi");
+                else
+                    g_value_set_string(&gvalue, "softmax");
                 gst_structure_set_value(s, "method", &gvalue);
                 g_value_unset(&gvalue);
             }

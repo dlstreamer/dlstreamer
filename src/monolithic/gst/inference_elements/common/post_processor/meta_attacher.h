@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,6 +12,9 @@
 #include <gst/video/gstvideometa.h>
 
 namespace post_processing {
+
+const bool NEW_METADATA = false;
+
 class MetaAttacher {
   public:
     MetaAttacher() = default;

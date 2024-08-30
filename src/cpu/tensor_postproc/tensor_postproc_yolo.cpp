@@ -432,8 +432,6 @@ class PostProcYolo : public BaseTransformInplace {
         if (label_id >= _labels.size()) {
             try {
                 _logger->warn("Label ID {} is out of range", label_id);
-            } catch (const fmt::v8::format_error &e) {
-                std::cerr << "Formatting error in get_label_by_id: " << e.what() << std::endl;
             } catch (...) {
                 std::cerr << "Unknown exception occurred in get_label_by_id" << std::endl;
             }

@@ -4,67 +4,30 @@
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
-# This sample refers to a video file by Rihard-Clement-Ciprian Diac via Pexels
-# (https://www.pexels.com)
-# ==============================================================================
 
 set -euo pipefail
 
+cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+
 if [ -z "${MODELS_PATH:-}" ]; then
-  echo "Error: MODELS_PATH is not set." >&2 
+  echo "Error: MODELS_PATH is not set." >&2
   exit 1
-else 
+else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s
-DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
-INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
-OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-json
+INPUT=${1:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
+DEVICE=${2:-"CPU"}  # Supported values: CPU, GPU, NPU
+OUTPUT=${3:-"file"} # Supported values: file, display, fps, json, display-and-json
+ROI_COORDS=${4:-""} # Specifies pixel absolute coordinates of ROI in form: x_top_left,y_top_left,x_bottom_right,y_bottom_right
+# If not defined, the roi list file ./roi_list.json will be used
 
-cd "$(dirname "$0")"
-
-if [[ "$MODEL" == "yolov10s" ]] && ([[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]); then
-    echo "Error - No support of Yolov10 for GPU and NPU."
-    exit
-fi
-
-declare -A MODEL_PROC_FILES=(
-  ["yolox-tiny"]="../../model_proc/public/yolo-x.json"
-  ["yolox_s"]="../../model_proc/public/yolo-x.json"
-  ["yolov5s"]="../../model_proc/public/yolo-v7.json"
-  ["yolov5su"]="../../model_proc/public/yolo-v8.json"
-  ["yolov7"]="../../model_proc/public/yolo-v7.json"
-  ["yolov8s"]="../../model_proc/public/yolo-v8.json"
-  ["yolov9c"]="../../model_proc/public/yolo-v8.json"
-  ["yolov8n-obb"]=""
-  ["yolov8n-seg"]=""
-  ["yolov10s"]=""
-)
-
-if ! [[ "${!MODEL_PROC_FILES[*]}" =~ $MODEL ]]; then
-  echo "Unsupported model: $MODEL" >&2
-  exit 1
-fi
-
-MODEL_PROC=""
-if ! [ -z ${MODEL_PROC_FILES[$MODEL]} ]; then
-  MODEL_PROC=$(realpath "${MODEL_PROC_FILES[$MODEL]}")
-fi
-
-cd - 1>/dev/null
-
+MODEL="yolov8s"
 MODEL_PATH="${MODELS_PATH}/public/$MODEL/FP32/$MODEL.xml"
 
-# check if model exists in local directory
-if [ ! -f $MODEL_PATH ]; then
-  echo "Model not found: ${MODEL_PATH}"
-  exit 
-fi
-
-if [[ "$INPUT" == "/dev/video"* ]]; then
+if [[ $INPUT == "/dev/video"* ]]; then
   SOURCE_ELEMENT="v4l2src device=${INPUT}"
-elif [[ "$INPUT" == *"://"* ]]; then
+elif [[ $INPUT == *"://"* ]]; then
   SOURCE_ELEMENT="urisourcebin buffer-size=4096 uri=${INPUT}"
 else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
@@ -80,9 +43,9 @@ fi
 if [[ "$OUTPUT" == "file" ]]; then
   FILE=$(basename "${INPUT%.*}")
   rm -f "${FILE}_${DEVICE}.mp4"
-  if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
+  if gst-inspect-1.0 va | grep -q vah264enc; then
     ENCODER="vah264enc"
-  elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
+  elif gst-inspect-1.0 va | grep -q vah264lpenc; then
     ENCODER="vah264lpenc"
   else
     echo "Error - VA-API H.264 encoder not found."
@@ -105,11 +68,15 @@ else
   exit
 fi
 
-PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
-gvadetect model=$MODEL_PATH"
-if [[ -n "$MODEL_PROC" ]]; then
-  PIPELINE="$PIPELINE model-proc=$MODEL_PROC"
+ROI_ELEMENT="gvaattachroi"
+if [[ -n "$ROI_COORDS" ]]; then
+  ROI_ELEMENT="$ROI_ELEMENT roi=$ROI_COORDS !"
+else
+  ROI_ELEMENT="$ROI_ELEMENT mode=1 file-path=roi_list.json !"
 fi
+
+PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
+$ROI_ELEMENT gvadetect inference-region=1 model=$MODEL_PATH"
 PIPELINE="$PIPELINE device=$DEVICE pre-process-backend=$PREPROC_BACKEND ! queue ! \
 $SINK_ELEMENT"
 

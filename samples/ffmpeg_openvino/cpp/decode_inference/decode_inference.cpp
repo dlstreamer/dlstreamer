@@ -39,7 +39,33 @@ DEFINE_string(m, "", "Required. Path to IR .xml file");
                                      " calling: " #_VAR);                                                              \
     }
 
+std::string version_to_string(int version) {
+    return std::to_string(AV_VERSION_MAJOR(version)) + "." + std::to_string(AV_VERSION_MINOR(version)) + "." +
+           std::to_string(AV_VERSION_MICRO(version));
+}
+
+bool version_check(int binary_version, int header_version, const char *name) {
+    if (AV_VERSION_MAJOR(binary_version) != AV_VERSION_MAJOR(header_version)) {
+        std::cerr << "Warning: " << name << " ABI mismatch! Library version: " << version_to_string(binary_version)
+                  << " header version: " << version_to_string(header_version) << std::endl;
+        return false;
+    }
+    return true;
+}
+
+bool version_ok() {
+    return version_check(avformat_version(), LIBAVFORMAT_VERSION_INT, "avformat") &&
+           version_check(avcodec_version(), LIBAVCODEC_VERSION_INT, "avcodec") &&
+           version_check(avutil_version(), LIBAVUTIL_VERSION_INT, "avutil");
+}
+
 int main(int argc, char *argv[]) {
+    if (!version_ok()) {
+        std::cerr << "Header and binary mismatch for ffmpeg libav.\nPlease re-compile the sample ensuring that headers "
+                     "are the same version as libraries linked by the executable."
+                  << std::endl;
+        return 1;
+    }
     gflags::ParseCommandLineFlags(&argc, &argv, true);
     if (FLAGS_i.empty() || FLAGS_m.empty()) {
         std::cerr << "Required command line arguments were not set: -i input_video.mp4 -m model_file.xml" << std::endl;

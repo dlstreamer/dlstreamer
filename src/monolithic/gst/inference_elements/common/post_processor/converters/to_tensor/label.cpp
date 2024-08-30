@@ -104,6 +104,25 @@ void multi_method(const DataType *data, size_t size, const std::vector<std::stri
 }
 
 template <typename DataType>
+void softmax_multi_method(const DataType *data, size_t size, const std::vector<std::string> &labels, double threshold,
+                          GVA::Tensor &result) {
+    auto max_confidence = std::max_element(data, data + size);
+    float *sftm_arr = new float[size];
+    float sum = 0;
+    for (size_t i = 0; i < size; ++i) {
+        sftm_arr[i] = std::exp(data[i] - *max_confidence);
+        sum += sftm_arr[i];
+    }
+    if (sum > 0) {
+        for (size_t i = 0; i < size; ++i) {
+            sftm_arr[i] /= sum;
+        }
+    }
+    multi_method<float>(sftm_arr, size, labels, threshold, result);
+    delete[] sftm_arr;
+}
+
+template <typename DataType>
 void index_method([[maybe_unused]] const DataType *data, size_t size, const std::vector<std::string> &labels,
                   GVA::Tensor &result) {
     std::string result_label;
@@ -132,6 +151,7 @@ LabelConverter::Method method_from_string(const std::string &method_string) {
         {"softmax", LabelConverter::Method::SoftMax},
         {"compound", LabelConverter::Method::Compound},
         {"multi", LabelConverter::Method::Multi},
+        {"softmax_multi", LabelConverter::Method::SoftMaxMulti},
         {"index", LabelConverter::Method::Index}};
 
     const auto found = method_to_string_map.find(method_string);
@@ -195,6 +215,10 @@ void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name,
             break;
         case Method::Multi:
             multi_method<T>(item_data, item_data_size, labels_raw, _confidence_threshold, classification_result);
+            break;
+        case Method::SoftMaxMulti:
+            softmax_multi_method<T>(item_data, item_data_size, labels_raw, _confidence_threshold,
+                                    classification_result);
             break;
         case Method::Index:
             index_method<T>(item_data, item_data_size, labels_raw, classification_result);

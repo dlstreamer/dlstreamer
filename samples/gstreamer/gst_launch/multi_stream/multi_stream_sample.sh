@@ -153,7 +153,15 @@ if [[ "$GSTVA" == "VAAPI" ]]; then
 fi
 
 if [[ "$GSTVA" == "VA" ]]; then
-  SINK_ELEMENT_BASE="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! h264parse ! mp4mux ! "
+  if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
+    ENCODER="vah264enc"
+  elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
+    ENCODER="vah264lpenc"
+  else
+    echo "Error - VA-API H.264 encoder not found."
+    exit
+  fi
+  SINK_ELEMENT_BASE="gvawatermark ! videoconvertscale ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! "
 fi
 if [[ "$GSTVA" == "VAAPI" ]]; then 
   SINK_ELEMENT_BASE="gvawatermark ! videoconvertscale ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! "

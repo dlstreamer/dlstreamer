@@ -135,7 +135,15 @@ FILE=$(basename "$INPUT" | cut -d. -f1)
 
 # Determine SINK_ELEMENT based on output argument
 declare -A sink_elements
-sink_elements["file"]="gvawatermark ! gvafpscounter ! vah264enc ! h264parse ! mp4mux ! filesink location=DLS_${FILE}_${DEVICE}.mp4"
+if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
+  ENCODER="vah264enc"
+elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
+  ENCODER="vah264lpenc"
+else
+  echo "Error - VA-API H.264 encoder not found."
+  exit
+fi
+sink_elements["file"]="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=DLS_${FILE}_${DEVICE}.mp4"
 sink_elements['display']="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 sink_elements['fps']="gvafpscounter ! fakesink sync=false"
 sink_elements['json']="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! fakesink sync=false"

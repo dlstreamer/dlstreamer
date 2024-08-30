@@ -37,6 +37,7 @@ endif()
 target_include_directories(${TARGET_NAME}
 PRIVATE
         ${DLSTREAMER_INCLUDE_DIRS}
+        ${LIBAV_INCLUDE_DIRS}
 )
 target_link_directories(${TARGET_NAME} PRIVATE ${LIBAV_LIBRARY_DIRS})
 

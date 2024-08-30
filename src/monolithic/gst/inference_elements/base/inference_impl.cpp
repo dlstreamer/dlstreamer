@@ -35,9 +35,8 @@
 #include <regex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
-
-#include "gst_logger_sink.h"
 
 #ifdef ENABLE_VAAPI
 #include "vaapi_utils.h"
@@ -525,9 +524,8 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
 
     auto display = gva_base_inference->priv->va_display;
     if (display) {
-        std::string display_info = fmt::format("Using shared VADisplay ({}) from element {}", fmt::ptr(display),
-                                               GST_ELEMENT_NAME(gva_base_inference));
-        GVA_INFO("%s", display_info.c_str());
+        GVA_INFO("Using shared VADisplay (%p) from element %s", static_cast<void *>(display.get()),
+                 GST_ELEMENT_NAME(gva_base_inference));
         return display;
     }
 
@@ -765,6 +763,9 @@ bool InferenceImpl::CheckSrcPadBlocked(GstObject *src) {
     bool blocked = false;
 
     GstObject *dst = gst_pad_get_parent(gst_pad_get_peer(GST_BASE_TRANSFORM_SRC_PAD(src)));
+    if (dst == nullptr)
+        return false;
+
     if (strcmp(dst->name, "queue") > 0) {
         guint buf_cnt;
         g_object_get(dst, "current-level-buffers", &buf_cnt, NULL);
@@ -786,8 +787,7 @@ void InferenceImpl::PushBufferToSrcPad(OutputFrame &output_frame) {
     if (!check_gva_base_inference_stopped(output_frame.filter)) {
         GstFlowReturn ret = gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(output_frame.filter), buffer);
         if (ret != GST_FLOW_OK) {
-            std::string returned_status = fmt::format("Inference gst_pad_push returned status: {}", ret);
-            GVA_WARNING("%s", returned_status.c_str());
+            GVA_WARNING("Inference gst_pad_push returned status: %d", ret);
         }
     }
 }

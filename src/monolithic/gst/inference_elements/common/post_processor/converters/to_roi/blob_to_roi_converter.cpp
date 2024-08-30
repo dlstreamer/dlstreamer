@@ -12,6 +12,7 @@
 #include "detection_output.h"
 #include "mask_rcnn.h"
 #include "yolo_base.h"
+#include "yolo_v10.h"
 #include "yolo_v2.h"
 #include "yolo_v3.h"
 #include "yolo_v4.h"
@@ -62,9 +63,15 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     else if (converter_name == YOLOv8Converter::getName())
         return BlobToMetaConverter::Ptr(
             new YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold));
-    else if (converter_name == YOLOv8OBBConverter::getName())
+    else if (converter_name == YOLOv8ObbConverter::getName())
         return BlobToMetaConverter::Ptr(
-            new YOLOv8OBBConverter(std::move(initializer), confidence_threshold, iou_threshold));
+            new YOLOv8ObbConverter(std::move(initializer), confidence_threshold, iou_threshold));
+    else if (converter_name == YOLOv8SegConverter::getName())
+        return BlobToMetaConverter::Ptr(
+            new YOLOv8SegConverter(std::move(initializer), confidence_threshold, iou_threshold));
+    else if (converter_name == YOLOv10Converter::getName())
+        return BlobToMetaConverter::Ptr(
+            new YOLOv10Converter(std::move(initializer), confidence_threshold, iou_threshold));
     else if (converter_name == MaskRCNNConverter::getName())
         return BlobToMetaConverter::Ptr(
             new MaskRCNNConverter(std::move(initializer), confidence_threshold, iou_threshold));

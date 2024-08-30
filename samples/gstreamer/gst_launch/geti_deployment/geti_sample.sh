@@ -58,7 +58,15 @@ fi
 if [[ $OUTPUT == "file" ]]; then
   FILE="$(basename ${INPUT%.*})"
   rm -f "${FILE}_${MODEL}_${DEVICE}.mp4"
-  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT}! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}_${MODEL}_${DEVICE}.mp4"
+  if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
+    ENCODER="vah264enc"
+  elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
+    ENCODER="vah264lpenc"
+  else
+    echo "Error - VA-API H.264 encoder not found."
+    exit
+  fi
+  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT}! videoconvertscale ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=${FILE}_${MODEL}_${DEVICE}.mp4"
 elif [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT}! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ $OUTPUT == "fps" ]]; then

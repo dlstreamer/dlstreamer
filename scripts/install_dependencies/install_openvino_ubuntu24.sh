@@ -7,7 +7,7 @@
 
 RUN_PREFIX=
 
-OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.3/linux/l_openvino_toolkit_ubuntu22_2024.3.0.16041.1e3b88e4e3f_x86_64.tgz"
+OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2024.3/linux/l_openvino_toolkit_ubuntu24_2024.3.0.16041.1e3b88e4e3f_x86_64.tgz"
 OV_ARCHIVE_EXT=".tgz"
 OV_CHECKSUM_EXT=".tgz.sha256"
 OV_LOCAL_ARCHIVE_PATH=/tmp/openvino_installation
@@ -118,7 +118,7 @@ $RUN_PREFIX mkdir -p $OV_LOCAL_ARCHIVE_PATH
 $RUN_PREFIX apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget
 
 # Download OpenVINO™ archive and .sha256 files to temp folder
-$RUN_PREFIX wget "${OV_REMOTE_ARCHIVE_PATH}" -A "*_ubuntu22_*${OV_ARCHIVE_EXT},*_ubuntu22_*${OV_CHECKSUM_EXT}" -P ${OV_LOCAL_ARCHIVE_PATH} -r -l1 -nd -np -e robots=off -U mozilla
+$RUN_PREFIX wget "${OV_REMOTE_ARCHIVE_PATH}" -A "*_ubuntu24_*${OV_ARCHIVE_EXT},*_ubuntu24_*${OV_CHECKSUM_EXT}" -P ${OV_LOCAL_ARCHIVE_PATH} -r -l1 -nd -np -e robots=off -U mozilla
 
 # Verify contents, extract and move to install folder
 $RUN_PREFIX pushd $OV_LOCAL_ARCHIVE_PATH
@@ -141,8 +141,8 @@ OV_SAMPLES_PATH=${OV_INSTALL_MOUNT}/samples
 # Handle requests for uninstall
 if [ "$OV_UNINSTALL" == "true" ]; then
     # Dynamically identify the first version encountered and allow user to confirm uninstall
-    if ls /opt/intel/openvino_ubuntu22_* 1> /dev/null 2>&1; then
-        OPENVINO_VERSION=$(ls -d /opt/intel/openvino_ubuntu22_*) && OPENVINO_VERSION=${OPENVINO_VERSION#*openvino_}
+    if ls /opt/intel/openvino_ubuntu24_* 1> /dev/null 2>&1; then
+        OPENVINO_VERSION=$(ls -d /opt/intel/openvino_ubuntu24_*) && OPENVINO_VERSION=${OPENVINO_VERSION#*openvino_}
         OV_INSTALL_PATH="/opt/intel/openvino_${OPENVINO_VERSION}"
     else
         echo "WARNING: No installation of OpenVINO™ was found."

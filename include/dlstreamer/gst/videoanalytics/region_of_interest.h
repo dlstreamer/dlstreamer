@@ -14,6 +14,8 @@
 
 #include "tensor.h"
 
+#include <cstdint>
+#include <gst/analytics/analytics.h>
 #include <gst/gst.h>
 #include <gst/video/gstvideometa.h>
 
@@ -47,7 +49,19 @@ class RegionOfInterest {
      * @return Bounding box coordinates of the RegionOfInterest
      */
     Rect<uint32_t> rect() const {
-        return {_gst_meta->x, _gst_meta->y, _gst_meta->w, _gst_meta->h};
+        if (_gst_meta) {
+            return {_gst_meta->x, _gst_meta->y, _gst_meta->w, _gst_meta->h};
+        }
+
+        gint x;
+        gint y;
+        gint w;
+        gint h;
+
+        if (!gst_analytics_od_mtd_get_location(const_cast<GstAnalyticsODMtd *>(&_od_meta), &x, &y, &w, &h, nullptr)) {
+            throw std::runtime_error("Error when trying to read the location of the RegionOfInterest");
+        }
+        return {static_cast<uint32_t>(x), static_cast<uint32_t>(y), static_cast<uint32_t>(w), static_cast<uint32_t>(h)};
     }
 
     /**
@@ -55,6 +69,7 @@ class RegionOfInterest {
      * @return Bounding box coordinates of the RegionOfInterest
      */
     Rect<double> normalized_rect() {
+        assert(_gst_meta != nullptr);
         Tensor det = detection();
         return {det.get_double("x_min"), det.get_double("y_min"), det.get_double("x_max") - det.get_double("x_min"),
                 det.get_double("y_max") - det.get_double("y_min")};
@@ -73,8 +88,13 @@ class RegionOfInterest {
      * @return RegionOfInterest label
      */
     std::string label() const {
-        const char *str = g_quark_to_string(_gst_meta->roi_type);
-        return std::string(str ? str : "");
+        if (_gst_meta) {
+            const char *str = g_quark_to_string(_gst_meta->roi_type);
+            return std::string(str ? str : "");
+        }
+
+        GQuark label = gst_analytics_od_mtd_get_obj_type(const_cast<GstAnalyticsODMtd *>(&_od_meta));
+        return label ? g_quark_to_string(label) : "";
     }
 
     /**
@@ -82,7 +102,15 @@ class RegionOfInterest {
      * @return last added detection Tensor confidence if exists, otherwise 0.0
      */
     double confidence() const {
-        return _detection ? _detection->confidence() : 0.0;
+        if (_gst_meta) {
+            return _detection ? _detection->confidence() : 0.0;
+        }
+
+        gfloat conf;
+        if (!gst_analytics_od_mtd_get_confidence_lvl(const_cast<GstAnalyticsODMtd *>(&_od_meta), &conf)) {
+            throw std::runtime_error("Error when trying to read the confidence of the RegionOfInterest");
+        }
+        return conf;
     }
 
     /**
@@ -90,12 +118,17 @@ class RegionOfInterest {
      * @return Unique id, or zero value if not found
      */
     int32_t object_id() const {
-        GstStructure *object_id_struct = gst_video_region_of_interest_meta_get_param(_gst_meta, "object_id");
-        if (!object_id_struct)
-            return 0;
-        int id = 0;
-        gst_structure_get_int(object_id_struct, "id", &id);
-        return id;
+        if (_gst_meta) {
+            GstStructure *object_id_struct = gst_video_region_of_interest_meta_get_param(_gst_meta, "object_id");
+            if (!object_id_struct)
+                return 0;
+            int id = 0;
+            gst_structure_get_int(object_id_struct, "id", &id);
+            return id;
+        }
+
+        // TODO - where do we use object_id?
+        return 0;
     }
 
     /**
@@ -133,7 +166,7 @@ class RegionOfInterest {
      * this method was called
      */
     Tensor detection() {
-        if (!_detection) {
+        if (_gst_meta && !_detection) {
             add_tensor("detection");
         }
         return _detection ? *_detection : nullptr;
@@ -168,6 +201,9 @@ class RegionOfInterest {
         }
     }
 
+    RegionOfInterest(GstAnalyticsODMtd meta) : _gst_meta(nullptr), _detection(nullptr), _od_meta(meta) {
+    }
+
     /**
      * @brief Access RegionOfInterest ID
      * Use this method to get RegionOfInterest ID. ID is generated with "GVA::VideoFrame::add_region()" call.
@@ -175,7 +211,10 @@ class RegionOfInterest {
      * @return ID field value
      */
     int region_id() {
-        return _gst_meta->id;
+        if (_gst_meta) {
+            return _gst_meta->id;
+        }
+        return _od_meta.id;
     }
 
     /**
@@ -183,6 +222,7 @@ class RegionOfInterest {
      * @param label Label to set
      */
     void set_label(std::string label) {
+        assert(_gst_meta != nullptr);
         _gst_meta->roi_type = g_quark_from_string(label.c_str());
     }
 
@@ -191,6 +231,7 @@ class RegionOfInterest {
      * @param id ID to set
      */
     void set_object_id(int32_t id) {
+        assert(_gst_meta != nullptr);
         GstStructure *object_id = gst_video_region_of_interest_meta_get_param(_gst_meta, "object_id");
         if (object_id) {
             gst_structure_set(object_id, "id", G_TYPE_INT, id, NULL);
@@ -205,6 +246,7 @@ class RegionOfInterest {
      * @return pointer to underlying GstVideoRegionOfInterestMeta
      */
     GstVideoRegionOfInterestMeta *_meta() const {
+        assert(_gst_meta != nullptr);
         return _gst_meta;
     }
 
@@ -224,6 +266,12 @@ class RegionOfInterest {
      * @brief last added detection Tensor instance, defined as Tensor with name set to "detection"
      */
     Tensor *_detection;
+
+    /**
+     * @brief handle containing data required to use gst_analytics_od_mtd APIs, to retrieve analytics data related to
+     * that region of interest.
+     */
+    GstAnalyticsODMtd _od_meta;
 };
 
 } // namespace GVA

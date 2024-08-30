@@ -13,6 +13,7 @@ find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
+pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 file (GLOB MAIN_SRC *.cpp)
@@ -48,4 +49,5 @@ PRIVATE
         ${GLIB2_LIBRARIES}
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
+        ${GSTANALYTICS_LIBRARIES}
     )

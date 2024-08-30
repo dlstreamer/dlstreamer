@@ -21,7 +21,7 @@ The samples use YOLO models from different repositories as listed in a table bel
 The instructions assume Intel® DL Streamer framework is installed on the local system along with Intel® OpenVINO™ model downloader and converter tools,
 as described here: [Tutorial](https://dlstreamer.github.io/get_started/tutorial.html#tutorial-setup).
 
-For yolov5su, yolov8s and yolov9c models it is also necessary to install the ultralytics python package:
+For yolov5su, yolov8s (8n-obb,8n-seg), yolov9c and yolov10s models it is also necessary to install the ultralytics python package:
 
 ```sh
 pip install ultralytics
@@ -37,7 +37,9 @@ The samples demonstrate deployment and inference with GStreamer command line too
 | yolov7       | Pytorch -> ONNX -> OpenVINO™ converter from [YOLOv7 repository](https://github.com/WongKinYiu/yolov7.git) | gvadetect model-proc=yolo-v7.json |
 | yolov8s      | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
 | yolov8n-obb  | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
+| yolov8n-seg  | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
 | yolov9c      | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
+| yolov10s     | Ultralytics python exporter from [Ultralytics repository](https://github.com/ultralytics)                 | gvadetect <model-proc not needed> |
 
 ## Samples
 

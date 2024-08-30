@@ -374,25 +374,25 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst, const Inp
 
     // execute pre-proc pipeline
     auto context = _context->Display().drvCtx();
-    const auto &vtable = _context->Display().drvVtable();
     VABufferID pipeline_param_buf_id = VA_INVALID_ID;
-    VA_CALL(vtable.vaCreateBuffer(context, _context->Id(), VAProcPipelineParameterBufferType, sizeof(pipeline_param), 1,
-                                  &pipeline_param, &pipeline_param_buf_id));
+    VA_CALL(_context->Display().drvVtable().vaCreateBuffer(context, _context->Id(), VAProcPipelineParameterBufferType,
+                                                           sizeof(pipeline_param), 1, &pipeline_param,
+                                                           &pipeline_param_buf_id));
 
     {
         // These operations can't be called asynchronously from different threads
         // SEGFAULT observed on media driver 21.4.1, 21.2.3, 21.1.3
         // TODO: investigate further
         std::lock_guard<std::mutex> lock(_convert_mutex);
-        VA_CALL(vtable.vaBeginPicture(context, _context->Id(), dst.va_surface_id));
-        VA_CALL(vtable.vaRenderPicture(context, _context->Id(), &pipeline_param_buf_id, 1));
-        VA_CALL(vtable.vaEndPicture(context, _context->Id()));
+        VA_CALL(_context->Display().drvVtable().vaBeginPicture(context, _context->Id(), dst.va_surface_id));
+        VA_CALL(_context->Display().drvVtable().vaRenderPicture(context, _context->Id(), &pipeline_param_buf_id, 1));
+        VA_CALL(_context->Display().drvVtable().vaEndPicture(context, _context->Id()));
     }
 
-    VA_CALL(vtable.vaDestroyBuffer(context, pipeline_param_buf_id));
+    VA_CALL(_context->Display().drvVtable().vaDestroyBuffer(context, pipeline_param_buf_id));
 
     if (owns_src_surface)
-        VA_CALL(vtable.vaDestroySurfaces(context, &src_surface, 1));
+        VA_CALL(_context->Display().drvVtable().vaDestroySurfaces(context, &src_surface, 1));
 
     if (src.type == MemoryType::VAAPI && owns_src_surface)
         if (close(fd) == -1)

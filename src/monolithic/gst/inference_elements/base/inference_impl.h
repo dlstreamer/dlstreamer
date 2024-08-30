@@ -5,8 +5,6 @@
  ******************************************************************************/
 #pragma once
 
-#include "dlstreamer_logger.h"
-
 #include "classification_history.h"
 #include "gstgvaclassify.h"
 #include "gva_base_inference.h"

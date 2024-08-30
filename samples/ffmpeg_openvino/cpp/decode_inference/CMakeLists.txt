@@ -23,6 +23,8 @@ file (GLOB MAIN_HEADERS *.h)
 
 add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
+target_include_directories(${TARGET_NAME} PRIVATE ${LIBAV_INCLUDE_DIRS})
+
 target_link_directories(${TARGET_NAME} PRIVATE ${LIBAV_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}

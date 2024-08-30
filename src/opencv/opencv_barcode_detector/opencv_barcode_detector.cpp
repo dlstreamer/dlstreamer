@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,8 +11,12 @@
 #include "dlstreamer/memory_mapper_factory.h"
 #include "dlstreamer/opencv/context.h"
 #include "dlstreamer_logger.h"
-#include <opencv2/barcode.hpp>
 #include <opencv2/imgproc.hpp>
+#if (CV_VERSION_MAJOR > 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR > 7))
+#include <opencv2/objdetect/barcode.hpp>
+#else
+#include <opencv2/barcode.hpp>
+#endif
 #include <sstream>
 #include <string>
 
@@ -71,11 +75,19 @@ class OpencvBarcodeDetector : public BaseTransformInplace {
             cv::Rect rect(x, y, w, h);
             cv::Mat croppedImage = cv_mat(rect);
             std::vector<cv::String> decode_info;
+#if (CV_VERSION_MAJOR > 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR > 7))
+            std::vector<cv::String> decoded_type;
+#else
             std::vector<cv::barcode::BarcodeType> decoded_type;
+#endif
             std::vector<cv::Point> corners;
             bool result_detection;
             try {
+#if (CV_VERSION_MAJOR > 4 || (CV_VERSION_MAJOR == 4 && CV_VERSION_MINOR > 7))
+                result_detection = _bardet->detectAndDecodeWithType(croppedImage, decode_info, decoded_type, corners);
+#else
                 result_detection = _bardet->detectAndDecode(croppedImage, decode_info, decoded_type, corners);
+#endif
             } catch (const std::exception &e) {
                 SPDLOG_LOGGER_ERROR(_logger, "Exception during Barcode Detection: {}", e.what());
                 return false;

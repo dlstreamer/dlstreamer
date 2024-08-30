@@ -39,7 +39,15 @@ elif [[ $OUTPUT == "display-and-json" ]]; then
 elif [[ $OUTPUT == "file" ]]; then
   FILE="$(basename ${INPUT%.*})"
   rm -f "${FILE}_${DEVICE}.mp4"
-  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! vah264enc ! avimux name=mux ! filesink location=${FILE}_${DEVICE}.mp4"
+  if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
+    ENCODER="vah264enc"
+  elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
+    ENCODER="vah264lpenc"
+  else
+    echo "Error - VA-API H.264 encoder not found."
+    exit
+  fi
+  SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! ${ENCODER} ! avimux name=mux ! filesink location=${FILE}_${DEVICE}.mp4"
 else
   echo Error wrong value for OUTPUT parameter
   echo Valid values: "display" - render to screen, "file" - render to file, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json

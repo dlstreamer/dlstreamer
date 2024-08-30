@@ -21,7 +21,7 @@ namespace post_processing {
 
 class LabelConverter : public BlobToTensorConverter {
   public:
-    enum class Method { Max, SoftMax, Compound, Multi, Index, Default = Max };
+    enum class Method { Max, SoftMax, Compound, Multi, SoftMaxMulti, Index, Default = Max };
 
     LabelConverter(BlobToMetaConverter::Initializer initializer);
 

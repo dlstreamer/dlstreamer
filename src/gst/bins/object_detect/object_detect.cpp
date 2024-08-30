@@ -1,10 +1,11 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "object_detect.h"
+#include <cstdint>
 #include <sstream>
 
 GST_DEBUG_CATEGORY_STATIC(object_detect_debug_category);

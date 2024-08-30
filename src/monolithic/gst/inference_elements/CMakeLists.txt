@@ -12,6 +12,7 @@ find_package(OpenVINO REQUIRED Runtime)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
+pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
 
 file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/base/*.cpp
@@ -74,6 +75,7 @@ PRIVATE
     ${GSTREAMER_LIBRARIES}
     ${GSTVIDEO_LIBRARIES}
     ${GSTALLOC_LIBRARIES}
+    ${GSTANALYTICS_LIBRARIES}
     ${OpenCV_LIBS}
     dlstreamer_api
     dlstreamer_logger
