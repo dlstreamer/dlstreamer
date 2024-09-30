@@ -24,9 +24,14 @@ OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-
 
 cd "$(dirname "$0")"
 
-if [[ "$MODEL" == "yolov10s" ]] && ([[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]); then
-    echo "Error - No support of Yolov10 for GPU and NPU."
+if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
+    echo "Error - No support of Yolov10 for NPU."
     exit
+fi
+
+IE_CONFIG=""
+if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "GPU" ]]; then
+  IE_CONFIG=" ie-config=GPU_DISABLE_WINOGRAD_CONVOLUTION=YES "
 fi
 
 declare -A MODEL_PROC_FILES=(
@@ -110,7 +115,7 @@ gvadetect model=$MODEL_PATH"
 if [[ -n "$MODEL_PROC" ]]; then
   PIPELINE="$PIPELINE model-proc=$MODEL_PROC"
 fi
-PIPELINE="$PIPELINE device=$DEVICE pre-process-backend=$PREPROC_BACKEND ! queue ! \
+PIPELINE="$PIPELINE device=$DEVICE pre-process-backend=$PREPROC_BACKEND $IE_CONFIG ! queue ! \
 $SINK_ELEMENT"
 
 echo "${PIPELINE}"

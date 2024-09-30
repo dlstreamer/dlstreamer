@@ -24,6 +24,7 @@ SUPPORTED_MODELS=(
   "yolov8n-seg"
   "centerface"
   "hsemotion"
+  "deeplabv3"
 )
 
 if ! [[ "${SUPPORTED_MODELS[*]}" =~ $MODEL ]]; then
@@ -320,9 +321,8 @@ fi
 
 if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="centerface"
-  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP16/$MODEL_NAME.xml"
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/$MODEL_NAME.xml"
   MODEL_DIR=$(dirname "$MODEL_PATH")
-  PREV_DIR=$MODELS_PATH
   if [ ! -f "$MODEL_PATH" ]; then
     echo "Downloading and converting: ${MODEL_PATH}"
     mkdir -p "$MODEL_DIR"
@@ -330,137 +330,34 @@ if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
     git clone https://github.com/Star-Clouds/CenterFace.git
     cd CenterFace/models/onnx
     ovc centerface.onnx --input "[1,3,768,1280]" 
-    mv centerface.xml "$MODEL_PATH"
+    mv centerface.xml "$MODEL_DIR"
     mv centerface.bin "$MODEL_DIR"
     cd ../../..
     rm -rf CenterFace
-    cd "$PREV_DIR"
     python3 - <<EOF $MODEL_PATH
-import xml.etree.ElementTree as ET
-from xml.dom import minidom
-import sys
+import openvino
+import sys, os
 
-# Define the path to your XML file
-xml_file_path = sys.argv[1]
+orig_model_path = sys.argv[1]
 
-# Load the XML file
-tree = ET.parse(xml_file_path)
-root = tree.getroot()
+core = openvino.Core()
+ov_model = core.read_model(model=orig_model_path)
 
-# Define the attributes to search for and the new names
-layer_search_attributes = {'id': '438', 'name': '537/sink_port_0', 'type': 'Result', 'version': 'opset1'}
-layer_new_name = 'heatmap/sink_port_0'
+ov_model.output(0).set_names({"heatmap"})
+ov_model.output(1).set_names({"scale"})
+ov_model.output(2).set_names({"offset"})
+ov_model.output(3).set_names({"landmarks"})
 
-port_search_attributes = {'id': '1', 'precision': 'FP32', 'names': '537'}
-port_new_name = 'heatmap'
+ov_model.set_rt_info("centerface", ['model_info', 'model_type'])
+ov_model.set_rt_info("0.55", ['model_info', 'confidence_threshold'])
+ov_model.set_rt_info("0.5", ['model_info', 'iou_threshold'])
 
-# Update 'layer' elements
-for layer in root.findall(".//layer[@id='{}'][@name='{}'][@type='{}'][@version='{}']".format(
-        layer_search_attributes['id'],
-        layer_search_attributes['name'],
-        layer_search_attributes['type'],
-        layer_search_attributes['version'])):
-    layer.set('name', layer_new_name)
+print(ov_model)
 
-# Update 'port' elements
-for port in root.findall(".//port[@id='{}'][@precision='{}'][@names='{}']".format(
-        port_search_attributes['id'],
-        port_search_attributes['precision'],
-        port_search_attributes['names'])):
-    port.set('names', port_new_name)
-
-# Define the attributes to search for and the new names
-layer_search_attributes = {'id': '430', 'name': '538/sink_port_0', 'type': 'Result', 'version': 'opset1'}
-layer_new_name = 'scale/sink_port_0'
-
-port_search_attributes = {'id': '2', 'precision': 'FP32', 'names': '538'}
-port_new_name = 'scale'
-
-# Update 'layer' elements
-for layer in root.findall(".//layer[@id='{}'][@name='{}'][@type='{}'][@version='{}']".format(
-        layer_search_attributes['id'],
-        layer_search_attributes['name'],
-        layer_search_attributes['type'],
-        layer_search_attributes['version'])):
-    layer.set('name', layer_new_name)
-
-# Update 'port' elements
-for port in root.findall(".//port[@id='{}'][@precision='{}'][@names='{}']".format(
-        port_search_attributes['id'],
-        port_search_attributes['precision'],
-        port_search_attributes['names'])):
-    port.set('names', port_new_name)
-
-# Define the attributes to search for and the new names
-layer_search_attributes = {'id': '423', 'name': '539/sink_port_0', 'type': 'Result', 'version': 'opset1'}
-layer_new_name = 'offset/sink_port_0'
-
-port_search_attributes = {'id': '2', 'precision': 'FP32', 'names': '539'}
-port_new_name = 'offset'
-
-# Update 'layer' elements
-for layer in root.findall(".//layer[@id='{}'][@name='{}'][@type='{}'][@version='{}']".format(
-        layer_search_attributes['id'],
-        layer_search_attributes['name'],
-        layer_search_attributes['type'],
-        layer_search_attributes['version'])):
-    layer.set('name', layer_new_name)
-
-# Update 'port' elements
-for port in root.findall(".//port[@id='{}'][@precision='{}'][@names='{}']".format(
-        port_search_attributes['id'],
-        port_search_attributes['precision'],
-        port_search_attributes['names'])):
-    port.set('names', port_new_name)
-
-# Define the attributes to search for and the new names
-layer_search_attributes = {'id': '416', 'name': '540/sink_port_0', 'type': 'Result', 'version': 'opset1'}
-layer_new_name = 'landmarks/sink_port_0'
-
-port_search_attributes = {'id': '2', 'precision': 'FP32', 'names': '540'}
-port_new_name = 'landmarks'
-
-# Update 'layer' elements
-for layer in root.findall(".//layer[@id='{}'][@name='{}'][@type='{}'][@version='{}']".format(
-        layer_search_attributes['id'],
-        layer_search_attributes['name'],
-        layer_search_attributes['type'],
-        layer_search_attributes['version'])):
-    layer.set('name', layer_new_name)
-
-# Update 'port' elements
-for port in root.findall(".//port[@id='{}'][@precision='{}'][@names='{}']".format(
-        port_search_attributes['id'],
-        port_search_attributes['precision'],
-        port_search_attributes['names'])):
-    port.set('names', port_new_name)
-
-
-model_info = ET.Element('model_info')
-confidence_threshold = ET.SubElement(model_info, 'confidence_threshold', {'value': '0.55'})
-iou_threshold = ET.SubElement(model_info, 'iou_threshold', {'value': '0.5'})
-model_type = ET.SubElement(model_info, 'model_type', {'value': 'centerface'})
-
-rt_info_elements = root.findall('.//rt_info[Runtime_version]')
-rt_info = rt_info_elements[0]
-rt_info.append(model_info)
-
-# Function to pretty print XML with proper indentation
-def prettify(elem):
-    """Return a pretty-printed XML string for the Element."""
-    rough_string = ET.tostring(elem, 'utf-8')
-    reparsed = minidom.parseString(rough_string)
-    pretty_xml = reparsed.toprettyxml(indent="\t")
-    pretty_xml = '\n'.join([line for line in pretty_xml.split('\n') if line.strip()])
-    return pretty_xml
-
-# Get the pretty-printed XML string
-pretty_xml = prettify(root)
-
-#tree.write(xml_file_path, xml_declaration=True)
-# Write the modified and pretty-printed XML back to the file
-with open(xml_file_path, 'w', encoding='utf-8') as xml_file:
-    xml_file.write(pretty_xml)
+openvino.save_model(ov_model, './FP32/' + 'centerface.xml', compress_to_fp16=False)
+openvino.save_model(ov_model, './FP16/' + 'centerface.xml', compress_to_fp16=True)
+os.remove('centerface.xml')
+os.remove('centerface.bin')
 EOF
 
   fi
@@ -484,6 +381,36 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
     rm -rf face-emotion-recognition
     cd "$PREV_DIR"
     python3 - <<EOF $MODEL_PATH
+EOF
+  fi
+fi
+
+if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
+  MODEL_NAME="deeplabv3"
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
+  if [ ! -f "$MODEL_PATH" ]; then
+    mkdir -p "$MODELS_PATH"
+    cd "$MODELS_PATH"
+    echo "Downloading and converting: ${MODEL_PATH}"
+    omz_downloader --name "$MODEL_NAME"
+    omz_converter --name "$MODEL_NAME"
+    cd "public/$MODEL_NAME"
+    python3 - "$MODEL_PATH" <<EOF
+import openvino
+import sys, os, shutil
+
+orig_model_path = sys.argv[1]
+
+core = openvino.Core()
+ov_model = core.read_model(model=orig_model_path)
+ov_model.set_rt_info("semantic_mask", ['model_info', 'model_type'])
+
+print(ov_model)
+
+shutil.rmtree('FP32')
+shutil.rmtree('FP16')
+openvino.save_model(ov_model, './FP32/' + 'deeplabv3.xml', compress_to_fp16=False)
+openvino.save_model(ov_model, './FP16/' + 'deeplabv3.xml', compress_to_fp16=True)
 EOF
   fi
 fi

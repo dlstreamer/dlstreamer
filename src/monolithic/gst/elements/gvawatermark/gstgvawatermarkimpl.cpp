@@ -577,7 +577,7 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
 
         if (!_obb) {
             // overlay mask on top of image pixels
-            prims.emplace_back(render::Mask(mask, mask_size, color, box));
+            prims.emplace_back(render::InstanceSegmantationMask(mask, mask_size, color, box));
         } else {
             // resize mask to non-rotated bounding box and convert to binary
             cv::Mat mask_resized, mask_converted;
@@ -595,6 +595,15 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
             for (int i = 0; i < 4; i++)
                 prims.emplace_back(render::Line(vertices2f[i], vertices2f[(i + 1) % 4], color, _thickness));
         }
+    }
+
+    if (tensor.format() == "semantic_mask") {
+        assert(tensor.precision() == GVA::Tensor::Precision::I64);
+        std::vector<int64_t> mask = tensor.data<int64_t>();
+        std::vector<guint> dims = tensor.dims();
+        const cv::Size &mask_size{int(dims[1]), int(dims[2])};
+        cv::Rect2f box(rect.x, rect.y, rect.w, rect.h);
+        prims.emplace_back(render::SemanticSegmantationMask(mask, mask_size, box));
     }
 
     preparePrimsForKeypoints(tensor, rect, prims);

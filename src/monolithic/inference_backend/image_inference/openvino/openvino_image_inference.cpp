@@ -26,6 +26,7 @@
 #ifdef ENABLE_VAAPI
 #include <dlstreamer/vaapi/context.h>
 #include <openvino/runtime/intel_gpu/properties.hpp>
+#include <openvino/runtime/intel_npu/properties.hpp>
 #ifdef ENABLE_GPU_TILE_AFFINITY
 #include "vaapi_utils.h"
 #endif
@@ -320,40 +321,29 @@ struct ConfigHelper {
         for (auto &item : params) {
             if (item.first == ov::num_streams.name()) {
                 m.emplace(item.first, ov::streams::Num(stoi(item.second)));
-            } else if (item.first == ov::hint::model_priority.name()) {
+            } else if (item.first == ov::log::level.name() || item.first == ov::cache_mode.name() ||
+                       item.first == ov::affinity.name() || item.first == ov::enable_profiling.name() ||
+                       item.first == ov::hint::model_priority.name() ||
+                       item.first == ov::hint::performance_mode.name() ||
+                       item.first == ov::hint::scheduling_core_type.name() ||
+                       item.first == ov::hint::execution_mode.name() ||
+                       item.first == ov::hint::enable_cpu_pinning.name() ||
+                       item.first == ov::hint::enable_hyper_threading.name() ||
+                       item.first == ov::hint::allow_auto_batching.name() ||
+                       item.first == ov::intel_gpu::enable_loop_unrolling.name() ||
+                       item.first == ov::intel_gpu::disable_winograd_convolution.name() ||
+                       item.first == ov::intel_gpu::hint::queue_throttle.name() ||
+                       item.first == ov::intel_gpu::hint::queue_priority.name() ||
+                       item.first == ov::intel_gpu::hint::host_task_priority.name() ||
+                       item.first == ov::intel_gpu::hint::enable_sdpa_optimization.name() ||
+                       item.first == ov::intel_npu::turbo.name()) {
                 m.emplace(item.first, item.second);
-            } else if (item.first == ov::hint::performance_mode.name()) {
-                m.emplace(item.first, item.second);
-            } else if (item.first == ov::hint::scheduling_core_type.name()) {
-                m.emplace(item.first, item.second);
-            } else if (item.first == ov::hint::enable_cpu_pinning.name()) {
-                m.emplace(item.first, bool(stoi(item.second)));
-            } else if (item.first == ov::hint::enable_hyper_threading.name()) {
-                m.emplace(item.first, bool(stoi(item.second)));
-            } else if (item.first == ov::hint::num_requests.name()) {
+            } else if (item.first == ov::optimal_batch_size.name() || item.first == ov::max_batch_size.name() ||
+                       item.first == ov::auto_batch_timeout.name() || item.first == ov::inference_num_threads.name() ||
+                       item.first == ov::compilation_num_threads.name() ||
+                       item.first == ov::hint::num_requests.name() ||
+                       item.first == ov::intel_npu::compilation_mode_params.name()) {
                 m.emplace(item.first, stoi(item.second));
-            } else if (item.first == ov::hint::allow_auto_batching.name()) {
-                m.emplace(item.first, bool(stoi(item.second)));
-            } else if (item.first == ov::hint::execution_mode.name()) {
-                m.emplace(item.first, item.second);
-            } else if (item.first == ov::enable_profiling.name()) {
-                m.emplace(item.first, bool(stoi(item.second)));
-            } else if (item.first == ov::log::level.name()) {
-                m.emplace(item.first, item.second);
-            } else if (item.first == ov::cache_mode.name()) {
-                m.emplace(item.first, item.second);
-            } else if (item.first == ov::optimal_batch_size.name()) {
-                m.emplace(item.first, stoi(item.second));
-            } else if (item.first == ov::max_batch_size.name()) {
-                m.emplace(item.first, stoi(item.second));
-            } else if (item.first == ov::auto_batch_timeout.name()) {
-                m.emplace(item.first, stoi(item.second));
-            } else if (item.first == ov::inference_num_threads.name()) {
-                m.emplace(item.first, stoi(item.second));
-            } else if (item.first == ov::compilation_num_threads.name()) {
-                m.emplace(item.first, stoi(item.second));
-            } else if (item.first == ov::affinity.name()) {
-                m.emplace(item.first, item.second);
             } else {
                 throw std::runtime_error("Unsupported inference param " + item.first);
             }

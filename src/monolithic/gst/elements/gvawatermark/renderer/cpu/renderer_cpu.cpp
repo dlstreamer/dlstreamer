@@ -8,8 +8,34 @@
 
 #include "render_prim.h"
 #include <inference_backend/buffer_mapper.h>
+#include <opencv2/opencv.hpp>
 
 namespace {
+
+const std::vector<cv::Vec3b> PascalVoc21ClColorPalette = {
+    cv::Vec3b(0, 0, 0),       // background
+    cv::Vec3b(128, 0, 0),     // aeroplane
+    cv::Vec3b(0, 128, 0),     // bicycle
+    cv::Vec3b(128, 128, 0),   // bird
+    cv::Vec3b(0, 0, 128),     // boat
+    cv::Vec3b(128, 0, 128),   // bottle
+    cv::Vec3b(0, 128, 128),   // bus
+    cv::Vec3b(128, 128, 128), // car
+    cv::Vec3b(64, 0, 0),      // cat
+    cv::Vec3b(192, 0, 0),     // chair
+    cv::Vec3b(64, 128, 0),    // cow
+    cv::Vec3b(192, 128, 0),   // diningtable
+    cv::Vec3b(64, 0, 128),    // dog
+    cv::Vec3b(192, 0, 128),   // horse
+    cv::Vec3b(64, 128, 128),  // motorbike
+    cv::Vec3b(192, 128, 128), // person
+    cv::Vec3b(0, 64, 0),      // pottedplant
+    cv::Vec3b(128, 64, 0),    // sheep
+    cv::Vec3b(0, 192, 0),     // sofa
+    cv::Vec3b(128, 192, 0),   // train
+    cv::Vec3b(0, 64, 128)     // tvmonitor
+};
+
 template <int n>
 void check_planes(const std::vector<cv::Mat> &p) {
     if (p.size() != n) {
@@ -77,8 +103,10 @@ void RendererYUV::draw_backend(std::vector<cv::Mat> &image_planes, std::vector<r
             draw_circle(image_planes, std::get<render::Circle>(p));
         } else if (std::holds_alternative<render::Text>(p)) {
             draw_text(image_planes, std::get<render::Text>(p));
-        } else if (std::holds_alternative<render::Mask>(p)) {
-            draw_mask(image_planes, std::get<render::Mask>(p));
+        } else if (std::holds_alternative<render::InstanceSegmantationMask>(p)) {
+            draw_instance_mask(image_planes, std::get<render::InstanceSegmantationMask>(p));
+        } else if (std::holds_alternative<render::SemanticSegmantationMask>(p)) {
+            draw_semantic_mask(image_planes, std::get<render::SemanticSegmantationMask>(p));
         }
     }
 }
@@ -162,7 +190,13 @@ void RendererI420::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     cv::line(v, pos1_u_v, pos2_u_v, line.color[2], thick);
 }
 
-void RendererI420::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
+void RendererI420::draw_instance_mask(std::vector<cv::Mat> &mats, render::InstanceSegmantationMask mask) {
+    (void)mats;
+    (void)mask;
+    throw std::logic_error("Function not yet implemented");
+}
+
+void RendererI420::draw_semantic_mask(std::vector<cv::Mat> &mats, render::SemanticSegmantationMask mask) {
     (void)mats;
     (void)mask;
     throw std::logic_error("Function not yet implemented");
@@ -215,7 +249,7 @@ void RendererNV12::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     cv::line(u_v, pos1_u_v, pos2_u_v, {line.color[1], line.color[2]}, calc_thick_for_u_v_planes(line.thick));
 }
 
-void RendererNV12::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
+void RendererNV12::draw_instance_mask(std::vector<cv::Mat> &mats, render::InstanceSegmantationMask mask) {
     check_planes<2>(mats);
     cv::Mat &y = mats[0];
     cv::Mat &u_v = mats[1];
@@ -274,6 +308,12 @@ void RendererNV12::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
     dst_u_v.copyTo(roiSrc_u_v, binaryMask_u_v);
 }
 
+void RendererNV12::draw_semantic_mask(std::vector<cv::Mat> &mats, render::SemanticSegmantationMask mask) {
+    (void)mats;
+    (void)mask;
+    throw std::logic_error("Function not yet implemented");
+}
+
 void RendererBGR::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
     DrawRotatedRectangle(mats[0], rect.rect.tl(), rect.rect.br(), rect.rotation, rect.color, rect.thick);
 }
@@ -290,7 +330,7 @@ void RendererBGR::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
     cv::line(mats[0], line.pt1, line.pt2, line.color, line.thick);
 }
 
-void RendererBGR::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
+void RendererBGR::draw_instance_mask(std::vector<cv::Mat> &mats, render::InstanceSegmantationMask mask) {
     cv::Mat unpadded{mask.size, CV_32F, mask.data.data()};
     cv::Mat raw_cls_mask;
     cv::copyMakeBorder(unpadded, raw_cls_mask, 1, 1, 1, 1, cv::BORDER_CONSTANT, {0});
@@ -322,4 +362,39 @@ void RendererBGR::draw_mask(std::vector<cv::Mat> &mats, render::Mask mask) {
     cv::addWeighted(colorMask, alpha, roiSrc, 1.0 - alpha, 0.0, dst);
 
     dst.copyTo(roiSrc, binaryMask);
+}
+
+cv::Mat convertClassIndicesToBGR(const cv::Mat &classMap, const std::vector<cv::Vec3b> &colorPalette) {
+    CV_Assert(classMap.channels() == 1);
+    cv::Mat colorMap(classMap.size(), CV_8UC3);
+    for (int i = 0; i < classMap.rows; ++i) {
+        for (int j = 0; j < classMap.cols; ++j) {
+            int64_t classIdx = classMap.at<int64_t>(i, j);
+            colorMap.at<cv::Vec3b>(i, j) = colorPalette[classIdx];
+        }
+    }
+    return colorMap;
+}
+
+void RendererBGR::draw_semantic_mask(std::vector<cv::Mat> &mats, render::SemanticSegmantationMask mask) {
+    cv::Mat class_mask{mask.size, CV_64FC1, mask.data.data()};
+
+    cv::Rect2i roi(cv::Point2i(cvRound(mask.box.x), cvRound(mask.box.y)),
+                   cv::Size2i(cvRound(mask.box.width), cvRound(mask.box.height)));
+
+    cv::Mat resized;
+    cv::resize(class_mask, resized, {roi.width, roi.height}, 0, 0, cv::INTER_NEAREST);
+
+    cv::Mat colorMap = convertClassIndicesToBGR(resized, PascalVoc21ClColorPalette);
+    colorMap.convertTo(colorMap, mats[0].type());
+    if (mats[0].channels() == 4) {
+        cv::cvtColor(colorMap, colorMap, cv::COLOR_BGR2BGRA);
+    }
+
+    cv::Mat roiSrc = mats[0](roi);
+    cv::Mat dst;
+    float alpha = 0.5f;
+    cv::addWeighted(colorMap, alpha, roiSrc, 1.0 - alpha, 0.0, dst);
+
+    dst.copyTo(roiSrc);
 }
