@@ -122,8 +122,10 @@ class Tensor:
     ## @brief Get raw inference result blob data
     #  @return numpy.ndarray of values representing raw inference data, None if data can't be read
     def data(self) -> numpy.ndarray:
-        precision = self.__precision_numpy_dtype[self.precision()]
-
+        try:
+            precision = self.__precision_numpy_dtype[self.precision()]
+        except KeyError:
+            return None
         gvalue = libgst.gst_structure_get_value(
             self.__structure, 'data_buffer'.encode('utf-8'))
 
