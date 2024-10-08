@@ -18,6 +18,7 @@
 #include "converters/to_tensor/keypoints_openpose.h"
 #include "converters/to_tensor/label.h"
 #include "converters/to_tensor/raw_data_copy.h"
+#include "converters/to_tensor/semantic_mask.h"
 #include "converters/to_tensor/text.h"
 
 #include "gva_base_inference.h"
@@ -173,6 +174,8 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
             return BlobToMetaConverter::Ptr(new LabelConverter(std::move(initializer)));
         else if (converter_name == TextConverter::getName())
             return BlobToMetaConverter::Ptr(new TextConverter(std::move(initializer)));
+        else if (converter_name == SemanticMaskConverter::getName())
+            return BlobToMetaConverter::Ptr(new SemanticMaskConverter(std::move(initializer)));
         else
             throw std::runtime_error("Unsupported converter: " + converter_name);
     default:

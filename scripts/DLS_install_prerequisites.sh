@@ -25,7 +25,7 @@ INTEL_GPU_LIST="intel-graphics.list"
 
 CURL_TIMEOUT=10
 APT_UPDATE_TIMEOUT=30
-APT_GET_TIMEOUT=30
+APT_GET_TIMEOUT=600
 
 # ***********************************************************************
 # Function to display text in a given color
@@ -51,6 +51,12 @@ echo_color() {
 
     # Display the text in the chosen color
     echo -e "${color_code}${text}\e[0m"
+}
+
+# Function to handle errors
+handle_error() {
+    echo -e "\e[31mError occurred: $1\e[0m"
+    exit 1
 }
 
 # ***********************************************************************
@@ -151,18 +157,22 @@ install_packages() {
     local log_file
     log_file=$(mktemp)
     
+    echo_color " Installing packages: $*." "yellow"
+
     # Run apt-get install and use tee to duplicate the output to the log file
     # while still displaying it to the user
-    sudo apt-get install "$@" 2>&1 | tee "$log_file"
+    timeout --foreground $APT_GET_TIMEOUT sudo apt-get install "$@" 2>&1 | tee "$log_file"
     local status=${PIPESTATUS[0]}
 
     # Check the exit status of the apt-get install command
-    if [ $status -ne 0 ]; then
+    if [[ $status -eq 124 ]]; then
+        handle_error "The command timed out."
+    elif [ $status -ne 0 ]; then
         echo_color " An error occurred during package installation." "bred"
-
+        
         # Check for common errors and suggest solutions
         if grep -qi "Unable to fetch some archives" "$log_file"; then
-            echo_color " Your package lists may be outdated. Try running 'sudo apt-get update' and then re-run this script." "yellow"
+            echo_color " Your package lists may be outdated. Try running 'sudo apt-get update' and then re-run this script." "bred"
         elif grep -qi "Unable to locate package" "$log_file"; then
             echo_color " One or more specified packages could not be found. Check for typos or availability in your current software sources." "yellow"
         elif grep -qi "dpkg was interrupted" "$log_file"; then
@@ -193,10 +203,13 @@ install_packages() {
 echo_color "\n The script will now update package lists and install required packages." "yellow"
 
 # Install required packages without the -y flag to allow user interaction
-if ! timeout --foreground $APT_GET_TIMEOUT sudo apt-get install curl wget gpg software-properties-common jq; then
-    echo_color " Package installation was cancelled or timed out. Exiting the script." "bred"
-    exit 1
-fi
+#if ! timeout --foreground $APT_GET_TIMEOUT sudo apt-get install curl wget gpg software-properties-common jq; then
+#    echo_color " Package installation was cancelled or timed out. Exiting the script." "bred"
+#    exit 1
+#fi
+
+update_package_lists
+install_packages curl wget gpg software-properties-common pciutils
 
 echo_color "\n The packages required to start the installation are ready." "green"
 
@@ -209,16 +222,16 @@ update_package_lists
 #-----------------------STEP 2-------------------------------------------
 
 # Initialize the GPU state variable
-# 0 - No Intel GPU
-# 1 - Intel client GPU
-# 2 - Intel Data Center GPU
+# 0 - No Intel® GPU
+# 1 - Intel® client GPU
+# 2 - Intel® Data Center GPU
 intel_gpu_state=0
 gpu_info=""
 
-# Check for any Intel GPU
+# Check for any Intel® GPU
 intel_gpus=$(lspci -nn | grep -E 'VGA|3D|Display' | grep -i "Intel")
 
-# If Intel GPUs are found, prioritize DC GPU
+# If Intel® GPUs are found, prioritize DC GPU
 if [ -n "$intel_gpus" ]; then
     # Check for DC GPU
     intel_dc_gpu=$(echo -e "$intel_gpus" | grep -Ei "0BD5|0BDA|56C0|56C1")
@@ -247,10 +260,10 @@ case $intel_gpu_state in
         echo -e " --------------------------------"
         ;;
     2)
-        echo_color "\n Data Center GPU detected:" "bgreen"
-        echo -e " --------------------------------"
+        echo_color "\n Intel® Data Center GPU detected:" "bgreen"
+        echo -e " -----------------------------------"
         echo -e " $gpu_info"
-        echo -e " --------------------------------"
+        echo -e " -----------------------------------"
         ;;
 esac
 
@@ -279,7 +292,7 @@ if [ $intel_gpu_state -ne 0 ]; then
             echo -e "\e[97m To enable GPU support, install the client GPU drivers by following the instructions available at https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages.\n\e[37m"
             ;;
         2)
-            echo -e "\e[97m To enable GPU support, install the Data Center GPU drivers by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html.\n\e[37m"
+            echo -e "\e[97m To enable GPU support, install Intel® Data Center GPU drivers by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html.\n\e[37m"
             ;;
         esac
 
@@ -309,48 +322,46 @@ fi
 
 #-----------------------STEP 3-------------------------------------------
 
-intel_npu=$(lspci | grep -i 'Intel' | grep 'NPU' | rev | cut -d':' -f1 | rev)
+intel_npu_state=$(sudo dmesg | grep -i "initialized intel_vpu")
 
-if [ -n "$intel_npu" ]; then
-    echo_color "\n Intel® NPU detected:" "green"
-    echo -e " --------------------------------"
-    echo -e " $intel_npu"
-    echo -e " --------------------------------"
+if [ -n "$intel_npu_state" ]; then
 
-    intel_npu_state=$(sudo dmesg | grep -i "initialized intel_vpu")
+    intel_npu=$(lspci | grep -i 'Intel' | grep 'NPU' | rev | cut -d':' -f1 | rev)
 
-    if [ -n "$intel_npu_state" ]; then
-        echo_color "\n NPU kernel drivers have been found."
-
-        line_to_add="export ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so"
-
-        # Define the .bash_profile file path for the current user
-        bash_profile="${HOME}/.bash_profile"
-
-        # Check if .bash_profile exists, create it if it does not
-        if [ ! -f "$bash_profile" ]; then
-            # If .bash_profile does not exist, check for .profile
-            if [ ! -f "${HOME}/.profile" ]; then
-                # Neither .bash_profile nor .profile exists, create .bash_profile
-                touch "$bash_profile"
-            else
-                # .profile exists, so use that instead
-                bash_profile="${HOME}/.profile"
-            fi
-        fi
-
-        # Check if the line already exists in .bash_profile to avoid duplicates
-        if ! grep -qF -- "$line_to_add" "$bash_profile"; then
-            # If the line does not exist, append it to .bash_profile
-            echo "$line_to_add" >> "$bash_profile"
-            # shellcheck disable=SC1090
-            source "$bash_profile"
-        fi
-
-    else
-        echo_color "\n Intel® NPU hardware is present but kernel drivers were not installed." "yellow"
-        echo  " To enable NPU support, follow the instructions available at https://github.com/intel/linux-npu-driver/releases"
+    if [ -n "$intel_npu" ]; then
+        echo_color "\n Intel® NPU detected:" "green"
+        echo -e " --------------------------------"
+        echo -e " $intel_npu"
+        echo -e " --------------------------------"
     fi
+    
+    echo_color "\n NPU kernel drivers have been found." "green"
+
+    line_to_add="export ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so"
+
+    # Define the .bash_profile file path for the current user
+    bash_profile="${HOME}/.bash_profile"
+
+    # Check if .bash_profile exists, create it if it does not
+    if [ ! -f "$bash_profile" ]; then
+        # If .bash_profile does not exist, check for .profile
+        if [ ! -f "${HOME}/.profile" ]; then
+            # Neither .bash_profile nor .profile exists, create .bash_profile
+            touch "$bash_profile"
+        else
+            # .profile exists, so use that instead
+            bash_profile="${HOME}/.profile"
+        fi
+    fi
+
+    # Check if the line already exists in .bash_profile to avoid duplicates
+    if ! grep -qF -- "$line_to_add" "$bash_profile"; then
+        # If the line does not exist, append it to .bash_profile
+        echo "$line_to_add" >> "$bash_profile"
+        # shellcheck disable=SC1090
+        source "$bash_profile"
+    fi
+
 fi
 
 echo_color "\n Environment setup completed successfully. " "bgreen"
@@ -367,6 +378,8 @@ fi
 
 if [ -n "$intel_npu" ]; then
     echo " - NPU ($intel_npu)"
+elif [ -n "$intel_npu_state" ]; then
+    echo " - NPU"    
 fi
 
 echo " ---------------------------------------------------"
@@ -374,7 +387,10 @@ echo " ---------------------------------------------------"
 if [ "$intel_gpu_state" -eq 0 ]; then
     echo_color "\n If you believe that a GPU should be enabled on your system, please install the appropriate drivers and rerun the script. " "yellow"
 fi
-if [  -z "$intel_npu"  ]; then
-    echo_color "\n If you believe that an NPU should be enabled on your system, please install the appropriate drivers and rerun the script. " "yellow"
+if [  -z "$intel_npu_state"  ]; then
+    echo_color "\n If you believe that an NPU should be enabled on your system, please follow the instructions available at " "yellow"
+    echo_color "\t * https://github.com/intel/linux-npu-driver/releases." "white"
+    echo_color " Install the appropriate drivers and rerun the script. " "yellow"
+    echo 
 fi
 

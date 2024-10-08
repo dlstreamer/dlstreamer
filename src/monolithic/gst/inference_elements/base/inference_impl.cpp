@@ -102,7 +102,7 @@ uint32_t GetOptimalBatchSize(const char *device) {
     uint32_t batch_size = 1;
     // if the device has the format GPU.x we assume that these are discrete graphics and choose larger batch
     if (device and std::string(device).find("GPU.") != std::string::npos)
-        batch_size = 64;
+        batch_size = 8;
     return batch_size;
 }
 
@@ -519,23 +519,46 @@ MemoryType GetMemoryType(MemoryType input_image_memory_type, ImagePreprocessorTy
     return type;
 }
 
+bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference) {
+    const std::string device(gva_base_inference->device);
+
+    if (device.find("GPU.") == device.npos && device.find("GPU") != device.npos) {
+        // GPU only i.e. all available accelerators
+        return true;
+    }
+
+    // Add check for GPU.x <--> va(renderDXXX)h264dec , va(renderDXXX)postproc
+    {
+        // TODO
+        // if (device.find("GPU.") != device.npos) { }
+        // Reuse shared VADisplay Context if GPU.x == va(renderDXXX)h264dec && va(renderDXXX)postproc
+    }
+
+    return false;
+}
+
 dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
     assert(gva_base_inference);
 
     auto display = gva_base_inference->priv->va_display;
+    const std::string device(gva_base_inference->device);
+
+    // Create a new VADisplay context only if the existing one i.e priv->va_display does not match
+    if (!canReuseSharedVADispCtx(gva_base_inference)) {
+        if (device.find("GPU.") != device.npos) {
+            uint32_t rel_dev_index = 0;
+            rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
+            display = vaApiCreateVaDisplay(rel_dev_index);
+
+            GVA_INFO("Using new VADisplay (%p) ", static_cast<void *>(display.get()));
+            return display;
+        }
+    }
+
     if (display) {
         GVA_INFO("Using shared VADisplay (%p) from element %s", static_cast<void *>(display.get()),
                  GST_ELEMENT_NAME(gva_base_inference));
-        return display;
     }
-
-#ifdef ENABLE_VAAPI
-    uint32_t rel_dev_index = 0;
-    const std::string device(gva_base_inference->device);
-    if (device.find("GPU") != device.npos)
-        rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
-    display = vaApiCreateVaDisplay(rel_dev_index);
-#endif
 
     return display;
 }

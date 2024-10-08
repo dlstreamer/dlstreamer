@@ -68,19 +68,32 @@ struct Line {
     }
 };
 
-struct Mask {
+struct InstanceSegmantationMask {
     std::vector<float> data;
     cv::Size size;
     cv::Scalar color;
     cv::Rect2f box;
 
-    Mask() = default;
+    InstanceSegmantationMask() = default;
 
-    Mask(const std::vector<float> &data, const cv::Size &size, const cv::Scalar &color, const cv::Rect2f &box)
+    InstanceSegmantationMask(const std::vector<float> &data, const cv::Size &size, const cv::Scalar &color,
+                             const cv::Rect2f &box)
         : data(data), size(size), color(color), box(box) {
     }
 };
 
-using Prim = std::variant<Text, Rect, Circle, Line, Mask>;
+struct SemanticSegmantationMask {
+    std::vector<int64_t> data;
+    cv::Size size;
+    cv::Rect2f box;
+
+    SemanticSegmantationMask() = default;
+
+    SemanticSegmantationMask(const std::vector<int64_t> &data, const cv::Size &size, const cv::Rect2f &box)
+        : data(data), size(size), box(box) {
+    }
+};
+
+using Prim = std::variant<Text, Rect, Circle, Line, InstanceSegmantationMask, SemanticSegmantationMask>;
 
 } // namespace render

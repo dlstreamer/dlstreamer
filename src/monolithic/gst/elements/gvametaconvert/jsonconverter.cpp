@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,6 +25,7 @@ GST_DEBUG_CATEGORY_STATIC(gst_json_converter_debug);
 #define GST_CAT_DEFAULT gst_json_converter_debug
 
 namespace {
+
 /**
  * @return JSON object which contains parameters such as resolution, timestamp, source and tags.
  */
@@ -34,6 +35,9 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json res = json::object();
     GstSegment converter_segment = converter->base_gvametaconvert.segment;
     GstClockTime timestamp = gst_segment_to_stream_time(&converter_segment, GST_FORMAT_TIME, buffer->pts);
+
+    GstVideoTimeCodeMeta *tc_meta = gst_buffer_get_video_time_code_meta(buffer);
+
     if (converter->info)
         res["resolution"] = json::object({{"width", converter->info->width}, {"height", converter->info->height}});
     if (converter->source)
@@ -42,6 +46,11 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         res["timestamp"] = timestamp;
     if (converter->tags && json::accept(converter->tags))
         res["tags"] = json::parse(converter->tags);
+    if (tc_meta) {
+        GstVideoTimeCode *vtc = gst_video_time_code_copy(&tc_meta->tc);
+        GDateTime *frame_date_time = gst_video_time_code_to_date_time(vtc);
+        res["system_timestamp"] = g_date_time_format_iso8601(frame_date_time);
+    }
     return res;
 }
 

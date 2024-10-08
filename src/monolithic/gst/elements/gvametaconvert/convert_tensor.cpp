@@ -89,6 +89,11 @@ json convert_tensor(const GVA::Tensor &s_tensor) {
         for (const auto &val : data) {
             data_array += val;
         }
+    } else if (s_tensor.precision() == GVA::Tensor::Precision::I64) {
+        const std::vector<int64_t> data = s_tensor.data<int64_t>();
+        for (const auto &val : data) {
+            data_array += val;
+        }
     } else {
         const std::vector<float> data = s_tensor.data<float>();
         for (const auto &val : data) {
