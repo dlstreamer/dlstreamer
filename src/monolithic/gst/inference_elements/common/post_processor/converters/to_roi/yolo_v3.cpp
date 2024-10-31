@@ -20,12 +20,19 @@
 
 using namespace post_processing;
 
-std::vector<float> YOLOv3Converter::softmax(const float *arr, size_t size, size_t common_offset,
+std::vector<float> YOLOv3Converter::softmax(const float *arr, size_t arr_size, size_t size, size_t common_offset,
                                             size_t side_square) const {
+    // Sanitize inputs
+    if (size > std::numeric_limits<size_t>::max() - 5) {
+        throw std::out_of_range("Invalid argument");
+    }
     std::vector<float> sftm_arr(size);
     float sum = 0;
     for (size_t i = 0; i < size; ++i) {
         const size_t class_index = entryIndex(side_square, common_offset, 5 + i);
+        if (class_index >= arr_size) {
+            throw std::out_of_range("entryIndex out of range");
+        }
         sftm_arr[i] = std::exp(arr[class_index]);
         sum += sftm_arr[i];
     }
@@ -63,7 +70,7 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
 
     size_t input_width = getModelInputImageInfo().width;
     size_t input_height = getModelInputImageInfo().height;
-    const size_t side_square = side_w * side_h;
+    const size_t side_square = safe_mul(side_w, side_h);
 
     for (size_t i = 0; i < side_square; ++i) {
         const size_t row = i / side_w;
@@ -81,7 +88,8 @@ void YOLOv3Converter::parseOutputBlob(const float *blob_data, const std::vector<
 
             std::pair<size_t, float> bbox_class = std::make_pair(0, 0.f);
             if (do_cls_softmax) {
-                const auto cls_confs = softmax(blob_data, output_shape_info.classes_number, common_offset, side_square);
+                const auto cls_confs =
+                    softmax(blob_data, blob_size, output_shape_info.classes_number, common_offset, side_square);
 
                 for (size_t bbox_class_id = 0; bbox_class_id < output_shape_info.classes_number; ++bbox_class_id) {
                     const float bbox_class_prob = cls_confs[bbox_class_id];

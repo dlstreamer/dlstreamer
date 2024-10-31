@@ -61,6 +61,11 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
             fill_value = padding.fill_value;
         }
 
+        if (padding_x > std::numeric_limits<int>::max() / 2 || padding_y > std::numeric_limits<int>::max() / 2 ||
+            input_size.width < 0 || input_size.height < 0) {
+            throw std::range_error("Invalid padding or range");
+        }
+
         cv::Size input_size_except_padding(input_size.width - (padding_x * 2), input_size.height - (padding_y * 2));
 
         // Resize
@@ -240,8 +245,11 @@ void OpenCV_VPP::Convert(const Image &raw_src, Image &dst, const InputImageLayer
                 throw std::runtime_error(
                     "Formats with more than one plane could not be processed with `make_planar=false`");
             auto channels_count = GlobUtils::GetChannelsCount(dst.format);
-            cv::Mat dst_mat(safe_convert<int>(dst.height), safe_convert<int>(dst.width),
-                            CV_MAKE_TYPE(CV_8U, channels_count), dst.planes[0], dst.stride[0]);
+            if (channels_count > CV_DEPTH_MAX)
+                throw std::range_error("Number of channels exceeds OpenCV maximum (8)");
+            auto cv_type = CV_MAKE_TYPE(CV_8U, safe_convert<int>(channels_count));
+            cv::Mat dst_mat(safe_convert<int>(dst.height), safe_convert<int>(dst.width), cv_type, dst.planes[0],
+                            dst.stride[0]);
             dst_mat_image.copyTo(dst_mat);
         }
     } catch (const std::exception &e) {

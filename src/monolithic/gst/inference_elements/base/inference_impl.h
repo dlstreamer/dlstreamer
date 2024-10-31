@@ -101,7 +101,7 @@ class InferenceImpl {
     void UpdateModelReshapeInfo(GvaBaseInference *gva_base_inference);
 
     GstFlowReturn SubmitImages(GvaBaseInference *gva_base_inference,
-                               const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstBuffer *buffer);
+                               const std::vector<GstVideoRegionOfInterestMeta> &metas, GstBuffer *buffer);
     std::shared_ptr<InferenceResult> MakeInferenceResult(GvaBaseInference *gva_base_inference, Model &model,
                                                          GstVideoRegionOfInterestMeta *meta,
                                                          std::shared_ptr<InferenceBackend::Image> &image,

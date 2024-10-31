@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -58,6 +58,7 @@ PythonContextInitializer::PythonContextInitializer() {
     state = PyGILState_UNLOCKED;
     if (Py_IsInitialized()) {
         state = PyGILState_Ensure();
+        has_old_state = true;
     } else {
         Py_Initialize();
     }
@@ -66,7 +67,7 @@ PythonContextInitializer::PythonContextInitializer() {
 }
 
 PythonContextInitializer::~PythonContextInitializer() {
-    if (Py_IsInitialized()) {
+    if (has_old_state) {
         PyGILState_Release(state);
     } else {
         PyEval_SaveThread();

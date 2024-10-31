@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -36,5 +36,6 @@ class PythonContextInitializer {
 
   private:
     PyGILState_STATE state;
+    bool has_old_state = false;
     PyObject *sys_path;
 };

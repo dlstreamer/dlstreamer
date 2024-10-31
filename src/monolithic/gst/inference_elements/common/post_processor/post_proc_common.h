@@ -11,6 +11,7 @@
 
 #include <gst/video/gstvideometa.h>
 
+#include <gst/analytics/analytics.h>
 #include <map>
 #include <memory>
 #include <string>
@@ -49,6 +50,24 @@ void checkFramesAndTensorsTable(const FramesWrapper &frames, const TensorsTable 
 inline bool sameRegion(const GstVideoRegionOfInterestMeta *left, GstVideoRegionOfInterestMeta *right) {
     return left->roi_type == right->roi_type && left->x == right->x && left->y == right->y && left->w == right->w &&
            left->h == right->h;
+}
+
+inline bool sameRegion(const GstAnalyticsODMtd *od_meta, GstVideoRegionOfInterestMeta *roi_meta) {
+    gint od_meta_x;
+    gint od_meta_y;
+    gint od_meta_w;
+    gint od_meta_h;
+
+    if (!gst_analytics_od_mtd_get_location(const_cast<GstAnalyticsODMtd *>(od_meta), &od_meta_x, &od_meta_y, &od_meta_w,
+                                           &od_meta_h, nullptr)) {
+        throw std::runtime_error("Error when trying to read the location of the object detection metadata");
+    }
+
+    GQuark od_meta_label = gst_analytics_od_mtd_get_obj_type(const_cast<GstAnalyticsODMtd *>(od_meta));
+
+    return od_meta_label == roi_meta->roi_type && od_meta_x == static_cast<gint>(roi_meta->x) &&
+           od_meta_y == static_cast<gint>(roi_meta->y) && od_meta_w == static_cast<gint>(roi_meta->w) &&
+           od_meta_h == static_cast<gint>(roi_meta->h);
 }
 
 template <typename T>

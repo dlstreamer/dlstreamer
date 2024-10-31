@@ -1339,7 +1339,7 @@ Image fill_image(ov::Tensor &tensor, size_t bindex) {
         throw std::out_of_range("Image index is out of range in batch blob");
     }
     auto elem_type = tensor.get_element_type();
-    size_t plane_size = image.width * image.height * elem_type.size();
+    size_t plane_size = safe_mul(size_t(safe_mul(image.width, image.height)), elem_type.size());
     size_t buffer_offset = safe_mul(safe_mul(bindex, plane_size), dims[1]);
 
     image.planes[0] = static_cast<uint8_t *>(tensor.data()) + buffer_offset;

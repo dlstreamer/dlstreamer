@@ -84,9 +84,11 @@ class GSTContextQuery : public BaseContext {
             return VA_CONTEXT_NAME;
         }
 
-        if (memory_type == MemoryType::VAAPI)
+        if (memory_type == MemoryType::VAAPI) {
+            GST_ELEMENT_WARNING(_context, LIBRARY, INIT, ("VASurface and Gst-VAAPI is deprecated."),
+                                ("%s", "Please use VAMemory na Gst-VA instead."));
             return VAAPI_CONTEXT_NAME;
-        else
+        } else
             return memory_type_to_string(memory_type);
     }
 

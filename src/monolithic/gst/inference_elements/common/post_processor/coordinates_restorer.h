@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -37,7 +37,8 @@ class CoordinatesRestorer {
 class ROICoordinatesRestorer : public CoordinatesRestorer {
   protected:
     void clipNormalizedRect(double &real_x_min, double &real_y_min, double &real_x_max, double &real_y_max);
-    GstVideoRegionOfInterestMeta *findDetectionMeta(const FrameWrapper &frame);
+    GstVideoRegionOfInterestMeta *findRoiMeta(const FrameWrapper &frame);
+    bool findObjectDetectionMeta(const FrameWrapper &frame, GstAnalyticsODMtd *rlt_mtd);
     void updateCoordinatesToFullFrame(double &x_min, double &y_min, double &x_max, double &y_max,
                                       const FrameWrapper &frame);
     void getAbsoluteCoordinates(int orig_image_width, int orig_image_height, double real_x_min, double real_y_min,

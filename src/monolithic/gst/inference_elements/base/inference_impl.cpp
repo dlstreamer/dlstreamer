@@ -27,8 +27,9 @@
 #include <assert.h>
 #include <cmath>
 #include <cstring>
+#include <dlstreamer/gst/videoanalytics/objectdetectionmtdext.h>
 #include <exception>
-#include <gst/allocators/allocators.h>
+#include <gst/analytics/analytics.h>
 #include <map>
 #include <memory>
 #include <openvino/runtime/properties.hpp>
@@ -46,6 +47,8 @@ using namespace std::placeholders;
 using namespace InferenceBackend;
 
 namespace {
+
+const int DEFAULT_GPU_DRM_ID = 128; // -> /dev/dri/renderD128
 
 inline std::shared_ptr<Allocator> CreateAllocator(const char *const allocator_name) {
     std::shared_ptr<Allocator> allocator;
@@ -519,6 +522,45 @@ MemoryType GetMemoryType(MemoryType input_image_memory_type, ImagePreprocessorTy
     return type;
 }
 
+int getGPURenderDevId(GvaBaseInference *gva_base_inference) {
+    int gpuRenderDevId = 0;
+
+    if (gva_base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE ||
+        gva_base_inference->caps_feature == VA_SURFACE_CAPS_FEATURE) {
+
+        GstContext *gstCtxLcl = nullptr;
+        const GstStructure *gstStrLcl = nullptr;
+        GstQuery *gstQueryLcl = gst_query_new_context(
+            gva_base_inference->caps_feature == VA_MEMORY_CAPS_FEATURE ? "gst.va.display.handle" : "gst.vaapi.Display");
+
+        if (gst_pad_peer_query(gva_base_inference->base_transform.sinkpad, gstQueryLcl)) {
+            // Get GST context to retrieve elements data
+            gst_query_parse_context(gstQueryLcl, &gstCtxLcl);
+
+            // Get GST structure of specific element
+            gstStrLcl = gst_context_get_structure(gstCtxLcl);
+
+            // Convert GST structure into string and read field 'path' to get renderDxxx device
+            gchar *structure_str = gst_structure_to_string(gstStrLcl);
+            GVA_INFO("structure_str: %s ", structure_str);
+            if (gst_structure_has_field(gstStrLcl, "path")) {
+                const gchar *_path = gst_structure_get_string(gstStrLcl, "path");
+                std::string _str_path(_path);
+                std::regex digit_regex("\\d+");
+                std::smatch match;
+                if (std::regex_search(_str_path, match, digit_regex)) {
+                    std::string digit_str = match.str();
+                    gpuRenderDevId = std::stoi(digit_str);
+                }
+                GVA_INFO("GPU Render Device Id : renderD%d", gpuRenderDevId);
+                gpuRenderDevId = gpuRenderDevId - DEFAULT_GPU_DRM_ID;
+            }
+        }
+        gst_query_unref(gstQueryLcl);
+    }
+    return gpuRenderDevId;
+}
+
 bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference) {
     const std::string device(gva_base_inference->device);
 
@@ -526,14 +568,16 @@ bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference) {
         // GPU only i.e. all available accelerators
         return true;
     }
-
-    // Add check for GPU.x <--> va(renderDXXX)h264dec , va(renderDXXX)postproc
-    {
-        // TODO
-        // if (device.find("GPU.") != device.npos) { }
-        // Reuse shared VADisplay Context if GPU.x == va(renderDXXX)h264dec && va(renderDXXX)postproc
+    // Check GPU.x <--> va(renderDXXX)h264dec , va(renderDXXX)postproc
+    if (device.find("GPU.") != device.npos) {
+        uint32_t rel_dev_index = Utils::getRelativeGpuDeviceIndex(device);
+        uint32_t gpuId = getGPURenderDevId(gva_base_inference);
+        if (gpuId == rel_dev_index) {
+            // Inference GPU device matches decoding GPU device so
+            // we can reuse shared VADisplay Context.
+            return true;
+        }
     }
-
     return false;
 }
 
@@ -839,7 +883,7 @@ InferenceImpl::MakeInferenceResult(GvaBaseInference *gva_base_inference, Model &
 }
 
 GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
-                                          const std::vector<GstVideoRegionOfInterestMeta *> &metas, GstBuffer *buffer) {
+                                          const std::vector<GstVideoRegionOfInterestMeta> &metas, GstBuffer *buffer) {
     ITT_TASK(__FUNCTION__);
     try {
         if (!gva_base_inference)
@@ -865,13 +909,13 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
             throw std::invalid_argument("image is null");
 
         size_t i = 0;
-        for (const auto meta : metas) {
+        for (auto meta : metas) {
             // Workaround for CodeCoverity
             if (!image)
                 break;
 
-            ApplyImageBoundaries(image, meta, gva_base_inference->inference_region);
-            auto result = MakeInferenceResult(gva_base_inference, model, meta, image, buffer);
+            ApplyImageBoundaries(image, &meta, gva_base_inference->inference_region);
+            auto result = MakeInferenceResult(gva_base_inference, model, &meta, image, buffer);
             // Because image is a shared pointer with custom deleter which performs buffer unmapping
             // we need to manually reset it after we passed it to the last InferenceResult
             // Otherwise it may try to unmap buffer which is already pushed to downstream
@@ -881,7 +925,7 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
             std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> input_preprocessors;
             if (!model.input_processor_info.empty() && gva_base_inference->input_prerocessors_factory)
                 input_preprocessors =
-                    gva_base_inference->input_prerocessors_factory(model.inference, model.input_processor_info, meta);
+                    gva_base_inference->input_prerocessors_factory(model.inference, model.input_processor_info, &meta);
             model.inference->SubmitImage(std::move(result), input_preprocessors);
         }
     } catch (const std::exception &e) {
@@ -926,20 +970,62 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
     }
 
     /* Collect all ROI metas into std::vector */
-    std::vector<GstVideoRegionOfInterestMeta *> metas;
+    std::vector<GstVideoRegionOfInterestMeta> metas;
     GstVideoRegionOfInterestMeta full_frame_meta;
     {
         ITT_TASK("InferenceImpl::TransformFrameIp collectROIMetas");
         switch (gva_base_inference->inference_region) {
         case ROI_LIST: {
             /* iterates through buffer's meta and pushes it in vector if inference needed. */
-            GstVideoRegionOfInterestMeta *meta = NULL;
             gpointer state = NULL;
-            while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
-                if (!gva_base_inference->is_roi_inference_needed ||
-                    gva_base_inference->is_roi_inference_needed(gva_base_inference, gva_base_inference->frame_num,
-                                                                buffer, meta)) {
-                    metas.push_back(meta);
+            if (NEW_METADATA) {
+                GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+                if (relation_meta) {
+                    GstAnalyticsODMtd od_meta;
+                    while (gst_analytics_relation_meta_iterate(relation_meta, &state,
+                                                               gst_analytics_od_mtd_get_mtd_type(), &od_meta)) {
+                        auto roi = GstVideoRegionOfInterestMeta();
+
+                        gint x;
+                        gint y;
+                        gint w;
+                        gint h;
+
+                        if (!gst_analytics_od_mtd_get_location(&od_meta, &x, &y, &w, &h, nullptr)) {
+                            throw std::runtime_error(
+                                "Error when trying to read the location of the object detection metadata");
+                        }
+
+                        roi.x = x;
+                        roi.y = y;
+                        roi.w = w;
+                        roi.h = h;
+
+                        roi.roi_type = gst_analytics_od_mtd_get_obj_type(&od_meta);
+                        roi.id = od_meta.id;
+
+                        GstAnalyticsODExtMtd od_ext_meta;
+                        if (gst_analytics_relation_meta_get_direct_related(
+                                relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, GST_ANALYTICS_MTD_TYPE_ANY,
+                                nullptr, &od_ext_meta)) {
+                            roi.params = gst_analytics_od_ext_mtd_get_params(&od_ext_meta);
+                        }
+
+                        if (!gva_base_inference->is_roi_inference_needed ||
+                            gva_base_inference->is_roi_inference_needed(gva_base_inference,
+                                                                        gva_base_inference->frame_num, buffer, &roi)) {
+                            metas.push_back(roi);
+                        }
+                    }
+                }
+            } else {
+                GstVideoRegionOfInterestMeta *meta = NULL;
+                while ((meta = GST_VIDEO_REGION_OF_INTEREST_META_ITERATE(buffer, &state))) {
+                    if (!gva_base_inference->is_roi_inference_needed ||
+                        gva_base_inference->is_roi_inference_needed(gva_base_inference, gva_base_inference->frame_num,
+                                                                    buffer, meta)) {
+                        metas.push_back(*meta);
+                    }
                 }
             }
             break;
@@ -951,8 +1037,9 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             full_frame_meta.y = 0;
             full_frame_meta.w = gva_base_inference->info->width;
             full_frame_meta.h = gva_base_inference->info->height;
+            full_frame_meta.id = -1;
             if (IsRoiSizeValid(&full_frame_meta))
-                metas.push_back(&full_frame_meta);
+                metas.push_back(full_frame_meta);
             break;
         }
         default:
@@ -988,12 +1075,13 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             return GST_FLOW_OK;
         }
 
-        // No need to unref buffer copy further
-        buf_guard.disable();
-
         InferenceImpl::OutputFrame output_frame = {
             .buffer = buffer, .inference_count = inference_count, .filter = gva_base_inference, .inference_rois = {}};
         output_frames.push_back(output_frame);
+
+        // No need to unref buffer copy further
+        buf_guard.disable();
+
         if (!inference_count) {
             return GST_BASE_TRANSFORM_FLOW_DROPPED;
         }

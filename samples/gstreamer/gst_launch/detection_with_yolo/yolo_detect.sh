@@ -17,14 +17,14 @@ else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s
+MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s, yolo11s, yolo11s-obb, yolo11s-seg
 DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
 INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
 OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-json
 
 cd "$(dirname "$0")"
 
-if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
+if { [[ "$MODEL" == "yolov10s" ]] || [[ "$MODEL" == "yolo11s"* ]]; } && [[ "$DEVICE" == "NPU" ]]; then
     echo "Error - No support of Yolov10 for NPU."
     exit
 fi
@@ -45,6 +45,9 @@ declare -A MODEL_PROC_FILES=(
   ["yolov8n-obb"]=""
   ["yolov8n-seg"]=""
   ["yolov10s"]=""
+  ["yolo11s"]=""
+  ["yolo11s-seg"]=""
+  ["yolo11s-obb"]=""
 )
 
 if ! [[ "${!MODEL_PROC_FILES[*]}" =~ $MODEL ]]; then

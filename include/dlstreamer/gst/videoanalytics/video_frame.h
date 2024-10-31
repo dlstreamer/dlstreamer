@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "objectdetectionmtdext.h"
 #include "region_of_interest.h"
 
 #include "../metadata/gva_json_meta.h"
@@ -214,20 +215,51 @@ class VideoFrame {
         if (!gst_buffer_is_writable(buffer))
             throw std::runtime_error("Buffer is not writable.");
 
-        GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
-            buffer, label.c_str(), double_to_uint(_x), double_to_uint(_y), double_to_uint(_w), double_to_uint(_h));
-        meta->id = gst_util_seqnum_next();
-
-        // Add detection tensor
         GstStructure *detection =
             gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x, "x_max", G_TYPE_DOUBLE, x + w, "y_min",
                               G_TYPE_DOUBLE, y, "y_max", G_TYPE_DOUBLE, y + h, NULL);
+
         if (confidence) {
             gst_structure_set(detection, "confidence", G_TYPE_DOUBLE, confidence, NULL);
         }
-        gst_video_region_of_interest_meta_add_param(meta, detection);
 
-        return RegionOfInterest(meta);
+        if (NEW_METADATA) {
+            GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(buffer);
+
+            if (!relation_meta) {
+                throw std::runtime_error("Failed to add GstAnalyticsRelationMeta to buffer");
+            }
+
+            GstAnalyticsODMtd od_mtd;
+            if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string(label.c_str()),
+                                                        double_to_int(_x), double_to_int(_y), double_to_int(_w),
+                                                        double_to_int(_h), confidence, &od_mtd)) {
+                throw std::runtime_error("Failed to add detection data to meta");
+            }
+
+            GstAnalyticsODExtMtd od_ext_mtd;
+            if (!gst_analytics_relation_meta_add_od_ext_mtd(relation_meta, 0, 0, &od_ext_mtd)) {
+                throw std::runtime_error("Failed to add detection extended data to meta");
+            }
+
+            gst_analytics_od_ext_mtd_add_param(&od_ext_mtd, detection);
+
+            if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_RELATE_TO, od_mtd.id,
+                                                          od_ext_mtd.id)) {
+                throw std::runtime_error(
+                    "Failed to set relation between object detection metadata and extended metadata");
+            }
+
+            return RegionOfInterest(od_mtd, od_ext_mtd);
+        } else {
+            GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
+                buffer, label.c_str(), double_to_uint(_x), double_to_uint(_y), double_to_uint(_w), double_to_uint(_h));
+            meta->id = gst_util_seqnum_next();
+
+            gst_video_region_of_interest_meta_add_param(meta, detection);
+
+            return RegionOfInterest(meta);
+        }
     }
 
     /**
@@ -311,6 +343,12 @@ class VideoFrame {
         return (val < min) ? min : ((val > max) ? max : static_cast<unsigned int>(val));
     }
 
+    int double_to_int(double val) {
+        int max = std::numeric_limits<int>::max();
+        int min = std::numeric_limits<int>::min();
+        return (val < min) ? min : ((val > max) ? max : static_cast<int>(val));
+    }
+
     std::vector<RegionOfInterest> get_regions() const {
         std::vector<RegionOfInterest> regions;
         gpointer state = NULL;
@@ -322,7 +360,14 @@ class VideoFrame {
             GstAnalyticsODMtd od_meta;
             while (gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(),
                                                        &od_meta)) {
-                regions.emplace_back(od_meta);
+                GstAnalyticsODExtMtd od_ext_meta;
+                if (!gst_analytics_relation_meta_get_direct_related(
+                        relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, GST_ANALYTICS_MTD_TYPE_ANY,
+                        nullptr, &od_ext_meta)) {
+                    throw std::runtime_error("Object detection extended metadata not found");
+                }
+
+                regions.emplace_back(od_meta, od_ext_meta);
             }
             return regions;
         }

@@ -8,12 +8,11 @@
 
 #include "post_proc_common.h"
 
+#include <gst/analytics/analytics.h>
 #include <gst/gst.h>
 #include <gst/video/gstvideometa.h>
 
 namespace post_processing {
-
-const bool NEW_METADATA = false;
 
 class MetaAttacher {
   public:
@@ -44,6 +43,7 @@ class TensorToFrameAttacher : public MetaAttacher {
 class TensorToROIAttacher : public MetaAttacher {
   private:
     GstVideoRegionOfInterestMeta *findROIMeta(GstBuffer *buffer, GstVideoRegionOfInterestMeta *frame_roi);
+    bool findODMeta(GstBuffer *buffer, GstVideoRegionOfInterestMeta *frame_roi, GstAnalyticsODMtd *rlt_mtd);
 
   public:
     TensorToROIAttacher() = default;

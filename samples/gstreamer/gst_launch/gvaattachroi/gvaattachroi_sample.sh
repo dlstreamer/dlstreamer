@@ -7,8 +7,6 @@
 
 set -euo pipefail
 
-cd "$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
-
 if [ -z "${MODELS_PATH:-}" ]; then
   echo "Error: MODELS_PATH is not set." >&2
   exit 1
@@ -72,7 +70,9 @@ ROI_ELEMENT="gvaattachroi"
 if [[ -n "$ROI_COORDS" ]]; then
   ROI_ELEMENT="$ROI_ELEMENT roi=$ROI_COORDS !"
 else
-  ROI_ELEMENT="$ROI_ELEMENT mode=1 file-path=roi_list.json !"
+  SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+  ROI_FILE_PATH=$SCRIPT_DIR/roi_list.json
+  ROI_ELEMENT="$ROI_ELEMENT mode=1 file-path=$ROI_FILE_PATH !"
 fi
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \

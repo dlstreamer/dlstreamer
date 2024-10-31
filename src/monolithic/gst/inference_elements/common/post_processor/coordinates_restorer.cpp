@@ -12,6 +12,7 @@
 
 #include "inference_backend/logger.h"
 
+#include <dlstreamer/gst/videoanalytics/objectdetectionmtdext.h>
 #include <exception>
 
 using namespace post_processing;
@@ -77,7 +78,7 @@ void ROICoordinatesRestorer::getAbsoluteCoordinates(int orig_image_width, int or
  *
  * @throw std::invalid_argument when GstBuffer is nullptr.
  */
-GstVideoRegionOfInterestMeta *ROICoordinatesRestorer::findDetectionMeta(const FrameWrapper &frame) {
+GstVideoRegionOfInterestMeta *ROICoordinatesRestorer::findRoiMeta(const FrameWrapper &frame) {
     GstBuffer *buffer = frame.buffer;
     if (not buffer)
         throw std::invalid_argument("Inference frame's buffer is nullptr");
@@ -92,12 +93,53 @@ GstVideoRegionOfInterestMeta *ROICoordinatesRestorer::findDetectionMeta(const Fr
     return meta;
 }
 
+bool ROICoordinatesRestorer::findObjectDetectionMeta(const FrameWrapper &frame, GstAnalyticsODMtd *rlt_mtd) {
+    GstBuffer *buffer = frame.buffer;
+    if (not buffer)
+        throw std::invalid_argument("Inference frame's buffer is nullptr");
+    auto frame_roi = frame.roi;
+    gpointer state = nullptr;
+
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+    if (relation_meta) {
+        while (
+            gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), rlt_mtd)) {
+            if (sameRegion(rlt_mtd, frame_roi)) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void ROICoordinatesRestorer::updateCoordinatesToFullFrame(double &x_min, double &y_min, double &x_max, double &y_max,
                                                           const FrameWrapper &frame) {
     /* In case of gvadetect with inference-region=roi-list we get coordinates relative to ROI.
      * We need to convert them to coordinates relative to the full frame. */
     if (attach_type == AttachType::TO_ROI) {
-        GstVideoRegionOfInterestMeta *meta = findDetectionMeta(frame);
+
+        if (NEW_METADATA) {
+            GstAnalyticsODMtd od_meta;
+            if (findObjectDetectionMeta(frame, &od_meta)) {
+                gint od_meta_x;
+                gint od_meta_y;
+                gint od_meta_w;
+                gint od_meta_h;
+
+                if (!gst_analytics_od_mtd_get_location(&od_meta, &od_meta_x, &od_meta_y, &od_meta_w, &od_meta_h,
+                                                       nullptr)) {
+                    throw std::runtime_error("Error when trying to read the location of the object detection metadata");
+                }
+
+                x_min = (od_meta_x + od_meta_w * x_min) / frame.width;
+                y_min = (od_meta_y + od_meta_h * y_min) / frame.height;
+                x_max = (od_meta_x + od_meta_w * x_max) / frame.width;
+                y_max = (od_meta_y + od_meta_h * y_max) / frame.height;
+            }
+            return;
+        }
+
+        GstVideoRegionOfInterestMeta *meta = findRoiMeta(frame);
         if (meta) {
             x_min = (meta->x + meta->w * x_min) / frame.width;
             y_min = (meta->y + meta->h * y_min) / frame.height;

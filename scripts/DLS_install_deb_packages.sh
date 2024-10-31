@@ -79,13 +79,25 @@ install_dl_streamer() {
 
     echo_color " Downloading Intel® DL Streamer .deb files into temporary directory: $temp_dir" "yellow"
 
+    # Check for any Intel® GPU
+    intel_gpus=$(lspci -nn | grep -E 'VGA|3D|Display' | grep -i "Intel")
+
+    reject_regex="--reject-regex=.*dpcpp.*\.deb"
     
     # Loop through the array of URLs and download packages from each one
     for download_url in "${download_urls[@]}"; do
         if [ "$filter_ubuntu_version" = "true" ]; then
-            wget -nd --accept-regex=".*ubuntu_${ubuntu_version}\.04.*\.deb" -r --timeout="$WEB_TIMEOUT" --tries=3 "${download_url}" || handle_error "Failed to download Debian packages"
+            if [ -n "$intel_gpus" ]; then
+                wget -nd --accept-regex=".*ubuntu_${ubuntu_version}\.04.*\.deb" -r --timeout="$WEB_TIMEOUT" --tries=3 "${download_url}" || handle_error "Failed to download Debian packages"
+            else
+                wget -nd --accept-regex=".*ubuntu_${ubuntu_version}\.04.*\.deb" "$reject_regex" -r --timeout="$WEB_TIMEOUT" --tries=3 "${download_url}" || handle_error "Failed to download Debian packages"
+            fi
         else
-            wget -nd --accept-regex=".*_amd64.deb" -r --timeout="$WEB_TIMEOUT" --tries=3 "${download_url}" || handle_error "Failed to download Debian packages"
+            if [ -n "$intel_gpus" ]; then
+                wget -nd --accept-regex=".*_amd64.deb" -r --timeout="$WEB_TIMEOUT" --tries=3 "${download_url}" || handle_error "Failed to download Debian packages"
+            else
+                wget -nd --accept-regex=".*_amd64.deb" "$reject_regex" -r --timeout="$WEB_TIMEOUT" --tries=3 "${download_url}" || handle_error "Failed to download Debian packages"
+            fi
         fi
     done
 

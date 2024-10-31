@@ -409,7 +409,7 @@ static gboolean gva_watermark_link_direct_path(GstGvaWatermark *self, bool use_p
             if (!self->postproc) {
                 GST_ERROR_OBJECT(self, "Could not create vaapipostproc instance");
             }
-        } else if (self->have_va) {
+        } else if (self->have_va && in_mem_type == VA_MEMORY_CAPS_FEATURE) {
             self->postproc = gst_element_factory_make("vapostproc", nullptr);
             if (!self->postproc) {
                 GST_ERROR_OBJECT(self, "Could not create vapostproc instance");
@@ -560,9 +560,13 @@ static gboolean gva_watermark_start(GstGvaWatermark *self) {
     if (identitySrcFeature == VA_SURFACE_CAPS_FEATURE && self->have_vaapi) {
         self->have_va = false;
         in_memory_type = VA_SURFACE_CAPS_FEATURE;
-    } else if (self->have_va) { // Prefer GST-VA
+    } else if ((identitySrcFeature == VA_MEMORY_CAPS_FEATURE || identitySrcFeature == DMA_BUF_CAPS_FEATURE) &&
+               self->have_va) {
         self->have_vaapi = false;
-        in_memory_type = VA_MEMORY_CAPS_FEATURE;
+        in_memory_type = VA_MEMORY_CAPS_FEATURE; // Prefer GST-VA
+    } else {
+        self->have_va = false;
+        self->have_vaapi = false;
     }
 
     if (self->have_vaapi || self->have_va) {

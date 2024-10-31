@@ -29,7 +29,7 @@ class YOLOv3Converter : public YOLOBaseConverter {
     const size_t coords = 4;
 
     size_t entryIndex(size_t side, size_t location, size_t entry) const;
-    std::vector<float> softmax(const float *arr, size_t size, size_t common_offset, size_t side) const;
+    std::vector<float> softmax(const float *arr, size_t arr_size, size_t size, size_t common_offset, size_t side) const;
 
     void parseOutputBlob(const float *blob_data, const std::vector<size_t> &blob_dims, size_t blob_size,
                          std::vector<DetectedObject> &objects) const override;

@@ -17,17 +17,19 @@ class SafeQueue {
   public:
     void push(T t) {
         auto task = itt::Task("infer_requests_queue:SafeQueue:push");
-        std::unique_lock<std::mutex> lock(mutex_);
-        queue_.push_back(t);
-        lock.unlock();
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            queue_.push_back(t);
+        }
         condition_.notify_one();
     }
 
     void push_front(T t) {
         auto task = itt::Task("infer_requests_queue:SafeQueue:push_front");
-        std::unique_lock<std::mutex> lock(mutex_);
-        queue_.push_front(t);
-        lock.unlock();
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            queue_.push_front(t);
+        }
         condition_.notify_one();
     }
 
@@ -42,13 +44,15 @@ class SafeQueue {
 
     T pop() {
         auto task = itt::Task("infer_requests_queue:SafeQueue:pop");
-        std::unique_lock<std::mutex> lock(mutex_);
-        while (queue_.empty()) {
-            condition_.wait(lock);
+        T value;
+        {
+            std::unique_lock<std::mutex> lock(mutex_);
+            while (queue_.empty()) {
+                condition_.wait(lock);
+            }
+            value = queue_.front();
+            queue_.pop_front();
         }
-        T value = queue_.front();
-        queue_.pop_front();
-        lock.unlock();
         condition_.notify_one();
         return value;
     }

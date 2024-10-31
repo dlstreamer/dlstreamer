@@ -87,17 +87,13 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
                 const auto &roi_history = history.get(id);
                 int frames_ago = this->current_num_frame - roi_history.frame_of_last_update;
                 for (const auto &layer_to_roi_param : roi_history.layers_to_roi_params) {
-                    if (!gst_video_region_of_interest_meta_get_param(
-                            region._meta(), gst_structure_get_name(layer_to_roi_param.second.get()))) {
-                        if (not region._meta())
-                            throw std::logic_error(
-                                "GstVideoRegionOfInterestMeta is nullptr for current region of interest");
+                    if (!region.get_param(gst_structure_get_name(layer_to_roi_param.second.get()))) {
                         auto tensor = GstStructureUniquePtr(gst_structure_copy(layer_to_roi_param.second.get()),
                                                             gst_structure_free);
                         if (not tensor)
                             throw std::runtime_error("Failed to create classification tensor");
                         gst_structure_set(tensor.get(), "frames_ago", G_TYPE_INT, frames_ago, NULL);
-                        gst_video_region_of_interest_meta_add_param(region._meta(), tensor.release());
+                        region.add_param(tensor.release());
                     }
                 }
             }

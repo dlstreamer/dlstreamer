@@ -64,8 +64,7 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
     json res = json::array();
     GVA::VideoFrame video_frame(buffer, converter->info);
     for (GVA::RegionOfInterest &roi : video_frame.regions()) {
-        gint id = 0;
-        get_object_id(roi._meta(), &id);
+        gint id = roi.object_id();
 
         json jobject = json::object();
 
@@ -73,21 +72,23 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
             jobject["tensors"] = json::array();
         }
 
-        jobject.push_back({"x", roi._meta()->x});
-        jobject.push_back({"y", roi._meta()->y});
-        jobject.push_back({"w", roi._meta()->w});
-        jobject.push_back({"h", roi._meta()->h});
+        auto rect = roi.rect();
+
+        jobject.push_back({"x", rect.x});
+        jobject.push_back({"y", rect.y});
+        jobject.push_back({"w", rect.w});
+        jobject.push_back({"h", rect.h});
         jobject.push_back({"region_id", roi.region_id()});
 
         if (id != 0)
             jobject.push_back({"id", id});
 
-        const gchar *roi_type = g_quark_to_string(roi._meta()->roi_type);
+        const std::string roi_type = roi.label();
 
-        if (roi_type) {
+        if (!roi_type.empty()) {
             jobject.push_back({"roi_type", roi_type});
         }
-        for (GList *l = roi._meta()->params; l; l = g_list_next(l)) {
+        for (GList *l = roi.get_params(); l; l = g_list_next(l)) {
 
             GstStructure *s = GST_STRUCTURE(l->data);
             const gchar *s_name = gst_structure_get_name(s);
@@ -112,9 +113,9 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                         detection.push_back({"label_id", label_id});
                     }
 
-                    const gchar *label = g_quark_to_string(roi._meta()->roi_type);
+                    const std::string label = roi.label();
 
-                    if (label) {
+                    if (!label.empty()) {
                         detection.push_back({"label", label});
                     }
                     jobject.push_back(json::object_t::value_type("detection", detection));

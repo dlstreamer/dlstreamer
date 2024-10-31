@@ -8,6 +8,7 @@
 
 #include "gva_utils.h"
 #include "processor_types.h"
+#include <dlstreamer/gst/videoanalytics/objectdetectionmtdext.h>
 #include <gst/analytics/analytics.h>
 
 #include <exception>
@@ -74,6 +75,43 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                     throw std::runtime_error("Failed to add detection data to meta");
                 }
 
+                gint label_id = 0;
+                gst_structure_get_int(detection_tensor, "label_id", &label_id);
+
+                gdouble rotation = 0;
+                gst_structure_get_double(detection_tensor, "rotation", &rotation);
+
+                gst_structure_remove_field(detection_tensor, "label");
+                gst_structure_remove_field(detection_tensor, "x_abs");
+                gst_structure_remove_field(detection_tensor, "y_abs");
+                gst_structure_remove_field(detection_tensor, "w_abs");
+                gst_structure_remove_field(detection_tensor, "h_abs");
+
+                GstAnalyticsODExtMtd od_ext_mtd;
+                if (!gst_analytics_relation_meta_add_od_ext_mtd(relation_meta, rotation, label_id, &od_ext_mtd)) {
+                    throw std::runtime_error("Failed to add detection extended data to meta");
+                }
+
+                for (size_t k = 0; k < tensor[j].size(); k++) {
+                    gst_analytics_od_ext_mtd_add_param(&od_ext_mtd, tensor[j][k]);
+                    frames[i].roi_classifications->push_back(tensor[j][k]);
+                }
+
+                if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                                                              od_mtd.id, od_ext_mtd.id)) {
+                    throw std::runtime_error(
+                        "Failed to set relation between object detection metadata and extended metadata");
+                }
+
+                GstAnalyticsODMtd parent_od_mtd;
+                if (gst_analytics_relation_meta_get_od_mtd(relation_meta, frame.roi->id, &parent_od_mtd)) {
+                    if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_IS_PART_OF,
+                                                                  od_mtd.id, parent_od_mtd.id)) {
+                        throw std::runtime_error(
+                            "Failed to set relation between object detection metadata and parent metadata");
+                    }
+                }
+
                 continue;
             }
 
@@ -84,6 +122,8 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                 throw std::runtime_error("Failed to add GstVideoRegionOfInterestMeta to buffer");
 
             roi_meta->id = gst_util_seqnum_next();
+            if (frame.roi)
+                roi_meta->parent_id = frame.roi->id;
 
             gst_structure_remove_field(detection_tensor, "label");
             gst_structure_remove_field(detection_tensor, "x_abs");
@@ -128,16 +168,38 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
 
     for (size_t i = 0; i < frames.size(); ++i) {
         GstBuffer *buffer = frames[i].buffer;
-        GstVideoRegionOfInterestMeta *roi_meta = findROIMeta(buffer, frames[i].roi);
-        if (!roi_meta) {
-            GST_WARNING("No detection tensors were found for this buffer in case of roi-list inference.");
-            continue;
-        }
 
-        for (std::vector<GstStructure *> tensor_data : tensors_batch[i]) {
-            assert(tensor_data.size() == 1);
-            gst_video_region_of_interest_meta_add_param(roi_meta, tensor_data[0]);
-            frames[i].roi_classifications->push_back(tensor_data[0]);
+        if (NEW_METADATA) {
+            GstAnalyticsODMtd od_meta;
+            if (!findODMeta(buffer, frames[i].roi, &od_meta)) {
+                GST_WARNING("No detection tensors were found for this buffer in case of roi-list inference.");
+                continue;
+            }
+
+            GstAnalyticsODExtMtd od_ext_meta;
+            if (!gst_analytics_relation_meta_get_direct_related(od_meta.meta, od_meta.id,
+                                                                GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                                                                GST_ANALYTICS_MTD_TYPE_ANY, nullptr, &od_ext_meta)) {
+                throw std::runtime_error("Object detection extended metadata not found");
+            }
+
+            for (std::vector<GstStructure *> tensor_data : tensors_batch[i]) {
+                assert(tensor_data.size() == 1);
+                gst_analytics_od_ext_mtd_add_param(&od_ext_meta, tensor_data[0]);
+                frames[i].roi_classifications->push_back(tensor_data[0]);
+            }
+        } else {
+            GstVideoRegionOfInterestMeta *roi_meta = findROIMeta(buffer, frames[i].roi);
+            if (!roi_meta) {
+                GST_WARNING("No detection tensors were found for this buffer in case of roi-list inference.");
+                continue;
+            }
+
+            for (std::vector<GstStructure *> tensor_data : tensors_batch[i]) {
+                assert(tensor_data.size() == 1);
+                gst_video_region_of_interest_meta_add_param(roi_meta, tensor_data[0]);
+                frames[i].roi_classifications->push_back(tensor_data[0]);
+            }
         }
     }
 }
@@ -177,4 +239,20 @@ GstVideoRegionOfInterestMeta *TensorToROIAttacher::findROIMeta(GstBuffer *buffer
         }
     }
     return meta;
+}
+
+bool TensorToROIAttacher::findODMeta(GstBuffer *buffer, GstVideoRegionOfInterestMeta *frame_roi,
+                                     GstAnalyticsODMtd *rlt_mtd) {
+    gpointer state = nullptr;
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+
+    if (relation_meta) {
+        while (
+            gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), rlt_mtd)) {
+            if (sameRegion(rlt_mtd, frame_roi)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }

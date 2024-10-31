@@ -13,10 +13,12 @@ INTEL_ONEAPI_LIST="intel-oneapi.list"
 
 
 INTEL_DC_GPU_KEY_URL="https://repositories.intel.com/graphics/intel-graphics.key"
-INTEL_DC_GPU_REPO_URL="https://repositories.intel.com/graphics/ubuntu jammy flex"
+INTEL_DC_GPU_REPO_URL_22="https://repositories.intel.com/graphics/ubuntu jammy flex"
+INTEL_DC_GPU_REPO_URL_24="https://repositories.intel.com/graphics/ubuntu noble flex"
 
 INTEL_CL_GPU_KEY_URL="https://repositories.intel.com/gpu/intel-graphics.key"
-INTEL_CL_GPU_REPO_URL="https://repositories.intel.com/gpu/ubuntu jammy client" 
+INTEL_CL_GPU_REPO_URL_22="https://repositories.intel.com/gpu/ubuntu jammy client" 
+INTEL_CL_GPU_REPO_URL_24="https://repositories.intel.com/gpu/ubuntu noble client" 
 
 INTEL_GPU_KEYRING_PATH="/usr/share/keyrings/intel-graphics.gpg"
 
@@ -196,6 +198,29 @@ install_packages() {
 }
 
 # ***********************************************************************
+
+# Detect Ubuntu version
+ubuntu_version=$(lsb_release -rs)
+
+
+# Choose the package list based on the Ubuntu version
+case "$ubuntu_version" in
+    24.04)
+        echo_color " Detected Ubuntu version: $ubuntu_version. " "green"
+        INTEL_CL_GPU_REPO_URL=$INTEL_CL_GPU_REPO_URL_24
+        INTEL_DC_GPU_REPO_URL=$INTEL_DC_GPU_REPO_URL_24
+        ;;
+    22.04)
+        echo_color " Detected Ubuntu version: $ubuntu_version. " "green"
+        INTEL_CL_GPU_REPO_URL=$INTEL_CL_GPU_REPO_URL_22
+        INTEL_DC_GPU_REPO_URL=$INTEL_DC_GPU_REPO_URL_22
+        ;;
+    *)
+        echo_color " Unsupported Ubuntu version: $ubuntu_version. Exiting." "red"
+        exit 1
+        ;;
+esac
+
 
 #-----------------------STEP 1-------------------------------------------
 

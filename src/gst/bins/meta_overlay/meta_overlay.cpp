@@ -74,7 +74,7 @@ class CPUPipeBuilder : public PipeBuilder {
         return elem::videoconvert;
     }
     std::string get_process() const override {
-        return elem::opencv_meta_overlay;
+        return std::string(elem::videoconvert) + elem::pipe_separator + elem::opencv_meta_overlay;
     }
     std::string get_postproc() const override {
         std::string res = elem::videoconvert;
@@ -105,7 +105,7 @@ class GPUPipeBuilder : public PipeBuilder {
             return std::string(elem::videoconvert);
     }
     std::string get_process() const override {
-        return std::string(elem::opencv_meta_overlay);
+        return std::string(elem::videoconvert) + elem::pipe_separator + elem::opencv_meta_overlay;
     }
     std::string get_postproc() const override {
         if (_vapostproc_avaliable)

@@ -207,8 +207,12 @@ void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerD
             static_cast<uint32_t>(fill_value.at(0) * pow(2, 16) + fill_value.at(1) * pow(2, 8) + fill_value.at(2));
     }
 
-    dst_surface_region.x = padding_x;
-    dst_surface_region.y = padding_y;
+    dst_surface_region.x = safe_convert<int16_t>(padding_x);
+    dst_surface_region.y = safe_convert<int16_t>(padding_y);
+
+    if (padding_x * 2 > dst_width || padding_y * 2 > dst_height) {
+        throw std::out_of_range("Invalid padding in relation to size");
+    }
 
     uint16_t input_width_except_padding = dst_width - (padding_x * 2);
     uint16_t input_height_except_padding = dst_height - (padding_y * 2);

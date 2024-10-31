@@ -30,7 +30,6 @@ const gchar *method_type_to_string(PublishMethodType method_type) {
         return UNKNOWN_VALUE_NAME;
     }
 }
-
 } // namespace
 
 /* Properties */
@@ -44,6 +43,9 @@ enum {
     PROP_TOPIC,
     PROP_MAX_CONNECT_ATTEMPTS,
     PROP_MAX_RECONNECT_INTERVAL,
+    PROP_USERNAME,
+    PROP_PASSWORD,
+    PROP_JSON_CONFIG_FILE,
     PROP_SIGNAL_HANDOFFS,
 };
 
@@ -90,6 +92,15 @@ class GvaMetaPublishPrivate {
         case PROP_MAX_RECONNECT_INTERVAL:
             _max_reconnect_interval = g_value_get_uint(value);
             break;
+        case PROP_USERNAME:
+            _username = g_value_get_string(value);
+            break;
+        case PROP_PASSWORD:
+            _password = g_value_get_string(value);
+            break;
+        case PROP_JSON_CONFIG_FILE: // Handle JSON configuration file property
+            _json_config_file = g_value_get_string(value);
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(G_OBJECT(_base), prop_id, pspec);
             break;
@@ -122,6 +133,15 @@ class GvaMetaPublishPrivate {
         case PROP_MAX_RECONNECT_INTERVAL:
             g_value_set_uint(value, _max_reconnect_interval);
             break;
+        case PROP_USERNAME: // Handle username property
+            g_value_set_string(value, _username.c_str());
+            break;
+        case PROP_PASSWORD: // Handle password property
+            g_value_set_string(value, _password.c_str());
+            break;
+        case PROP_JSON_CONFIG_FILE: // Handle JSON configuration file property
+            g_value_set_string(value, _json_config_file.c_str());
+            break;
         default:
             G_OBJECT_WARN_INVALID_PROPERTY_ID(G_OBJECT(_base), prop_id, pspec);
             break;
@@ -129,13 +149,16 @@ class GvaMetaPublishPrivate {
     }
 
     bool init_elements() {
+
         GST_INFO_OBJECT(_base,
                         "%s parameters:\n -- Method: %s\n -- File path: %s\n -- File format: %s\n -- Address: %s\n "
                         "-- Mqtt client ID: %s\n -- Kafka topic: %s\n -- Max connect attempts: %d\n "
-                        "-- Max reconnect interval: %d\n -- Signal handoffs: %s\n",
+                        "-- Max reconnect interval: %d\n -- Username: %s\n -- Password: %s\n -- JSON Config File: %s\n "
+                        "-- Signal handoffs: %s\n",
                         GST_ELEMENT_NAME(GST_ELEMENT_CAST(_base)), method_type_to_string(_method), _file_path.c_str(),
                         file_format_to_string(_file_format), _address.c_str(), _mqtt_client_id.c_str(), _topic.c_str(),
-                        _max_connect_attempts, _max_reconnect_interval, _signal_handoffs ? "true" : "false");
+                        _max_connect_attempts, _max_reconnect_interval, _username.c_str(), _password.c_str(),
+                        _json_config_file.c_str(), _signal_handoffs ? "true" : "false");
 
         switch (_method) {
         case GVA_META_PUBLISH_FILE:
@@ -143,10 +166,12 @@ class GvaMetaPublishPrivate {
                 g_object_set(_metapublish, "file-format", _file_format, "file-path", _file_path.c_str(), nullptr);
             break;
         case GVA_META_PUBLISH_MQTT:
-            if ((_metapublish = gst_element_factory_make("gvametapublishmqtt", nullptr)))
+            if ((_metapublish = gst_element_factory_make("gvametapublishmqtt", nullptr))) {
                 g_object_set(_metapublish, "address", _address.c_str(), "client-id", _mqtt_client_id.c_str(), "topic",
                              _topic.c_str(), "max-connect-attempts", _max_connect_attempts, "max-reconnect-interval",
-                             _max_reconnect_interval, nullptr);
+                             _max_reconnect_interval, "username", _username.c_str(), "password", _password.c_str(),
+                             "mqtt-config", _json_config_file.c_str(), nullptr);
+            }
             break;
         case GVA_META_PUBLISH_KAFKA:
             if ((_metapublish = gst_element_factory_make("gvametapublishkafka", nullptr)))
@@ -200,6 +225,9 @@ class GvaMetaPublishPrivate {
     std::string _topic;
     uint32_t _max_connect_attempts = 0;
     uint32_t _max_reconnect_interval = 0;
+    std::string _username;
+    std::string _password;
+    std::string _json_config_file;
     bool _signal_handoffs = false;
 };
 
@@ -275,6 +303,7 @@ static void gva_meta_publish_class_init(GvaMetaPublishClass *klass) {
 
     gst_element_class_set_static_metadata(GST_ELEMENT_CLASS(klass), GVA_META_PUBLISH_NAME, "Metadata",
                                           GVA_META_PUBLISH_DESCRIPTION, "Intel Corporation");
+
     auto prm_flags = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT);
     g_object_class_install_property(
         gobject_class, PROP_FILE_PATH,
@@ -313,4 +342,15 @@ static void gva_meta_publish_class_init(GvaMetaPublishClass *klass) {
                           "[method= kafka | mqtt] Maximum time in seconds between reconnection attempts. Initial "
                           "interval is 1 second and will be doubled on each failure up to this maximum interval.",
                           1, 300, DEFAULT_MAX_RECONNECT_INTERVAL, prm_flags));
+    g_object_class_install_property(gobject_class, PROP_USERNAME,
+                                    g_param_spec_string("username", "Username",
+                                                        "[method= mqtt] Username for MQTT broker authentication",
+                                                        DEFAULT_MQTTUSER, prm_flags));
+    g_object_class_install_property(gobject_class, PROP_PASSWORD,
+                                    g_param_spec_string("password", "Password",
+                                                        "[method= mqtt] Password for MQTT broker authentication",
+                                                        DEFAULT_MQTTPASSWORD, prm_flags));
+    g_object_class_install_property(gobject_class, PROP_JSON_CONFIG_FILE,
+                                    g_param_spec_string("mqtt-config", "Config", "[method= mqtt] MQTT config file",
+                                                        DEFAULT_MQTTCONFIG_FILE, prm_flags));
 }

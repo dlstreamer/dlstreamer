@@ -545,7 +545,7 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
             Color color = indexToColor(i);
             int x_lm = safe_convert<int>(rect.x + rect.w * data[2 * i]);
             int y_lm = safe_convert<int>(rect.y + rect.h * data[2 * i + 1]);
-            size_t radius = 1 + safe_convert<size_t>(_radius_multiplier * rect.w);
+            size_t radius = safe_convert<size_t>(1 + _radius_multiplier * rect.w);
             prims.emplace_back(render::Circle(cv::Point2i(x_lm, y_lm), radius, color, cv::FILLED));
         }
     }
@@ -640,7 +640,7 @@ void Impl::preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double>
 
         int x_lm = safe_convert<int>(rectangle.x + rectangle.w * x_real);
         int y_lm = safe_convert<int>(rectangle.y + rectangle.h * y_real);
-        size_t radius = 1 + safe_convert<size_t>(_radius_multiplier * (rectangle.w + rectangle.h));
+        size_t radius = safe_convert<size_t>(1 + _radius_multiplier * (rectangle.w + rectangle.h));
 
         Color color = indexToColor(i);
         prims.emplace_back(render::Circle(cv::Point2i(x_lm, y_lm), radius, color, cv::FILLED));

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -31,6 +31,10 @@ constexpr auto FILE_FORMAT_JSON_LINES_NAME = "json-lines";
 // Broker specific constants
 constexpr auto DEFAULT_ADDRESS = "";
 constexpr auto DEFAULT_MQTTCLIENTID = "";
+constexpr auto DEFAULT_MQTTUSER = "";
+constexpr auto DEFAULT_MQTTPASSWORD = "";
+constexpr auto DEFAULT_MQTTCONFIG_FILE = "";
+
 constexpr auto DEFAULT_TOPIC = "";
 constexpr auto DEFAULT_SIGNAL_HANDOFFS = false;
 constexpr auto DEFAULT_MAX_CONNECT_ATTEMPTS = 1;
