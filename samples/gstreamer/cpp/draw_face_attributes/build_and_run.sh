@@ -28,6 +28,11 @@ fi
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}" || exit
 
+ln -s /opt/opencv/libopencv_imgproc.so.410 /opt/opencv/libopencv_imgproc.so
+ln -s /opt/opencv/libopencv_core.so.410 /opt/opencv/libopencv_core.so
+
+export PKG_CONFIG_PATH=/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:/opt/intel/dlstreamer/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
+
 if [ -f /etc/lsb-release ]; then
     cmake "${BASE_DIR}"
 else

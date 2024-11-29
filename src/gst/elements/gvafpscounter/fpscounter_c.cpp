@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -60,7 +60,7 @@ void fps_counter_create_readpipe(void *fpscounter, const char *pipe_name) {
     try {
         if (not fps_counters.count("readpipe")) {
             auto pipe_complete_lambda = [=]() {
-                fps_counter_eos();
+                fps_counter_eos(GST_ELEMENT_NAME(GST_BASE_TRANSFORM(fpscounter)));
                 // Pushing an EOS event downstream to signal that we're done.
                 bool handled = gst_pad_push_event(GST_BASE_TRANSFORM(fpscounter)->srcpad, gst_event_new_eos());
                 if (!handled)
@@ -84,10 +84,10 @@ void fps_counter_new_frame(GstBuffer *, const char *element_name) {
     }
 }
 
-void fps_counter_eos() {
+void fps_counter_eos(const char *element_name) {
     try {
         for (auto counter = fps_counters.begin(); counter != fps_counters.end(); ++counter)
-            counter->second->EOS(output);
+            counter->second->EOS(element_name, output);
     } catch (std::exception &e) {
         GVA_ERROR("Error during handling EOS : %s", Utils::createNestedErrorMsg(e).c_str());
     }

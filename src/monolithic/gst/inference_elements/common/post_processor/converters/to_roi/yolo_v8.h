@@ -73,6 +73,34 @@ class YOLOv8ObbConverter : public YOLOv8Converter {
     }
 };
 
+/*
+yolo_v8_pose object tensor output = [B, 56, N] where:
+    B - batch size
+    N - number of detection boxes
+Detection box has the [x, y, w, h, confidence, keypoint_0_x, keypoint_0_y, keypoint_0_score, ..., ] format, where:
+    (x, y) - raw coordinates of box center
+    (w, h) - raw width and height of box
+    confidence - box detection confidence
+    keypoint (x, y, score) - keypoint coordinate within a box, keypoint detection confidence
+*/
+
+class YOLOv8PoseConverter : public YOLOv8Converter {
+  protected:
+    void parseOutputBlob(const float *data, const std::vector<size_t> &dims,
+                         std::vector<DetectedObject> &objects) const;
+
+  public:
+    YOLOv8PoseConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold)
+        : YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold) {
+    }
+
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+
+    static std::string getName() {
+        return "yolo_v8_pose";
+    }
+};
+
 class YOLOv8SegConverter : public YOLOv8Converter {
   protected:
     void parseOutputBlob(const float *boxes_data, const std::vector<size_t> &boxes_dims, const float *masks_data,

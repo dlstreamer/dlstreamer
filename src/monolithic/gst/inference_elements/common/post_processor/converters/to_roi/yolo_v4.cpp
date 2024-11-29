@@ -27,7 +27,13 @@ void YOLOv4Converter::parseOutputBlob(const float *blob_data, const std::vector<
     size_t _W = blob_dims[desc.Cx];
     size_t _H = blob_dims[desc.Cy];
 
+#ifdef __clang__
+    // VLAs are not fully supported in C++ standard (only in C)
+    float _transposed_blob_data[blob_size];
+    memset(_transposed_blob_data, 0, blob_size * sizeof(float));
+#else
     float _transposed_blob_data[blob_size] = {0};
+#endif
 
     size_t offset_nhwc = 0; // n * HWC + h * WC + w * C + c
     size_t offset_nchw = 0; // n * CHW + c * HW + h * W + w

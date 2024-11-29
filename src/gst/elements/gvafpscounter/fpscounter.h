@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,7 +21,7 @@ class FpsCounter {
   public:
     virtual ~FpsCounter() = default;
     virtual bool NewFrame(const std::string &element_name, FILE *output) = 0;
-    virtual void EOS(FILE *output) = 0;
+    virtual void EOS(const std::string &element_name, FILE *output) = 0;
 };
 
 class IterativeFpsCounter : public FpsCounter {
@@ -31,7 +31,7 @@ class IterativeFpsCounter : public FpsCounter {
           total_frames(0), eos_result_reported(false) {
     }
     bool NewFrame(const std::string &element_name, FILE *output) override;
-    void EOS(FILE *) override;
+    void EOS(const std::string &element_name, FILE *) override;
 
   protected:
     unsigned starting_frame;
@@ -52,7 +52,7 @@ class WritePipeFpsCounter : public FpsCounter {
   public:
     WritePipeFpsCounter(const char *pipe_name);
     bool NewFrame(const std::string &element_name, FILE *output) override;
-    void EOS(FILE *) override {
+    void EOS(const std::string &, FILE *) override {
     }
 
   protected:
@@ -68,7 +68,7 @@ class ReadPipeFpsCounter : public FpsCounter {
     bool NewFrame(const std::string &, FILE *) override {
         return true;
     }
-    void EOS(FILE *) override {
+    void EOS(const std::string &, FILE *) override {
     }
 
   protected:

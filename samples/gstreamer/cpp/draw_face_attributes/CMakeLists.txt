@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.12)
 
 set (TARGET_NAME "draw_face_attributes")
 
-find_package(OpenCV REQUIRED core imgproc)
+find_package(OpenCV OPTIONAL_COMPONENTS core imgproc)
 find_package(PkgConfig REQUIRED)
 
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
@@ -20,20 +20,27 @@ file (GLOB MAIN_SRC *.cpp)
 
 file (GLOB MAIN_HEADERS *.h)
 
+set(GSTREAMER_INCLUDE_DIR /opt/intel/dlstreamer/gstreamer/include/gstreamer-1.0)
+set(OPENCV_INCLUDE_DIR /opt/opencv/include)
+set(DLSTREAMER_INCLUDE_DIRS /opt/intel/dlstreamer/include)
+link_directories(${TARGET_NAME} /opt/intel/dlstreamer/build/intel64/Release/lib
+        /opt/intel/dlstreamer/gstreamer/lib
+        /opt/opencv
+)
+
 add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
 set_target_properties(${TARGET_NAME} PROPERTIES CMAKE_CXX_STANDARD 14)
 
 # use pkg-config if sample builds as standalone. Otherwise vars DLSTREAMER_INCLUDE_DIRS/etc set by top level cmake
-if (${CMAKE_CURRENT_SOURCE_DIR} STREQUAL ${PROJECT_SOURCE_DIR})
-    pkg_check_modules(DLSTREAMER dl-streamer REQUIRED)
-else()
-    target_include_directories(${TARGET_NAME}
+
+target_include_directories(${TARGET_NAME}
     PRIVATE
         ${DLSTREAMER_BASE_DIR}/include/dlstreamer/gst
         ${DLSTREAMER_BASE_DIR}/include/
-    )
-endif()
+        ${GSTREAMER_INCLUDE_DIR}
+        ${OPENCV_INCLUDE_DIR}
+)
 
 target_include_directories(${TARGET_NAME}
 PRIVATE
@@ -44,10 +51,14 @@ PRIVATE
 )
 
 target_link_libraries(${TARGET_NAME}
+PUBLIC
+        dlstreamer_gst_meta
 PRIVATE
         ${OpenCV_LIBS}
         ${GLIB2_LIBRARIES}
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
         ${GSTANALYTICS_LIBRARIES}
-    )
+        -lopencv_core
+        -lopencv_imgproc
+)

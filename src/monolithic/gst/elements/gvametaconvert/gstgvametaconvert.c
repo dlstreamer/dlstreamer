@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -48,6 +48,8 @@ static guint gst_interpret_signals[LAST_SIGNAL] = {0};
 #define DEFAULT_FORMAT GST_GVA_METACONVERT_JSON
 #define DEFAULT_SIGNAL_HANDOFFS FALSE
 #define DEFAULT_ADD_TENSOR_DATA FALSE
+#define DEFAULT_TIMESTAMP_UTC FALSE
+#define DEFAULT_TIMESTAMP_MICROSECONDS FALSE
 #define DEFAULT_SOURCE NULL
 #define DEFAULT_TAGS NULL
 #define DEFAULT_ADD_EMPTY_DETECTION_RESULTS FALSE
@@ -69,7 +71,9 @@ enum {
     PROP_SOURCE,
     PROP_TAGS,
     PROP_ADD_EMPTY_DETECTION_RESULTS,
-    PROP_JSON_INDENT
+    PROP_JSON_INDENT,
+    PROP_TIMESTAMP_UTC,
+    PROP_TIMESTAMP_MICROSECONDS
 };
 
 static const gchar *format_type_to_string(GstGVAMetaconvertFormatType format) {
@@ -165,6 +169,16 @@ static void gst_gva_meta_convert_class_init(GstGvaMetaConvertClass *klass) {
         g_param_spec_boolean("signal-handoffs", "Signal handoffs", "Send signal before pushing the buffer",
                              DEFAULT_SIGNAL_HANDOFFS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
+    g_object_class_install_property(
+        gobject_class, PROP_TIMESTAMP_UTC,
+        g_param_spec_boolean("timestamp-utc", "UTC timestamp", "Convert timestamps to UTC format",
+                             DEFAULT_TIMESTAMP_UTC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(
+        gobject_class, PROP_TIMESTAMP_MICROSECONDS,
+        g_param_spec_boolean("timestamp-microseconds", "Microseconds timestamp", "Include microseconds in timestamo",
+                             DEFAULT_TIMESTAMP_MICROSECONDS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
     g_object_class_install_property(gobject_class, PROP_SOURCE,
                                     g_param_spec_string("source", "Source URI",
                                                         "User supplied URI identifying the "
@@ -232,6 +246,8 @@ static void gst_gva_meta_convert_reset(GstGvaMetaConvert *gvametaconvert) {
     gvametaconvert->tags = g_strdup(DEFAULT_TAGS);
     gvametaconvert->add_empty_detection_results = DEFAULT_ADD_EMPTY_DETECTION_RESULTS;
     gvametaconvert->signal_handoffs = DEFAULT_SIGNAL_HANDOFFS;
+    gvametaconvert->timestamp_utc = DEFAULT_TIMESTAMP_UTC;
+    gvametaconvert->timestamp_microseconds = DEFAULT_TIMESTAMP_MICROSECONDS;
     gst_gva_metaconvert_set_format(gvametaconvert, DEFAULT_FORMAT);
     gvametaconvert->info = NULL;
     gvametaconvert->json_indent = DEFAULT_JSON_INDENT;
@@ -290,6 +306,12 @@ void gst_gva_meta_convert_set_property(GObject *object, guint property_id, const
     case PROP_SIGNAL_HANDOFFS:
         gvametaconvert->signal_handoffs = g_value_get_boolean(value);
         break;
+    case PROP_TIMESTAMP_UTC:
+        gvametaconvert->timestamp_utc = g_value_get_boolean(value);
+        break;
+    case PROP_TIMESTAMP_MICROSECONDS:
+        gvametaconvert->timestamp_microseconds = g_value_get_boolean(value);
+        break;
     case PROP_JSON_INDENT:
         gvametaconvert->json_indent = g_value_get_int(value);
         break;
@@ -323,6 +345,12 @@ void gst_gva_meta_convert_get_property(GObject *object, guint property_id, GValu
         break;
     case PROP_SIGNAL_HANDOFFS:
         g_value_set_boolean(value, gvametaconvert->signal_handoffs);
+        break;
+    case PROP_TIMESTAMP_UTC:
+        g_value_set_boolean(value, gvametaconvert->timestamp_utc);
+        break;
+    case PROP_TIMESTAMP_MICROSECONDS:
+        g_value_set_boolean(value, gvametaconvert->timestamp_microseconds);
         break;
     case PROP_JSON_INDENT:
         g_value_set_int(value, gvametaconvert->json_indent);
@@ -398,11 +426,14 @@ static gboolean gst_gva_meta_convert_start(GstBaseTransform *trans) {
 
     GST_INFO_OBJECT(gvametaconvert,
                     "%s parameters:\n -- Format: %s\n -- Add tensor data: %s\n -- Source: %s\n -- Tags: %s\n "
-                    "-- Add empty detection results: %s\n -- Signal handoffs: %s\n -- Json indent: %d\n",
+                    "-- Add empty detection results: %s\n -- Signal handoffs: %s\n -- UTC timestamps: %s\n -- Microsecond timestamps: %s\n -- Json indent: %d\n",
                     GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvametaconvert)), format_type_to_string(gvametaconvert->format),
                     gvametaconvert->add_empty_detection_results ? "true" : "false", gvametaconvert->source,
                     gvametaconvert->tags, gvametaconvert->add_empty_detection_results ? "true" : "false",
-                    gvametaconvert->signal_handoffs ? "true" : "false", gvametaconvert->json_indent);
+                    gvametaconvert->signal_handoffs ? "true" : "false", 
+                    gvametaconvert->timestamp_utc ? "true" : "false", 
+                    gvametaconvert->timestamp_microseconds ? "true" : "false", 
+                    gvametaconvert->json_indent);
 
     return TRUE;
 }

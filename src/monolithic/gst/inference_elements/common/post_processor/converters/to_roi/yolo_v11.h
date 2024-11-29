@@ -34,6 +34,18 @@ class YOLOv11ObbConverter : public YOLOv8ObbConverter {
     }
 };
 
+class YOLOv11PoseConverter : public YOLOv8PoseConverter {
+  public:
+    YOLOv11PoseConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold,
+                         double iou_threshold)
+        : YOLOv8PoseConverter(std::move(initializer), confidence_threshold, iou_threshold) {
+    }
+
+    static std::string getName() {
+        return "yolo_v11_pose";
+    }
+};
+
 class YOLOv11SegConverter : public YOLOv8SegConverter {
   public:
     YOLOv11SegConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold, double iou_threshold)

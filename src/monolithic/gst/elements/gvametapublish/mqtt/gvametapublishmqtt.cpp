@@ -209,7 +209,7 @@ class GvaMetaPublishMqttPrivate {
     }
 
     gboolean start() {
-        if (_client_id.empty())
+           if (_client_id.empty())
             _client_id = generate_client_id();
         _connection_attempt = 1;
         _sleep_time = 1;
@@ -256,24 +256,17 @@ class GvaMetaPublishMqttPrivate {
             GST_ERROR_OBJECT(_base, "Failed to set callbacks for MQTTAsync handler. Error code: %d", sts);
             return false;
         }
-
-        if (!_username.empty() && !_password.empty()) {
-            _connect_options.username = _username.c_str();
-            _connect_options.password = _password.c_str();
-        }
-
+        
         MQTTAsync_SSLOptions sslOptions = MQTTAsync_SSLOptions_initializer;
 
         if (_TLS) {
             // Set TLS options
+            sslOptions.sslVersion = MQTT_SSL_VERSION_TLS_1_2;
             sslOptions.verify = _ssl_verify;
             sslOptions.trustStore = _ssl_CA_certificate.empty() ? nullptr : _ssl_CA_certificate.c_str();
             sslOptions.keyStore = _ssl_client_certificate.empty() ? nullptr : _ssl_client_certificate.c_str();
             sslOptions.privateKey = _ssl_private_key.empty() ? nullptr : _ssl_private_key.c_str();
-            ;
-            sslOptions.privateKeyPassword = _ssl_private_key_pwd.empty() ? nullptr : _ssl_private_key_pwd.c_str();
-            ;
-            sslOptions.enabledCipherSuites = nullptr; // Use default cipher suites
+            sslOptions.enabledCipherSuites = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384"; //recommended cipher suites
             sslOptions.enableServerCertAuth = _ssl_enable_server_cert_auth;
 
             _connect_options.ssl = &sslOptions;

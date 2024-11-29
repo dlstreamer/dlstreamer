@@ -30,11 +30,20 @@ bool IterativeFpsCounter::NewFrame(const std::string &element_name, FILE *output
         return false;
     if (output == nullptr)
         return false;
-    num_frames[element_name]++;
+
     auto now = std::chrono::high_resolution_clock::now();
     if (!init_time.time_since_epoch().count()) {
         init_time = last_time = now;
     }
+
+    // reset average counter everytime a new stream is detected
+    if (average && (num_frames.find(element_name) == num_frames.end())) {
+        init_time = last_time = now;
+        for (auto it = num_frames.begin(); it != num_frames.end(); it++)
+            it->second = 0;
+    }
+
+    num_frames[element_name]++;
 
     double sec = std::chrono::duration_cast<seconds_double>(now - last_time).count();
     if (sec >= interval) {
@@ -90,7 +99,7 @@ void IterativeFpsCounter::PrintFPS(FILE *output, double sec, bool eos) {
     fflush(output);
 }
 
-void IterativeFpsCounter::EOS(FILE *output) {
+void IterativeFpsCounter::EOS(const std::string &element_name, FILE *output) {
     assert(output);
     std::lock_guard<std::mutex> lock(mutex);
     if (!eos_result_reported) {
@@ -99,6 +108,18 @@ void IterativeFpsCounter::EOS(FILE *output) {
         double sec = std::chrono::duration_cast<seconds_double>(now - last).count();
         PrintFPS(output, sec, true);
         eos_result_reported = true;
+    }
+
+    // remove stream from counter list
+    if (num_frames.find(element_name) != num_frames.end()) {
+        num_frames.erase(element_name);
+        // reset counter if there are still active streams
+        if (num_frames.size() > 0) {
+            init_time = last_time = std::chrono::high_resolution_clock::now();
+            for (auto it = num_frames.begin(); it != num_frames.end(); it++)
+                it->second = 0;
+            eos_result_reported = false;
+        }
     }
 }
 

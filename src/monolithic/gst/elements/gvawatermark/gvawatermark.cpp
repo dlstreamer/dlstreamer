@@ -272,26 +272,28 @@ CapsFeature get_current_caps_feature(GstGvaWatermark *self) {
 }
 
 static gboolean link_videoconvert(GstGvaWatermark *self) {
-    g_assert(self->active_path == WatermarkPathVaVaapi && "Supposed to be called in VA-API or Va path");
+    g_assert(self->active_path == WatermarkPathVaVaapi && "Supposed to be called in VAAPI path only");
 
-    self->convert = gst_element_factory_make("videoconvert", nullptr);
-    if (!self->convert) {
-        GST_ELEMENT_ERROR(self, CORE, MISSING_PLUGIN, ("GStreamer installation is missing plugin videoconvert"),
-                          (nullptr));
-        return FALSE;
-    }
-    gst_bin_add(GST_BIN(self), self->convert);
-    if (!gst_element_sync_state_with_parent(self->convert)) {
-        GST_ELEMENT_ERROR(self, RESOURCE, NOT_FOUND, ("Couldn't sync videoconvert state with gvawatermark"), (nullptr));
-        return FALSE;
-    }
+    if (self->have_vaapi) {
+        self->convert = gst_element_factory_make("videoconvert", nullptr);
+        if (!self->convert) {
+            GST_ELEMENT_ERROR(self, CORE, MISSING_PLUGIN, ("GStreamer installation is missing plugin videoconvert"),
+                              (nullptr));
+            return FALSE;
+        }
+        gst_bin_add(GST_BIN(self), self->convert);
+        if (!gst_element_sync_state_with_parent(self->convert)) {
+            GST_ELEMENT_ERROR(self, RESOURCE, NOT_FOUND, ("Couldn't sync videoconvert state with gvawatermark"),
+                              (nullptr));
+            return FALSE;
+        }
 
-    gst_element_unlink(self->identity, self->preproc);
-    if (!gst_element_link(self->identity, self->convert) || !gst_element_link(self->convert, self->preproc)) {
-        GST_ERROR_OBJECT(self, "videoconvert cannot be linked");
-        return FALSE;
+        gst_element_unlink(self->identity, self->preproc);
+        if (!gst_element_link(self->identity, self->convert) || !gst_element_link(self->convert, self->preproc)) {
+            GST_ERROR_OBJECT(self, "videoconvert cannot be linked");
+            return FALSE;
+        }
     }
-
     return TRUE;
 }
 
@@ -414,8 +416,19 @@ static gboolean gva_watermark_link_direct_path(GstGvaWatermark *self, bool use_p
             if (!self->postproc) {
                 GST_ERROR_OBJECT(self, "Could not create vapostproc instance");
             }
+        } else if ((self->have_vaapi || self->have_va) && in_mem_type == SYSTEM_MEMORY_CAPS_FEATURE) {
+            // DMA case handled as VA(API)
+            // Check gva_watermark_start() for identitySrcFeature == DMA_BUF_CAPS_FEATURE.
+            self->postproc = self->have_va ? gst_element_factory_make("vapostproc", nullptr)
+                                           : gst_element_factory_make("vaapipostproc", nullptr);
+            if (!self->postproc) {
+                GST_ERROR_OBJECT(self, "Could not create vapostproc instance");
+            }
+        } else {
+            GST_ELEMENT_ERROR(self, CORE, MISSING_PLUGIN,
+                              ("GStreamer installation is missing plugins of VA-API or VA path"), (nullptr));
+            return FALSE;
         }
-
         gst_bin_add(GST_BIN(self), self->postproc);
     }
 
@@ -563,7 +576,8 @@ static gboolean gva_watermark_start(GstGvaWatermark *self) {
     } else if ((identitySrcFeature == VA_MEMORY_CAPS_FEATURE || identitySrcFeature == DMA_BUF_CAPS_FEATURE) &&
                self->have_va) {
         self->have_vaapi = false;
-        in_memory_type = VA_MEMORY_CAPS_FEATURE; // Prefer GST-VA
+        // Prefered GST-VA path, see DEVICE_GPU_AUTOSELECTED
+        in_memory_type = VA_MEMORY_CAPS_FEATURE;
     } else {
         self->have_va = false;
         self->have_vaapi = false;

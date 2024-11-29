@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -211,7 +211,7 @@ gboolean gst_gva_fpscounter_sink_event(GstBaseTransform *trans, GstEvent *event)
     UNUSED(trans);
 
     if (event->type == GST_EVENT_EOS) {
-        fps_counter_eos();
+        fps_counter_eos(GST_ELEMENT_NAME(GST_ELEMENT(trans)));
     }
 
     return GST_BASE_TRANSFORM_CLASS(gst_gva_fpscounter_parent_class)->sink_event(trans, event);
@@ -221,7 +221,7 @@ void gst_gva_fpscounter_dispose(GObject *object) {
     GstGvaFpscounter *gvafpscounter = GST_GVA_FPSCOUNTER(object);
     GST_DEBUG_OBJECT(gvafpscounter, "dispose");
 
-    fps_counter_eos();
+    fps_counter_eos(GST_ELEMENT_NAME(object));
 
     G_OBJECT_CLASS(gst_gva_fpscounter_parent_class)->dispose(object);
 }
@@ -230,7 +230,7 @@ void gst_gva_fpscounter_finalize(GObject *object) {
     GstGvaFpscounter *gvafpscounter = GST_GVA_FPSCOUNTER(object);
     GST_DEBUG_OBJECT(gvafpscounter, "finalize");
 
-    fps_counter_eos();
+    fps_counter_eos(GST_ELEMENT_NAME(object));
     gst_gva_fpscounter_cleanup(gvafpscounter);
 
     G_OBJECT_CLASS(gst_gva_fpscounter_parent_class)->finalize(object);

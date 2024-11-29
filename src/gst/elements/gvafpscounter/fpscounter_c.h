@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -20,7 +20,7 @@ void fps_counter_create_writepipe(const char *pipe_name);
 void fps_counter_create_readpipe(void *el, const char *pipe_name);
 
 void fps_counter_new_frame(GstBuffer *, const char *element_name);
-void fps_counter_eos();
+void fps_counter_eos(const char *element_name);
 void fps_counter_set_output(FILE *out);
 gboolean fps_counter_validate_intervals(const char *intervals_string);
 

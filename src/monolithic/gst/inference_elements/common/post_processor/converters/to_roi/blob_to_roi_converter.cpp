@@ -67,6 +67,9 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     else if (converter_name == YOLOv8ObbConverter::getName() || converter_name == YOLOv11ObbConverter::getName())
         return BlobToMetaConverter::Ptr(
             new YOLOv8ObbConverter(std::move(initializer), confidence_threshold, iou_threshold));
+    else if (converter_name == YOLOv8PoseConverter::getName() || converter_name == YOLOv11PoseConverter::getName())
+        return BlobToMetaConverter::Ptr(
+            new YOLOv8PoseConverter(std::move(initializer), confidence_threshold, iou_threshold));
     else if (converter_name == YOLOv8SegConverter::getName() || converter_name == YOLOv11SegConverter::getName())
         return BlobToMetaConverter::Ptr(
             new YOLOv8SegConverter(std::move(initializer), confidence_threshold, iou_threshold));

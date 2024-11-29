@@ -362,8 +362,8 @@ class VideoFrame {
                                                        &od_meta)) {
                 GstAnalyticsODExtMtd od_ext_meta;
                 if (!gst_analytics_relation_meta_get_direct_related(
-                        relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, GST_ANALYTICS_MTD_TYPE_ANY,
-                        nullptr, &od_ext_meta)) {
+                        relation_meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                        gst_analytics_od_ext_mtd_get_mtd_type(), nullptr, &od_ext_meta)) {
                     throw std::runtime_error("Object detection extended metadata not found");
                 }
 

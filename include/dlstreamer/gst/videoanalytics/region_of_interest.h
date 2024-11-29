@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "../metadata/gstanalyticskeypointsmtd.h"
 #include "objectdetectionmtdext.h"
 #include "tensor.h"
 
@@ -222,8 +223,8 @@ class RegionOfInterest {
 
     RegionOfInterest(GstAnalyticsODMtd od_meta, GstAnalyticsODExtMtd od_ext_meta)
         : _gst_meta(nullptr), _detection(nullptr), _od_meta(od_meta), _od_ext_meta(od_ext_meta) {
-        GList *params = gst_analytics_od_ext_mtd_get_params(&od_ext_meta);
 
+        GList *params = gst_analytics_od_ext_mtd_get_params(&od_ext_meta);
         _tensors.reserve(g_list_length(params));
 
         for (GList *l = params; l; l = g_list_next(l)) {
@@ -233,6 +234,16 @@ class RegionOfInterest {
                 if (_tensors.back().is_detection())
                     _detection = &_tensors.back();
             }
+        }
+
+        // append tensors converted from metadata
+        gpointer state = NULL;
+        GstAnalyticsMtd handle;
+        while (gst_analytics_relation_meta_get_direct_related(
+            od_meta.meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, GST_ANALYTICS_MTD_TYPE_ANY, &state, &handle)) {
+            GstStructure *s = GVA::Tensor::convert_to_tensor(handle);
+            if (s != nullptr)
+                _tensors.emplace_back(s);
         }
     }
 
@@ -315,9 +326,9 @@ class RegionOfInterest {
 
   protected:
     /**
-     * @brief GstVideoRegionOfInterestMeta containing fields filled with detection result (produced by gvadetect element
-     * in Gstreamer pipeline) and all the additional tensors, describing detection and other inference results (produced
-     * by gvainference, gvadetect, gvaclassify in Gstreamer pipeline)
+     * @brief GstVideoRegionOfInterestMeta containing fields filled with detection result (produced by gvadetect
+     * element in Gstreamer pipeline) and all the additional tensors, describing detection and other inference
+     * results (produced by gvainference, gvadetect, gvaclassify in Gstreamer pipeline)
      */
     GstVideoRegionOfInterestMeta *_gst_meta;
     /**
@@ -331,8 +342,8 @@ class RegionOfInterest {
     Tensor *_detection;
 
     /**
-     * @brief handle containing data required to use gst_analytics_od_mtd APIs, to retrieve analytics data related to
-     * that region of interest.
+     * @brief handle containing data required to use gst_analytics_od_mtd APIs, to retrieve analytics data related
+     * to that region of interest.
      */
     GstAnalyticsODMtd _od_meta;
     GstAnalyticsODExtMtd _od_ext_meta;
