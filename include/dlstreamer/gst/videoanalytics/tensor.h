@@ -15,6 +15,7 @@
 #include "../metadata/gstanalyticskeypointsmtd.h"
 #include "../metadata/gva_tensor_meta.h"
 
+#include <gst/analytics/analytics.h>
 #include <gst/gst.h>
 #include <gst/video/gstvideometa.h>
 
@@ -422,16 +423,46 @@ class Tensor {
      * @brief Convert tensor to GST analytic metadata
      * @return if conversion succesfull, 'mtd' is a handle to created metadata
      */
-    bool convert_to_meta(GstAnalyticsMtd *mtd, GstAnalyticsRelationMeta *meta) {
+    bool convert_to_meta(GstAnalyticsMtd *mtd, GstAnalyticsODMtd *od_mtd, GstAnalyticsRelationMeta *meta) {
 
         if (name() == "keypoints") {
+            GstAnalyticsKeypointGroupMtd *keypoint_group_mtd = mtd;
             const std::vector<guint> dimensions = dims();
             const std::vector<float> positions = data<float>();
             const std::vector<float> confidence = get_float_vector("confidence");
+            const gsize keypoint_count = dimensions[0];
+            const gsize keypoint_dimension = dimensions[1];
 
-            // create skeleton mapping if defined
+            // get screen space coordinates of the parent bounding box
+            gint x, y, w, h;
+            gfloat c;
+            if (!gst_analytics_od_mtd_get_location(od_mtd, &x, &y, &w, &h, &c)) {
+                throw std::runtime_error("Failed to read object detection meta");
+            }
+
+            // create metadata for individual keypoints
+            std::vector<GstAnalyticsKeypointMtd> keypoint_mtd;
+            keypoint_mtd.resize(keypoint_count);
+            for (gsize k = 0; k < keypoint_count; k++) {
+                GstAnalyticsKeypoint keypoint;
+                keypoint.x = x + w * positions[k * keypoint_dimension];
+                keypoint.y = y + h * positions[k * keypoint_dimension + 1];
+                keypoint.z = (keypoint_dimension == 3) ? positions[k * keypoint_dimension + 2] : 0;
+                keypoint.v = confidence[k];
+
+                if (!gst_analytics_relation_meta_add_keypoint_mtd(meta, &keypoint, &keypoint_mtd[k]))
+                    throw std::runtime_error("Failed to create keypoint meta");
+            }
+
+            // create metadata for keypoint group
+            if (!gst_analytics_relation_meta_add_keypointgroup_mtd(meta, keypoint_count, keypoint_mtd.data(),
+                                                                   keypoint_group_mtd))
+                throw std::runtime_error("Failed to create keypoint meta");
+
+            // parse keypoint names and skeleton if defined
             gsize skeleton_count = 0;
-            std::vector<GstKeypointPair> skeletons;
+            std::vector<GstAnalyticsKeypointPair> skeletons;
+            std::vector<GQuark> names;
             if ((gst_structure_has_field(gst_structure(), "point_names") and
                  gst_structure_has_field(gst_structure(), "point_connections"))) {
                 GValueArray *point_connections = nullptr;
@@ -439,8 +470,17 @@ class Tensor {
                 GValueArray *point_names = nullptr;
                 gst_structure_get_array(gst_structure(), "point_names", &point_names);
 
+                if (point_names->n_values != keypoint_count)
+                    throw std::runtime_error("Mismatch between keypoint count and keypoint names");
+
+                names.resize(keypoint_count);
+                for (gsize n = 0; n < keypoint_count; n++) {
+                    const gchar *name = g_value_get_string(point_names->values + n);
+                    names[n] = g_quark_from_string(name);
+                }
+
                 skeleton_count = point_connections->n_values / 2;
-                skeletons.reserve(skeleton_count);
+                skeletons.resize(skeleton_count);
                 for (gsize s = 0; s < skeleton_count; s++) {
                     const gchar *point_name_1 = g_value_get_string(point_connections->values + s * 2);
                     const gchar *point_name_2 = g_value_get_string(point_connections->values + s * 2 + 1);
@@ -456,20 +496,62 @@ class Tensor {
                 }
             }
 
-            GstAnalyticsKeypointDimensions keypoint_dimensions;
-            if (dimensions[1] == 2)
-                keypoint_dimensions = GST_ANALYTICS_KEYPOINT_DIMENSIONS_2D;
-            else if (dimensions[1] == 3)
-                keypoint_dimensions = GST_ANALYTICS_KEYPOINT_DIMENSIONS_3D;
-            else
-                throw std::runtime_error("Unsupported keypoint dimension");
+            // find or create classification meta for point names
+            GstAnalyticsClsMtd point_names_mtd;
+            if (names.size() > 0) {
+                gpointer state = NULL;
+                bool found = false;
 
-            // create keypoint metadata
-            if (!gst_analytics_relation_meta_add_keypoints_mtd(meta, dimensions[0], keypoint_dimensions,
-                                                               positions.data(), confidence.data(), skeleton_count,
-                                                               skeletons.data(), mtd)) {
-                throw std::runtime_error("Failed to create keypoint meta");
+                // find classification meta in a frame
+                while (gst_analytics_relation_meta_iterate(meta, &state, gst_analytics_cls_mtd_get_mtd_type(),
+                                                           &point_names_mtd)) {
+                    if (gst_analytics_cls_mtd_get_length(&point_names_mtd) == keypoint_count) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                // create keypoint classification meta if one does not exist
+                if (!found) {
+                    // we are not using confidence data, fill it with 1.0
+                    std::vector<float> confidence;
+                    confidence.resize(keypoint_count);
+                    for (gsize k = 0; k < keypoint_count; k++)
+                        confidence[k] = 1.0f;
+
+                    if (!gst_analytics_relation_meta_add_cls_mtd(meta, keypoint_count, confidence.data(), names.data(),
+                                                                 &point_names_mtd))
+                        throw std::runtime_error("Failed to create point names");
+                }
             }
+
+            // find or create skeleton metadata
+            GstAnalyticsKeypointSkeletonMtd skeleton_mtd;
+            if (skeletons.size() > 0) {
+                bool found = false;
+                gpointer state = NULL;
+
+                // check if skeleton meta already exists
+                while (gst_analytics_relation_meta_iterate(
+                    meta, &state, gst_analytics_keypoint_skeleton_mtd_get_mtd_type(), &skeleton_mtd)) {
+                    if (gst_analytics_keypoint_skeleton_mtd_get_count(&skeleton_mtd) == skeleton_count) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                // create keypoint skeleton if one does not exists
+                if (!found) {
+                    if (!gst_analytics_relation_meta_add_keypoint_skeleton_mtd(meta, skeleton_count, skeletons.data(),
+                                                                               &skeleton_mtd))
+                        throw std::runtime_error("Failed to create skeleton metadata");
+                }
+            }
+
+            // link keypoint group, keypoint names and skeleton info
+            if (!gst_analytics_relation_meta_set_keypointgroup_relations(meta, keypoint_group_mtd, &point_names_mtd,
+                                                                         &skeleton_mtd))
+                throw std::runtime_error("Failed to set relation between keypoint group and keypoint names/skeleton");
 
             return true;
         }
@@ -479,20 +561,56 @@ class Tensor {
 
     static GstStructure *convert_to_tensor(GstAnalyticsMtd mtd) {
 
-        if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_keypoints_mtd_get_mtd_type()) {
+        if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_keypointgroup_mtd_get_mtd_type()) {
 
             // read keypoint metadata
-            GstAnalyticsKeypointsMtd *keypoint_mtd = &mtd;
-            gsize keypoint_count = gst_analytics_keypoints_mtd_get_count(keypoint_mtd);
-            gsize keypoint_dimension = gst_analytics_keypoints_mtd_get_dimension(keypoint_mtd);
-            gsize confidence_count = gst_analytics_keypoints_mtd_get_confidence_count(keypoint_mtd);
-            gsize skeleton_count = gst_analytics_keypoints_mtd_get_skeleton_count(keypoint_mtd);
+            GstAnalyticsKeypointGroupMtd *keypoint_group_mtd = &mtd;
+            gsize keypoint_count = gst_analytics_keypointgroup_mtd_get_count(keypoint_group_mtd);
+            gsize keypoint_dimension = 2;
+            std::vector<GstAnalyticsKeypoint> keypoints;
+            keypoints.resize(keypoint_count);
 
+            // find parent bounding box
+            gint x = 0;
+            gint y = 0;
+            gint w = 0;
+            gint h = 0;
+            gfloat c;
+            GstAnalyticsODMtd od_mtd;
+            gpointer state = NULL;
+            while (gst_analytics_relation_meta_iterate(keypoint_group_mtd->meta, &state,
+                                                       gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
+                GstAnalyticsKeypointGroupMtd keypoint_candidate_mtd;
+                if (gst_analytics_relation_meta_get_direct_related(
+                        keypoint_group_mtd->meta, od_mtd.id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                        gst_analytics_keypointgroup_mtd_get_mtd_type(), nullptr, &keypoint_candidate_mtd)) {
+                    if (keypoint_candidate_mtd.id == keypoint_group_mtd->id) {
+                        if (!gst_analytics_od_mtd_get_location(&od_mtd, &x, &y, &w, &h, &c)) {
+                            throw std::runtime_error("Failed to read object detection meta");
+                        }
+                        break;
+                    }
+                }
+            }
+
+            // detect dimension of position tensor
+            for (size_t k = 0; k < keypoint_count; ++k) {
+                GstAnalyticsKeypointMtd keypoint_mtd;
+                gst_analytics_keypointgroup_mtd_get_keypoint_mtd(keypoint_group_mtd, &keypoint_mtd, k);
+                gst_analytics_keypoint_mtd_get(&keypoint_mtd, &keypoints[k]);
+                if (keypoints[k].z != 0)
+                    keypoint_dimension = 3;
+            }
+
+            // prepare position tensor
             std::vector<float> positions;
-            positions.reserve(keypoint_count * keypoint_dimension);
+            positions.resize(keypoint_count * keypoint_dimension);
 
             for (size_t k = 0; k < keypoint_count; ++k) {
-                gst_analytics_keypoints_mtd_get_position(keypoint_mtd, &positions[k * keypoint_dimension], k);
+                positions[k * keypoint_dimension] = (w > 0) ? float(keypoints[k].x - x) / float(w) : 0.0f;
+                positions[k * keypoint_dimension + 1] = (h > 0) ? float(keypoints[k].y - y) / float(h) : 0.0f;
+                if (keypoint_dimension == 3)
+                    positions[k * keypoint_dimension + 2] = keypoints[k].z;
             }
 
             // create keypoint tensor
@@ -517,54 +635,63 @@ class Tensor {
             gst_structure_set(tensor, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
                               g_variant_get_fixed_array(v, &n_elem, 1), NULL);
 
-            // add confidence data if defined
-            if (confidence_count > 0) {
-                std::vector<float> confidence;
-                confidence.reserve(keypoint_count);
+            // create confidence tensor
+            data = g_value_array_new(keypoint_count);
+            gvalue = G_VALUE_INIT;
+            g_value_init(&gvalue, G_TYPE_FLOAT);
+            for (size_t k = 0; k < keypoint_count; k++) {
+                g_value_set_float(&gvalue, keypoints[k].v);
+                g_value_array_append(data, &gvalue);
+            }
+            gst_structure_set_array(tensor, "confidence", data);
+            g_value_array_free(data);
 
-                for (size_t k = 0; k < keypoint_count; ++k) {
-                    gst_analytics_keypoints_mtd_get_confidence(keypoint_mtd, &confidence[k], k);
-                }
+            // generate point names
+            std::vector<GQuark> point_names;
+            point_names.reserve(keypoint_count);
+            GstAnalyticsClsMtd point_names_mtd;
+            if (gst_analytics_relation_meta_get_direct_related(
+                    keypoint_group_mtd->meta, keypoint_group_mtd->id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                    gst_analytics_cls_mtd_get_mtd_type(), nullptr, &point_names_mtd)) {
 
-                data = g_value_array_new(keypoint_count);
-                gvalue = G_VALUE_INIT;
-                g_value_init(&gvalue, G_TYPE_FLOAT);
-                for (size_t k = 0; k < keypoint_count; k++) {
-                    g_value_set_float(&gvalue, confidence[k]);
-                    g_value_array_append(data, &gvalue);
+                if (gst_analytics_cls_mtd_get_length(&point_names_mtd) == keypoint_count) {
+                    data = g_value_array_new(keypoint_count);
+                    gvalue = G_VALUE_INIT;
+                    g_value_init(&gvalue, G_TYPE_STRING);
+                    for (size_t k = 0; k < keypoint_count; k++) {
+                        GQuark name = gst_analytics_cls_mtd_get_quark(&point_names_mtd, k);
+                        g_value_set_string(&gvalue, g_quark_to_string(name));
+                        g_value_array_append(data, &gvalue);
+                        point_names[k] = name;
+                    }
+                    gst_structure_set_array(tensor, "point_names", data);
+                    g_value_array_free(data);
                 }
-                gst_structure_set_array(tensor, "confidence", data);
-                g_value_array_free(data);
             }
 
-            // add skeleton data if defined
-            if (skeleton_count > 0) {
-                std::vector<GstKeypointPair> skeletons;
-                skeletons.reserve(skeleton_count);
+            // generate skeleton info
+            gsize skeleton_count = 0;
+            GstAnalyticsKeypointSkeletonMtd skeleton_mtd;
+            if (gst_analytics_relation_meta_get_direct_related(
+                    keypoint_group_mtd->meta, keypoint_group_mtd->id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                    gst_analytics_keypoint_skeleton_mtd_get_mtd_type(), nullptr, &skeleton_mtd)) {
 
-                for (size_t s = 0; s < skeleton_count; ++s) {
-                    gst_analytics_keypoints_mtd_get_skeleton(keypoint_mtd, &skeletons[s], s);
-                }
+                skeleton_count = gst_analytics_keypoint_skeleton_mtd_get_count(&skeleton_mtd);
 
-                // point names corresponding to point indices
-                data = g_value_array_new(keypoint_count);
-                gvalue = G_VALUE_INIT;
-                g_value_init(&gvalue, G_TYPE_STRING);
-                for (size_t k = 0; k < keypoint_count; k++) {
-                    g_value_set_string(&gvalue, std::to_string(k).c_str());
-                    g_value_array_append(data, &gvalue);
-                }
-                gst_structure_set_array(tensor, "point_names", data);
-                g_value_array_free(data);
-
-                // point connections
                 data = g_value_array_new(skeleton_count * 2);
                 gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
+
+                // convert skeleton metadata to point connections
                 for (size_t s = 0; s < skeleton_count; s++) {
-                    g_value_set_string(&gvalue, std::to_string(skeletons[s].kp1).c_str());
+                    // read point indices for a skeleton segment
+                    GstAnalyticsKeypointPair segment;
+                    gst_analytics_keypoint_skeleton_mtd_get(&skeleton_mtd, &segment, s);
+                    // store name of the first point in a segment
+                    g_value_set_string(&gvalue, g_quark_to_string(point_names[segment.kp1]));
                     g_value_array_append(data, &gvalue);
-                    g_value_set_string(&gvalue, std::to_string(skeletons[s].kp2).c_str());
+                    // store name of the second point in a segment
+                    g_value_set_string(&gvalue, g_quark_to_string(point_names[segment.kp2]));
                     g_value_array_append(data, &gvalue);
                 }
                 gst_structure_set_array(tensor, "point_connections", data);

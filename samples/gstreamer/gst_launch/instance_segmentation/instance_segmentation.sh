@@ -24,6 +24,7 @@ DEVICE="CPU"
 INPUT="https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"
 OUTPUT="file"
 BENCHMARK_SINK=""
+OUTPUT_DIRECTORY=""
 
 # Function to check if an item is in an array
 containsElement () {
@@ -68,6 +69,10 @@ while [[ "$#" -gt 0 ]]; do
                 echo "Invalid output choice. Allowed choices are: ${ALLOWED_OUTPUTS[*]}"
                 exit 1
             fi
+            shift
+            ;;
+        --output-directory)
+            OUTPUT_DIRECTORY="$2"
             shift
             ;;
         *)
@@ -143,12 +148,12 @@ else
   echo "Error - VA-API H.264 encoder not found."
   exit
 fi
-sink_elements["file"]="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=DLS_${FILE}_${DEVICE}.mp4"
+sink_elements["file"]="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=${OUTPUT_DIRECTORY}DLS_${FILE}_${DEVICE}.mp4"
 sink_elements['display']="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 sink_elements['fps']="gvafpscounter ! fakesink sync=false"
-sink_elements['json']="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=output.json ! fakesink sync=false"
-sink_elements['display-and-json']="gvawatermark ! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=DLS_${FILE}_${DEVICE}.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
-sink_elements["jpeg"]="gvawatermark ! videoconvertscale ! jpegenc ! multifilesink location=DLS_${FILE}_${DEVICE}_%05d.jpeg"
+sink_elements['json']="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=${OUTPUT_DIRECTORY}output.json ! fakesink sync=false"
+sink_elements['display-and-json']="gvawatermark ! gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=${OUTPUT_DIRECTORY}DLS_${FILE}_${DEVICE}.json ! videoconvert ! gvafpscounter ! autovideosink sync=false"
+sink_elements["jpeg"]="gvawatermark ! videoconvertscale ! jpegenc ! multifilesink location=${OUTPUT_DIRECTORY}DLS_${FILE}_${DEVICE}_%05d.jpeg"
 SINK_ELEMENT=${sink_elements[$OUTPUT]}
 
 # Construct the GStreamer pipeline

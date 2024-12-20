@@ -21,11 +21,12 @@ MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7,
 DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
 INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
 OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-json
+PPBKEND=${5:-""}      # Supported values: ie, opencv, va, va-surface-sharing
 
 cd "$(dirname "$0")"
 
-if { [[ "$MODEL" == "yolov10s" ]] || [[ "$MODEL" == "yolo11s"* ]]; } && [[ "$DEVICE" == "NPU" ]]; then
-    echo "Error - No support of Yolov10s and Yolo11s for NPU."
+if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
+    echo "Error - No support of Yolov10s for NPU."
     exit
 fi
 
@@ -80,10 +81,22 @@ else
 fi
 
 DECODE_ELEMENT="! decodebin !"
-PREPROC_BACKEND="ie"
-if [[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]; then
+if [[ "$DEVICE" == "GPU" ]]; then
   DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"
-  PREPROC_BACKEND="va-surface-sharing"
+fi
+
+if [[ "$PPBKEND" == "" ]]; then
+  PREPROC_BACKEND="ie"
+  if [[ "$DEVICE" == "GPU" ]]; then
+    PREPROC_BACKEND="va-surface-sharing"
+  fi
+else
+  if [[ "$PPBKEND" == "ie" ]] || [[ "$PPBKEND" == "opencv" ]] || [[ "$PPBKEND" == "va" ]] || [[ "$PPBKEND" == "va-surface-sharing" ]]; then
+    PREPROC_BACKEND=${PPBKEND}
+  else
+    echo "Error wrong value for PREPROC_BACKEND parameter. Supported values: ie | opencv | va | va-surface-sharing".
+    exit 
+  fi
 fi
 
 if [[ "$OUTPUT" == "file" ]]; then

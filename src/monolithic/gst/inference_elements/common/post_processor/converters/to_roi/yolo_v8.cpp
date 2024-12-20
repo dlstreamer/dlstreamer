@@ -151,10 +151,6 @@ TensorsTable YOLOv8PoseConverter::convert(const OutputBlobs &output_blobs) const
 static const std::vector<std::string> point_names = {
     "nose",    "eye_l",   "eye_r", "ear_l", "ear_r",  "shoulder_l", "shoulder_r", "elbow_l", "elbow_r",
     "wrist_l", "wrist_r", "hip_l", "hip_r", "knee_l", "knee_r",     "ankle_l",    "ankle_r"};
-// static const std::vector<std::string> point_connections = {
-//     "shoulder_l", "shoulder_r", "nose",       "eye_l",   "nose",       "eye_r",   "eye_l",   "ear_l",   "eye_r",
-//     "ear_r",      "elbow_l",    "shoulder_l", "elbow_r", "shoulder_r", "wrist_l", "elbow_l", "wrist_r", "elbow_r",
-//     "hip_l",      "knee_l",     "hip_r",      "knee_r",  "knee_l",     "ankle_l", "knee_r",  "ankle_r"};
 static const std::vector<std::string> point_connections = {
     "nose",    "eye_l", "nose",       "eye_r",      "ear_l",      "shoulder_l", "ear_r",   "shoulder_r", "eye_l",
     "ear_l",   "eye_r", "ear_r",      "shoulder_l", "shoulder_r", "shoulder_l", "hip_l",   "shoulder_r", "hip_r",

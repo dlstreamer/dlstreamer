@@ -31,28 +31,28 @@ namespace {
 #define MICROSECONDS_TO_REMOVE 3
 
 // Function to cut part of a string
-gchar* cut_microseconds(const gchar *input) {   
-    if (input == NULL) 
+gchar *cut_microseconds(const gchar *input) {
+    if (input == NULL)
         return NULL;
 
     // Calculate the length of the new string
-    size_t new_length = strlen(input) - MICROSECONDS_TO_REMOVE; 
+    size_t new_length = strlen(input) - MICROSECONDS_TO_REMOVE;
 
     // Allocate memory for the new string
-    gchar *new_string = (gchar*) g_malloc(new_length + 1);
-    if (new_string == NULL) 
+    gchar *new_string = (gchar *)g_malloc(new_length + 1);
+    if (new_string == NULL)
         return NULL;
-    
+
     // Copy the part before the microseconds
-    strncpy(new_string, input, TIMESTAMP_LENGTH_BEFORE_MICROSECONDS); // Copy up to the first three digits of the microseconds
+    strncpy(new_string, input,
+            TIMESTAMP_LENGTH_BEFORE_MICROSECONDS); // Copy up to the first three digits of the microseconds
     new_string[TIMESTAMP_LENGTH_BEFORE_MICROSECONDS] = '\0';
 
     // Append the time zone offset
-    strcat(new_string, input + TIMESTAMP_OFFSET_POSITION); 
+    strcat(new_string, input + TIMESTAMP_OFFSET_POSITION);
 
     return new_string;
 }
-
 
 /**
  * @return JSON object which contains parameters such as resolution, timestamp, source and tags.
@@ -85,7 +85,7 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
 
         if (converter->timestamp_utc) {
             utc_datetime = g_date_time_to_utc(frame_date_time); // Convert the GDateTime object to UTC
-            if (!utc_datetime) 
+            if (!utc_datetime)
                 GST_WARNING("Failed to convert datetime to UTC");
             else {
                 g_date_time_unref(frame_date_time);
@@ -93,19 +93,18 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                 // UTC mode: add 'Z' at the end
                 iso_string = g_date_time_format(frame_date_time, "%Y-%m-%dT%H:%M:%S.%fZ");
             }
-        }
-        else 
+        } else
             // Non-UTC mode: include offset from UTC
             iso_string = g_date_time_format(frame_date_time, "%Y-%m-%dT%H:%M:%S.%f:%z");
 
-        if (iso_string == NULL) 
+        if (iso_string == NULL)
             GST_WARNING("Failed to format the datetime to ISO string");
         else {
 
-            if (!(converter->timestamp_microseconds)) { 
+            if (!(converter->timestamp_microseconds)) {
                 iso_string_millisec = cut_microseconds(iso_string);
                 g_free(iso_string);
-                iso_string = iso_string_millisec; 
+                iso_string = iso_string_millisec;
             }
 
             // Store the formatted timestamp in the result
@@ -114,13 +113,12 @@ json get_frame_data(GstGvaMetaConvert *converter, GstBuffer *buffer) {
             // Free the allocated resources
             g_free(iso_string);
         }
-        
-        if (frame_date_time) 
+
+        if (frame_date_time)
             g_date_time_unref(frame_date_time);
 
         if (vtc)
             gst_video_time_code_free(vtc);
-
     }
     return res;
 }

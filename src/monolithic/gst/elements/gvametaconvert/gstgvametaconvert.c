@@ -169,10 +169,10 @@ static void gst_gva_meta_convert_class_init(GstGvaMetaConvertClass *klass) {
         g_param_spec_boolean("signal-handoffs", "Signal handoffs", "Send signal before pushing the buffer",
                              DEFAULT_SIGNAL_HANDOFFS, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
-    g_object_class_install_property(
-        gobject_class, PROP_TIMESTAMP_UTC,
-        g_param_spec_boolean("timestamp-utc", "UTC timestamp", "Convert timestamps to UTC format",
-                             DEFAULT_TIMESTAMP_UTC, G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(gobject_class, PROP_TIMESTAMP_UTC,
+                                    g_param_spec_boolean("timestamp-utc", "UTC timestamp",
+                                                         "Convert timestamps to UTC format", DEFAULT_TIMESTAMP_UTC,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 
     g_object_class_install_property(
         gobject_class, PROP_TIMESTAMP_MICROSECONDS,
@@ -426,14 +426,14 @@ static gboolean gst_gva_meta_convert_start(GstBaseTransform *trans) {
 
     GST_INFO_OBJECT(gvametaconvert,
                     "%s parameters:\n -- Format: %s\n -- Add tensor data: %s\n -- Source: %s\n -- Tags: %s\n "
-                    "-- Add empty detection results: %s\n -- Signal handoffs: %s\n -- UTC timestamps: %s\n -- Microsecond timestamps: %s\n -- Json indent: %d\n",
+                    "-- Add empty detection results: %s\n -- Signal handoffs: %s\n -- UTC timestamps: %s\n --"
+                    "Microsecond timestamps: %s\n -- Json indent: %d\n",
                     GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvametaconvert)), format_type_to_string(gvametaconvert->format),
                     gvametaconvert->add_empty_detection_results ? "true" : "false", gvametaconvert->source,
                     gvametaconvert->tags, gvametaconvert->add_empty_detection_results ? "true" : "false",
-                    gvametaconvert->signal_handoffs ? "true" : "false", 
-                    gvametaconvert->timestamp_utc ? "true" : "false", 
-                    gvametaconvert->timestamp_microseconds ? "true" : "false", 
-                    gvametaconvert->json_indent);
+                    gvametaconvert->signal_handoffs ? "true" : "false",
+                    gvametaconvert->timestamp_utc ? "true" : "false",
+                    gvametaconvert->timestamp_microseconds ? "true" : "false", gvametaconvert->json_indent);
 
     return TRUE;
 }

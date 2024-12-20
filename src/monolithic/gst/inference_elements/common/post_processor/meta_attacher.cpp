@@ -93,11 +93,11 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                 }
 
                 for (size_t k = 0; k < tensor[j].size(); k++) {
-                    GstAnalyticsMtd mtd;
+                    GstAnalyticsMtd tensor_mtd;
                     GVA::Tensor gva_tensor(tensor[j][k]);
-                    if (gva_tensor.convert_to_meta(&mtd, relation_meta)) {
+                    if (gva_tensor.convert_to_meta(&tensor_mtd, &od_mtd, relation_meta)) {
                         if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_RELATE_TO,
-                                                                      od_mtd.id, mtd.id)) {
+                                                                      od_mtd.id, tensor_mtd.id)) {
                             throw std::runtime_error(
                                 "Failed to set relation between object detection metadata and keypoint metadata");
                         }

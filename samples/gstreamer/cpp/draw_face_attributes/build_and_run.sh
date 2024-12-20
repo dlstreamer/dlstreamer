@@ -9,6 +9,7 @@
 FILE=${1:-https://github.com/intel-iot-devkit/sample-videos/raw/master/head-pose-face-detection-female-and-male.mp4}
 OUTPUT=${2:-json} # Valid values: display, display-and-json, json, file
 DEVICE=${3:-CPU} # Valid devices: CPU, GPU,NPU?
+OUTPUT_DIRECTORY=${4:-/home/dlstreamer/} #Path where to copy output.json
 
 if [ -z "${MODELS_PATH:-}" ]; then
   echo "Error: MODELS_PATH is not set." >&2
@@ -17,7 +18,6 @@ else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-e
 BASE_DIR="$(realpath "$(dirname "$0")")"
 BUILD_DIR=$HOME/build
 
@@ -42,4 +42,4 @@ fi
 make -j "$(nproc)"
 
 "${BUILD_DIR}"/draw_face_attributes -i "$FILE" -o "$OUTPUT" -d "$DEVICE"
-cp ${BUILD_DIR}/output.json /home/dlstreamer/
+cp ${BUILD_DIR}/output.json $OUTPUT_DIRECTORY

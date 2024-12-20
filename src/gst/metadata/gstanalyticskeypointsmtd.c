@@ -9,266 +9,421 @@
 #endif
 
 #include "dlstreamer/gst/metadata/gstanalyticskeypointsmtd.h"
-#include <string.h>
+
+#include <gst/video/video.h>
 
 /**
- * SECTION:gstanalyticskeypointsmtd
- * @title: GstAnalyticsKeypointsMtd
- * @short_description: An analytics metadata for keypoints inside a #GstAnalyticsRelationMeta
+ * SECTION:gstanalyticsgeypointmtd
+ * @title: GstAnalyticsKeypointMtd
+ * @short_description: An analytics metadata describing a keypoint inside a #GstAnalyticsKeypointGroup
  * @symbols:
- * - GstAnalyticsKeypointsMtd
+ * - GstAnalyticsKeypointMtd
  * @see_also: #GstAnalyticsMtd, #GstAnalyticsRelationMeta
  *
- * This type of metadata holds 2D or 3D keypoints, it is generally used in
- * relationship with another metadata type to enhance its content. For example,
- * it can enhance an object detection medatata from #GstAnalyticsODMtd metadata type.
+ * This type of metadata holds attributes of a keypoint
  *
  * Since: 1.26
  */
 
-static const GstAnalyticsMtdImpl keypoints_impl = {"keypoints", NULL, {NULL}};
+static gboolean gst_analytics_keypoint_mtd_meta_transform(GstBuffer *transbuf, GstAnalyticsMtd *transmtd,
+                                                          GstBuffer *buffer, GQuark type, gpointer data) {
+    (void)transbuf;
+    (void)buffer;
 
-typedef struct _GstAnalyticsKeypointsData GstAnalyticsKeypointsData;
+    if (GST_VIDEO_META_TRANSFORM_IS_SCALE(type)) {
+        GstVideoMetaTransform *trans = data;
+        gint ow, oh, nw, nh;
+        GstAnalyticsKeypoint *keypoint;
 
-struct _GstAnalyticsKeypointsData {
-    gsize keypoint_count;
-    GstAnalyticsKeypointDimensions keypoint_dimensions;
-    gsize confidence_count;
-    gsize skeleton_count;
-    guint8 data[]; /* must be last, positions + confidence + skeletons */
+        ow = GST_VIDEO_INFO_WIDTH(trans->in_info);
+        nw = GST_VIDEO_INFO_WIDTH(trans->out_info);
+        oh = GST_VIDEO_INFO_HEIGHT(trans->in_info);
+        nh = GST_VIDEO_INFO_HEIGHT(trans->out_info);
+
+        keypoint = gst_analytics_relation_meta_get_mtd_data(transmtd->meta, transmtd->id);
+
+        keypoint->x = keypoint->x * nw / ow;
+        keypoint->y = keypoint->y * nh / oh;
+    }
+
+    return TRUE;
+}
+
+static const GstAnalyticsMtdImpl keypoint_impl = {"keypoint", gst_analytics_keypoint_mtd_meta_transform, {NULL}};
+
+/**
+ * gst_analytics_keypoint_mtd_get_mtd_type:
+ *
+ * Get an id that represents keypoint metadata type
+ *
+ * Returns: Opaque id of the #GstAnalyticsMtd type
+ *
+ * Since: 1.26
+ */
+GST_ANALYTICS_META_API
+GstAnalyticsMtdType gst_analytics_keypoint_mtd_get_mtd_type(void) {
+    return (GstAnalyticsMtdType)&keypoint_impl;
+}
+
+/**
+ * gst_analytics_keypoint_mtd_get:
+ * @handle: instance
+ * @keypoint: (out): data structure describing keypoint attributes
+ *
+ * Retrieve keypoint attributes.
+ *
+ * Returns: TRUE on success, otherwise FALSE.
+ *
+ * Since: 1.26
+ */
+GST_ANALYTICS_META_API
+gboolean gst_analytics_keypoint_mtd_get(const GstAnalyticsKeypointMtd *handle, GstAnalyticsKeypoint *keypoint) {
+    g_return_val_if_fail(handle, FALSE);
+    g_return_val_if_fail(handle->meta != NULL, FALSE);
+
+    GstAnalyticsKeypoint *keypoint_data =
+        (GstAnalyticsKeypoint *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
+    g_return_val_if_fail(keypoint_data != NULL, FALSE);
+
+    memcpy(keypoint, keypoint_data, sizeof(GstAnalyticsKeypoint));
+
+    return TRUE;
+}
+
+/**
+ * gst_analytics_relation_meta_add_keypointgroup_mtd:
+ * @instance: Instance of #GstAnalyticsRelationMeta where to add keypoint metadata.
+ * @keypoint: keypoint attributes to store as metadata.
+ * @keypoint_mtd: (out) (not nullable): Handle updated to newly added keypoint meta.
+ *
+ * Add analytic keypoint metadata to @instance.
+ *
+ * Returns: TRUE on success, otherwise FALSE.
+ *
+ * Since: 1.26
+ */
+GST_ANALYTICS_META_API
+gboolean gst_analytics_relation_meta_add_keypoint_mtd(GstAnalyticsRelationMeta *instance,
+                                                      const GstAnalyticsKeypoint *keypoint,
+                                                      GstAnalyticsKeypointMtd *keypoint_mtd) {
+    g_return_val_if_fail(instance, FALSE);
+    g_return_val_if_fail(keypoint != NULL, FALSE);
+
+    gsize size = sizeof(GstAnalyticsKeypoint);
+    GstAnalyticsKeypoint *keypoint_data =
+        (GstAnalyticsKeypoint *)gst_analytics_relation_meta_add_mtd(instance, &keypoint_impl, size, keypoint_mtd);
+    g_return_val_if_fail(keypoint_data != NULL, FALSE);
+
+    memcpy(keypoint_data, keypoint, sizeof(GstAnalyticsKeypoint));
+
+    return TRUE;
+}
+
+/**
+ * SECTION:gstanalyticskeypointskeletonmtd
+ * @title: GstAnalyticsKeypointSkeletonMtd
+ * @short_description: An analytics metadata for keypoint skeleton defintion of #GstAnalyticsRelationMeta
+ * @symbols:
+ * - GstAnalyticsKeyponitSkeletonMtd
+ * @see_also: #GstAnalyticsKeypointMtd, #GstAnalyticsMtd, #GstAnalyticsRelationMeta
+ *
+ * This type of metadata holds skeleton relation between keypoints,
+ * it is used in relationship with keypoints group metadata.
+ *
+ * Since: 1.26
+ */
+
+static const GstAnalyticsMtdImpl keypoint_skeleton_impl = {"keypoint_skeleton", NULL, {NULL}};
+
+typedef struct _GstAnalyticsKeypointSkeletonData GstAnalyticsKeypointSkeletonData;
+
+struct _GstAnalyticsKeypointSkeletonData {
+    gsize count;
+    GstAnalyticsKeypointPair segments[]; /* must be last */
 };
 
 /**
- * gst_analytics_keypoints_mtd_get_mtd_type:
+ * gst_analytics_keypoint_skeleton_mtd_get_mtd_type:
  *
- * Get an id identifying #GstAnalyticsMtd type.
+ * Get an id identifying #GstAnalyticsKeypointSkeletonMtd type.
  *
- * Returns: opaque id of #GstAnalyticsMtd type
+ * Returns: opaque id of #GstAnalyticsKeypointSkeletonMtd type
  *
  * Since: 1.26
  */
-GstAnalyticsMtdType gst_analytics_keypoints_mtd_get_mtd_type(void) {
-    return (GstAnalyticsMtdType)&keypoints_impl;
+GstAnalyticsMtdType gst_analytics_keypoint_skeleton_mtd_get_mtd_type(void) {
+    return (GstAnalyticsMtdType)&keypoint_skeleton_impl;
 }
 
 /**
- * gst_analytics_keypoints_mtd_get_count:
+ * gst_analytics_keypoint_skeleton_mtd_get_count:
  * @handle: instance handle
  *
- * Get number of keypoints
- * Returns: number of keypoints in this instance of keypoint metadata
+ * Get number of skeleton segments
+ * Returns: number of skeleton segments in this instance
  *
  * Since: 1.26
  */
-gsize gst_analytics_keypoints_mtd_get_count(const GstAnalyticsKeypointsMtd *handle) {
+gsize gst_analytics_keypoint_skeleton_mtd_get_count(const GstAnalyticsKeypointSkeletonMtd *handle) {
     g_return_val_if_fail(handle, 0);
     g_return_val_if_fail(handle->meta != NULL, 0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, 0);
-    return keypoints_mtd_data->keypoint_count;
+
+    GstAnalyticsKeypointSkeletonData *data =
+        (GstAnalyticsKeypointSkeletonData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
+    g_return_val_if_fail(data != NULL, 0);
+
+    return data->count;
 }
 
 /**
- * gst_analytics_keypoints_mtd_get_dimension:
+ * gst_analytics_keypoint_skeleton_mtd_get:
  * @handle: instance handle
- *
- * Get keypoint dimension: 2D or 3D
- * Returns: dimension of keypoints in this instance of keypoint metadata
- *
- * Since: 1.26
- */
-GstAnalyticsKeypointDimensions gst_analytics_keypoints_mtd_get_dimension(const GstAnalyticsKeypointsMtd *handle) {
-    g_return_val_if_fail(handle, 0);
-    g_return_val_if_fail(handle->meta != NULL, 0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, 0);
-    return keypoints_mtd_data->keypoint_dimensions;
-}
-
-/**
- * gst_analytics_keypoints_mtd_get_confidence_count:
- * @handle: instance handle
- *
- * Get number of confidence scores
- * Returns: number of confidence scores for keypoints
- *
- * Since: 1.26
- */
-gsize gst_analytics_keypoints_mtd_get_confidence_count(const GstAnalyticsKeypointsMtd *handle) {
-    g_return_val_if_fail(handle, 0);
-    g_return_val_if_fail(handle->meta != NULL, 0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, 0);
-    return keypoints_mtd_data->confidence_count;
-}
-
-/**
- * gst_analytics_keypoints_mtd_get_skeleton_count:
- * @handle: instance handle
- *
- * Get number of skeleton links
- * Returns: number of skeleton links in this instance of keypoint metadata
- *
- * Since: 1.26
- */
-gsize gst_analytics_keypoints_mtd_get_skeleton_count(const GstAnalyticsKeypointsMtd *handle) {
-    g_return_val_if_fail(handle, 0);
-    g_return_val_if_fail(handle->meta != NULL, 0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, 0);
-    return keypoints_mtd_data->skeleton_count;
-}
-
-/**
- * gst_analytics_keypoints_mtd_get_position:
- * @handle: instance handle
- * @position: (array size: keypoint_dimension): xy or xyz coordinates of a keypoint
- * @index: keypoint index, must be < gst_analytics_keypoints_mtd_get_count()
- *
- * Get keypoint position (2D or 3D) for a keypoint at @index
- * Returns: keypoint position for @index, <0.0 if the call failed
- *
- * Since: 1.26
- */
-gboolean gst_analytics_keypoints_mtd_get_position(const GstAnalyticsKeypointsMtd *handle, gfloat *position,
-                                                  gsize index) {
-    g_return_val_if_fail(handle, -1.0);
-    g_return_val_if_fail(handle->meta != NULL, -1.0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, -1.0);
-    g_return_val_if_fail(keypoints_mtd_data->keypoint_count > index, -1.0);
-
-    float *position_data = (float *)keypoints_mtd_data->data + index * keypoints_mtd_data->keypoint_dimensions;
-    for (gsize d = 0; d < keypoints_mtd_data->keypoint_dimensions; d++) {
-        position[d] = position_data[d];
-    }
-    return TRUE;
-}
-
-/**
- * gst_analytics_keypoints_mtd_get_confidence:
- * @handle: instance handle
- * @confidence: keypoint confidence (visibility)
- * @index: keypoint index, gst_analytics_keypoints_mtd_get_count()
- *
- * Get keypoint confidence (visibility) for a keypoint at @index
- * Returns: keypoint confidence for @index, <0.0 if the call failed
- *
- * Since: 1.26
- */
-gboolean gst_analytics_keypoints_mtd_get_confidence(const GstAnalyticsKeypointsMtd *handle, gfloat *confidence,
-                                                    gsize index) {
-    g_return_val_if_fail(handle, -1.0);
-    g_return_val_if_fail(handle->meta != NULL, -1.0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, -1.0);
-    g_return_val_if_fail(keypoints_mtd_data->confidence_count > index, -1.0);
-
-    float *confidence_data = (float *)keypoints_mtd_data->data +
-                             keypoints_mtd_data->keypoint_count * keypoints_mtd_data->keypoint_dimensions;
-
-    *confidence = confidence_data[index];
-
-    return TRUE;
-}
-
-/**
- * gst_analytics_keypoints_mtd_get_skeleton:
- * @handle: instance handle
- * @skeleton: a pair of keypoint indices representing a skeleton link
- * @index: skeleton link index, must be < gst_analytics_keypoints_mtd_get_skeleton_count
+ * @segment: a pair of keypoint indices representing a skeleton segment
+ * @index: skeleton segment index, must be < gst_analytics_keypoint_skeleton_mtd_get_count
  *
  * Get pair of keypoint indices for a skeleton link at @index
- * Returns: keypoints pair for skeleton @index, <0.0 if the call failed
+ * Returns: TRUE if valid skeleton segment returned for @index, FALSE if the call failed
  *
  * Since: 1.26
  */
-gboolean gst_analytics_keypoints_mtd_get_skeleton(const GstAnalyticsKeypointsMtd *handle, GstKeypointPair *skeleton,
-                                                  gsize index) {
-    g_return_val_if_fail(handle, -1.0);
-    g_return_val_if_fail(handle->meta != NULL, -1.0);
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
-    g_return_val_if_fail(keypoints_mtd_data != NULL, -1.0);
-    g_return_val_if_fail(keypoints_mtd_data->skeleton_count > index, -1.0);
+gboolean gst_analytics_keypoint_skeleton_mtd_get(const GstAnalyticsKeypointSkeletonMtd *handle,
+                                                 GstAnalyticsKeypointPair *segment, gsize index) {
+    g_return_val_if_fail(handle, FALSE);
+    g_return_val_if_fail(handle->meta != NULL, FALSE);
 
-    GstKeypointPair *skeleton_data =
-        (GstKeypointPair *)((float *)keypoints_mtd_data->data +
-                            keypoints_mtd_data->keypoint_count * keypoints_mtd_data->keypoint_dimensions +
-                            keypoints_mtd_data->confidence_count);
+    GstAnalyticsKeypointSkeletonData *data =
+        (GstAnalyticsKeypointSkeletonData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
+    g_return_val_if_fail(data != NULL, FALSE);
+    g_return_val_if_fail(data->count > index, FALSE);
 
-    skeleton->kp1 = skeleton_data[index].kp1;
-    skeleton->kp2 = skeleton_data[index].kp2;
+    memcpy(segment, &data->segments[index], sizeof(GstAnalyticsKeypointPair));
 
     return TRUE;
 }
 
 /**
- * gst_analytics_relation_meta_add_keypoints_mtd:
+ * gst_analytics_relation_meta_add_keypoint_skeleton_mtd:
  * @instance: Instance of #GstAnalyticsRelationMeta where to add classification instance
- * @keypoint_count: number of keypoints to add
- * @keypoint_dimensions: dimension of keypoint positions (2D or 3D)
- * @positions: (2D array of keypoint_count x keypoint_dimensions):
- * normalized keypoint positions * relative to image or detected object,
- * example: <0.65 (x0), 0.55 (y0), 0.77(x1), 0.1 (x2), ...>
- * @confidence: (array of keypoint_count): confidence level of keypoints,
- * null pointer if per-keypoint confidence data not available,
- * example: <0.1 (invisible), 0.95 (visible), 0.80(visible), ...>
- * @skeleton_count: number of skeleton segments that connect keypoints
- * @skeletons: (array of skeleton_count): keypoint pair indices representing skeleton segments,
+ * @count: number of skeleton segments that connect keypoints
+ * @segments: (array of skeleton_count): keypoint pair indices representing skeleton segments,
  * null pointer if skeleton is not defined
  * example: < {0, 2}, {0, 5}, ...>
- * @keypoint_mtd: (out) (not nullable): Handle updated to newly added keypoint meta.
+ * @keypoint_skeleton_mtd: (out) (not nullable): Handle updated to newly added keypoint info.
  *
  * Add analytic keypoint metadata to @instance.
  * Returns: Added successfully
  *
  * Since: 1.26
  */
-gboolean gst_analytics_relation_meta_add_keypoints_mtd(GstAnalyticsRelationMeta *instance, const gsize keypoint_count,
-                                                       const GstAnalyticsKeypointDimensions keypoint_dimensions,
-                                                       const gfloat *positions, const gfloat *confidences,
-                                                       const gsize skeleton_count, const GstKeypointPair *skeletons,
-                                                       GstAnalyticsKeypointsMtd *keypoint_mtd) {
+gboolean gst_analytics_relation_meta_add_keypoint_skeleton_mtd(GstAnalyticsRelationMeta *instance, const gsize count,
+                                                               const GstAnalyticsKeypointPair *segments,
+                                                               GstAnalyticsKeypointSkeletonMtd *keypoint_skeleton_mtd) {
     g_return_val_if_fail(instance, FALSE);
-    g_return_val_if_fail(positions != NULL, FALSE);
+    g_return_val_if_fail(segments != NULL, FALSE);
 
-    gboolean has_confidences = confidences != NULL;
-    gboolean has_skeletons = skeletons != NULL;
+    gsize data_size = sizeof(GstAnalyticsKeypointPair) * count;
+    gsize size = sizeof(GstAnalyticsKeypointSkeletonData) + data_size;
 
-    gsize data_size = sizeof(gfloat) * keypoint_count * keypoint_dimensions;
-    gsize offset_confidence = data_size;
-    if (has_confidences)
-        data_size += sizeof(gfloat) * keypoint_count;
-    gsize offset_skeletons = data_size;
-    if (has_skeletons)
-        data_size += sizeof(guint) * skeleton_count * 2;
+    GstAnalyticsKeypointSkeletonData *data = (GstAnalyticsKeypointSkeletonData *)gst_analytics_relation_meta_add_mtd(
+        instance, &keypoint_skeleton_impl, size, keypoint_skeleton_mtd);
 
-    gsize size = sizeof(GstAnalyticsKeypointsData) + data_size;
+    g_return_val_if_fail(data != NULL, FALSE);
 
-    GstAnalyticsKeypointsData *keypoints_mtd_data =
-        (GstAnalyticsKeypointsData *)gst_analytics_relation_meta_add_mtd(instance, &keypoints_impl, size, keypoint_mtd);
+    // fill in skeleton segments array
+    data->count = count;
+    memcpy(data->segments, segments, count * sizeof(GstAnalyticsKeypointPair));
 
-    if (keypoints_mtd_data) {
-        keypoints_mtd_data->keypoint_count = keypoint_count;
-        keypoints_mtd_data->keypoint_dimensions = keypoint_dimensions;
-        keypoints_mtd_data->confidence_count = (has_confidences) ? keypoint_count : 0;
-        keypoints_mtd_data->skeleton_count = (has_skeletons) ? skeleton_count : 0;
+    return TRUE;
+}
 
-        // fill in keypoint positions, confidence levels and skeletons
-        memcpy(keypoints_mtd_data->data, positions, keypoint_count * keypoint_dimensions * sizeof(float));
+/**
+ * SECTION:gstanalyticskeypointgroupmtd
+ * @title: GstAnalyticsKeypointGroupMtd
+ * @short_description: An analytics metadata for an ordered group of keypoints inside a #GstAnalyticsRelationMeta
+ * @symbols:
+ * - GstAnalyticsKeypointGroupMtd
+ * @see_also: #GstAnalyticsMtd, #GstAnalyticsRelationMeta
+ *
+ * This type of metadata holds an ordered list of keypoints that compose a keypoint group.
+ * This metadata is typilcally used in relationship with another metadata to enhance it content.
+ *
+ * The method gst_analytics_relation_meta_set_keypointgroup_relations() sets default
+ * relationsbetween keypoints, keypoint group, keypoint names and skeleton.
+ *
+ * Since: 1.26
+ */
 
-        if (has_confidences)
-            memcpy(keypoints_mtd_data->data + offset_confidence, confidences, keypoint_count * sizeof(float));
+typedef struct _GstAnalyticsKeypointGroupData GstAnalyticsKeypointGroupData;
 
-        if (has_skeletons)
-            memcpy(keypoints_mtd_data->data + offset_skeletons, skeletons, skeleton_count * 2 * sizeof(guint));
+struct _GstAnalyticsKeypointGroupData {
+    gsize count;
+    guint ids[]; /* must be last */
+};
+
+static const GstAnalyticsMtdImpl keypoint_group_impl = {"keypoint_group", NULL, {NULL}};
+
+/**
+ * gst_analytics_keypointgroup_mtd_get_mtd_type:
+ *
+ * Get an id identifying #GstAnalyticsKeypointGropuMtd type.
+ *
+ * Returns: opaque id of #GstAnalyticsMtd type
+ *
+ * Since: 1.26
+ */
+GstAnalyticsMtdType gst_analytics_keypointgroup_mtd_get_mtd_type(void) {
+    return (GstAnalyticsMtdType)&keypoint_group_impl;
+}
+
+/**
+ * gst_analytics_keypointgroup_mtd_get_count:
+ * @handle: instance handle
+ *
+ * Get number of keypoints in a keypoint group.
+ * Returns: number of keypoints in this instance of keypoint metadata
+ *
+ * Since: 1.26
+ */
+gsize gst_analytics_keypointgroup_mtd_get_count(const GstAnalyticsKeypointGroupMtd *handle) {
+    g_return_val_if_fail(handle, 0);
+    g_return_val_if_fail(handle->meta != NULL, 0);
+
+    GstAnalyticsKeypointGroupData *keypoints_mtd_data =
+        (GstAnalyticsKeypointGroupData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
+    g_return_val_if_fail(keypoints_mtd_data != NULL, 0);
+
+    return keypoints_mtd_data->count;
+}
+
+/**
+ * gst_analytics_keypointgroup_mtd_get_keypoint_mtd:
+ * @handle: handle to keypoint group metadata
+ * @keypoint_mtd: (out) handle to keypoint metadata at @index position in this keypoint group
+ * @index: keypoint index, must be < gst_analytics_keypointgroup_mtd_get_keypoints_count
+ *
+ * Get keypoint metadata handle at @index
+ * Returns: TRUE if valid keypoint handle returned, FALSE if the call failed
+ *
+ * Since: 1.26
+ */
+
+gboolean gst_analytics_keypointgroup_mtd_get_keypoint_mtd(const GstAnalyticsKeypointGroupMtd *handle,
+                                                          GstAnalyticsKeypointMtd *keypoint_mtd, gsize index) {
+    g_return_val_if_fail(handle, FALSE);
+    g_return_val_if_fail(handle->meta != NULL, FALSE);
+
+    GstAnalyticsKeypointGroupData *keypoint_group_data =
+        (GstAnalyticsKeypointGroupData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);
+    g_return_val_if_fail(keypoint_group_data != NULL, FALSE);
+    g_return_val_if_fail(keypoint_group_data->count > index, FALSE);
+
+    // return keypoint metadata stored at index
+    keypoint_mtd->meta = handle->meta;
+    keypoint_mtd->id = keypoint_group_data->ids[index];
+
+    return TRUE;
+}
+
+/**
+ * gst_analytics_relation_meta_add_keypointgroup_mtd:
+ * @instance: Instance of #GstAnalyticsRelationMeta where to add classification instance
+ * @count: number of keypoints to add
+ * @keypoints: (array of count): metadata handles for individual keypoints
+ * @keypoint_mtd: (out) (not nullable): Handle updated to newly added keypoint group meta.
+ *
+ * Add analytic keypoint metadata to @instance.
+ * Returns: TRUE if valid keypoint group handle returned, FALSE if the call failed
+ *
+ * Since: 1.26
+ */
+gboolean gst_analytics_relation_meta_add_keypointgroup_mtd(GstAnalyticsRelationMeta *instance, const gsize count,
+                                                           const GstAnalyticsKeypointMtd *keypoint_mtd,
+                                                           GstAnalyticsKeypointGroupMtd *keypoint_group_mtd) {
+    g_return_val_if_fail(instance != NULL, FALSE);
+    g_return_val_if_fail(keypoint_mtd != NULL, FALSE);
+
+    // create medatada for individual keypoints in a group and store metadata id
+    gsize data_size = sizeof(guint) * count;
+    gsize size = sizeof(GstAnalyticsKeypointGroupData) + data_size;
+    GstAnalyticsKeypointGroupData *keypoint_group_data =
+        (GstAnalyticsKeypointGroupData *)gst_analytics_relation_meta_add_mtd(instance, &keypoint_group_impl, size,
+                                                                             keypoint_group_mtd);
+    g_return_val_if_fail(keypoint_group_data != NULL, FALSE);
+
+    // store ids of individual keypoints in data array
+    // metadata instance must be same for keypoints and keypoint group
+    keypoint_group_data->count = count;
+    for (gsize k = 0; k < count; k++) {
+        g_return_val_if_fail(keypoint_mtd->meta == instance, FALSE);
+        keypoint_group_data->ids[k] = keypoint_mtd[k].id;
     }
-    return keypoints_mtd_data != NULL;
+
+    return TRUE;
+}
+
+/**
+ * gst_analytics_relation_meta_set_keypointgroup_relations:
+ * @instance: Instance of #GstAnalyticsRelationMeta where to add classification instance.
+ * @keypoint_group: Handle to keypoint group metadata.
+ * @keypoint_names: (optiona, can be null): Handle to classification metadata with keypoint names.
+ * @keypoint_skeleton: (optiona, can be null): Handle to skeleton metadata with skeleton segments.
+ *
+ * Setup default relations between keypoints, keypoint group, keypoint names and skeleton.
+ *
+ * keypoint_group (1) --> GST_ANALYTICS_REL_TYPE_CONTAIN    --> keypoint (N)
+ * keypoint_group (1) <-- GST_ANALYTICS_REL_TYPE_IS_PART_OF <-- keypoint (N)
+ * keypoint_group (M) --> GST_ANALYTICS_REL_TYPE_CATEGORY   <-- keypoint_names (1)
+ * keypoint_group (M) --> GST_ANALYTICS_REL_TYPE_CATEGORY   <-- keypoint_skeleton (1)
+ *
+ * keypoint_names and keypoint_skeleton - one instance per frame
+ * keypoint_group - M instances per frame (for each detectek keypoint group)
+ * keypoint - N instances per keypoint group (MxN instances per frame)
+ *
+ * Returns: TRUE if relations added successfully, FALSE if the call fails
+ *
+ * Since: 1.26
+ */
+
+GST_ANALYTICS_META_API
+gboolean gst_analytics_relation_meta_set_keypointgroup_relations(GstAnalyticsRelationMeta *instance,
+                                                                 GstAnalyticsKeypointGroupMtd *keypoint_group,
+                                                                 GstAnalyticsClsMtd *keypoint_names,
+                                                                 GstAnalyticsKeypointSkeletonMtd *keypoint_skeleton) {
+
+    g_return_val_if_fail(instance != NULL, FALSE);
+    g_return_val_if_fail(keypoint_group != NULL, FALSE);
+    g_return_val_if_fail(keypoint_group->meta == instance, FALSE);
+
+    GstAnalyticsKeypointGroupData *keypoint_group_data =
+        (GstAnalyticsKeypointGroupData *)gst_analytics_relation_meta_get_mtd_data(keypoint_group->meta,
+                                                                                  keypoint_group->id);
+    g_return_val_if_fail(keypoint_group_data != NULL, FALSE);
+
+    // set bi-directional relationship between keypoints and keypoint group
+    for (gsize k = 0; k < keypoint_group_data->count; k++) {
+        if (!gst_analytics_relation_meta_set_relation(instance, GST_ANALYTICS_REL_TYPE_CONTAIN, keypoint_group->id,
+                                                      keypoint_group_data->ids[k]))
+            return FALSE;
+        if (!gst_analytics_relation_meta_set_relation(instance, GST_ANALYTICS_REL_TYPE_IS_PART_OF,
+                                                      keypoint_group_data->ids[k], keypoint_group->id))
+            return FALSE;
+    }
+
+    // set category relationship between keypoint group and keypoint names/skeletons
+    // TODO - add new relation type: GST_ANALYTICS_REL_TYPE_CONTAIN
+    if (keypoint_names != NULL) {
+        g_return_val_if_fail(gst_analytics_cls_mtd_get_length(keypoint_names) == keypoint_group_data->count, FALSE);
+        g_return_val_if_fail(keypoint_names->meta == instance, FALSE);
+        if (!gst_analytics_relation_meta_set_relation(instance, GST_ANALYTICS_REL_TYPE_RELATE_TO, keypoint_group->id,
+                                                      keypoint_names->id))
+            return FALSE;
+    }
+    if (keypoint_skeleton != NULL) {
+        g_return_val_if_fail(keypoint_skeleton->meta == instance, FALSE);
+        if (!gst_analytics_relation_meta_set_relation(instance, GST_ANALYTICS_REL_TYPE_RELATE_TO, keypoint_group->id,
+                                                      keypoint_skeleton->id))
+            return FALSE;
+    }
+
+    return TRUE;
 }
