@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -165,5 +165,5 @@ void ConverterFacade::convert(const OutputBlobs &all_output_blobs, FramesWrapper
     if (frames.need_coordinate_restore() && coordinates_restorer != nullptr)
         coordinates_restorer->restore(tensors_batch, frames);
 
-    meta_attacher->attach(tensors_batch, frames);
+    meta_attacher->attach(tensors_batch, frames, *blob_to_meta);
 }

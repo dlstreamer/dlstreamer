@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -19,7 +19,7 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Define version
-set(VERSION_MAJOR 3)
+set(VERSION_MAJOR 2025)
 set(VERSION_MINOR 0)
 set(VERSION_PATCH 0)
 

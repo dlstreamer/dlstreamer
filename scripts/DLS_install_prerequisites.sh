@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2024-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -25,8 +25,8 @@ INTEL_GPU_KEYRING_PATH="/usr/share/keyrings/intel-graphics.gpg"
 
 INTEL_GPU_LIST="intel-graphics.list"
 
-CURL_TIMEOUT=10
-APT_UPDATE_TIMEOUT=30
+CURL_TIMEOUT=60
+APT_UPDATE_TIMEOUT=60
 APT_GET_TIMEOUT=600
 
 # ***********************************************************************
@@ -163,7 +163,7 @@ install_packages() {
 
     # Run apt-get install and use tee to duplicate the output to the log file
     # while still displaying it to the user
-    timeout --foreground $APT_GET_TIMEOUT sudo apt-get install "$@" 2>&1 | tee "$log_file"
+    timeout --foreground $APT_GET_TIMEOUT sudo apt-get install -y "$@" 2>&1 | tee "$log_file"
     local status=${PIPESTATUS[0]}
 
     # Check the exit status of the apt-get install command
@@ -189,7 +189,7 @@ install_packages() {
         # Exit the script with an error status
         exit 1
     else
-        message=" Packages $* installed successfully."
+        message=" Installed $* successfully."
         echo_color "$message" "green"
     fi
 
@@ -197,11 +197,351 @@ install_packages() {
     rm -f "$log_file"
 }
 
+# Function to check if the kernel version is 6.12 or higher
+check_kernel_version() {
+    # Get the current kernel version
+    current_kernel=$(uname -r)
+
+    # Extract the major and minor version numbers
+    current_major=$(echo $current_kernel | cut -d. -f1)
+    current_minor=$(echo $current_kernel | cut -d. -f2)
+
+    # Define the target major and minor version numbers
+    target_major=6
+    target_minor=12
+
+    # Function to compare version numbers
+    version_ge() {
+        [ "$1" -gt "$2" ] || { [ "$1" -eq "$2" ] && [ "$3" -ge "$4" ]; }
+    }
+
+    # Check if the current kernel version is greater than or equal to the target version
+    if version_ge $current_major $target_major $current_minor $target_minor; then
+        return 0  # Success
+    else
+        return 1  # Failure
+    fi
+}
+
+# Create a temporary directory for downloading .deb files
+temp_dir=$(mktemp -d)
+echo " Created temporary directory: $temp_dir"
+
+# Cleanup function to remove the temporary directory
+cleanup() {
+    echo " Cleaning up temporary files..."
+    rm -rf "$temp_dir"
+}
+
+# Trap to execute the cleanup function on script exit or interrupt
+trap cleanup EXIT
+
+# Function to download a package
+download_deb_package() {
+    local package_url=$1
+    local timeout_value=$2
+
+    # Extract the package name from the URL
+    local package_name
+    package_name=$(basename "$package_url")
+
+    # Download the package with the specified timeout
+    echo "Downloading $package_name..."
+    wget --timeout="$timeout_value" -O "$package_name" "$package_url"
+
+    # Check if the download was successful
+    if [ $? -eq 0 ]; then
+        echo_color " Downloaded $package_name successfully." "green"
+    else
+        handle_error " Failed to download $package_name."
+    fi
+}
+
+# Function to download and install a package
+install_deb_package() {
+    local package_url=$1
+    local timeout_value=$2
+
+    # Extract the package name from the URL
+    local package_name
+    package_name=$(basename "$package_url")
+
+    if ! sudo -E apt install -y --allow-downgrades ./"$package_name"; then
+        echo_color " Attempting to fix broken dependencies..." "yellow"
+        sudo apt --fix-broken install || handle_error "Failed to fix broken dependencies"
+        # Try the installation again after fixing dependencies
+        sudo apt install -y ./"$package_name" || handle_error "apt failed to install $package_name after fixing dependencies"
+    else 
+        echo_color " Installed $package_name successfully. \n" "green"
+    fi
+}
+
+
+setup_gpu(){
+
+    case $intel_gpu_state in
+        1)
+            configure_repository "$INTEL_CL_GPU_KEY_URL" "$INTEL_GPU_KEYRING_PATH" "$INTEL_CL_GPU_REPO_URL" "$INTEL_GPU_LIST"
+            echo_color "\n Intel® client GPU repository has been configured.\n" "green"
+            ;;
+        2)
+            configure_repository "$INTEL_DC_GPU_KEY_URL" "$INTEL_GPU_KEYRING_PATH" "$INTEL_DC_GPU_REPO_URL" "$INTEL_GPU_LIST"
+            echo_color "\n Intel® Data Center GPU repository has been configured.\n" "green"
+            ;;
+    esac
+
+    update_package_lists
+    install_packages libze1 intel-level-zero-gpu intel-opencl-icd clinfo
+
+}
+
+# Function to get .deb package URLs from the latest release of a GitHub repository
+get_deb_urls() {
+    local REPO=$1
+
+    # Get the latest release information using the GitHub API
+    local LATEST_RELEASE
+    LATEST_RELEASE=$(curl -s "https://api.github.com/repos/$REPO/releases/latest")
+
+    # Extract the URLs of the .deb packages
+    local DEB_URLS
+    DEB_URLS=$(echo "$LATEST_RELEASE" | grep browser_download_url | grep -Eo 'https://[^"]+\.deb' | sed 's/%2B/+/g')
+
+    # Return the list of .deb package URLs
+    echo "$DEB_URLS"
+}
+
+# Function to get the URLs of .deb packages from a GitHub release page
+get_deb_urls_no_api() {
+  local repo="$1"
+  local tag="$2"
+  local filter="$3"
+  local release_url="https://github.com/$repo/releases/tag/$tag"
+  local expanded_assets_url
+  local deb_urls
+
+  # Fetch the HTML content of the release page
+  html_content=$(curl -s "$release_url")
+
+  # Extract the URL of the expanded assets
+  expanded_assets_url=$(echo "$html_content" | grep -oP 'include-fragment[^>]+src="\K[^"]+' | grep 'expanded_assets')
+
+  # Check if the expanded_assets_url starts with "https"
+  if [[ "$expanded_assets_url" != https* ]]; then
+    expanded_assets_url="https://github.com$expanded_assets_url"
+  fi
+
+  # Fetch the HTML content of the expanded assets page
+  expanded_assets_content=$(curl -s "$expanded_assets_url")
+
+  # Extract the URLs of .deb files
+  #deb_urls=$(echo "$expanded_assets_content" | grep -oP 'href="\K[^"]+\.deb' | sed 's|^|https://github.com|')
+
+  if [ -n "$filter" ]; then
+    deb_urls=$(echo "$expanded_assets_content" | grep -oP 'href="\K[^"]+\.deb' | grep "$filter" | grep -v "devel" | sed 's|^|https://github.com|')
+  else
+    deb_urls=$(echo "$expanded_assets_content" | grep -oP 'href="\K[^"]+\.deb' | sed 's|^|https://github.com|')
+  fi
+
+  echo "$deb_urls"
+}
+
+# Function to get the URLs of .deb packages from a GitHub release page
+get_deb_urls_wget() {
+  local repo="$1"
+  local tag="$2"
+  local filter="$3"
+  local release_url="https://github.com/$repo/releases/tag/$tag"
+  local deb_urls
+
+  # Fetch the HTML content of the release page
+  html_content=$(curl -s "$release_url")
+
+  # Extract the URLs of .deb files from lines starting with wget
+  if [ -n "$filter" ]; then
+    deb_urls=$(echo "$html_content" | grep -oP 'wget \Khttps://[^ ]+\.deb' | grep "$filter")
+  else
+    deb_urls=$(echo "$html_content" | grep -oP 'wget \Khttps://[^ ]+\.deb')
+  fi
+
+  echo "$deb_urls"
+}
+
+# Function to check if the current user is a member of a given group and add if not
+add_user_to_group_if_not_member() {
+  local group="$1"
+  local user="$USER"
+
+  # Check if the group exists
+  if ! getent group "$group" > /dev/null; then
+    handle_error " Group '$group' does not exist."
+  fi
+
+  # Check if the user is a member of the group
+  if id -nG "$user" | tr ' ' '\n' | grep -q "^$group$"; then
+    echo_color " The user $user is already a member of the group $group." "green"
+    return 0
+  else
+    # Add the user to the group
+    sudo usermod -aG "$group" "$user"
+    if [ $? -eq 0 ]; then
+      echo_color " The user $user has been added to the group $group." "cyan"
+      return 1
+    else
+      handle_error  " Failed to add the user $user to the group $group."
+    fi
+  fi
+}
+
+# Function to get the installed version of a package
+get_installed_version() {
+  local package_name="$1"
+  dpkg-query -W -f='${Version}' "$package_name" 2>/dev/null
+}
+
+# Function to check the version of a package
+check_package_version() {
+  local package_name="$1"
+
+  # Check if the package is installed
+  if dpkg -l "$package_name" 2>/dev/null | grep -q "^ii"; then
+    # Get the package version
+    package_version=$(dpkg -l "$package_name" | grep "^ii" | awk '{print $3}')
+    echo "The version of the package '$package_name' is: $package_version"
+  else
+    echo "The package '$package_name' is not installed."
+  fi
+}
+
+# Function to get the latest version of a package from GitHub by following the redirect
+get_latest_version_github() {
+
+  local repo="$1"
+  local latest_url="https://github.com/$repo/releases/latest"
+  local redirect_url
+
+  # Use curl to follow the redirect and extract the final URL
+  redirect_url=$(curl -s -L -o /dev/null -w '%{url_effective}' "$latest_url")
+
+  # Extract the version tag from the final URL
+  latest_version=$(basename "$redirect_url")
+
+  # Remove the leading "v" if present
+  #latest_version="${latest_version#v}"
+
+  echo "$latest_version"
+}
+
+update_gpu_setup() {
+
+    # Change to the temporary directory
+    pushd "$temp_dir" > /dev/null || handle_error "Failed to change to temporary directory"
+
+    #REPO1="intel/intel-graphics-compiler"
+    REPO2="intel/compute-runtime"
+
+    #TAG1=$(get_latest_version_github "$REPO1")
+    TAG2=$(get_latest_version_github "$REPO2")
+
+    # Get .deb package URLs for each repository
+    #DEB_URLS1=$(get_deb_urls_no_api $REPO1 $TAG1)
+    DEB_URLS2=$(get_deb_urls_wget $REPO2 $TAG2)
+
+    # Merge the results into a single array
+    package_urls=()
+    #while IFS= read -r url; do
+    #    package_urls+=("$url")
+    #done <<< "$DEB_URLS1"
+
+    while IFS= read -r url; do
+        package_urls+=("$url")
+    done <<< "$DEB_URLS2"
+
+    # Find the URL that contains "libigdgmm" and move it to the first position (as other packages rely on it)
+    for i in "${!package_urls[@]}"; do
+        if [[ "${package_urls[$i]}" == *"libigdgmm"* ]]; then
+            # Store the URL
+            libigdgmm_url="${package_urls[$i]}"
+            
+            # Remove the URL from its current position
+            unset 'package_urls[$i]'
+            
+            # Insert the URL at the beginning of the array
+            package_urls=("$libigdgmm_url" "${package_urls[@]}")
+            
+            # Break the loop as we have found and moved the URL
+            break
+        fi
+    done
+
+    # Iterate over the list of package URLs and download each one
+    for package_url in "${package_urls[@]}"; do
+        download_deb_package "$package_url" "$APT_GET_TIMEOUT"
+        install_deb_package "$package_url" "$APT_GET_TIMEOUT"
+    done
+    
+    
+    # Return to the original directory
+    popd > /dev/null || handle_error "Failed to return to original directory"
+}
+
+
+setup_npu() {
+
+    # Change to the temporary directory
+    pushd "$temp_dir" > /dev/null || handle_error "Failed to change to temporary directory"
+
+    update_package_lists
+    install_packages libtbb12
+    
+    REPO1="intel/linux-npu-driver"
+    REPO2="oneapi-src/level-zero"
+
+    TAG1=$(get_latest_version_github "$REPO1")
+    TAG2=$(get_latest_version_github "$REPO2")
+
+    FILTER1="$ubuntu_version"
+  
+    # Get .deb package URLs for each repository
+    DEB_URLS1=$(get_deb_urls_no_api $REPO1 $TAG1 $FILTER1)
+    DEB_URLS2=$(get_deb_urls_no_api $REPO2 $TAG2 $FILTER1)
+
+    # Merge the results into a single array
+    package_urls=()
+    while IFS= read -r url; do
+        package_urls+=("$url")
+    done <<< "$DEB_URLS1"
+
+    while IFS= read -r url; do
+        package_urls+=("$url")
+    done <<< "$DEB_URLS2"
+
+    # Iterate over the list of package URLs and download each one
+    for package_url in "${package_urls[@]}"; do
+        download_deb_package "$package_url" "$APT_GET_TIMEOUT"
+        install_deb_package "$package_url" "$APT_GET_TIMEOUT"
+    done
+    
+    
+    # Return to the original directory
+    popd > /dev/null || handle_error "Failed to return to original directory"
+}
+
+
 # ***********************************************************************
+need_to_reboot=0
+need_to_logout=0
 
 # Detect Ubuntu version
 ubuntu_version=$(lsb_release -rs)
 
+# Get the CPU family and model information
+cpu_family=$(grep -m 1 'cpu family' /proc/cpuinfo | awk '{print $4}')
+cpu_model=$(grep -m 1 'model' /proc/cpuinfo | awk '{print $3}')
+cpu_model_number=$((cpu_model))
+cpu_model_name=$(lscpu | grep "Model name:" | awk -F: '{print $2}' | xargs)
+
+echo_color "\n CPU is Intel Family $cpu_family Model $cpu_model ($cpu_model_name).\n" "yellow"
 
 # Choose the package list based on the Ubuntu version
 case "$ubuntu_version" in
@@ -222,35 +562,41 @@ case "$ubuntu_version" in
 esac
 
 
+# Check if the CPU is Intel Family 6 Model 189 (Lunar Lake)
+if [[ "$cpu_family" == "6" && "$cpu_model" == "189" ]]; then
+
+    check_kernel_version
+    status=$?
+
+    if [ $status -eq 0 ]; then
+        echo_color " Kernel 6.12 or higher detected." "green"
+    else
+        echo_color "\n WARNING!" "red"
+        echo_color "\n Intel® Deep Learning Streamer on Lunar Lake family processors has only been tested with the 6.12 kernel. We strongly recommend updating the kernel version before proceeding." "red"
+        read -p " Quit installation? [y/n] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            exit
+        fi
+    fi
+fi
+
 #-----------------------STEP 1-------------------------------------------
 
 # Inform the user about the upcoming package installation
 echo_color "\n The script will now update package lists and install required packages." "yellow"
 
-# Install required packages without the -y flag to allow user interaction
-#if ! timeout --foreground $APT_GET_TIMEOUT sudo apt-get install curl wget gpg software-properties-common jq; then
-#    echo_color " Package installation was cancelled or timed out. Exiting the script." "bred"
-#    exit 1
-#fi
-
 update_package_lists
-install_packages curl wget gpg software-properties-common pciutils
+install_packages curl wget jq gpg software-properties-common pciutils
 
-echo_color "\n The packages required to start the installation are ready." "green"
-
-configure_repository "$INTEL_ONEAPI_KEY_URL" "$INTEL_ONEAPI_KEYRING_PATH" "$INTEL_ONEAPI_REPO_URL" "$INTEL_ONEAPI_LIST"
-
-echo_color "\n Intel® One API repository has been configured.\n" "green"
-
-update_package_lists
-
-#-----------------------STEP 2-------------------------------------------
+#-----------------------INSTALL GPU DRIVERS------------------------------
 
 # Initialize the GPU state variable
 # 0 - No Intel® GPU
 # 1 - Intel® client GPU
 # 2 - Intel® Data Center GPU
 intel_gpu_state=0
+intel_gpu_driver_state=0
 gpu_info=""
 
 # Check for any Intel® GPU
@@ -292,7 +638,42 @@ case $intel_gpu_state in
         ;;
 esac
 
+
 if [ $intel_gpu_state -ne 0 ]; then
+
+    configure_repository "$INTEL_ONEAPI_KEY_URL" "$INTEL_ONEAPI_KEYRING_PATH" "$INTEL_ONEAPI_REPO_URL" "$INTEL_ONEAPI_LIST"
+    echo_color "\n Intel® One API repository has been configured.\n" "green"
+    update_package_lists
+
+    setup_gpu
+
+    if [[ "$ubuntu_version" == "24.04" ]]; then
+        echo " Updating GPU setup..."
+
+        repo="intel/compute-runtime"  # Replace with the GitHub repository in the format "owner/repo"
+        package_name="intel-opencl-icd"
+        
+        latest_version=$(get_latest_version_github "$repo")
+        latest_version="${latest_version#v}" # Remove the leading "v" if present
+        installed_version=$(get_installed_version "$package_name")
+        #installed_version=$(echo "$installed_version" | grep -oP '^\d+\.\d+\.\d+') # This extracts the version number in the format X.Y.Z 
+
+        if [ -z "$installed_version" ]; then
+            echo "The package '$package_name' is not installed."
+            update_gpu_setup
+        else
+            echo "Latest version of '$package_name' from GitHub: $latest_version"
+            echo "Installed version of '$package_name': $installed_version"
+
+            if [ "$latest_version" == "$installed_version" ]; then
+                echo "Latest version installed"
+            else
+                update_gpu_setup    # look for the latest drivers in intel/intel-graphics-compiler and intel/compute-runtime repositories
+            fi
+        fi
+    fi
+
+    #-----------CHECK IF GPU DRIVERS ARE INSTALLED-------------------------------
 
     # Path to the /dev/dri directory
     DRI_DIR="/dev/dri"
@@ -308,114 +689,146 @@ if [ $intel_gpu_state -ne 0 ]; then
     # Trim the trailing space if any files were found
     render_devices=${render_devices% }
 
-    # If no renderD* devices are found, print a message and exit
+    if [ -n "$render_devices" ]; then
+        echo_color "\n GPU drivers have been installed.\n" "green"
+        intel_gpu_driver_state=1
+    fi
+fi
+
+#----------------------ADD USERS TO GROUPS---------------------------------
+echo_color " Adding user to video and render groups..." "yellow"
+
+add_user_to_group_if_not_member "render"
+if [ $? -ne 0 ]; then
+  need_to_logout=1
+fi
+
+add_user_to_group_if_not_member "video"
+if [ $? -ne 0 ]; then
+  need_to_logout=1
+fi
+#sudo usermod -a -G video "$USER" || handle_error "Failed to add user to video group."
+#sudo usermod -a -G render "$USER" || handle_error "Failed to add user to render group."
+
+#----------------------INSTALL MEDIA DRIVER--------------------------------
+update_package_lists
+install_packages intel-media-va-driver-non-free 
+
+#-------------------------STEP 3-------------------------------------------
+
+if [[ "$cpu_model" != *"Xeon"* ]] && (( cpu_model_number >= 170 )); then
+    # In this case we know that NPU must be present in the system, so we can proceed with the installation
+    echo_color " This system contains a Neural Processing Unit." "green"
+
+    repo="intel/linux-npu-driver"  # Replace with the GitHub repository in the format "owner/repo"
+    package_name="intel-driver-compiler-npu"
+    
+    latest_version=$(get_latest_version_github "$repo")
+    latest_version="${latest_version#v}" # Remove the leading "v" if present
+    installed_version=$(get_installed_version "$package_name")
+    installed_version=$(echo "$installed_version" | grep -oP '^\d+\.\d+\.\d+') # This extracts the version number in the format X.Y.Z 
+
+    if [ -z "$installed_version" ]; then
+        echo "The package '$package_name' is not installed."
+        setup_npu
+        need_to_reboot=1
+    else
+        echo "Latest version of '$package_name' from GitHub: $latest_version"
+        echo "Installed version of '$package_name': $installed_version"
+
+        if [ "$latest_version" == "$installed_version" ]; then
+            echo "The installed version is up-to-date."
+
+            intel_npu=$(lspci | grep -i 'Intel' | grep 'NPU' | rev | cut -d':' -f1 | rev)
+
+            if [ -z "$intel_npu" ]; then
+                intel_npu="Intel® NPU"
+            fi
+
+            line_to_add="export ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so"
+
+            # Define the .bash_profile file path for the current user
+            bash_profile="${HOME}/.bash_profile"
+
+            # Check if .bash_profile exists, create it if it does not
+            if [ ! -f "$bash_profile" ]; then
+                # If .bash_profile does not exist, check for .profile
+                if [ ! -f "${HOME}/.profile" ]; then
+                    # Neither .bash_profile nor .profile exists, create .bash_profile
+                    touch "$bash_profile"
+                else
+                    # .profile exists, so use that instead
+                    bash_profile="${HOME}/.profile"
+                fi
+            fi
+
+            # Check if the line already exists in .bash_profile to avoid duplicates
+            if ! grep -qF -- "$line_to_add" "$bash_profile"; then
+                # If the line does not exist, append it to .bash_profile
+                echo "$line_to_add" >> "$bash_profile"
+                # shellcheck disable=SC1090
+                source "$bash_profile"
+            fi
+                  
+        else
+            echo "The installed version is not up-to-date."
+            setup_npu
+            need_to_reboot=1
+        fi
+    fi
+fi
+
+if [ "$need_to_reboot" -eq 1 ]; then
+  echo_color "\n A reboot is required!." "bred"
+
+  # Ask the user for permission to reboot
+  read -p " Do you want to reboot now? (y/n): " answer
+
+  # Check the user's response
+  if [[ "$answer" =~ ^[Yy]$ ]]; then
+    echo_color " Remember to rerun the script after the reboot." "cyan"
+    echo " Rebooting the system..."
+    sudo reboot
+  else
+    echo " Reboot canceled."
+    exit
+  fi
+else 
+    echo_color "\n Environment setup completed successfully. " "bgreen"
+    echo_color " You may now proceed with the installation of Intel® DL Streamer." "green"
+
+    echo " ---------------------------------------------------"
+    echo  " The following hardware will be enabled: "
+    echo  " - CPU ($cpu_model_name) "
+
+    if [ $intel_gpu_driver_state -ne 0 ]; then
+        short_gpu_info=$(echo "$gpu_info" | grep -o "Intel.*")
+        echo " - GPU ($short_gpu_info)"
+    fi
+
+    if [ -n "$intel_npu" ]; then
+        echo " - NPU ($intel_npu)"
+    fi
+
+    echo " ---------------------------------------------------"
+
     if [ -z "$render_devices" ]; then
-        echo_color "\n Intel® GPU hardware is present but kernel drivers were not installed." "yellow"
+        echo_color "\n Intel® GPU hardware is present but drivers could not be installed." "yellow"
 
         case $intel_gpu_state in
         1)
-            echo -e "\e[97m To enable GPU support, install the client GPU drivers by following the instructions available at https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages.\n\e[37m"
+            echo_color " To enable GPU support, install the client GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages.\n" "cyan"
             ;;
         2)
-            echo -e "\e[97m To enable GPU support, install Intel® Data Center GPU drivers by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html.\n\e[37m"
+            echo " To enable GPU support, install Intel® Data Center GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html.\n" "cyan"
             ;;
         esac
 
-        intel_gpu_state=0
-
-    else
-        echo_color "\n GPU kernel drivers have been found." "green"
     fi
 
-    case $intel_gpu_state in
-        1)
-            configure_repository "$INTEL_CL_GPU_KEY_URL" "$INTEL_GPU_KEYRING_PATH" "$INTEL_CL_GPU_REPO_URL" "$INTEL_GPU_LIST"
-            echo_color "\n Intel® client GPU repository has been configured.\n" "green"
-            ;;
-        2)
-            configure_repository "$INTEL_DC_GPU_KEY_URL" "$INTEL_GPU_KEYRING_PATH" "$INTEL_DC_GPU_REPO_URL" "$INTEL_GPU_LIST"
-            echo_color "\n Intel® Data Center GPU repository has been configured.\n" "green"
-            ;;
-    esac
-
-    if [ $intel_gpu_state -ne 0 ]; then
-        update_package_lists
-        install_packages intel-level-zero-gpu level-zero
+    if [ "$need_to_logout" -eq 1 ]; then
+        echo_color "User added to render and video groups. Please log out and log back in for the changes to take effect." "cyan"
     fi
-
 fi
 
-#-----------------------STEP 3-------------------------------------------
-
-intel_npu_state=$(sudo dmesg | grep -i "initialized intel_vpu")
-
-if [ -n "$intel_npu_state" ]; then
-
-    intel_npu=$(lspci | grep -i 'Intel' | grep 'NPU' | rev | cut -d':' -f1 | rev)
-
-    if [ -n "$intel_npu" ]; then
-        echo_color "\n Intel® NPU detected:" "green"
-        echo -e " --------------------------------"
-        echo -e " $intel_npu"
-        echo -e " --------------------------------"
-    fi
-    
-    echo_color "\n NPU kernel drivers have been found." "green"
-
-    line_to_add="export ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so"
-
-    # Define the .bash_profile file path for the current user
-    bash_profile="${HOME}/.bash_profile"
-
-    # Check if .bash_profile exists, create it if it does not
-    if [ ! -f "$bash_profile" ]; then
-        # If .bash_profile does not exist, check for .profile
-        if [ ! -f "${HOME}/.profile" ]; then
-            # Neither .bash_profile nor .profile exists, create .bash_profile
-            touch "$bash_profile"
-        else
-            # .profile exists, so use that instead
-            bash_profile="${HOME}/.profile"
-        fi
-    fi
-
-    # Check if the line already exists in .bash_profile to avoid duplicates
-    if ! grep -qF -- "$line_to_add" "$bash_profile"; then
-        # If the line does not exist, append it to .bash_profile
-        echo "$line_to_add" >> "$bash_profile"
-        # shellcheck disable=SC1090
-        source "$bash_profile"
-    fi
-
-fi
-
-echo_color "\n Environment setup completed successfully. " "bgreen"
-echo -e " You may now proceed with the installation of Intel® DL Streamer. \e[37m"
-
-echo " ---------------------------------------------------"
-echo  " The following hardware will be enabled: "
-echo  " - CPU ($(lscpu | grep "Model name" | sed 's/Model name:[[:space:]]*//')) "
-
-if [ $intel_gpu_state -ne 0 ]; then
-    short_gpu_info=$(echo "$gpu_info" | grep -o "Intel.*")
-    echo " - GPU ($short_gpu_info)"
-fi
-
-if [ -n "$intel_npu" ]; then
-    echo " - NPU ($intel_npu)"
-elif [ -n "$intel_npu_state" ]; then
-    echo " - NPU"    
-fi
-
-echo " ---------------------------------------------------"
-
-if [ "$intel_gpu_state" -eq 0 ]; then
-    echo_color "\n If you believe that a GPU should be enabled on your system, please install the appropriate drivers and rerun the script. " "yellow"
-fi
-if [  -z "$intel_npu_state"  ]; then
-    echo_color "\n If you believe that an NPU should be enabled on your system, please follow the instructions available at " "yellow"
-    echo_color "\t * https://github.com/intel/linux-npu-driver/releases." "white"
-    echo_color " Install the appropriate drivers and rerun the script. " "yellow"
-    echo 
-fi
 

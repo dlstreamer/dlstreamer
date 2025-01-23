@@ -109,7 +109,7 @@ else
   echo "OpenVINO is not installed."
 fi
 
-if [[ "$version" < "2024.5.0" ]]; then
+if [[ "$version" < "2024.6.0" ]]; then
   if pip list | grep openvino-dev; then
     pip install openvino-dev --upgrade
   fi

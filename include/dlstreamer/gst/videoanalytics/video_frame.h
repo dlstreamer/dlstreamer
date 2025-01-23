@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include "objectdetectionmtdext.h"
+#include "../metadata/objectdetectionmtdext.h"
 #include "region_of_interest.h"
 
 #include "../metadata/gva_json_meta.h"

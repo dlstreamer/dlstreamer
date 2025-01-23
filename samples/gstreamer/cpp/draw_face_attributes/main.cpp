@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -350,9 +350,10 @@ int main(int argc, char *argv[]) {
         sink = "gvametaconvert ! gvametapublish file-format=json-lines file-path=output.json ! fakesink async=false";
     else if (output_type_str == "file") {
         std::string encoder = FindEncoder();
-        sink = g_strdup_printf("gvawatermark ! videoconvertscale ! gvafpscounter ! %s ! h264parse ! mp4mux ! filesink "
-                               "location=output.mp4",
-                               encoder.c_str());
+        std::string output_location = "cpp_draw_attributes_output_" + std::string(device) + "_" + encoder + ".mp4";
+        sink = g_strdup_printf(
+            "gvawatermark ! videoconvertscale ! gvafpscounter ! %s ! h264parse ! mp4mux ! filesink location=%s",
+            encoder.c_str(), output_location.c_str());
     } else {
         std::cerr << "Unsupported output type: " << output_type_str << std::endl;
         return -1;

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -49,7 +49,7 @@ else
 	python3 -m venv /home/"$USER"/python3venv
 	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --upgrade pip
 	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --no-dependencies torch==2.5.1+xpu torchvision==0.20.1+xpu torchaudio==2.5.1+xpu --index-url https://download.pytorch.org/whl/test/xpu
-	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --no-dependencies PyGObject ultralytics openvino==2024.5.0 numpy typing-extensions Pillow opencv-python matplotlib packaging pyparsing cycler python-dateutil kiwisolver six pyyaml tqdm requests urllib3 idna certifi psutil sympy mpmath
+	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --no-dependencies PyGObject ultralytics openvino==2024.6.0 numpy typing-extensions Pillow opencv-python matplotlib packaging pyparsing cycler python-dateutil kiwisolver six pyyaml tqdm requests urllib3 idna certifi psutil sympy mpmath thop setuptools
  	# shellcheck source=/dev/null
  	source /home/"$USER"/python3venv/bin/activate
 	/opt/intel/dlstreamer/samples/download_public_models.sh yolo11s
@@ -61,6 +61,13 @@ echo ""
 
 export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
+# check if the output is set to file or display, only two options are supported
+OUTPUT=${1:-"display"}
+if [[ "$OUTPUT" != "display" ]] && [[ "$OUTPUT" != "file" ]]; then
+    echo "Error! Wrong value for OUTPUT parameter. Supported values: display | file".
+    exit 
+fi
+
 # print pipeline and run it
 execute() { echo "$*"$'\n' ; "$@" ; }
-execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh yolo11s CPU '' display
+execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh yolo11s CPU '' "$OUTPUT"

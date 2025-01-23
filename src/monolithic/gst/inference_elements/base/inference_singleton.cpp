@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -171,10 +171,8 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
 
         if (infRefs->proxy == nullptr) {                        // no instance for current inference-id acquired yet
             infRefs->proxy = new InferenceImpl(base_inference); // one instance for all elements with same inference-id
-            infRefs->context = InferenceImpl::GetDisplay(base_inference);
-        } else {
-            InferenceImpl::SetDisplay(base_inference, infRefs->context);
         }
+        infRefs->context = InferenceImpl::GetDisplay(base_inference);
 
         return infRefs->proxy;
     } catch (const std::exception &e) {

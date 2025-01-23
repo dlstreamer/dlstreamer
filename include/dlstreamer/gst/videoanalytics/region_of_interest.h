@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,7 +13,7 @@
 #pragma once
 
 #include "../metadata/gstanalyticskeypointsmtd.h"
-#include "objectdetectionmtdext.h"
+#include "../metadata/objectdetectionmtdext.h"
 #include "tensor.h"
 
 #include <cstdint>
@@ -193,11 +193,24 @@ class RegionOfInterest {
         if (_gst_meta) {
             return _detection ? _detection->label_id() : 0;
         }
-        gint label_id;
-        if (!gst_analytics_od_ext_mtd_get_class_id(&_od_ext_meta, &label_id)) {
-            throw std::runtime_error("Error when trying to read the label id of the RegionOfInterest");
+
+        GQuark label = gst_analytics_od_mtd_get_obj_type(const_cast<GstAnalyticsODMtd *>(&_od_meta));
+        if (label) {
+            GstAnalyticsClsMtd cls_descriptor_mtd;
+            if (!gst_analytics_relation_meta_get_direct_related(
+                    _od_meta.meta, _od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, gst_analytics_cls_mtd_get_mtd_type(),
+                    nullptr, &cls_descriptor_mtd)) {
+                return 0;
+            }
+
+            gint label_id = gst_analytics_cls_mtd_get_index_by_quark(&cls_descriptor_mtd, label);
+            if (label_id < 0) {
+                throw std::runtime_error("Error when trying to read the label id of the RegionOfInterest");
+            }
+            return label_id;
+        } else {
+            return 0;
         }
-        return label_id;
     }
 
     /**

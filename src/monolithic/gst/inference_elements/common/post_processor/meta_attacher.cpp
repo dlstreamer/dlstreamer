@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,7 @@
 
 #include "gva_utils.h"
 #include "processor_types.h"
-#include <dlstreamer/gst/videoanalytics/objectdetectionmtdext.h>
+#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 #include <gst/analytics/analytics.h>
 
 #include <exception>
@@ -37,12 +37,14 @@ MetaAttacher::Ptr MetaAttacher::create(ConverterType converter_type, AttachType 
     }
 }
 
-void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &frames) {
+void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &frames,
+                                const BlobToMetaConverter &blob_to_meta) {
     checkFramesAndTensorsTable(frames, tensors);
 
     for (size_t i = 0; i < frames.size(); ++i) {
         auto &frame = frames[i];
         const auto &tensor = tensors[i];
+        GstAnalyticsClsMtd cls_descriptor_mtd = {0, nullptr};
 
         for (size_t j = 0; j < tensor.size(); ++j) {
             GstStructure *detection_tensor = tensor[j][DETECTION_TENSOR_ID];
@@ -69,10 +71,34 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                 if (not relation_meta)
                     throw std::runtime_error("Failed to add GstAnalyticsRelationMeta to buffer");
 
+                const auto &labels = blob_to_meta.getLabels();
+                if (j == 0 && !labels.empty()) {
+                    gsize length = labels.size();
+                    gfloat confidence_levels[length] = {0};
+                    GQuark class_quarks[length];
+
+                    for (size_t i = 0; i < length; i++) {
+                        class_quarks[i] = g_quark_from_string(labels[i].c_str());
+                    }
+
+                    if (!gst_analytics_relation_meta_add_cls_mtd(relation_meta, length, confidence_levels, class_quarks,
+                                                                 &cls_descriptor_mtd)) {
+                        throw std::runtime_error("Failed to add class descriptor to meta");
+                    }
+                }
+
                 GstAnalyticsODMtd od_mtd;
                 if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, gquark_label, x_abs, y_abs, w_abs, h_abs,
                                                             conf, &od_mtd)) {
                     throw std::runtime_error("Failed to add detection data to meta");
+                }
+
+                if (label && cls_descriptor_mtd.meta == relation_meta) {
+                    if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                                                                  od_mtd.id, cls_descriptor_mtd.id)) {
+                        throw std::runtime_error(
+                            "Failed to set relation between object detection metadata and class descriptor metadata");
+                    }
                 }
 
                 gint label_id = 0;
@@ -120,6 +146,12 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                         throw std::runtime_error(
                             "Failed to set relation between object detection metadata and parent metadata");
                     }
+
+                    if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_CONTAIN,
+                                                                  parent_od_mtd.id, od_mtd.id)) {
+                        throw std::runtime_error(
+                            "Failed to set relation between object detection metadata and parent metadata");
+                    }
                 }
 
                 continue;
@@ -152,7 +184,9 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
     }
 }
 
-void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, FramesWrapper &frames) {
+void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, FramesWrapper &frames,
+                                   const BlobToMetaConverter &blob_to_meta) {
+    (void)blob_to_meta;
     checkFramesAndTensorsTable(frames, tensors_batch);
 
     for (size_t i = 0; i < frames.size(); ++i) {
@@ -173,7 +207,9 @@ void TensorToFrameAttacher::attach(const TensorsTable &tensors_batch, FramesWrap
     }
 }
 
-void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrapper &frames) {
+void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrapper &frames,
+                                 const BlobToMetaConverter &blob_to_meta) {
+    (void)blob_to_meta;
     checkFramesAndTensorsTable(frames, tensors_batch);
 
     for (size_t i = 0; i < frames.size(); ++i) {
@@ -187,9 +223,9 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
             }
 
             GstAnalyticsODExtMtd od_ext_meta;
-            if (!gst_analytics_relation_meta_get_direct_related(od_meta.meta, od_meta.id,
-                                                                GST_ANALYTICS_REL_TYPE_RELATE_TO,
-                                                                GST_ANALYTICS_MTD_TYPE_ANY, nullptr, &od_ext_meta)) {
+            if (!gst_analytics_relation_meta_get_direct_related(
+                    od_meta.meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, gst_analytics_od_ext_mtd_get_mtd_type(),
+                    nullptr, &od_ext_meta)) {
                 throw std::runtime_error("Object detection extended metadata not found");
             }
 
@@ -214,7 +250,9 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
     }
 }
 
-void TensorToFrameAttacherForMicro::attach(const TensorsTable &tensors, FramesWrapper &frames) {
+void TensorToFrameAttacherForMicro::attach(const TensorsTable &tensors, FramesWrapper &frames,
+                                           const BlobToMetaConverter &blob_to_meta) {
+    (void)blob_to_meta;
 
     if (tensors.size() == 0) {
         return;

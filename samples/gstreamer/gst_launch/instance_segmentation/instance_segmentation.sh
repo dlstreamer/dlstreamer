@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2021-2024 Intel Corporation
+# Copyright (C) 2021-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -148,7 +148,7 @@ else
   echo "Error - VA-API H.264 encoder not found."
   exit
 fi
-sink_elements["file"]="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=${OUTPUT_DIRECTORY}DLS_${FILE}_${DEVICE}.mp4"
+sink_elements["file"]="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=${OUTPUT_DIRECTORY}DLS_${FILE}_${DEVICE}_instance_segmentation.mp4"
 sink_elements['display']="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 sink_elements['fps']="gvafpscounter ! fakesink sync=false"
 sink_elements['json']="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines file-path=${OUTPUT_DIRECTORY}output.json ! fakesink sync=false"

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -53,9 +53,7 @@ class BlobToMetaConverter {
     const GstStructureUniquePtr &getModelProcOutputInfo() const {
         return model_proc_output_info;
     }
-    const std::vector<std::string> &getLabels() const {
-        return labels;
-    }
+
     const std::string &getLabelByLabelId(size_t label_id) const {
         static const std::string empty_label;
         const auto &labels = getLabels();
@@ -74,6 +72,10 @@ class BlobToMetaConverter {
     using Ptr = std::unique_ptr<BlobToMetaConverter>;
     static Ptr create(Initializer initializer, ConverterType converter_type,
                       const std::string &displayed_layer_name_in_meta);
+
+    const std::vector<std::string> &getLabels() const {
+        return labels;
+    }
 
     virtual ~BlobToMetaConverter() = default;
 };

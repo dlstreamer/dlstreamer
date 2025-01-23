@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,7 +12,7 @@
 
 #include "inference_backend/logger.h"
 
-#include <dlstreamer/gst/videoanalytics/objectdetectionmtdext.h>
+#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 #include <exception>
 
 using namespace post_processing;
