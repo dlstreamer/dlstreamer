@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -75,7 +75,7 @@ class TrackerBackend {
     }
 
     virtual std::unique_ptr<vas::ot::ObjectTracker::Builder> getBuilder() {
-        return std::unique_ptr<vas::ot::ObjectTracker::Builder>(new vas::ot::ObjectTracker::Builder());
+        return std::make_unique<vas::ot::ObjectTracker::Builder>();
     }
 
     virtual void init(std::unique_ptr<vas::ot::ObjectTracker::Builder> builder, vas::ot::TrackingType type) {
@@ -124,7 +124,7 @@ Tracker::Tracker(const std::string &device, vas::ot::TrackingType tracking_type,
     std::vector<std::string> full_device = Utils::splitString(device, '.');
     auto backend_type = backendType(full_device[0]);
 
-    _impl.reset(new TrackerBackend(mapper));
+    _impl = std::make_unique<TrackerBackend>(mapper);
 
     std::unique_ptr<vas::ot::ObjectTracker::Builder> builder = _impl->getBuilder();
     builder->input_image_format = in_color;

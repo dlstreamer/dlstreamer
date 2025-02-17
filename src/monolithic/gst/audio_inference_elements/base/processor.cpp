@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -178,6 +178,7 @@ gboolean create_handles(GvaAudioBaseInference *audio_base_inference) {
     try {
         AudioInferenceOutput infOutput;
         load_model_proc(&infOutput, audio_base_inference);
+        // smart pointers cannot be used because of mixed c and c++ code
         audio_base_inference->impl_handle = new AudioInferImpl(audio_base_inference);
 
         if (!audio_base_inference->impl_handle) {
@@ -185,6 +186,7 @@ gboolean create_handles(GvaAudioBaseInference *audio_base_inference) {
                               ("%s", "Failed to allocate memory"));
             return false;
         }
+        // smart pointers cannot be used because of mixed c and c++ code
         audio_base_inference->inf_handle =
             new OpenVINOAudioInference(audio_base_inference->model, audio_base_inference->device, infOutput);
         if (!audio_base_inference->inf_handle) {
@@ -208,6 +210,7 @@ void delete_handles(GvaAudioBaseInference *audio_base_inference) {
     }
 
     try {
+        // smart pointers cannot be used because of mixed c and c++ code
         if (audio_base_inference->inf_handle) {
             delete audio_base_inference->inf_handle;
             audio_base_inference->inf_handle = nullptr;

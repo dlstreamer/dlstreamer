@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 #include <gst/gst.h>
 #include <list>
 #include <map>
+#include <memory>
 #include <string>
 
 G_BEGIN_DECLS
@@ -42,7 +43,7 @@ GType inference_region_get_type();
 typedef struct _VideoInference {
     GstProcessBin base;
 
-    class VideoInferencePrivate *impl;
+    std::shared_ptr<class VideoInferencePrivate> impl;
 
     const gchar *get_model();
     void set_inference_element(const gchar *element);

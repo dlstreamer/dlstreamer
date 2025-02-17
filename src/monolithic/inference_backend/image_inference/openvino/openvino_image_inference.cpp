@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -325,7 +325,7 @@ struct ConfigHelper {
             if (item.first == ov::num_streams.name()) {
                 m.emplace(item.first, ov::streams::Num(stoi(item.second)));
             } else if (item.first == ov::log::level.name() || item.first == ov::cache_mode.name() ||
-                       item.first == ov::affinity.name() || item.first == ov::enable_profiling.name() ||
+                       item.first == ov::hint::enable_cpu_pinning.name() || item.first == ov::enable_profiling.name() ||
                        item.first == ov::hint::model_priority.name() ||
                        item.first == ov::hint::performance_mode.name() ||
                        item.first == ov::hint::scheduling_core_type.name() ||
@@ -333,6 +333,7 @@ struct ConfigHelper {
                        item.first == ov::hint::enable_cpu_pinning.name() ||
                        item.first == ov::hint::enable_hyper_threading.name() ||
                        item.first == ov::hint::allow_auto_batching.name() ||
+                       item.first == ov::hint::inference_precision.name() ||
                        item.first == ov::intel_gpu::enable_loop_unrolling.name() ||
                        item.first == ov::intel_gpu::disable_winograd_convolution.name() ||
                        item.first == ov::intel_gpu::hint::queue_throttle.name() ||
@@ -578,10 +579,64 @@ class OpenVinoNewApiImpl {
 
         for (auto &element : modelConfig) {
             if (element.first.find("scale_values") != std::string::npos) {
+                std::vector<std::string> values = split(element.second.as<std::string>(), ',');
+                if (values.size() == 1) {
+                    GValue gvalue = G_VALUE_INIT;
+                    g_value_init(&gvalue, G_TYPE_DOUBLE);
+                    g_value_set_double(&gvalue, element.second.as<double>());
+                    gst_structure_set_value(s, "scale", &gvalue);
+                    g_value_unset(&gvalue);
+                } else if (values.size() == 3) {
+
+                    std::vector<double> scale_values;
+                    // If there are three values, use them directly
+                    for (const std::string &valueStr : values) {
+                        scale_values.push_back(std::stod(valueStr));
+                    }
+                    // Create a GST_TYPE_ARRAY to hold the scale values
+                    GValue gvalue = G_VALUE_INIT;
+                    g_value_init(&gvalue, GST_TYPE_ARRAY);
+                    for (double scale_value : scale_values) {
+                        GValue item = G_VALUE_INIT;
+                        g_value_init(&item, G_TYPE_DOUBLE);
+                        g_value_set_double(&item, scale_value);
+                        gst_value_array_append_value(&gvalue, &item);
+                        g_value_unset(&item);
+                    }
+
+                    // Set the array in the GstStructure
+                    gst_structure_set_value(s, "std", &gvalue);
+                    g_value_unset(&gvalue);
+                } else {
+                    throw std::runtime_error("Invalid number of scale values. Expected 1 or 3 values.");
+                }
+            }
+            if (element.first.find("mean_values") != std::string::npos) {
+                std::vector<std::string> values = split(element.second.as<std::string>(), ',');
+                std::vector<double> scale_values;
+
+                if (values.size() == 3) {
+                    // If there are three values, use them directly
+                    for (const std::string &valueStr : values) {
+                        scale_values.push_back(std::stod(valueStr));
+                    }
+                } else {
+                    throw std::runtime_error("Invalid number of mean values. Expected 3 values.");
+                }
+
+                // Create a GST_TYPE_ARRAY to hold the scale values
                 GValue gvalue = G_VALUE_INIT;
-                g_value_init(&gvalue, G_TYPE_DOUBLE);
-                g_value_set_double(&gvalue, element.second.as<double>());
-                gst_structure_set_value(s, "scale", &gvalue);
+                g_value_init(&gvalue, GST_TYPE_ARRAY);
+                for (double scale_value : scale_values) {
+                    GValue item = G_VALUE_INIT;
+                    g_value_init(&item, G_TYPE_DOUBLE);
+                    g_value_set_double(&item, scale_value);
+                    gst_value_array_append_value(&gvalue, &item);
+                    g_value_unset(&item);
+                }
+
+                // Set the array in the GstStructure
+                gst_structure_set_value(s, "mean", &gvalue);
                 g_value_unset(&gvalue);
             }
             if ((element.first.find("resize_type") != std::string::npos) &&
@@ -592,13 +647,28 @@ class OpenVinoNewApiImpl {
                 gst_structure_set_value(s, "resize", &gvalue);
                 g_value_unset(&gvalue);
             }
+            if ((element.first.find("resize_type") != std::string::npos) &&
+                (element.second.as<std::string>().find("crop") != std::string::npos)) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "central-resize");
+                gst_structure_set_value(s, "crop", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if ((element.first.find("reverse_input_channels") != std::string::npos) &&
+                (element.second.as<std::string>().find("True") != std::string::npos)) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "RGB");
+                gst_structure_set_value(s, "color_space", &gvalue);
+                g_value_unset(&gvalue);
+            }
             if ((element.first.find("reverse_input_channels") != std::string::npos) &&
                 (element.second.as<std::string>().find("YES") != std::string::npos)) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_INT);
                 g_value_set_int(&gvalue, gint(true));
                 gst_structure_set_value(s, "reverse_input_channels", &gvalue);
-                g_value_unset(&gvalue);
             }
         }
 
@@ -1154,7 +1224,7 @@ class OpenVinoNewApiImpl {
 void OpenVINOImageInference::SetCompletionCallback(std::shared_ptr<BatchRequest> &batch_request) {
     assert(batch_request && "Batch request is null");
 
-    auto cb = [=](std::exception_ptr ex) {
+    auto cb = [=, this](std::exception_ptr ex) {
         ITT_TASK("completion_callback_lambda_new");
 
         try {

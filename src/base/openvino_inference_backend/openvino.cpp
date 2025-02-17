@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -398,7 +398,7 @@ class OpenVinoInference {
         auto task = itt::Task("openvino:OpenVinoInference:set_completion_callback");
         assert(batch_request && "Batch request is null");
 
-        auto completion_callback = [=](std::exception_ptr ex) {
+        auto completion_callback = [=, this](std::exception_ptr ex) {
             _logger->trace("inference completed");
             if (ex) {
                 // TODO How do we handle exeptions

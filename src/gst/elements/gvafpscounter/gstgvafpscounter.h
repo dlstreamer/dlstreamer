@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -28,6 +28,8 @@ struct _GstGvaFpscounter {
     guint starting_frame;
     gchar *write_pipe;
     gchar *read_pipe;
+    gboolean print_std_dev;
+    gboolean print_latency;
 };
 
 struct _GstGvaFpscounterClass {

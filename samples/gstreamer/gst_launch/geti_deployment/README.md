@@ -37,7 +37,6 @@ The set of samples demonstrates how to deploy above models to run inference with
 The 'geti_sample.sh' script sample builds GStreamer pipeline composed of the following elements:
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin` for video decoding
-* `videoconvertscale` for converting video frame into different color formats
 * [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) uses for full-frame object detection and marking objects with labels
 * [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) uses for full-frame object classficiation
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization

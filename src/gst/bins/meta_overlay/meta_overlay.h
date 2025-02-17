@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,6 +7,7 @@
 #pragma once
 
 #include "processbin.h"
+#include <memory>
 
 #include <gst/gst.h>
 
@@ -26,7 +27,7 @@ G_BEGIN_DECLS
 typedef struct _GstMetaOverlayBin {
     GstProcessBin process_bin;
 
-    class MetaOverlayBinPrivate *impl;
+    std::shared_ptr<class MetaOverlayBinPrivate> impl;
 } GstMetaOverlayBin;
 
 typedef struct _GstMetaOverlayBinClass {

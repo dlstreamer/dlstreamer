@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -483,6 +483,7 @@ void gva_inference_init(GvaInference *self) {
 
     // Intialization of private data
     auto *priv_memory = gva_inference_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) GvaInferencePrivate(GST_BASE_TRANSFORM(self), gva_inference_parent_class);
 
     // Optional. Set in-place

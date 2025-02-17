@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -39,6 +39,7 @@ bool TrackerFactory::RegisterAll() {
                                  dlstreamer::MemoryMapperPtr mapper, dlstreamer::ContextPtr context) -> ITracker * {
         const vas::ColorFormat color_fmt = gstVideoFmtToVasColorFmt(gva_track->info->finfo->format);
         const std::string cfg = gva_track->tracking_config ? gva_track->tracking_config : std::string();
+        // cannot use smart pointers here
         return new VasWrapper::Tracker(gva_track->device, tracking_type, color_fmt, cfg, std::move(mapper),
                                        std::move(context));
     };

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -433,6 +433,7 @@ G_DEFINE_TYPE_EXTENDED(GvaMetaPublishMqtt, gva_meta_publish_mqtt, GST_TYPE_GVA_M
 static void gva_meta_publish_mqtt_init(GvaMetaPublishMqtt *self) {
     // Initialize of private data
     auto *priv_memory = gva_meta_publish_mqtt_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) GvaMetaPublishMqttPrivate(&self->base);
 }
 

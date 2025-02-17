@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -22,10 +22,10 @@ std::vector<float> GetNormalizedSamples(AudioInferenceFrame *frame) {
     const auto samples_size = frame->samples.size();
     float mean = accumulate(frame->samples.begin(), frame->samples.end(), 0) / safe_convert<float>(samples_size);
     float sq_sum = std::inner_product(frame->samples.begin(), frame->samples.end(), frame->samples.begin(), 0.0);
-    float stdev = std::sqrt((sq_sum / safe_convert<float>(samples_size)) - (mean * mean));
+    float std_dev = std::sqrt((sq_sum / safe_convert<float>(samples_size)) - (mean * mean));
     std::vector<float> normalized_samples(samples_size);
     transform(frame->samples.begin(), frame->samples.end(), normalized_samples.begin(),
-              [mean, stdev](float v) { return ((v - mean) / (stdev + 1e-15)); });
+              [mean, std_dev](float v) { return ((v - mean) / (std_dev + 1e-15)); });
     return normalized_samples;
 }
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,6 +17,7 @@
 #include "inference_impl.h"
 
 #include "gva_base_inference_priv.hpp"
+#include <memory>
 
 #define DEFAULT_MODEL nullptr
 #define DEFAULT_MODEL_INSTANCE_ID nullptr
@@ -70,6 +71,8 @@ G_DEFINE_TYPE_WITH_PRIVATE(GvaBaseInference, gva_base_inference, GST_TYPE_BASE_T
 
 GST_DEBUG_CATEGORY_STATIC(gva_base_inference_debug_category);
 #define GST_CAT_DEFAULT gva_base_inference_debug_category
+
+extern std::shared_ptr<InferenceImpl> acquire_inference_instance(GvaBaseInference *base_inference);
 
 enum {
     PROP_0,
@@ -133,8 +136,8 @@ static void gva_base_inference_class_init(GvaBaseInferenceClass *klass);
 
 static bool is_roi_inference_needed(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
                                     GstVideoRegionOfInterestMeta *roi) {
-    InferenceImpl *inference = gva_base_inference->inference;
-    g_assert(inference);
+    auto inference = gva_base_inference->inference;
+    g_assert(inference != nullptr);
 
     if (!InferenceImpl::IsRoiSizeValid(roi))
         return false;
@@ -394,6 +397,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
 
     // Intialization of private data
     auto *priv_memory = gva_base_inference_get_instance_private(base_inference);
+    // This won't be converted to shared ptr because of memory placement
     base_inference->priv = new (priv_memory) GvaBaseInferencePrivate();
 
     base_inference->model = g_strdup(DEFAULT_MODEL);
@@ -775,7 +779,7 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
             }
         }
 
-        base_inference->inference = acquire_inference_instance(base_inference);
+        base_inference->inference = acquire_inference_instance(base_inference).get();
         if (!base_inference->inference)
             throw std::runtime_error("inference is NULL.");
 

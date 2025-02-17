@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,6 +14,7 @@
 
 #include <gst/video/video.h>
 
+#include <gst/analytics/analytics.h>
 #include <list>
 #include <memory>
 #include <mutex>
@@ -42,6 +43,7 @@ class InferenceImpl {
 
     void UpdateObjectClasses(const gchar *obj_classes_str);
     bool FilterObjectClass(GstVideoRegionOfInterestMeta *roi) const;
+    bool FilterObjectClass(GstAnalyticsODMtd roi) const;
     bool FilterObjectClass(const std::string &object_class) const;
 
     InferenceBackend::MemoryType GetInferenceMemoryType() const {
@@ -51,6 +53,7 @@ class InferenceImpl {
     ~InferenceImpl();
 
     static bool IsRoiSizeValid(const GstVideoRegionOfInterestMeta *roi_meta);
+    static bool IsRoiSizeValid(const GstAnalyticsODMtd roi_meta);
 
   private:
     InferenceBackend::MemoryType memory_type;

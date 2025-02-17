@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,6 +8,7 @@
 
 #include "gstgvaclassify.h"
 
+#include <gst/analytics/analytics.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
@@ -44,7 +45,7 @@ struct ClassificationHistory {
 
     ClassificationHistory(GstGvaClassify *gva_classify);
 
-    bool IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, uint64_t current_num_frame);
+    bool IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, GstBuffer *buffer, uint64_t current_num_frame);
     void UpdateROIParams(int roi_id, const GstStructure *roi_param);
     void FillROIParams(GstBuffer *buffer);
     LRUCache<int, ROIClassificationHistory> &GetHistory();

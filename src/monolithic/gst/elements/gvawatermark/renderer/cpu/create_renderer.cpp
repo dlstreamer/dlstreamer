@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,11 +15,11 @@ std::unique_ptr<Renderer> create_cpu_renderer(dlstreamer::ImageFormat format, st
     case dlstreamer::ImageFormat::RGB:
     case dlstreamer::ImageFormat::BGRX:
     case dlstreamer::ImageFormat::RGBX:
-        return std::unique_ptr<Renderer>(new RendererBGR(converter, std::move(buffer_mapper)));
+        return std::make_unique<RendererBGR>(converter, std::move(buffer_mapper));
     case dlstreamer::ImageFormat::NV12:
-        return std::unique_ptr<Renderer>(new RendererNV12(converter, std::move(buffer_mapper)));
+        return std::make_unique<RendererNV12>(converter, std::move(buffer_mapper));
     case dlstreamer::ImageFormat::I420:
-        return std::unique_ptr<Renderer>(new RendererI420(converter, std::move(buffer_mapper)));
+        return std::make_unique<RendererI420>(converter, std::move(buffer_mapper));
     default:
         throw std::runtime_error("Unsupported format");
     }

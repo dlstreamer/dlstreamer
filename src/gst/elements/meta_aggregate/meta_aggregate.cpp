@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -70,6 +70,7 @@ G_DEFINE_TYPE_WITH_PRIVATE(MetaAggregatePad, meta_aggregate_pad, GST_TYPE_AGGREG
 static void meta_aggregate_pad_init(MetaAggregatePad *self) {
     // Intialization of private data
     auto *priv_memory = meta_aggregate_pad_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) MetaAggregatePadPrivate(&self->parent);
 }
 
@@ -835,5 +836,6 @@ static void meta_aggregate_init(MetaAggregate *self) {
 
     // Intialization of private data
     auto *priv_memory = meta_aggregate_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) MetaAggregatePrivate(&self->parent);
 }

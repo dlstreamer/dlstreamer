@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -82,6 +82,7 @@ class GstDlsTransform {
         auto *self = reinterpret_cast<GstPodData *>(instance);
 
         gpointer instance_memory = g_type_instance_get_private(instance, G_TYPE_FROM_INSTANCE(instance));
+        // This won't be converted to shared ptr because of memory placement
         self->instance = new (instance_memory) GstDlsTransform(&self->base, g_class);
 
         // Set chain_list function to process GstBuffer batch passes as buffer list

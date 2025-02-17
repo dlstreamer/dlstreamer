@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 #include "vas/common.h"
 #include <cstdint>
 #include <deque>
+#include <memory>
 #include <opencv2/opencv.hpp>
 
 #include "vas/components/ot/mtt/objects_associator.h"
@@ -53,7 +54,7 @@ class Tracker {
      * create new object tracker instance
      * @param InitParameters
      */
-    static Tracker *CreateInstance(InitParameters init_parameters);
+    static std::unique_ptr<Tracker> CreateInstance(InitParameters init_parameters);
 
     /**
      * perform tracking

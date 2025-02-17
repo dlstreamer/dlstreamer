@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -29,6 +29,7 @@ G_DEFINE_TYPE_EXTENDED(GvaMetaPublishKafka, gva_meta_publish_kafka, GST_TYPE_GVA
 static void gva_meta_publish_kafka_init(GvaMetaPublishKafka *self) {
     // Initialize of private data
     auto *priv_memory = gva_meta_publish_kafka_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) GvaMetaPublishKafkaPrivate(&self->base);
 }
 

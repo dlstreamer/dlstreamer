@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -149,7 +149,7 @@ int32_t ZeroTermImagelessTracker::TrackObjects(const cv::Mat &mat, const std::ve
 
             const cv::Rect2f &bounding_box = detections[d].rect & image_boundary;
             tracklet->InitTrajectory(bounding_box);
-            tracklet->kalman_filter.reset(new KalmanFilterNoOpencv(bounding_box));
+            tracklet->kalman_filter = std::make_unique<KalmanFilterNoOpencv>(bounding_box);
             tracklets_.push_back(std::move(tracklet));
         }
     }

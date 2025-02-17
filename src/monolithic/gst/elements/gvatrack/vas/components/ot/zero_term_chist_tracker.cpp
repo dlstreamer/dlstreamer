@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -142,7 +142,7 @@ int32_t ZeroTermChistTracker::TrackObjects(const cv::Mat &mat, const std::vector
                     zttchist_tracklet->kalman_filter->Correct(zttchist_tracklet->trajectory.back());
             } else if (zttchist_tracklet->status == ST_LOST) {
                 zttchist_tracklet->RenewTrajectory(d_bounding_box);
-                zttchist_tracklet->kalman_filter.reset(new KalmanFilterNoOpencv(d_bounding_box));
+                zttchist_tracklet->kalman_filter = std::make_unique<KalmanFilterNoOpencv>(d_bounding_box);
                 zttchist_tracklet->status = ST_TRACKED;
             }
         } else {
@@ -205,7 +205,7 @@ int32_t ZeroTermChistTracker::TrackObjects(const cv::Mat &mat, const std::vector
 
             const cv::Rect2f &bounding_box = detections[d].rect;
             tracklet->InitTrajectory(bounding_box);
-            tracklet->kalman_filter.reset(new KalmanFilterNoOpencv(bounding_box));
+            tracklet->kalman_filter = std::make_unique<KalmanFilterNoOpencv>(bounding_box);
             tracklet->rgb_features.push_back(d_rgb_features[d]);
 
             tracklets_.push_back(std::move(tracklet));

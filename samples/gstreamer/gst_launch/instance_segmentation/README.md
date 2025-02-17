@@ -17,7 +17,6 @@ The sample constructs GStreamer pipelines with the following elements:
 * [gvafpscounter](https://dlstreamer.github.io/elements/gvafpscounter.html) to measure and display frames per second
 * [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) o transform the metadata into JSON format
 * [gvametapublish](https://dlstreamer.github.io/elements/gvametapublish.html) to save the metadata as a JSON file
-* `videoconvertscale` to automatically convert the video to a format understood by the sink, and to resize video frames if necessary
 * `vah264enc ! h264parse ! mp4mux` or `vah264lpenc ! h264parse ! mp4mux` to encode the raw video into H.264 bitstream, ensure that the stream is correctly formatted and contains the necessary headers and metadata, and to create the MP4 file structure
 * `jpegenc` for encoding frames as JPEG images
 * `autovideosink` for displaying the output video on the screen

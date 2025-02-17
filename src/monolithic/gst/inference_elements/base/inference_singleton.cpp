@@ -15,13 +15,13 @@
 
 struct InferenceRefs {
     std::set<GvaBaseInference *> refs;
-    InferenceImpl *proxy = nullptr;
+    std::shared_ptr<InferenceImpl> proxy = nullptr;
     dlstreamer::ContextPtr context = nullptr;
     GstVideoFormat videoFormat = GST_VIDEO_FORMAT_UNKNOWN;
     CapsFeature capsFeature = ANY_CAPS_FEATURE;
 };
 
-static std::map<std::string, InferenceRefs *> inference_pool_;
+static std::map<std::string, std::shared_ptr<InferenceRefs>> inference_pool_;
 static std::mutex inference_pool_mutex_;
 
 std::string capsFeatureString(CapsFeature newCapsFeature);
@@ -33,22 +33,22 @@ std::string get_inference_key(GvaBaseInference *base_inference) {
     g_free(_DST);                                                                                                      \
     _DST = g_strdup(_SRC);
 
-void addBaseInferenceToInfRes(InferenceRefs *infRefs, GvaBaseInference *base_inference) {
+void addBaseInferenceToInfRes(std::shared_ptr<InferenceRefs> infRefs, GvaBaseInference *base_inference) {
     infRefs->refs.insert(base_inference);
     GST_INFO_OBJECT(base_inference, "increment numref: refs size = %lu\n", infRefs->refs.size());
 }
 
-InferenceRefs *registerElementUnlocked(GvaBaseInference *base_inference) {
+std::shared_ptr<InferenceRefs> registerElementUnlocked(GvaBaseInference *base_inference) {
     std::string name = get_inference_key(base_inference);
     GST_INFO_OBJECT(base_inference, "key: %s\n", name.c_str());
     auto it = inference_pool_.find(name);
     if (it == inference_pool_.end()) {
-        InferenceRefs *infRefs = new InferenceRefs();
+        auto infRefs = std::make_shared<InferenceRefs>();
         addBaseInferenceToInfRes(infRefs, base_inference);
         inference_pool_[name] = infRefs;
         return infRefs;
     }
-    InferenceRefs *infRefs = it->second;
+    auto infRefs = it->second;
     if (!infRefs) {
         throw std::runtime_error("'infRefs' is set to NULL.");
     }
@@ -69,7 +69,8 @@ gboolean registerElement(GvaBaseInference *base_inference) {
     return TRUE;
 }
 
-void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem, InferenceImpl *inference_impl) {
+void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem,
+                      std::shared_ptr<InferenceImpl> inference_impl) {
     assert(targetElem);
     assert(masterElem);
     UNUSED(inference_impl);
@@ -91,7 +92,7 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     // no need to copy model_instance_id because it should match already.
 }
 
-void initExistingElements(InferenceRefs *infRefs) {
+void initExistingElements(std::shared_ptr<InferenceRefs> infRefs) {
     GvaBaseInference *master = nullptr;
     for (auto elem : infRefs->refs) {
         if (elem->model && *elem->model != 0) {
@@ -152,13 +153,13 @@ void check_inference_props_same(const InferenceRefs &inferenceRefs, GstVideoForm
     }
 }
 
-InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
+std::shared_ptr<InferenceImpl> acquire_inference_instance(GvaBaseInference *base_inference) {
     try {
         if (!base_inference)
             throw std::invalid_argument("GvaBaseInference is null");
 
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        InferenceRefs *infRefs = nullptr;
+        std::shared_ptr<InferenceRefs> infRefs = nullptr;
         std::string name = get_inference_key(base_inference);
         GST_INFO_OBJECT(base_inference, "key: %s\n", name.c_str());
         infRefs = registerElementUnlocked(base_inference);
@@ -169,8 +170,9 @@ InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference) {
         // if base_inference is not master element, it will get all master element's properties here
         initExistingElements(infRefs);
 
-        if (infRefs->proxy == nullptr) {                        // no instance for current inference-id acquired yet
-            infRefs->proxy = new InferenceImpl(base_inference); // one instance for all elements with same inference-id
+        if (infRefs->proxy == nullptr) { // no instance for current inference-id acquired yet
+            infRefs->proxy =
+                std::make_shared<InferenceImpl>(base_inference); // one instance for all elements with same inference-id
         }
         infRefs->context = InferenceImpl::GetDisplay(base_inference);
 
@@ -192,11 +194,11 @@ void release_inference_instance(GvaBaseInference *base_inference) {
         if (it == inference_pool_.end())
             return;
 
-        InferenceRefs *infRefs = it->second;
+        auto infRefs = it->second;
         infRefs->refs.erase(base_inference);
         if (infRefs->refs.empty()) {
-            delete infRefs->proxy;
-            delete infRefs;
+            infRefs->proxy.reset();
+            infRefs.reset();
             inference_pool_.erase(name);
         }
     } catch (const std::exception &e) {

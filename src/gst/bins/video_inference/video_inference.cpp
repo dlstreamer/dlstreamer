@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -266,8 +266,8 @@ class VideoInferencePrivate {
     friend struct _VideoInference;
 
   public:
-    static VideoInferencePrivate *unpack(gpointer base) {
-        g_assert(VIDEO_INFERENCE(base)->impl);
+    static std::shared_ptr<VideoInferencePrivate> unpack(gpointer base) {
+        g_assert(VIDEO_INFERENCE(base)->impl != nullptr);
         return VIDEO_INFERENCE(base)->impl;
     }
 
@@ -780,7 +780,7 @@ void VideoInference::set_postaggregate_element(const gchar *element) {
 }
 
 static void video_inference_init(VideoInference *self) {
-    self->impl = new VideoInferencePrivate(self, &self->base);
+    self->impl = std::make_shared<VideoInferencePrivate>(self, &self->base);
 
     gst_pad_set_event_function(self->base.sink_pad, [](GstPad *pad, GstObject *parent, GstEvent *event) {
         return VIDEO_INFERENCE(parent)->impl->sink_event_handler(pad, event);
@@ -789,10 +789,7 @@ static void video_inference_init(VideoInference *self) {
 
 static void video_inference_finalize(GObject *object) {
     VideoInference *self = VIDEO_INFERENCE(object);
-    if (self->impl) {
-        delete self->impl;
-        self->impl = nullptr;
-    }
+    self->impl.reset();
 
     G_OBJECT_CLASS(parent_class)->finalize(object);
 }

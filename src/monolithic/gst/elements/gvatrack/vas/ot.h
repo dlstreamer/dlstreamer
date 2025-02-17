@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -339,13 +339,11 @@ class ObjectTracker {
 
   private:
     class Impl;
-
-  private:
-    explicit ObjectTracker(Impl *impl);
-
-  private:
     std::unique_ptr<Impl> impl_;
     friend class Builder;
+
+  public:
+    ObjectTracker(std::unique_ptr<ObjectTracker::Impl> &impl);
 };
 
 /**

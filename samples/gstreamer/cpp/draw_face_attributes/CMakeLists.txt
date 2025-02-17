@@ -1,10 +1,10 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.20)
 
 set (TARGET_NAME "draw_face_attributes")
 
@@ -30,7 +30,7 @@ link_directories(${TARGET_NAME} /opt/intel/dlstreamer/build/intel64/Release/lib
 
 add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
-set_target_properties(${TARGET_NAME} PROPERTIES CMAKE_CXX_STANDARD 14)
+set_target_properties(${TARGET_NAME} PROPERTIES CMAKE_CXX_STANDARD 23)
 
 # use pkg-config if sample builds as standalone. Otherwise vars DLSTREAMER_INCLUDE_DIRS/etc set by top level cmake
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -225,8 +225,7 @@ void gst_gva_watermark_impl_finalize(GObject *object) {
 
     GST_DEBUG_OBJECT(gvawatermark, "finalize");
 
-    if (gvawatermark->impl)
-        delete gvawatermark->impl;
+    gvawatermark->impl.reset();
 
     g_free(gvawatermark->device);
     gvawatermark->device = nullptr;
@@ -298,10 +297,7 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
         }
     }
 
-    if (gvawatermark->impl) {
-        delete gvawatermark->impl;
-        gvawatermark->impl = nullptr;
-    }
+    gvawatermark->impl.reset();
 
     VaApiDisplayPtr va_dpy;
     if (mem_type == MemoryType::VAAPI) {
@@ -316,7 +312,7 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     }
 
     try {
-        gvawatermark->impl = new Impl(&gvawatermark->info, device, mem_type, va_dpy, gvawatermark->obb);
+        gvawatermark->impl = std::make_shared<Impl>(&gvawatermark->info, device, mem_type, va_dpy, gvawatermark->obb);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not initialize"),
                           ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));

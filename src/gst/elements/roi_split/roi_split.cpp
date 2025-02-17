@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -29,7 +29,6 @@ enum { PROP_0, PROP_OBJECT_CLASS };
 
 static void roi_split_init(RoiSplit *self) {
     GST_DEBUG_OBJECT(self, "%s", __FUNCTION__);
-    self->object_classes = NULL;
 }
 
 static void roi_split_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
@@ -38,9 +37,7 @@ static void roi_split_set_property(GObject *object, guint prop_id, const GValue 
 
     switch (prop_id) {
     case PROP_OBJECT_CLASS:
-        if (!self->object_classes)
-            self->object_classes = new std::vector<std::string>;
-        *self->object_classes = dlstreamer::split_string(g_value_get_string(value));
+        self->object_classes = std::move(dlstreamer::split_string(g_value_get_string(value)));
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -51,13 +48,11 @@ static void roi_split_set_property(GObject *object, guint prop_id, const GValue 
 static void roi_split_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     RoiSplit *self = ROI_SPLIT(object);
     GST_DEBUG_OBJECT(self, "%s", __FUNCTION__);
-
+    std::string str;
     switch (prop_id) {
     case PROP_OBJECT_CLASS:
-        if (self->object_classes) {
-            auto str = dlstreamer::join_strings(self->object_classes->cbegin(), self->object_classes->cend());
-            g_value_set_string(value, str.c_str());
-        }
+        str = dlstreamer::join_strings(self->object_classes.cbegin(), self->object_classes.cend());
+        g_value_set_string(value, str.c_str());
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -68,9 +63,6 @@ static void roi_split_get_property(GObject *object, guint prop_id, GValue *value
 static void roi_split_finalize(GObject *object) {
     RoiSplit *self = ROI_SPLIT(object);
     GST_DEBUG_OBJECT(self, "%s", __FUNCTION__);
-
-    if (self->object_classes)
-        delete self->object_classes;
 
     G_OBJECT_CLASS(roi_split_parent_class)->finalize(object);
 }
@@ -92,8 +84,8 @@ static GstFlowReturn roi_split_transform_ip(GstBaseTransform *base, GstBuffer *b
     gpointer state = nullptr;
     while ((roi_meta = ((GstVideoRegionOfInterestMeta *)gst_buffer_iterate_meta_filtered(
                 buf, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE)))) {
-        if (self->object_classes && roi_meta->roi_type) {
-            auto &classes = *self->object_classes;
+        if (roi_meta->roi_type) {
+            auto &classes = self->object_classes;
             std::string name = g_quark_to_string(roi_meta->roi_type);
             if (std::find(classes.begin(), classes.end(), name) == classes.end())
                 continue;

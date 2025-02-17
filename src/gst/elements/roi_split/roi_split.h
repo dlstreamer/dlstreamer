@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,7 +26,7 @@ G_BEGIN_DECLS
 
 typedef struct _RoiSplit {
     GstBaseTransform base;
-    std::vector<std::string> *object_classes;
+    std::vector<std::string> object_classes;
 } RoiSplit;
 
 typedef struct _RoiSplitClass {

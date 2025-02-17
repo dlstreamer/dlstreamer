@@ -351,9 +351,8 @@ int main(int argc, char *argv[]) {
     else if (output_type_str == "file") {
         std::string encoder = FindEncoder();
         std::string output_location = "cpp_draw_attributes_output_" + std::string(device) + "_" + encoder + ".mp4";
-        sink = g_strdup_printf(
-            "gvawatermark ! videoconvertscale ! gvafpscounter ! %s ! h264parse ! mp4mux ! filesink location=%s",
-            encoder.c_str(), output_location.c_str());
+        sink = g_strdup_printf("gvawatermark ! gvafpscounter ! %s ! h264parse ! mp4mux ! filesink location=%s",
+                               encoder.c_str(), output_location.c_str());
     } else {
         std::cerr << "Unsupported output type: " << output_type_str << std::endl;
         return -1;

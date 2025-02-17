@@ -7,6 +7,7 @@
 #include "inference_impl.h"
 
 #include "common/post_processor.h"
+#include "common/post_processor/post_proc_common.h"
 #include "common/pre_processor_info_parser.hpp"
 #include "common/pre_processors.h"
 #include "config.h"
@@ -455,14 +456,12 @@ void ApplyImageBoundaries(std::shared_ptr<InferenceBackend::Image> &image, GstVi
                                                                                          : raw_coordinates.h;
 }
 
-void UpdateClassificationHistory(GstVideoRegionOfInterestMeta *meta, GvaBaseInference *gva_base_inference,
+void UpdateClassificationHistory(gint meta_id, GvaBaseInference *gva_base_inference,
                                  const GstStructure *classification_result) {
     if (gva_base_inference->type != GST_GVA_CLASSIFY_TYPE)
         return;
 
     GstGvaClassify *gvaclassify = GST_GVA_CLASSIFY(gva_base_inference);
-    gint meta_id = 0;
-    get_object_id(meta, &meta_id);
     if (gvaclassify->reclassify_interval != 1 and meta_id > 0)
         gvaclassify->classification_history->UpdateROIParams(meta_id, classification_result);
 }
@@ -776,6 +775,17 @@ bool InferenceImpl::FilterObjectClass(GstVideoRegionOfInterestMeta *roi) const {
     return std::find_if(object_classes.cbegin(), object_classes.cend(), compare_quark_string) != object_classes.cend();
 }
 
+bool InferenceImpl::FilterObjectClass(GstAnalyticsODMtd roi) const {
+    if (object_classes.empty())
+        return true;
+    auto compare_quark_string = [roi](const std::string &str) {
+        GQuark label_quark = gst_analytics_od_mtd_get_obj_type(const_cast<GstAnalyticsODMtd *>(&roi));
+        const gchar *roi_type = label_quark ? g_quark_to_string(label_quark) : "";
+        return (strcmp(roi_type, str.c_str()) == 0);
+    };
+    return std::find_if(object_classes.cbegin(), object_classes.cend(), compare_quark_string) != object_classes.cend();
+}
+
 bool InferenceImpl::FilterObjectClass(const std::string &object_class) const {
     if (object_classes.empty())
         return true;
@@ -789,6 +799,15 @@ InferenceImpl::~InferenceImpl() {
 
 bool InferenceImpl::IsRoiSizeValid(const GstVideoRegionOfInterestMeta *roi_meta) {
     return roi_meta->w > 1 && roi_meta->h > 1;
+}
+
+bool InferenceImpl::IsRoiSizeValid(const GstAnalyticsODMtd roi_meta) {
+    gint x, y, w, h;
+    if (!gst_analytics_od_mtd_get_location(const_cast<GstAnalyticsODMtd *>(&roi_meta), &x, &y, &w, &h, nullptr)) {
+        std::runtime_error("Failed to get location of od meta");
+    }
+
+    return w > 1 && h > 1;
 }
 
 /**
@@ -808,8 +827,28 @@ void InferenceImpl::PushOutput() {
         }
 
         for (const std::shared_ptr<InferenceFrame> &inference_roi : (*frame).inference_rois) {
+            gint meta_id = 0;
+            if (NEW_METADATA && inference_roi->roi.id >= 0) {
+                GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(inference_roi->buffer);
+                if (!relation_meta) {
+                    throw std::runtime_error("Failed to find relation meta");
+                }
+
+                GstAnalyticsODMtd od_mtd;
+                if (!gst_analytics_relation_meta_get_od_mtd(relation_meta, inference_roi->roi.id, &od_mtd)) {
+                    throw std::runtime_error("Failed to find od metadata");
+                }
+
+                if (!post_processing::sameRegion(&od_mtd, &inference_roi->roi)) {
+                    throw std::runtime_error("Roi and od meta are not the same region");
+                }
+
+                get_od_id(od_mtd, &meta_id);
+            } else {
+                get_object_id(&inference_roi->roi, &meta_id);
+            }
             for (const GstStructure *roi_classification : inference_roi->roi_classifications) {
-                UpdateClassificationHistory(&inference_roi->roi, (*frame).filter, roi_classification);
+                UpdateClassificationHistory(meta_id, (*frame).filter, roi_classification);
             }
         }
 
@@ -902,8 +941,7 @@ GstFlowReturn InferenceImpl::SubmitImages(GvaBaseInference *gva_base_inference,
          * GST_VIDEO_FRAME_MAP_FLAG_NO_REF to avoid refcount increase.
          * CreateImage::gva_buffer_unmap::gst_video_frame_unmap also will not decrease refcount.
          */
-        InferenceBackend::ImagePtr image =
-            buf_mapper.map(buffer, GstMapFlags(GST_MAP_READ | GST_VIDEO_FRAME_MAP_FLAG_NO_REF));
+        InferenceBackend::ImagePtr image = buf_mapper.map(buffer, GstMapFlags(GST_MAP_READ | GST_MAP_FLAG_LAST));
 
         if (!image)
             throw std::invalid_argument("image is null");

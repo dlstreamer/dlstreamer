@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -86,7 +86,7 @@ extern "C" {
 ElementDesc opencv_warp_affine = {.name = "opencv_warp_affine",
                                   .description = "Rotation using cv::warpAffine",
                                   .author = "Intel Corporation",
-                                  &params_desc,
+                                  .params = &params_desc,
                                   .input_info =
                                       {
                                           {ImageFormat::RGB, MemoryType::VAAPI},

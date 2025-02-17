@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,13 +26,23 @@ static GstStaticPadTemplate sinktemplate =
 GST_DEBUG_CATEGORY_STATIC(gst_gva_fpscounter_debug_category);
 #define GST_CAT_DEFAULT gst_gva_fpscounter_debug_category
 
-enum { PROP_0, PROP_INTERVAL, PROP_STARTING_FRAME, PROP_WRITE_PIPE, PROP_READ_PIPE };
+enum {
+    PROP_0,
+    PROP_INTERVAL,
+    PROP_STARTING_FRAME,
+    PROP_WRITE_PIPE,
+    PROP_READ_PIPE,
+    PROP_PRINT_STD_DEV,
+    PROP_PRINT_LATENCY
+};
 
 #define DEFAULT_INTERVAL "1"
 
 #define DEFAULT_STARTING_FRAME 0
 #define DEFAULT_MIN_STARTING_FRAME 0
 #define DEFAULT_MAX_STARTING_FRAME UINT_MAX
+#define DEFAULT_PRINT_STD_DEV 0
+#define DEFAULT_PRINT_LATENCY 0
 
 /* prototypes */
 static void gst_gva_fpscounter_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
@@ -95,6 +105,14 @@ static void gst_gva_fpscounter_class_init(GstGvaFpscounterClass *klass) {
         g_param_spec_string("read-pipe", "Read from named pipe",
                             "Read FPS data from a named pipe. Create and delete a named pipe.", "",
                             G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(gobject_class, PROP_PRINT_STD_DEV,
+                                    g_param_spec_boolean("print-std-dev", "print-std-dev",
+                                                         "If true, prints standard deviations", DEFAULT_PRINT_STD_DEV,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+    g_object_class_install_property(gobject_class, PROP_PRINT_LATENCY,
+                                    g_param_spec_boolean("print-latency", "print-latency",
+                                                         "If true, prints average frame latency", DEFAULT_PRINT_LATENCY,
+                                                         G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
 }
 
 static void gst_gva_fpscounter_init(GstGvaFpscounter *gva_fpscounter) {
@@ -106,6 +124,8 @@ static void gst_gva_fpscounter_init(GstGvaFpscounter *gva_fpscounter) {
     gva_fpscounter->starting_frame = DEFAULT_STARTING_FRAME;
     gva_fpscounter->write_pipe = NULL;
     gva_fpscounter->read_pipe = NULL;
+    gva_fpscounter->print_std_dev = DEFAULT_PRINT_STD_DEV;
+    gva_fpscounter->print_latency = DEFAULT_PRINT_LATENCY;
 }
 
 void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
@@ -124,6 +144,12 @@ void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_READ_PIPE:
         g_value_set_string(value, gvafpscounter->read_pipe);
+        break;
+    case PROP_PRINT_STD_DEV:
+        g_value_set_boolean(value, gvafpscounter->print_std_dev);
+        break;
+    case PROP_PRINT_LATENCY:
+        g_value_set_boolean(value, gvafpscounter->print_latency);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -166,6 +192,12 @@ void gst_gva_fpscounter_set_property(GObject *object, guint property_id, const G
         g_free(gvafpscounter->read_pipe);
         gvafpscounter->read_pipe = g_value_dup_string(value);
         break;
+    case PROP_PRINT_STD_DEV:
+        gvafpscounter->print_std_dev = g_value_get_boolean(value);
+        break;
+    case PROP_PRINT_LATENCY:
+        gvafpscounter->print_latency = g_value_get_boolean(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -199,7 +231,8 @@ static gboolean gst_gva_fpscounter_start(GstBaseTransform *trans) {
         fps_counter_create_writepipe(gvafpscounter->write_pipe);
     } else {
         fps_counter_create_average(gvafpscounter->starting_frame, 1);
-        fps_counter_create_iterative(gvafpscounter->interval);
+        fps_counter_create_iterative(gvafpscounter->interval, gvafpscounter->print_std_dev,
+                                     gvafpscounter->print_latency);
         if (gvafpscounter->read_pipe) {
             fps_counter_create_readpipe(gvafpscounter, gvafpscounter->read_pipe);
         }

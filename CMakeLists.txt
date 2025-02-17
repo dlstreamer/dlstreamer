@@ -4,7 +4,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.20)
 
 project(DL_Streamer C CXX)
 
@@ -21,7 +21,7 @@ endif()
 # Define version
 set(VERSION_MAJOR 2025)
 set(VERSION_MINOR 0)
-set(VERSION_PATCH 0)
+set(VERSION_PATCH 1)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")
@@ -133,7 +133,7 @@ if(WIN32)
     set(CMAKE_CXX_FLAGS_RELEASE "/O2")
 
     set (CMAKE_C_STANDARD 11)
-    set (CMAKE_CXX_STANDARD 20)
+    set (CMAKE_CXX_STANDARD 23)
 else()
     # Common compilation flags
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wuninitialized -Winit-self -Wmaybe-uninitialized -Warray-bounds -fstack-protector-strong -Wno-deprecated-declarations -fno-strict-overflow -fno-delete-null-pointer-checks -fwrapv")
@@ -156,7 +156,7 @@ else()
 
     ## to use C11/C++17
     set (CMAKE_C_STANDARD 11)
-    set (CMAKE_CXX_STANDARD 17)
+    set (CMAKE_CXX_STANDARD 23)
     set (CMAKE_POSITION_INDEPENDENT_CODE ON)
 
     if (CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -204,9 +204,9 @@ add_subdirectory(python)
 
 if(${ENABLE_SAMPLES})
     add_subdirectory(samples/gstreamer)
-    add_subdirectory(samples/ffmpeg_openvino/cpp/decode_inference)
-    add_subdirectory(samples/ffmpeg_openvino/cpp/decode_resize_inference)
-    add_subdirectory(samples/ffmpeg_dpcpp/rgb_to_grayscale)
+    #add_subdirectory(samples/ffmpeg_openvino/cpp/decode_inference)
+    #add_subdirectory(samples/ffmpeg_openvino/cpp/decode_resize_inference)
+    #add_subdirectory(samples/ffmpeg_dpcpp/rgb_to_grayscale)
 endif()
 
 

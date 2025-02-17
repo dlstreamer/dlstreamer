@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,14 +25,14 @@ namespace {
 
 using namespace InferenceBackend;
 
-bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint64 current_num_frame,
-                               GstBuffer * /* buffer */, GstVideoRegionOfInterestMeta *roi) {
+bool IsROIClassificationNeeded(GvaBaseInference *gva_base_inference, guint64 current_num_frame, GstBuffer *buffer,
+                               GstVideoRegionOfInterestMeta *roi) {
     GstGvaClassify *gva_classify = GST_GVA_CLASSIFY(gva_base_inference);
     assert(gva_classify->classification_history != NULL);
 
     // Check is object recently classified
     return (gva_classify->reclassify_interval == 1 ||
-            gva_classify->classification_history->IsROIClassificationNeeded(roi, current_num_frame));
+            gva_classify->classification_history->IsROIClassificationNeeded(roi, buffer, current_num_frame));
 }
 
 } // anonymous namespace

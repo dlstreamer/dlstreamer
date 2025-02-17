@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <cstring>
 #include <opencv2/opencv.hpp>
+#include <vector>
 
 namespace vas {
 namespace ot {
@@ -56,11 +57,12 @@ int32_t YuvImage::CropAndResizeNv12(const cv::Point2f &cp, const cv::Size2f &cro
     uint8_t *src_y = data_;
     uint8_t *src_uv = data_uv_;
 
-    int32_t *uv_buffer = new int32_t[stride_]; // (int32_t *)pvl_malloc(src->stride * sizeof(int32_t));
-    if (uv_buffer == nullptr) {
+    std::vector<int32_t> uv_buffer;
+    try {
+        uv_buffer.resize(stride_, 0);
+    } catch (std::bad_alloc const &) {
         return -2;
     }
-    memset(uv_buffer, 0, stride_ * sizeof(int32_t));
 
     for (y = 0; y < (dst->height_ & ~1); ++y, tmpy += yratio) {
         y_src = tmpy >> 10;
@@ -201,8 +203,6 @@ int32_t YuvImage::CropAndResizeNv12(const cv::Point2f &cp, const cv::Size2f &cro
         }
     }
 
-    delete[] uv_buffer;
-
     return 0;
 }
 
@@ -287,6 +287,7 @@ int32_t YuvImage::Resize(const YuvImage &src, YuvImage *dst, cv::Size target_sz)
         dst->height_ = target_sz.height;
         dst->stride_ = dst->width_ * num_chan;
         dst->size_ = dst->stride_ * dst->height_;
+        // this won't be converted to smartpointer because of compatibility with OpenCV
         dst->data_ = new uint8_t[dst->size_];
         dst->format_ = src.format_;
         dst->index_ = src.index_;
@@ -397,6 +398,7 @@ YuvImage::YuvImage(const cv::Mat &input_image, Format fmt, int32_t index)
     }
 }
 
+// new operators in this constructor won't be converted to smartpointer because of compatibility with OpenCV
 YuvImage::YuvImage(int32_t width, int32_t height, bool uv_upsample, Format format, int32_t index)
     : is_reference_(false), width_(width), height_(height), format_(format), uv_upsampled_(uv_upsample), index_(index),
       data_u_(nullptr), data_v_(nullptr), data_uv_(nullptr) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -12,12 +12,14 @@
 #include <video_frame.h>
 
 #include <algorithm>
+#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 
 ClassificationHistory::ClassificationHistory(GstGvaClassify *gva_classify)
     : gva_classify(gva_classify), current_num_frame(0), history(CLASSIFICATION_HISTORY_SIZE) {
 }
 
-bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, uint64_t current_num_frame) {
+bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMeta *roi, GstBuffer *buffer,
+                                                      uint64_t current_num_frame) {
     try {
         std::lock_guard<std::mutex> guard(history_mutex);
         this->current_num_frame = current_num_frame;
@@ -26,9 +28,26 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
         // we have recent classification result or classification is not required for this object
         bool result = false;
         gint id;
-        if (!get_object_id(roi, &id))
-            // object has not been tracked
-            return true;
+        if (NEW_METADATA && roi->id >= 0) {
+            GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+            if (!relation_meta) {
+                throw std::runtime_error("Failed to get GstAnalyticsRelationMeta from buffer");
+            }
+
+            GstAnalyticsODMtd od_mtd;
+            if (!gst_analytics_relation_meta_get_od_mtd(relation_meta, roi->id, &od_mtd)) {
+                throw std::runtime_error("Failed to get object detection metadata");
+            }
+
+            if (!get_od_id(od_mtd, &id))
+                // object has not been tracked
+                return true;
+        } else {
+            if (!get_object_id(roi, &id))
+                // object has not been tracked
+                return true;
+        }
+
         if (history.count(id) == 0) { // new object
             history.put(id);
             history.get(id).frame_of_last_update = current_num_frame;

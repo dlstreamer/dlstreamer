@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -56,6 +56,7 @@ void log_python_error(GstGvaPython *gvapython, gboolean is_fatal) {
 
 void create_arguments(void **args, void **kwargs) {
     try {
+        // smart pointers cannot be used because of mixed c and c++ code
         *args = new json(json::value_t::array);
         *kwargs = new json(json::value_t::object);
     } catch (const std::exception &e) {
@@ -150,6 +151,7 @@ PythonCallback *create_python_callback(const char *module_path, const char *clas
     }
 
     try {
+        // smart pointers cannot be used because of mixed c and c++ code
         return new PythonCallback(module_path, class_name, function_name, args_string, keyword_args_string);
     } catch (const std::exception &e) {
         GST_ERROR("%s", Utils::createNestedErrorMsg(e).c_str());

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -93,7 +93,7 @@ gboolean MetaSmoothPrivate::sink_event(GstEvent *event) {
     output_buffer->pts = reinterpret_cast<GstClockTime>(g_value_get_pointer(gvalue_pts));
     restore_roi_id(output_buffer.get(), roi_id);
 
-    SPDLOG_LOGGER_DEBUG(_logger, "push buffer: {} object_id: {} roi_id: {} {} cur_pts: {} on srcpad ",
+    SPDLOG_LOGGER_DEBUG(_logger, "push buffer: {} object_id: {} roi_id: {} cur_pts: {} on srcpad ",
                         fmt::ptr(output_buffer.get()), object_id, roi_id, output_buffer->pts);
     gst_buffer_ref(output_buffer.get()); // we lose reference to buffer after calling gst_pad_push, so need to keep it.
     return gst_pad_push(_base->srcpad, output_buffer.get());
@@ -129,6 +129,7 @@ GstFlowReturn MetaSmoothPrivate::meta_smooth_transform_ip(GstBuffer *buf) {
 
 static void meta_smooth_init(MetaSmooth *self) {
     auto *priv_memory = meta_smooth_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) MetaSmoothPrivate();
     self->impl->_base = &self->base;
     self->impl->_logger = log::init_logger(meta_smooth_debug_category, G_OBJECT(self));

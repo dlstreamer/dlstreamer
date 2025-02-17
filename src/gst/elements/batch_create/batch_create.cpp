@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -84,7 +84,7 @@ struct BatchCreateClass {
 struct BatchCreate {
     GstBaseTransform base;
     BatchCreateImpl *impl;
-    ElementPtr *element; // for ref-counting only
+    ElementPtr element; // for ref-counting only
     gint batch_size;
     intptr_t stream_id;
 };
@@ -97,7 +97,6 @@ G_DEFINE_TYPE(BatchCreate, batch_create, GST_TYPE_BASE_TRANSFORM);
 
 static void batch_create_init(BatchCreate *self) {
     self->impl = nullptr;
-    self->element = nullptr;
     self->batch_size = DEFAULT_BATCH_SIZE;
     self->stream_id = 0;
 }
@@ -117,7 +116,7 @@ static gboolean batch_create_start(GstBaseTransform *base) {
     auto impl = std::make_shared<BatchCreateImpl>(self->batch_size);
     auto element = SharedInstance::global()->init_or_reuse(id, impl, nullptr);
     self->impl = ptr_cast<BatchCreateImpl>(element).get();
-    self->element = new ElementPtr(element);
+    self->element = element;
 
     // register instance
     g_gst_base_element_storage.add(element.get(), base);
@@ -145,8 +144,7 @@ static void batch_create_class_init(BatchCreateClass *klass) {
         auto self = BATCH_CREATE(object);
         if (self->impl)
             g_gst_base_element_storage.remove(self->impl, &self->base);
-        if (self->element)
-            delete self->element;
+        self->element.reset();
     };
 
     auto base_transform_class = GST_BASE_TRANSFORM_CLASS(klass);

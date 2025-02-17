@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -32,6 +32,7 @@ typedef struct _GvaAudioBaseInference {
     int dma_fd; // used if VPUX remote blob enabled
     gboolean values_checked;
     guint sample_length;
+    // smart pointers cannot be used because of mixed c and c++ code
     OpenVINOAudioInference *inf_handle;
     AudioInferImpl *impl_handle;
     AudioPreProcFunction pre_proc;

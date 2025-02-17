@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -22,17 +22,17 @@ Tracker::Tracker(int32_t max_objects, float min_region_ratio_in_boundary, vas::C
 Tracker::~Tracker() {
 }
 
-Tracker *Tracker::CreateInstance(InitParameters init_parameters) {
+std::unique_ptr<Tracker> Tracker::CreateInstance(InitParameters init_parameters) {
     TRACE("START CreateInstance Tracker");
 
-    Tracker *tracker = nullptr;
+    std::unique_ptr<Tracker> tracker;
     if ((init_parameters.profile == PROFILE_SHORT_TERM_IMAGELESS)) {
-        tracker = new ShortTermImagelessTracker(init_parameters);
+        tracker = std::make_unique<ShortTermImagelessTracker>(init_parameters);
     } else if ((init_parameters.profile == PROFILE_ZERO_TERM) ||
                (init_parameters.profile == PROFILE_ZERO_TERM_COLOR_HISTOGRAM)) {
-        tracker = new ZeroTermChistTracker(init_parameters);
+        tracker = std::make_unique<ZeroTermChistTracker>(init_parameters);
     } else if ((init_parameters.profile == PROFILE_ZERO_TERM_IMAGELESS)) {
-        tracker = new ZeroTermImagelessTracker(init_parameters);
+        tracker = std::make_unique<ZeroTermImagelessTracker>(init_parameters);
     } else {
         throw std::runtime_error("Unsupported tracking type");
     }

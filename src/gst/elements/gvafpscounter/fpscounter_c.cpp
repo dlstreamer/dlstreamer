@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -22,14 +22,15 @@ static std::mutex channels_mutex;
 static FILE *output = stdout;
 //////////////////////////////////////////////////////////////////////////
 // C interface
-void fps_counter_create_iterative(const char *intervals) {
+void fps_counter_create_iterative(const char *intervals, bool print_std_dev, bool print_latency) {
     try {
         std::lock_guard<std::mutex> lock(channels_mutex);
         std::vector<std::string> intervals_list = Utils::splitString(intervals, ',');
         for (const std::string &interval : intervals_list)
             if (not fps_counters.count(interval)) {
-                std::shared_ptr<FpsCounter> fps_counter =
-                    std::shared_ptr<FpsCounter>(new IterativeFpsCounter(0, std::stoi(interval), false));
+                std::shared_ptr<FpsCounter> fps_counter = nullptr;
+                fps_counter =
+                    std::make_shared<IterativeFpsCounter>(0, std::stoi(interval), false, print_std_dev, print_latency);
                 fps_counters.insert({interval, fps_counter});
             }
     } catch (std::exception &e) {
@@ -39,9 +40,11 @@ void fps_counter_create_iterative(const char *intervals) {
 
 void fps_counter_create_average(unsigned int starting_frame, unsigned int interval) {
     try {
-        if (not fps_counters.count("average"))
-            fps_counters.insert(
-                {"average", std::shared_ptr<FpsCounter>(new IterativeFpsCounter(starting_frame, interval, true))});
+        if (not fps_counters.count("average")) {
+            std::shared_ptr<FpsCounter> fps_counter = nullptr;
+            fps_counter = std::make_shared<IterativeFpsCounter>(starting_frame, interval, true, false, false);
+            fps_counters.insert({"average", fps_counter});
+        }
     } catch (std::exception &e) {
         GVA_ERROR("Error during creation average fpscounter: %s", Utils::createNestedErrorMsg(e).c_str());
     }
@@ -49,8 +52,11 @@ void fps_counter_create_average(unsigned int starting_frame, unsigned int interv
 
 void fps_counter_create_writepipe(const char *pipe_name) {
     try {
-        if (not fps_counters.count("writepipe"))
-            fps_counters.insert({"writepipe", std::shared_ptr<FpsCounter>(new WritePipeFpsCounter(pipe_name))});
+        if (not fps_counters.count("writepipe")) {
+            std::shared_ptr<FpsCounter> fps_counter = nullptr;
+            fps_counter = std::make_shared<WritePipeFpsCounter>(pipe_name);
+            fps_counters.insert({"writepipe", fps_counter});
+        }
     } catch (std::exception &e) {
         GVA_ERROR("Error during creation writepipe fpscounter: %s", Utils::createNestedErrorMsg(e).c_str());
     }
@@ -67,18 +73,19 @@ void fps_counter_create_readpipe(void *fpscounter, const char *pipe_name) {
                     throw std::runtime_error("FpsCounter ReadPipe: EOS event wasn't handled. Spinning...");
             };
             auto new_message_lambda = [](const char *name) { fps_counter_new_frame(NULL, name); };
-            fps_counters.insert({"readpipe", std::shared_ptr<FpsCounter>(new ReadPipeFpsCounter(
-                                                 pipe_name, new_message_lambda, pipe_complete_lambda))});
+            std::shared_ptr<FpsCounter> fps_counter = nullptr;
+            fps_counter = std::make_shared<ReadPipeFpsCounter>(pipe_name, new_message_lambda, pipe_complete_lambda);
+            fps_counters.insert({"readpipe", fps_counter});
         }
     } catch (std::exception &e) {
         GVA_ERROR("Error during creation readpipe fpscounter: %s", Utils::createNestedErrorMsg(e).c_str());
     }
 }
 
-void fps_counter_new_frame(GstBuffer *, const char *element_name) {
+void fps_counter_new_frame(GstBuffer *buffer, const char *element_name) {
     try {
         for (auto counter = fps_counters.begin(); counter != fps_counters.end(); ++counter)
-            counter->second->NewFrame(element_name, output);
+            counter->second->NewFrame(element_name, output, buffer);
     } catch (std::exception &e) {
         GVA_ERROR("Error during adding new frame: %s", Utils::createNestedErrorMsg(e).c_str());
     }

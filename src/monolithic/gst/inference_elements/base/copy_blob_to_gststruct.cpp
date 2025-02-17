@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2022 Intel Corporation
+ * Copyright (C) 2019-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -100,7 +100,7 @@ void copy_buffer_to_structure(GstStructure *structure, const void *buffer, size_
 
 void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStructure *gst_struct,
                                   const char *model_name, const char *layer_name, int32_t batch_size,
-                                  int32_t batch_index) {
+                                  int32_t batch_index, int32_t size) {
     try {
         if (!blob)
             throw std::invalid_argument("Blob pointer is null");
@@ -109,10 +109,13 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
         if (data == nullptr)
             throw std::invalid_argument("Failed to get blob data");
 
-        size_t size = GetUnbatchedSizeInBytes(blob, batch_size);
+        size_t blob_size = GetUnbatchedSizeInBytes(blob, batch_size);
 
-        // TODO: check data buffer size
-        copy_buffer_to_structure(gst_struct, data + batch_index * size, size);
+        // If size is -1, copy all data; otherwise, copy only the specified size
+        size_t copy_size = (size == -1) ? blob_size : std::min(static_cast<size_t>(size), blob_size);
+
+        // Copy the data
+        copy_buffer_to_structure(gst_struct, data + batch_index * blob_size, copy_size);
 
         gst_structure_set(gst_struct, "layer_name", G_TYPE_STRING, layer_name, "model_name", G_TYPE_STRING, model_name,
                           "precision", G_TYPE_INT, static_cast<int>(blob->GetPrecision()), "layout", G_TYPE_INT,
@@ -122,9 +125,7 @@ void CopyOutputBlobToGstStructure(InferenceBackend::OutputBlob::Ptr blob, GstStr
         auto dims = blob->GetDims();
         if (dims.size() == 0)
             throw std::invalid_argument("Blob has 0 dimensions");
-        // dims[0] = 1; // unbatched
 
-        // TODO: make shared
         GValueArray *g_arr = ConvertVectorToGValueArr(dims);
         gst_structure_set_array(gst_struct, "dims", g_arr);
         g_value_array_free(g_arr);

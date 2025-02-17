@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -113,15 +113,15 @@ void HungarianAlgo::SolveHungarian() {
 
     ETHROW(problem_.cost.size() != 0 && problem_.assignment.size() != 0, logic_error, "Unexpected solve");
 
-    std::unique_ptr<int32_t[]> vert_col(new int32_t[problem_.num_rows]);
-    std::unique_ptr<int32_t[]> row_unselected(new int32_t[problem_.num_rows]);
-    std::unique_ptr<int32_t[]> row_dec(new int32_t[problem_.num_rows]);
-    std::unique_ptr<int32_t[]> row_slack(new int32_t[problem_.num_rows]);
+    std::unique_ptr<int32_t[]> vert_col = std::make_unique<int32_t[]>(problem_.num_rows);
+    std::unique_ptr<int32_t[]> row_unselected = std::make_unique<int32_t[]>(problem_.num_rows);
+    std::unique_ptr<int32_t[]> row_dec = std::make_unique<int32_t[]>(problem_.num_rows);
+    std::unique_ptr<int32_t[]> row_slack = std::make_unique<int32_t[]>(problem_.num_rows);
 
-    std::unique_ptr<int32_t[]> vert_row(new int32_t[problem_.num_cols]);
-    std::unique_ptr<int32_t[]> parent_row(new int32_t[problem_.num_cols]);
-    std::unique_ptr<int32_t[]> col_inc(new int32_t[problem_.num_cols]);
-    std::unique_ptr<int32_t[]> slack(new int32_t[problem_.num_cols]);
+    std::unique_ptr<int32_t[]> vert_row = std::make_unique<int32_t[]>(problem_.num_cols);
+    std::unique_ptr<int32_t[]> parent_row = std::make_unique<int32_t[]>(problem_.num_cols);
+    std::unique_ptr<int32_t[]> col_inc = std::make_unique<int32_t[]>(problem_.num_cols);
+    std::unique_ptr<int32_t[]> slack = std::make_unique<int32_t[]>(problem_.num_cols);
 
     for (int32_t i = 0; i < problem_.num_rows; ++i) {
         vert_col[i] = 0;

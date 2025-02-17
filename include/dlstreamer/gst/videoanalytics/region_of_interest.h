@@ -127,17 +127,32 @@ class RegionOfInterest {
      * @return Unique id, or zero value if not found
      */
     int32_t object_id() const {
-        GstStructure *object_id_struct = nullptr;
         if (_gst_meta) {
+            GstStructure *object_id_struct = nullptr;
             object_id_struct = gst_video_region_of_interest_meta_get_param(_gst_meta, "object_id");
-        } else {
-            object_id_struct = gst_analytics_od_ext_mtd_get_param(&_od_ext_meta, "object_id");
+
+            if (!object_id_struct)
+                return 0;
+            int id = 0;
+            gst_structure_get_int(object_id_struct, "id", &id);
+            return id;
         }
-        if (!object_id_struct)
-            return 0;
-        int id = 0;
-        gst_structure_get_int(object_id_struct, "id", &id);
-        return id;
+
+        GstAnalyticsTrackingMtd trk_mtd;
+        if (gst_analytics_relation_meta_get_direct_related(_od_meta.meta, _od_meta.id, GST_ANALYTICS_REL_TYPE_ANY,
+                                                           gst_analytics_tracking_mtd_get_mtd_type(), nullptr,
+                                                           &trk_mtd)) {
+            guint64 id;
+            GstClockTime tracking_first_seen, tracking_last_seen;
+            gboolean tracking_lost;
+            if (!gst_analytics_tracking_mtd_get_info(&trk_mtd, &id, &tracking_first_seen, &tracking_last_seen,
+                                                     &tracking_lost)) {
+                throw std::runtime_error("Failed to get tracking mtd info");
+            }
+
+            return id;
+        }
+        return 0;
     }
 
     /**
@@ -252,8 +267,8 @@ class RegionOfInterest {
         // append tensors converted from metadata
         gpointer state = NULL;
         GstAnalyticsMtd handle;
-        while (gst_analytics_relation_meta_get_direct_related(
-            od_meta.meta, od_meta.id, GST_ANALYTICS_REL_TYPE_RELATE_TO, GST_ANALYTICS_MTD_TYPE_ANY, &state, &handle)) {
+        while (gst_analytics_relation_meta_get_direct_related(od_meta.meta, od_meta.id, GST_ANALYTICS_REL_TYPE_CONTAIN,
+                                                              GST_ANALYTICS_MTD_TYPE_ANY, &state, &handle)) {
             GstStructure *s = GVA::Tensor::convert_to_tensor(handle);
             if (s != nullptr)
                 _tensors.emplace_back(s);
@@ -297,12 +312,25 @@ class RegionOfInterest {
             }
             return;
         }
-        GstStructure *object_id = gst_analytics_od_ext_mtd_get_param(&_od_ext_meta, "object_id");
-        if (object_id) {
-            gst_structure_set(object_id, "id", G_TYPE_INT, id, NULL);
-        } else {
-            object_id = gst_structure_new("object_id", "id", G_TYPE_INT, id, NULL);
-            gst_analytics_od_ext_mtd_add_param(&_od_ext_meta, object_id);
+
+        gpointer state = nullptr;
+        GstAnalyticsTrackingMtd trk_mtd;
+        while (gst_analytics_relation_meta_get_direct_related(_od_meta.meta, _od_meta.id, GST_ANALYTICS_REL_TYPE_ANY,
+                                                              gst_analytics_tracking_mtd_get_mtd_type(), &state,
+                                                              &trk_mtd)) {
+            if (!gst_analytics_relation_meta_set_relation(_od_meta.meta, GST_ANALYTICS_REL_TYPE_NONE, _od_meta.id,
+                                                          trk_mtd.id)) {
+                throw std::runtime_error("Failed to remove relation between od meta and tracking meta");
+            }
+        }
+
+        if (!gst_analytics_relation_meta_add_tracking_mtd(_od_meta.meta, id, 0, &trk_mtd)) {
+            throw std::runtime_error("Failed to add tracking metadata");
+        }
+
+        if (!gst_analytics_relation_meta_set_relation(_od_meta.meta, GST_ANALYTICS_REL_TYPE_RELATE_TO, _od_meta.id,
+                                                      trk_mtd.id)) {
+            throw std::runtime_error("Failed to set relation between od meta and tracking meta");
         }
     }
 

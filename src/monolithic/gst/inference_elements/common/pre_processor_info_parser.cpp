@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2021 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -86,6 +86,8 @@ PreProcCrop PreProcParamsParser::getCrop() const {
         std::string crop_type(_crop_type);
         if (crop_type == "central") {
             crop_val = PreProcCrop::CENTRAL;
+        } else if (crop_type == "central-resize") {
+            crop_val = PreProcCrop::CENTRAL_RESIZE;
         } else if (crop_type == "top_left") {
             crop_val = PreProcCrop::TOP_LEFT;
         } else if (crop_type == "top_right") {

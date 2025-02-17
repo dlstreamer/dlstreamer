@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,7 +25,6 @@ struct _GvaBaseInference;
 typedef struct _GvaBaseInference GvaBaseInference;
 
 gboolean registerElement(GvaBaseInference *base_inference);
-InferenceImpl *acquire_inference_instance(GvaBaseInference *base_inference);
 void release_inference_instance(GvaBaseInference *base_inference);
 
 #ifdef __cplusplus

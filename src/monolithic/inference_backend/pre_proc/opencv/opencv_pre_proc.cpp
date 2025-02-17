@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -42,6 +42,24 @@ void CopyImage(const Image &src, Image &dst) {
 }
 
 } // namespace
+
+cv::Rect centralCropROI(const cv::Mat &image) {
+    // Get the dimensions of the image
+    int height = image.rows;
+    int width = image.cols;
+
+    // Determine the size of the square crop
+    int cropSize = std::min(height, width);
+
+    // Calculate the starting and ending points for the crop
+    int startX = (width - cropSize) / 2;
+    int startY = (height - cropSize) / 2;
+
+    // Perform the crop
+    cv::Rect cropRegion(startX, startY, cropSize, cropSize);
+
+    return cropRegion;
+}
 
 cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format, const cv::Size &input_size,
                            const InputImageLayerDesc::Ptr &pre_proc_info,
@@ -115,28 +133,36 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
             cv::Size crop_rect_size(image_to_insert.size().width - safe_convert<int>(cropped_border_x),
                                     image_to_insert.size().height - safe_convert<int>(cropped_border_y));
             cv::Point2f top_left_rect_point;
-            switch (pre_proc_info->getCropType()) {
-            case InputImageLayerDesc::Crop::CENTRAL:
-                top_left_rect_point = cv::Point2f(cropped_border_x / 2, cropped_border_y / 2);
-                break;
-            case InputImageLayerDesc::Crop::TOP_LEFT:
-                top_left_rect_point = cv::Point2f(0, 0);
-                break;
-            case InputImageLayerDesc::Crop::TOP_RIGHT:
-                top_left_rect_point = cv::Point2f(cropped_border_x, 0);
-                break;
-            case InputImageLayerDesc::Crop::BOTTOM_LEFT:
-                top_left_rect_point = cv::Point2f(0, cropped_border_y);
-                break;
-            case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
-                top_left_rect_point = cv::Point2f(cropped_border_x, cropped_border_y);
-                break;
-            default:
-                throw std::runtime_error("Unknown crop format.");
-            }
 
-            cv::Rect crop_rect(top_left_rect_point, crop_rect_size);
-            Crop(image_to_insert, crop_rect, image_transform_info);
+            if (pre_proc_info->getCropType() == InputImageLayerDesc::Crop::CENTRAL_RESIZE) {
+                cv::Rect crop_rect = centralCropROI(orig_image);
+                image_to_insert = orig_image;
+                Crop(image_to_insert, crop_rect, image_transform_info);
+                cv::resize(image_to_insert, image_to_insert, crop_rect_size, cv::INTER_CUBIC);
+            } else {
+                switch (pre_proc_info->getCropType()) {
+                case InputImageLayerDesc::Crop::CENTRAL:
+                    top_left_rect_point = cv::Point2f(cropped_border_x / 2, cropped_border_y / 2);
+                    break;
+                case InputImageLayerDesc::Crop::TOP_LEFT:
+                    top_left_rect_point = cv::Point2f(0, 0);
+                    break;
+                case InputImageLayerDesc::Crop::TOP_RIGHT:
+                    top_left_rect_point = cv::Point2f(cropped_border_x, 0);
+                    break;
+                case InputImageLayerDesc::Crop::BOTTOM_LEFT:
+                    top_left_rect_point = cv::Point2f(0, cropped_border_y);
+                    break;
+                case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
+                    top_left_rect_point = cv::Point2f(cropped_border_x, cropped_border_y);
+                    break;
+                default:
+                    throw std::runtime_error("Unknown crop format.");
+                }
+
+                cv::Rect crop_rect(top_left_rect_point, crop_rect_size);
+                Crop(image_to_insert, crop_rect, image_transform_info);
+            }
         }
 
         // Color Space Conversion

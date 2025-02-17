@@ -1,10 +1,10 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.20)
 
 set (TARGET_NAME "ffmpeg_dpcpp_rgb_to_grayscale")
 
@@ -26,7 +26,7 @@ string(REPLACE "-pie" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-debug-disables-optimization -Rno-debug-disables-optimization -Wno-unknown-warning-option")
 endif()
-#set(CMAKE_CXX_STANDARD 17)
+#set(CMAKE_CXX_STANDARD 23)
 
 add_executable(${TARGET_NAME} rgb_to_grayscale.cpp)
 

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,6 +10,7 @@ find_package(OpenCV REQUIRED)
 
 add_library(${TARGET_NAME} OBJECT opencv_meta_overlay.cpp)
 set_compile_flags(${TARGET_NAME})
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-enum-enum-conversion")
 
 target_include_directories(${TARGET_NAME}
 PRIVATE

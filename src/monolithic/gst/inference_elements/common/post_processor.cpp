@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -206,6 +206,7 @@ PostProcessor::PostProcessor(InferenceImpl *inference_impl, GvaBaseInference *ba
     } else if (inference_type == InferenceType::GST_GVA_INFERENCE_TYPE) {
         initializer.converter_type = ConverterType::RAW;
     }
+    // This won't be converted to shared ptr because of memory placement
     new (&post_proc_impl) PostProcessorImpl(initializer);
 }
 
@@ -239,6 +240,7 @@ PostProcessor::PostProcessor(size_t image_width, size_t image_height, size_t bat
     initializer.threshold = threshold;
     initializer.attach_type = AttachType::FOR_MICRO;
     initializer.converter_type = converter_type;
+    // This won't be converted to shared ptr because of memory placement
     new (&post_proc_impl) PostProcessorImpl(initializer);
 }
 

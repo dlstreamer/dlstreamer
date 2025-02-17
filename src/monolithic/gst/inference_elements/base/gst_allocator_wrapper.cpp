@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -58,10 +58,10 @@ struct Memory {
     GstMapInfo map_info;
     shared_ptr<GstMemory> memory;
 
-    static Memory *create(size_t size, shared_ptr<GstAllocator> allocator = nullptr) {
-        Memory *memory = nullptr;
+    static std::shared_ptr<Memory> create(size_t size, shared_ptr<GstAllocator> allocator = nullptr) {
+        std::shared_ptr<Memory> memory = nullptr;
         try {
-            memory = new Memory(size, allocator);
+            memory = std::make_shared<Memory>(size, allocator);
         } catch (const exception &e) {
             GVA_ERROR("An error occured while creating Memory object: %s", e.what());
         }
@@ -96,7 +96,7 @@ GstAllocatorWrapper::GstAllocatorWrapper(const std::string &name) : name(name) {
 void GstAllocatorWrapper::Alloc(size_t size, void *&buffer_ptr, AllocContext *&alloc_context) {
     GVA_TRACE("Memory allocation initiated");
 
-    Memory *memory = Memory::create(size, allocator);
+    auto memory = Memory::create(size, allocator);
 
     if (memory == nullptr) {
         string str = build_string("Could not allocate given size of memory (", size, ")");
@@ -104,7 +104,7 @@ void GstAllocatorWrapper::Alloc(size_t size, void *&buffer_ptr, AllocContext *&a
         throw runtime_error(str.c_str());
     }
 
-    alloc_context = reinterpret_cast<AllocContext *>(memory);
+    alloc_context = reinterpret_cast<AllocContext *>(memory.get());
     buffer_ptr = reinterpret_cast<void *>(memory->map_info.data);
 
     GVA_TRACE("Memory allocated");

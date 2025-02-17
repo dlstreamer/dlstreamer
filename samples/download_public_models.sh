@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2021-2024 Intel Corporation
+# Copyright (C) 2021-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -84,6 +84,7 @@ SUPPORTED_MODELS=(
   "centerface"
   "hsemotion"
   "deeplabv3"
+  "clip-vit-large-patch14" 
 )
 
 if ! [[ "${SUPPORTED_MODELS[*]}" =~ $MODEL ]]; then
@@ -109,7 +110,7 @@ else
   echo "OpenVINO is not installed."
 fi
 
-if [[ "$version" < "2024.6.0" ]]; then
+if [[ "$version" < "2025.0.0" ]]; then
   if pip list | grep openvino-dev; then
     pip install openvino-dev --upgrade
   fi
@@ -118,11 +119,16 @@ fi
 
 pip install nncf --upgrade
 
-if [[ "$MODEL" =~ yolo.* ]]; then
+if [[ "$MODEL" =~ yolo.* || "$MODEL" == "all" ]]; then
   version=$(pip freeze | grep ultralytics== | cut -f3 -d "=")
   if [[ "$version" < "8.3.24" ]]; then
     pip install ultralytics --upgrade
   fi
+fi
+
+if [[ "$MODEL" =~ clip.* || "$MODEL" == "all" ]]; then
+  pip install transformers
+  pip install pillow
 fi
 
 echo Downloading models to folder "$MODELS_PATH"
@@ -492,8 +498,72 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
     cd ../../../..
     rm -rf face-emotion-recognition
     cd "$PREV_DIR"
-    python3 - <<EOF $MODEL_PATH
+  fi
+fi
+
+if [ "$MODEL" == "clip-vit-large-patch14" ] || [ "$MODEL" == "all" ]; then
+  MODEL_NAME="clip-vit-large-patch14"
+  MODEL_PATH="$MODELS_PATH/public/$MODEL_NAME/FP32/$MODEL_NAME.xml"
+  MODEL_DIR=$(dirname "$MODEL_PATH")
+  PREV_DIR=$MODELS_PATH
+  if [ ! -f "$MODEL_PATH" ]; then
+    echo "Downloading and converting: ${MODEL_PATH}"
+    mkdir -p "$MODEL_DIR"
+    cd "$MODEL_DIR"
+    IMAGE_URL="https://storage.openvinotoolkit.org/data/test_data/images/car.png"
+    IMAGE_PATH=car.png
+    wget -O $IMAGE_PATH $IMAGE_URL
+    echo "Image downloaded to $IMAGE_PATH"
+    python3 - <<EOF "$MODEL_PATH" "$IMAGE_PATH"
+from transformers import CLIPProcessor, CLIPVisionModel
+import PIL
+import openvino as ov
+from openvino.runtime import PartialShape, Type
+import sys
+import os
+
+MODEL='clip-vit-large-patch14'
+
+orig_model_path = sys.argv[1]
+img_path = sys.argv[2]
+
+img = PIL.Image.open(img_path)
+vision_model = CLIPVisionModel.from_pretrained('openai/'+MODEL)
+vision_model.eval()
+processor = CLIPProcessor.from_pretrained('openai/'+MODEL)
+batch = processor.image_processor(images=img, return_tensors='pt')["pixel_values"]
+
+print("Conversion starting...")
+ov_model = ov.convert_model(vision_model, example_input=batch)
+print("Conversion finished.")
+
+# Define the input shape explicitly
+input_shape = PartialShape([-1, batch.shape[1], batch.shape[2], batch.shape[3]])
+
+# Set the input shape and type explicitly
+for input in ov_model.inputs:
+    input.get_node().set_partial_shape(PartialShape(input_shape))
+    input.get_node().set_element_type(Type.f32)
+
+ov_model.set_rt_info("clip_token", ['model_info', 'model_type'])
+ov_model.set_rt_info("68.500,66.632,70.323", ['model_info', 'scale_values'])
+ov_model.set_rt_info("122.771,116.746,104.094", ['model_info', 'mean_values'])
+ov_model.set_rt_info("True", ['model_info', 'reverse_input_channels'])
+ov_model.set_rt_info("crop", ['model_info', 'resize_type'])
+    
+ov.save_model(ov_model, MODEL + ".xml")
+
+os.remove(img_path)
 EOF
+    #git clone https://github.com/av-savchenko/face-emotion-recognition.git
+    #cd face-emotion-recognition/models/affectnet_emotions/onnx
+    #ovc enet_b0_8_va_mtl.onnx --input "[16,3,224,224]"
+    #mv enet_b0_8_va_mtl.xml "$MODEL_DIR"
+    #mv enet_b0_8_va_mtl.bin "$MODEL_DIR"
+    #cd ../../../..
+    #rm -rf face-emotion-recognition
+    cd "$PREV_DIR"
+
   fi
 fi
 

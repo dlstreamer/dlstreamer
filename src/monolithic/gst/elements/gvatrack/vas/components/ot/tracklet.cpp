@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -123,7 +123,7 @@ void ZeroTermImagelessTracklet::RenewTrajectory(const cv::Rect2f &bounding_box) 
                           bounding_box.height);
 
     ClearTrajectory();
-    kalman_filter.reset(new KalmanFilterNoOpencv(bounding_box));
+    kalman_filter = std::make_unique<KalmanFilterNoOpencv>(bounding_box);
     kalman_filter->Predict();
     kalman_filter->Correct(rect_predict);
 
@@ -144,7 +144,7 @@ void ShortTermImagelessTracklet::RenewTrajectory(const cv::Rect2f &bounding_box)
                           bounding_box.height);
 
     ClearTrajectory();
-    kalman_filter.reset(new KalmanFilterNoOpencv(bounding_box));
+    kalman_filter = std::make_unique<KalmanFilterNoOpencv>(bounding_box);
     kalman_filter->Predict();
     kalman_filter->Correct(rect_predict);
 

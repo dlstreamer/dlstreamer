@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -94,7 +94,8 @@ class ObjectTracker::Impl {
 void vas_exit() {
 }
 
-ObjectTracker::ObjectTracker(ObjectTracker::Impl *impl) : impl_(impl) {
+ObjectTracker::ObjectTracker(std::unique_ptr<ObjectTracker::Impl> &impl) {
+    impl_ = std::move(impl);
     atexit(vas_exit);
 }
 
@@ -148,7 +149,9 @@ ObjectTracker::Impl::Impl(const InitParameters &param)
           static_cast<int32_t>(input_color_format_), max_num_objects_, tracking_per_class_);
 
     if (param.backend_type == vas::BackendType::CPU) {
-        tracker_.reset(vas::ot::Tracker::CreateInstance(param));
+        tracker_.reset();
+        auto ptr = vas::ot::Tracker::CreateInstance(param);
+        tracker_ = std::move(ptr);
     } else {
         printf("Error: Unexpected backend type\n");
         ETHROW(false, invalid_argument, "Unexpected backend type");
@@ -283,7 +286,7 @@ ObjectTracker::Builder::~Builder() {
 std::unique_ptr<ObjectTracker> ObjectTracker::Builder::Build(TrackingType tracking_type) const {
     TRACE("BEGIN");
 
-    ObjectTracker::Impl *ot_impl = nullptr;
+    std::unique_ptr<ObjectTracker::Impl> ot_impl;
     ObjectTracker::Impl::InitParameters param;
 
     param.max_num_objects = max_num_objects;
@@ -348,8 +351,8 @@ std::unique_ptr<ObjectTracker> ObjectTracker::Builder::Build(TrackingType tracki
     }
     param.max_num_threads = max_num_threads;
 
-    ot_impl = new ObjectTracker::Impl(param);
-    std::unique_ptr<ObjectTracker> ot(new ObjectTracker(ot_impl));
+    ot_impl = std::make_unique<ObjectTracker::Impl>(param);
+    std::unique_ptr<ObjectTracker> ot = std::make_unique<ObjectTracker>(ot_impl);
 
     TRACE("END");
     return ot;

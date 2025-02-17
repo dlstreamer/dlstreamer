@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023-2024 Intel Corporation
+ * Copyright (C) 2023-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -182,6 +182,7 @@ struct ElementStats {
     mutex mtx;
 
     static void create(GstElement *elem, guint64 ts) {
+        // This won't be converted to shared ptr because g_object_set_qdata_full destructor supports gpointer only
         auto *stats = new ElementStats{elem, ts};
         g_object_set_qdata_full(reinterpret_cast<GObject *>(elem), data_string, stats,
                                 [](gpointer data) { delete static_cast<ElementStats *>(data); });

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,7 +18,7 @@ class InputImageLayerDesc {
     using Ptr = std::shared_ptr<InputImageLayerDesc>;
 
     enum class Resize { NO, NO_ASPECT_RATIO, ASPECT_RATIO };
-    enum class Crop { NO, CENTRAL, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT };
+    enum class Crop { NO, CENTRAL, CENTRAL_RESIZE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT };
     enum class ColorSpace { NO, RGB, BGR, YUV, GRAYSCALE };
 
     enum class Normalization { NO, RANGE, DISTRIBUTION };

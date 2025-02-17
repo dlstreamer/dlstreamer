@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -153,6 +153,10 @@ class Tensor {
      */
     std::string format() const {
         return get_string("format");
+    }
+
+    std::string type() const {
+        return get_string("type");
     }
 
     /**
@@ -554,6 +558,16 @@ class Tensor {
                 throw std::runtime_error("Failed to set relation between keypoint group and keypoint names/skeleton");
 
             return true;
+        } else if (type() == "classification_result") {
+            GstAnalyticsClsMtd *cls_mtd = mtd;
+            gfloat confidence = this->confidence();
+            GQuark label = g_quark_from_string(this->label().c_str());
+
+            if (!gst_analytics_relation_meta_add_one_cls_mtd(meta, confidence, label, cls_mtd)) {
+                throw std::runtime_error("Failed to create classification meta");
+            }
+
+            return true;
         }
 
         return false;
@@ -577,19 +591,11 @@ class Tensor {
             gint h = 0;
             gfloat c;
             GstAnalyticsODMtd od_mtd;
-            gpointer state = NULL;
-            while (gst_analytics_relation_meta_iterate(keypoint_group_mtd->meta, &state,
-                                                       gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
-                GstAnalyticsKeypointGroupMtd keypoint_candidate_mtd;
-                if (gst_analytics_relation_meta_get_direct_related(
-                        keypoint_group_mtd->meta, od_mtd.id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
-                        gst_analytics_keypointgroup_mtd_get_mtd_type(), nullptr, &keypoint_candidate_mtd)) {
-                    if (keypoint_candidate_mtd.id == keypoint_group_mtd->id) {
-                        if (!gst_analytics_od_mtd_get_location(&od_mtd, &x, &y, &w, &h, &c)) {
-                            throw std::runtime_error("Failed to read object detection meta");
-                        }
-                        break;
-                    }
+            if (gst_analytics_relation_meta_get_direct_related(keypoint_group_mtd->meta, keypoint_group_mtd->id,
+                                                               GST_ANALYTICS_REL_TYPE_IS_PART_OF,
+                                                               gst_analytics_od_mtd_get_mtd_type(), nullptr, &od_mtd)) {
+                if (!gst_analytics_od_mtd_get_location(&od_mtd, &x, &y, &w, &h, &c)) {
+                    throw std::runtime_error("Failed to read object detection meta");
                 }
             }
 
@@ -696,6 +702,45 @@ class Tensor {
                 }
                 gst_structure_set_array(tensor, "point_connections", data);
                 g_value_array_free(data);
+            }
+
+            return tensor;
+        } else if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_cls_mtd_get_mtd_type()) {
+            GstAnalyticsClsMtd *cls_mtd = &mtd;
+            gsize class_count = gst_analytics_cls_mtd_get_length(cls_mtd);
+
+            GstStructure *tensor = gst_structure_new_empty("classification");
+            gst_structure_set(tensor, "type", G_TYPE_STRING, "classification_result", NULL);
+
+            gfloat result_confidence = 0;
+            std::string result_label;
+            for (size_t i = 0; i < class_count; i++) {
+                gfloat confidence = gst_analytics_cls_mtd_get_level(cls_mtd, i);
+                GQuark quark_label = gst_analytics_cls_mtd_get_quark(cls_mtd, i);
+                std::string label = std::string(g_quark_to_string(quark_label));
+
+                if (!label.empty()) {
+                    if (!result_label.empty() and !isspace(result_label.back()))
+                        result_label += " ";
+                    result_label += label;
+                }
+
+                if (confidence > result_confidence) {
+                    result_confidence = confidence;
+                }
+            }
+            gst_structure_set(tensor, "label", G_TYPE_STRING, result_label.c_str(), NULL);
+            gst_structure_set(tensor, "confidence", G_TYPE_DOUBLE, result_confidence, NULL);
+
+            GstAnalyticsClsMtd cls_descriptor_mtd = {0, nullptr};
+            if (class_count == 1 && gst_analytics_relation_meta_get_direct_related(
+                                        cls_mtd->meta, cls_mtd->id, GST_ANALYTICS_REL_TYPE_RELATE_TO,
+                                        gst_analytics_cls_mtd_get_mtd_type(), nullptr, &cls_descriptor_mtd)) {
+                gint label_id = gst_analytics_cls_mtd_get_index_by_quark(&cls_descriptor_mtd,
+                                                                         g_quark_from_string(result_label.c_str()));
+                if (label_id >= 0) {
+                    gst_structure_set(tensor, "label_id", G_TYPE_INT, label_id, NULL);
+                }
             }
 
             return tensor;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -180,6 +180,7 @@ G_DEFINE_TYPE_EXTENDED(GvaMetaPublishFile, gva_meta_publish_file, GST_TYPE_GVA_M
 static void gva_meta_publish_file_init(GvaMetaPublishFile *self) {
     // Initialize of private data
     auto *priv_memory = gva_meta_publish_file_get_instance_private(self);
+    // This won't be converted to shared ptr because of memory placement
     self->impl = new (priv_memory) GvaMetaPublishFilePrivate(&self->base);
 }
 

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -152,6 +152,7 @@ if [[ "$GSTVA" == "VAAPI" ]]; then
   fi
 fi
 
+## Output ##
 if [[ "$GSTVA" == "VA" ]]; then
   if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
     ENCODER="vah264enc"
@@ -161,26 +162,31 @@ if [[ "$GSTVA" == "VA" ]]; then
     echo "Error - VA-API H.264 encoder not found."
     exit
   fi
-  SINK_ELEMENT_BASE="gvawatermark ! videoconvertscale ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! "
+  SINK_ELEMENT_BASE="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! "
 fi
 if [[ "$GSTVA" == "VAAPI" ]]; then 
-  SINK_ELEMENT_BASE="gvawatermark ! videoconvertscale ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! "
+  SINK_ELEMENT_BASE="gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! "
 fi
 
 if [[ "$OUTPUT" == "file" ]]; then
-  FILE=$(basename "${INPUT%*.*}")
-  rm -f ${FILE}_*.mp4
-  SINK_ELEMENT_STR_1="${SINK_ELEMENT_BASE} filesink location=${FILE}_${GSTVA}_${DEVICE_STREAM_12}_1.mp4"
-  SINK_ELEMENT_STR_2="${SINK_ELEMENT_BASE} filesink location=${FILE}_${GSTVA}_${DEVICE_STREAM_12}_2.mp4"
-  SINK_ELEMENT_STR_3="${SINK_ELEMENT_BASE} filesink location=${FILE}_${GSTVA}_${DEVICE_STREAM_34}_3.mp4"
-  SINK_ELEMENT_STR_4="${SINK_ELEMENT_BASE} filesink location=${FILE}_${GSTVA}_${DEVICE_STREAM_34}_4.mp4"
+  rm -f multi_stream_*_1.mp4
+  rm -f multi_stream_*_2.mp4
+  rm -f multi_stream_*_3.mp4
+  rm -f multi_stream_*_4.mp4
+  SINK_ELEMENT_STR_1="${SINK_ELEMENT_BASE} filesink location=multi_stream_${GSTVA}_${DEVICE_STREAM_12}_1.mp4"
+  SINK_ELEMENT_STR_2="${SINK_ELEMENT_BASE} filesink location=multi_stream_${GSTVA}_${DEVICE_STREAM_12}_2.mp4"
+  SINK_ELEMENT_STR_3="${SINK_ELEMENT_BASE} filesink location=multi_stream_${GSTVA}_${DEVICE_STREAM_34}_3.mp4"
+  SINK_ELEMENT_STR_4="${SINK_ELEMENT_BASE} filesink location=multi_stream_${GSTVA}_${DEVICE_STREAM_34}_4.mp4"
 elif [[ "$OUTPUT" == "json" ]]; then
-  rm -f output.json
+  rm -f multi_stream_*_1.json
+  rm -f multi_stream_*_2.json
+  rm -f multi_stream_*_3.json
+  rm -f multi_stream_*_4.json
   SINK_ELEMENT_BASE="gvametaconvert add-tensor-data=true ! gvametapublish file-format=json-lines"
-  SINK_ELEMENT_STR_1="${SINK_ELEMENT_BASE} file-path=output_${GSTVA}_${DEVICE_STREAM_12}_1.json ! fakesink async=false"
-  SINK_ELEMENT_STR_2="${SINK_ELEMENT_BASE} file-path=output_${GSTVA}_${DEVICE_STREAM_12}_2.json ! fakesink async=false"
-  SINK_ELEMENT_STR_3="${SINK_ELEMENT_BASE} file-path=output_${GSTVA}_${DEVICE_STREAM_34}_3.json ! fakesink async=false"
-  SINK_ELEMENT_STR_4="${SINK_ELEMENT_BASE} file-path=output_${GSTVA}_${DEVICE_STREAM_34}_4.json ! fakesink async=false"
+  SINK_ELEMENT_STR_1="${SINK_ELEMENT_BASE} file-path=multi_stream_${GSTVA}_${DEVICE_STREAM_12}_1.json ! fakesink async=false"
+  SINK_ELEMENT_STR_2="${SINK_ELEMENT_BASE} file-path=multi_stream_${GSTVA}_${DEVICE_STREAM_12}_2.json ! fakesink async=false"
+  SINK_ELEMENT_STR_3="${SINK_ELEMENT_BASE} file-path=multi_stream_${GSTVA}_${DEVICE_STREAM_34}_3.json ! fakesink async=false"
+  SINK_ELEMENT_STR_4="${SINK_ELEMENT_BASE} file-path=multi_stream_${GSTVA}_${DEVICE_STREAM_34}_4.json ! fakesink async=false"
 else
   echo Error: Wrong value for SINK_ELEMENT parameter
   echo Valid values: "file" - render to file, "json" - write to output.json
@@ -207,22 +213,14 @@ ${PIPELINE_STREAM_4}"
 
 echo "${PIPELINE}"
 
-if [[ "$OUTPUT" == "json" ]]; then
-  # Remove each output stream file
-  eval "rm -f output_${GSTVA}_${DEVICE_STREAM_12}_1.json"
-  eval "rm -f output_${GSTVA}_${DEVICE_STREAM_12}_2.json"
-  eval "rm -f output_${GSTVA}_${DEVICE_STREAM_34}_3.json"
-  eval "rm -f output_${GSTVA}_${DEVICE_STREAM_34}_4.json"
-fi
-
 # Run main multi stream pipeline command
 ${PIPELINE}
 
 if [[ "$OUTPUT" == "json" ]]; then
-  FILE1="${PWD}/output_${GSTVA}_${DEVICE_STREAM_12}_1.json"
-  FILE2="${PWD}/output_${GSTVA}_${DEVICE_STREAM_12}_2.json"
-  FILE3="${PWD}/output_${GSTVA}_${DEVICE_STREAM_34}_3.json"
-  FILE4="${PWD}/output_${GSTVA}_${DEVICE_STREAM_34}_4.json"
+  FILE1="${PWD}/multi_stream_${GSTVA}_${DEVICE_STREAM_12}_1.json"
+  FILE2="${PWD}/multi_stream_${GSTVA}_${DEVICE_STREAM_12}_2.json"
+  FILE3="${PWD}/multi_stream_${GSTVA}_${DEVICE_STREAM_34}_3.json"
+  FILE4="${PWD}/multi_stream_${GSTVA}_${DEVICE_STREAM_34}_4.json"
 
   if [ -f ${FILE1} ] && [ -f ${FILE2} ] && [ -f ${FILE3} ] && [ -f ${FILE4} ]; then
     echo "Building output.json file ..."

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -168,8 +168,12 @@ typedef struct _BufferTracer BufferTracer;
 typedef struct _BufferTracerClass BufferTracerClass;
 
 struct _BufferTracer {
+    ~_BufferTracer() {
+        stat.reset();
+    }
+
     GstTracer parent;
-    void *stat;
+    std::shared_ptr<BufferStatistic> stat;
 };
 
 struct _BufferTracerClass {
@@ -200,7 +204,7 @@ static void buffer_tracer_class_init(BufferTracerClass *klass) {
 }
 
 static void GstTracerHookPadPushPre(GObject *self, GstClockTime ts, GstPad *pad, GstBuffer *buffer) {
-    ((BufferStatistic *)((BufferTracer *)self)->stat)->pad_push_event(ts, pad, buffer);
+    ((BufferTracer *)self)->stat->pad_push_event(ts, pad, buffer);
 }
 
 static void buffer_tracer_init(BufferTracer *self) {
@@ -208,7 +212,7 @@ static void buffer_tracer_init(BufferTracer *self) {
     gst_tracing_register_hook(GST_TRACER(self), "pad-push-pre", G_CALLBACK(GstTracerHookPadPushPre));
     // gst_tracing_register_hook(GST_TRACER(self), "pad-push-post", G_CALLBACK(GstTracerHookPadPushPost));
 
-    self->stat = new BufferStatistic();
+    self->stat = std::make_shared<BufferStatistic>();
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {

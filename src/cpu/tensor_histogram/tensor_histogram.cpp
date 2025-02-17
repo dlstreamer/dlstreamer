@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -19,14 +19,13 @@ class TensorHistogramCPU : public BaseHistogram {
     using BaseHistogram::BaseHistogram;
 
     bool init_once() override {
-        _weight = new float[_slice_h * _slice_w];
-        fill_weights(_weight);
+        try {
+            _weight = std::make_unique<float[]>(_slice_h * _slice_w);
+        } catch (...) {
+            return false;
+        }
+        fill_weights(_weight.get());
         return true;
-    }
-
-    ~TensorHistogramCPU() {
-        if (_weight)
-            delete[] _weight;
     }
 
     std::function<FramePtr()> get_output_allocator() override {
@@ -86,7 +85,7 @@ class TensorHistogramCPU : public BaseHistogram {
     }
 
   private:
-    float *_weight = nullptr;
+    std::unique_ptr<float[]> _weight;
 };
 
 extern "C" {

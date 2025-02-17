@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,6 +9,7 @@
 
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
+#include <memory>
 
 G_BEGIN_DECLS
 
@@ -28,7 +29,7 @@ struct _GstGvaWatermarkImpl {
     GstVideoInfo info;
     gchar *device;
     bool obb;
-    struct Impl *impl;
+    std::shared_ptr<struct Impl> impl;
 };
 
 struct _GstGvaWatermarkImplClass {
