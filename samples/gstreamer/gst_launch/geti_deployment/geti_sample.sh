@@ -68,7 +68,7 @@ if [[ $OUTPUT == "file" ]]; then
   fi
   SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT} ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=geti_${FILE}_${MODEL}_${DEVICE}.mp4"
 elif [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
-  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT} ! gvafpscounter ! autovideosink sync=false"
+  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT} ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ $OUTPUT == "fps" ]]; then
   SINK_ELEMENT="gvafpscounter ! fakesink async=false"
 elif [[ $OUTPUT == "json" ]]; then
