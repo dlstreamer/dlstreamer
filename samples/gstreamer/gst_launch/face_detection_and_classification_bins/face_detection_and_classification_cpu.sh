@@ -52,7 +52,7 @@ fi
 
 gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
-decodebin force-sw-decoders=true ! \
+decodebin3 ! \
 processbin \
     preprocess="videoscale ! videoconvert ! video/x-raw,format=BGRP ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL1_PATH device=CPU" \

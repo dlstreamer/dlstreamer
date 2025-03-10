@@ -49,18 +49,18 @@ fi
 # Create the DL Streamer pipeline based on the device and output
 if [ "$DEVICE" == "CPU" ]; then
     if [ "$OUTPUT" == "json" ]; then
-        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! videoconvert ! videoscale ! gvainference model=\"$MODEL_PATH\" device=CPU pre-process-backend=opencv ! gvametaconvert format=json add-tensor-data=true ! gvametapublish method=file file-path=output.json ! fakesink"
+        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! gvainference model=\"$MODEL_PATH\" device=CPU pre-process-backend=opencv ! gvametaconvert format=json add-tensor-data=true ! gvametapublish method=file file-path=output.json ! fakesink"
     elif [ "$OUTPUT" == "fps" ]; then
-        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! videoconvert ! videoscale ! gvainference model=\"$MODEL_PATH\" device=CPU pre-process-backend=opencv ! gvafpscounter ! fakesink"
+        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! gvainference model=\"$MODEL_PATH\" device=CPU pre-process-backend=opencv ! gvafpscounter ! fakesink"
     else
         echo "Invalid output specified. Use file or fps."
         exit 1
     fi
 elif [ "$DEVICE" == "GPU" ]; then
     if [ "$OUTPUT" == "json" ]; then
-        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=opencv ! gvametaconvert format=json add-tensor-data=true ! gvametapublish method=file file-path=output.json ! fakesink"
+        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=opencv ! gvametaconvert format=json add-tensor-data=true ! gvametapublish method=file file-path=output.json ! fakesink"
     elif [ "$OUTPUT" == "fps" ]; then
-        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=opencv ! gvafpscounter ! fakesink"
+        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=opencv ! gvafpscounter ! fakesink"
     else
         echo "Invalid output specified. Use json or fps."
         exit 1

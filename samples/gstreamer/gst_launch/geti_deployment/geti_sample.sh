@@ -38,10 +38,10 @@ else
 fi
 
 if [[ $DEVICE == "CPU" ]]; then
-  DECODE_ELEMENT=" ! decodebin !"
+  DECODE_ELEMENT=" ! decodebin3 !"
   PREPROC_BACKEND="ie" 
 elif [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
-  DECODE_ELEMENT="! decodebin ! vapostproc ! video/x-raw(memory:VAMemory) !"
+  DECODE_ELEMENT="! decodebin3 ! vapostproc ! video/x-raw(memory:VAMemory) !"
   PREPROC_BACKEND="va-surface-sharing"
 fi
 

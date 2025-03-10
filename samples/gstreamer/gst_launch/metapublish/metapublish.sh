@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -67,7 +67,7 @@ MODEL2_PATH="${MODELS_PATH:=.}"/intel/$MODEL2/$PRECISION/$MODEL2.xml
 MODEL2_PROC="$(dirname "$0")"/model_proc/$MODEL2.json
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! \
-decodebin ! \
+decodebin3 ! \
 gvadetect model=$MODEL1_PATH device=$DEVICE ! queue ! \
 gvaclassify model=$MODEL2_PATH model-proc=$MODEL2_PROC device=$DEVICE ! queue ! \
 gvametaconvert json-indent=$JSON_INDENT ! \

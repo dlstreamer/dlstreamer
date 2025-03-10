@@ -33,6 +33,8 @@
 #endif
 
 #include <functional>
+#include <iterator>
+#include <regex>
 #include <stdio.h>
 #include <thread>
 
@@ -127,14 +129,24 @@ struct fmt::formatter<ov::AnyMap::value_type> {
 
 namespace {
 
-inline std::vector<std::string> split(const std::string &s, char delimiter) {
-    std::string token;
-    std::istringstream tokenStream(s);
-    std::vector<std::string> tokens;
-    while (std::getline(tokenStream, token, delimiter)) {
-        tokens.push_back(token);
+std::vector<std::string> split(const std::string &s, const std::string &delimiters) {
+    std::regex re("[" + delimiters + "]+");
+    std::sregex_token_iterator first{s.begin(), s.end(), re, -1}, last;
+    return {first, last};
+}
+
+std::vector<std::string> extractNumbers(const std::string &s) {
+    // Regular expression to match numbers, including negative and floating-point numbers
+    std::regex re(R"([-+]?\d*\.?\d+)");
+    std::sregex_iterator begin(s.begin(), s.end(), re);
+    std::sregex_iterator end;
+
+    std::vector<std::string> numbers;
+    for (std::sregex_iterator i = begin; i != end; ++i) {
+        numbers.push_back(i->str());
     }
-    return tokens;
+
+    return numbers;
 }
 
 const InputImageLayerDesc::Ptr
@@ -535,7 +547,7 @@ class OpenVinoNewApiImpl {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, GST_TYPE_ARRAY);
                 std::string labels_string = element.second.as<std::string>();
-                std::vector<std::string> labels = split(labels_string, ' ');
+                std::vector<std::string> labels = split(labels_string, ",; ");
                 for (auto &el : labels) {
                     GValue label = G_VALUE_INIT;
                     g_value_init(&label, G_TYPE_STRING);
@@ -578,8 +590,8 @@ class OpenVinoNewApiImpl {
         std::setlocale(LC_ALL, "C");
 
         for (auto &element : modelConfig) {
-            if (element.first.find("scale_values") != std::string::npos) {
-                std::vector<std::string> values = split(element.second.as<std::string>(), ',');
+            if (element.first == "scale_values") {
+                std::vector<std::string> values = extractNumbers(element.second.as<std::string>());
                 if (values.size() == 1) {
                     GValue gvalue = G_VALUE_INIT;
                     g_value_init(&gvalue, G_TYPE_DOUBLE);
@@ -611,8 +623,8 @@ class OpenVinoNewApiImpl {
                     throw std::runtime_error("Invalid number of scale values. Expected 1 or 3 values.");
                 }
             }
-            if (element.first.find("mean_values") != std::string::npos) {
-                std::vector<std::string> values = split(element.second.as<std::string>(), ',');
+            if (element.first == "mean_values") {
+                std::vector<std::string> values = extractNumbers(element.second.as<std::string>());
                 std::vector<double> scale_values;
 
                 if (values.size() == 3) {
@@ -639,32 +651,42 @@ class OpenVinoNewApiImpl {
                 gst_structure_set_value(s, "mean", &gvalue);
                 g_value_unset(&gvalue);
             }
-            if ((element.first.find("resize_type") != std::string::npos) &&
-                (element.second.as<std::string>().find("fit_to_window_letterbox") != std::string::npos)) {
+            if ((element.first == "resize_type") && (element.second.as<std::string>() == "fit_to_window_letterbox")) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
                 g_value_set_string(&gvalue, "aspect-ratio");
                 gst_structure_set_value(s, "resize", &gvalue);
                 g_value_unset(&gvalue);
             }
-            if ((element.first.find("resize_type") != std::string::npos) &&
-                (element.second.as<std::string>().find("crop") != std::string::npos)) {
+            if ((element.first == "resize_type") && (element.second.as<std::string>() == "standard")) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "no-aspect-ratio");
+                gst_structure_set_value(s, "resize", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if ((element.first == "resize_type") && (element.second.as<std::string>() == "fit_to_window")) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, "aspect-ratio-pad");
+                gst_structure_set_value(s, "resize", &gvalue);
+                g_value_unset(&gvalue);
+            }
+            if ((element.first == "resize_type") && (element.second.as<std::string>() == "crop")) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
                 g_value_set_string(&gvalue, "central-resize");
                 gst_structure_set_value(s, "crop", &gvalue);
                 g_value_unset(&gvalue);
             }
-            if ((element.first.find("reverse_input_channels") != std::string::npos) &&
-                (element.second.as<std::string>().find("True") != std::string::npos)) {
+            if ((element.first == "reverse_input_channels") && (element.second.as<std::string>() == "True")) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
                 g_value_set_string(&gvalue, "RGB");
                 gst_structure_set_value(s, "color_space", &gvalue);
                 g_value_unset(&gvalue);
             }
-            if ((element.first.find("reverse_input_channels") != std::string::npos) &&
-                (element.second.as<std::string>().find("YES") != std::string::npos)) {
+            if ((element.first == "reverse_input_channels") && (element.second.as<std::string>() == "YES")) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_INT);
                 g_value_set_int(&gvalue, gint(true));

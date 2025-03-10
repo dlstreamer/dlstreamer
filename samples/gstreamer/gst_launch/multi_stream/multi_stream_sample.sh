@@ -100,7 +100,7 @@ fi
 
 ### STREAM 1 and 2 ###
 # CPU device
-DECODE_ELEMENT_STR12="decodebin"
+DECODE_ELEMENT_STR12="decodebin3"
 PREPROC_BACKEND_STR12="ie"
 # GPU , NPU device
 ## GST-VA ##
@@ -109,7 +109,7 @@ if [[ "$GSTVA" == "VA" ]]; then
     PREPROC_BACKEND_STR12="va-surface-sharing"
   fi
   if [[ "$DEVICE_STREAM_12" == "GPU" ]] || [[ "$DEVICE_STREAM_12" == "NPU" ]]; then
-    DECODE_ELEMENT_STR12="decodebin"
+    DECODE_ELEMENT_STR12="decodebin3"
     DECODE_ELEMENT_STR12+=" ! vapostproc ! video/x-raw(memory:VAMemory)"
     PREPROC_BACKEND_STR12="${PREPROC_BACKEND_STR12} nireq=4 model-instance-id=inf0"
   fi
@@ -127,7 +127,7 @@ fi
 
 ### STREAM 3 and 4 ###
 # CPU device
-DECODE_ELEMENT_STR34="decodebin"
+DECODE_ELEMENT_STR34="decodebin3"
 PREPROC_BACKEND_STR34="ie"
 # GPU , NPU device
 ## GST-VA ##
@@ -136,7 +136,7 @@ if [[ "$GSTVA" == "VA" ]]; then
     PREPROC_BACKEND_STR34="va-surface-sharing"
   fi
   if [[ "$DEVICE_STREAM_34" == "GPU" ]] || [[ "$DEVICE_STREAM_34" == "NPU" ]]; then
-    DECODE_ELEMENT_STR34="decodebin"
+    DECODE_ELEMENT_STR34="decodebin3"
     DECODE_ELEMENT_STR34+=" ! vapostproc ! video/x-raw(memory:VAMemory)"
     PREPROC_BACKEND_STR34="${PREPROC_BACKEND_STR34} nireq=4 model-instance-id=inf1"
   fi

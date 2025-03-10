@@ -17,7 +17,7 @@ class InputImageLayerDesc {
   public:
     using Ptr = std::shared_ptr<InputImageLayerDesc>;
 
-    enum class Resize { NO, NO_ASPECT_RATIO, ASPECT_RATIO };
+    enum class Resize { NO, NO_ASPECT_RATIO, ASPECT_RATIO, ASPECT_RATIO_PAD };
     enum class Crop { NO, CENTRAL, CENTRAL_RESIZE, TOP_LEFT, TOP_RIGHT, BOTTOM_LEFT, BOTTOM_RIGHT };
     enum class ColorSpace { NO, RGB, BGR, YUV, GRAYSCALE };
 

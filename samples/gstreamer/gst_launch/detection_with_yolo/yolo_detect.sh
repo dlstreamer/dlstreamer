@@ -80,7 +80,7 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-DECODE_ELEMENT="! decodebin !"
+DECODE_ELEMENT="! decodebin3 !"
 if [[ "$DEVICE" == "GPU" ]]; then
   DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"
 fi

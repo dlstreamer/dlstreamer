@@ -38,11 +38,11 @@ else
 fi
 
 if [[ $DEVICE == "CPU" ]]; then
-  DECODE_ELEMENT="decodebin force-sw-decoders=true"
+  DECODE_ELEMENT="decodebin3 "
 elif [[ $DEVICE == "GPU" ]]; then
-  DECODE_ELEMENT="decodebin ! vapostproc ! video/x-raw\(memory:VAMemory\)"
+  DECODE_ELEMENT="decodebin3 ! vapostproc ! video/x-raw\(memory:VAMemory\)"
 else
-  DECODE_ELEMENT="decodebin"
+  DECODE_ELEMENT="decodebin3"
 fi
 
 if [[ $OUTPUT == "display" ]]; then

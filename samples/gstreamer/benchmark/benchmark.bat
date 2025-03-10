@@ -32,7 +32,7 @@ set VIDEO_FILE_NAME=%VIDEO_FILE_NAME:\=/%
 set DETECT_MODEL_PATH=%DETECT_MODEL_PATH:\=/%
 
 setlocal DISABLEDELAYEDEXPANSION
-set PIPELINE=filesrc location=%VIDEO_FILE_NAME% ! decodebin ! ^
+set PIPELINE=filesrc location=%VIDEO_FILE_NAME% ! decodebin3 ! ^
 gvadetect model-instance-id=inf0 model="%DETECT_MODEL_PATH%" device=%INFERENCE_DEVICE% ! queue ! ^
 gvafpscounter ! fakesink async=false
 

@@ -8,7 +8,7 @@ The string contains a list of GStreamer elements separated by exclamation mark `
 
 This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
-* `decodebin` for video decoding
+* `decodebin3` for video decoding
 * `video_inference` for converting video frame into custom tensor, inferencing using OpenVINO™ toolkit and post process data.
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for labels visualization
 * `gvafpscounter` for rendering fps info in terminal

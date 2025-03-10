@@ -51,7 +51,7 @@ fi
 
 gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
-decodebin ! \
+decodebin3 ! \
 processbin \
     preprocess="capsfilter caps=video/x-raw(memory:VASurface) ! vaapipostproc ! videoscale ! videoconvert ! video/x-raw(ANY),format=BGRP ! tensor_convert" \
     process="openvino_tensor_inference model=$MODEL1_PATH device=GPU" \

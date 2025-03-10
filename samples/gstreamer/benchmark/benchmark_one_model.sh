@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2024 Intel Corporation
+# Copyright (C) 2020-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -20,7 +20,7 @@ DECODE_DEVICE=${3:-CPU}     # Supported values: "CPU", "GPU", "AUTO"
 INFERENCE_DEVICE=${4:-CPU}  # Supported values: "CPU", "GPU", "AUTO", "MULTI:GPU,CPU"
 NUMBER_STREAMS=${5:-1}
 NUMBER_PROCESSES=${6:-1}
-DECODE_ELEMENT=${7:-"decodebin"}
+DECODE_ELEMENT=${7:-"decodebin3"}
 INFERENCE_ELEMENT=${8:-"gvainference"}
 SINK_ELEMENT=${9:-"fakesink async=false"}
 
@@ -46,9 +46,6 @@ if [ "$NUMBER_STREAMS" -lt "$NUMBER_PROCESSES" ]; then
 fi
 
 # Decode parameters
-if [ "$DECODE_ELEMENT" == "decodebin" ] && [ "$DECODE_DEVICE" == "CPU" ]; then
-    DECODE_ELEMENT+=" force-sw-decoders=true"
-fi
 if [ "$DECODE_DEVICE" == "CPU" ]; then
     DECODE_ELEMENT+=" ! video/x-raw"
 elif [ "$DECODE_DEVICE" == "GPU" ]; then

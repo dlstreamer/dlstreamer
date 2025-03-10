@@ -31,7 +31,7 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-DECODE_ELEMENT="! decodebin !"
+DECODE_ELEMENT="! decodebin3 !"
 PREPROC_BACKEND="ie"
 if [[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]; then
   DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"

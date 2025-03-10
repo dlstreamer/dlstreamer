@@ -10,7 +10,7 @@ The sample utilizes the GStreamer command-line tool `gst-launch-1.0`, which can 
 
 The sample constructs GStreamer pipelines with the following elements:
 * `filesrc` or `urisourcebin` or `v4l2src` for input from a file, URL, or web camera
-* `decodebin` to construct a decoding pipeline using available decoders and demuxers via auto-plugging
+* `decodebin3` to construct a decoding pipeline using available decoders and demuxers via auto-plugging
 * `vapostproc ! video/x-raw(memory:VAMemory)` to facilitate video processing on the GPU
 * [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) for performing object detection using Mask RCNN models
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) to visualize segmentation masks on the video

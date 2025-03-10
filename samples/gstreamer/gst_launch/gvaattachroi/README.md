@@ -10,7 +10,7 @@ The string contains a list of GStreamer elements separated by exclamation mark `
 This sample builds GStreamer pipeline of the following elements
 
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
-* `decodebin` for video decoding
+* `decodebin3` for video decoding
 * `videoconvert` for converting video frame into different color formats
 * [gvaattachroi](https://dlstreamer.github.io/elements/gvaattachroi.html) for defining the areas of interest (one or more) in the input image
 * [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) uses for roi object detection and marking objects with labels

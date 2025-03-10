@@ -8,7 +8,7 @@ The string contains a list of GStreamer elements separated by exclamation mark `
 
 This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
-* `decodebin` for video decoding
+* `decodebin3` for video decoding
 * `videoconvert` for converting video frame into different color formats
 * [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) uses for full-frame inference and post-processing of OpenPose's output
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization

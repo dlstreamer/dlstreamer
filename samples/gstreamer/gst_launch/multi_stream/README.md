@@ -12,7 +12,7 @@ Please follow instruction: [Detection with Yolo](./gst_launch/detection_with_yol
 
 This sample builds four GStreamer pipeline of the following elements
 * `filesrc`
-* `decodebin` for video decoding
+* `decodebin3` for video decoding
 * `videoconvert` for converting video frame into different color formats
 * [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) uses for full-frame object detection and marking objects with labels
 * [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
@@ -51,16 +51,16 @@ Please note this example uses exact same AI model for both NPU and GPU, yet one 
 
 ```sh
 gst-launch-1.0 \
-filesrc location=${INPUT_VIDEO_FILE_1} ! decodebin ! vaapipostproc ! video/x-raw(memory:VASurface) ! \
+filesrc location=${INPUT_VIDEO_FILE_1} ! decodebin3 ! vaapipostproc ! video/x-raw(memory:VASurface) ! \
 gvadetect model=${DETECTION_MODEL} device=NPU pre-process-backend=ie nireq=4 model-instance-id=inf0 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_1} \
-filesrc location=${INPUT_VIDEO_FILE_2} ! decodebin ! vaapipostproc ! video/x-raw(memory:VASurface) ! \
+filesrc location=${INPUT_VIDEO_FILE_2} ! decodebin3 ! vaapipostproc ! video/x-raw(memory:VASurface) ! \
 gvadetect model=${DETECTION_MODEL} device=NPU pre-process-backend=ie nireq=4 model-instance-id=inf0 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_2} \
-filesrc location=${INPUT_VIDEO_FILE} ! decodebin vaapipostproc ! video/x-raw(memory:VASurface) ! 
+filesrc location=${INPUT_VIDEO_FILE} ! decodebin3 vaapipostproc ! video/x-raw(memory:VASurface) ! 
 gvadetect model={$DETECTION_MODEL_3} device=GPU pre-process-backend=vaapi-surface-sharing nireq=4 model-instance-id=inf1 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_3} \
-filesrc location=${INPUT_VIDEO_FILE_4} ! decodebin vaapipostproc ! video/x-raw(memory:VASurface) ! 
+filesrc location=${INPUT_VIDEO_FILE_4} ! decodebin3 vaapipostproc ! video/x-raw(memory:VASurface) ! 
 gvadetect model=${DETECTION_MODEL} device=GPU pre-process-backend=vaapi-surface-sharing nireq=4 model-instance-id=inf1 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_4}
 ```
