@@ -1,0 +1,6 @@
+*
+
+!.gitignore
+!CMakeLists.txt
+!nlohman/CMakeLists.txt
+!pboettch/CMakeLists.txt

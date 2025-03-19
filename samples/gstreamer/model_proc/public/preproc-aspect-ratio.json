@@ -1,0 +1,18 @@
+{
+    "json_schema_version": "2.2.0",
+    "input_preproc": [
+        {
+            "format": "image",
+            "params": {
+                "resize": "aspect-ratio",
+                "crop": "central"
+            }
+        }
+    ],
+    "output_postproc": [
+        {
+            "converter": "label",
+            "method": "max"
+        }
+    ]
+}
