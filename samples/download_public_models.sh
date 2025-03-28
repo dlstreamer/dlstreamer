@@ -127,6 +127,7 @@ if [[ "$MODEL" =~ yolo.* || "$MODEL" == "all" ]]; then
 fi
 
 if [[ "$MODEL" =~ clip.* || "$MODEL" == "all" ]]; then
+  pip install torch
   pip install transformers
   pip install pillow
 fi
@@ -270,6 +271,17 @@ for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
       wget "https://github.com/ultralytics/yolov5/releases/download/v7.0/${MODEL_NAME}.pt"
 
       python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic 
+      python3 - <<EOF "${MODEL_NAME}"
+import sys, os
+from openvino.runtime import Core
+from openvino.runtime import save_model
+model_name = sys.argv[1]
+core = Core()
+os.rename(f"{model_name}_openvino_model", f"{model_name}_openvino_modelD")
+model = core.read_model(f"{model_name}_openvino_modelD/{model_name}.xml")
+model.reshape([-1, 3, 640, 640])
+save_model(model, f"{model_name}_openvino_model/{model_name}.xml")
+EOF
 
       mkdir -p "$MODEL_DIR/FP32"
       mv "${MODEL_NAME}_openvino_model/${MODEL_NAME}.xml" "$MODEL_DIR/FP32/${MODEL_NAME}.xml"
@@ -277,6 +289,18 @@ for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
 
       mkdir -p "$MODEL_DIR/INT8"
       python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic --int8
+      python3 - <<EOF "${MODEL_NAME}"
+import sys, os
+from openvino.runtime import Core
+from openvino.runtime import save_model
+model_name = sys.argv[1]
+core = Core()
+os.rename(f"{model_name}_int8_openvino_model", f"{model_name}_int8_openvino_modelD")
+model = core.read_model(f"{model_name}_int8_openvino_modelD/{model_name}.xml")
+model.reshape([-1, 3, 640, 640])
+save_model(model, f"{model_name}_int8_openvino_model/{model_name}.xml")
+EOF
+
 
       mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.xml" "$MODEL_DIR/INT8/${MODEL_NAME}.xml"
       mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.bin" "$MODEL_DIR/INT8/${MODEL_NAME}.bin"

@@ -48,7 +48,7 @@ The sample `benchmark_one_model.sh` takes one to eight command-line parameters (
     * ...
 5. [NUMBER_STREAMS] number of simultaneous streams to benchmark
 6. [NUMBER_PROCESSES] number of processes. If multiple processes, streams distributed equally across processes
-7. [DECODE_ELEMENT] element (or pipeline of elements in gst-launch format) for demuxing and video decoding. Default is 'decodebin'
+7. [DECODE_ELEMENT] element (or pipeline of elements in gst-launch format) for demuxing and video decoding. Default is 'decodebin3'
 8. [SINK_ELEMENT] sink element (or pipeline of elements in gst-launch format), default is `fakesink async=false`
 
 The sample `benchmark_one_model.sh` has similar parameters with additional parameter for second model.

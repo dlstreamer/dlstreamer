@@ -42,7 +42,7 @@ set MODEL_PROC_PATH=%MODEL_PROC_PATH:\=/%
 
 setlocal DISABLEDELAYEDEXPANSION
 set PIPELINE=gst-launch-1.0 %SOURCE_ELEMENT% ! ^
-decodebin ! audioresample ! audioconvert ! audio/x-raw, channels=1,format=S16LE,rate=16000 ! audiomixer output-buffer-duration=100000000 ! ^
+decodebin3 ! audioresample ! audioconvert ! audio/x-raw, channels=1,format=S16LE,rate=16000 ! audiomixer output-buffer-duration=100000000 ! ^
 gvaaudiodetect model="%MODEL_PATH%" model-proc="%MODEL_PROC_PATH%" sliding-window=0.2 ^
 ! gvametaconvert ! gvametapublish file-format=json-lines ! fakesink
 setlocal ENABLEDELAYEDEXPANSION

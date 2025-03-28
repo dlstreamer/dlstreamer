@@ -63,7 +63,7 @@ set MODEL3_PROC=%MODEL3_PROC:\=/%
 set MODEL4_PROC=%MODEL4_PROC:\=/%
 
 setlocal DISABLEDELAYEDEXPANSION
-set PIPELINE=gst-launch-1.0 -v %SOURCE_ELEMENT% ! decodebin ! videoconvert ! ^
+set PIPELINE=gst-launch-1.0 -v %SOURCE_ELEMENT% ! decodebin3 ! videoconvert ! ^
 gvadetect model="%DETECT_MODEL_PATH%" device=%DEVICE% ! queue ! ^
 gvaclassify model="%CLASS_MODEL_PATH%" model-proc="%MODEL2_PROC%" device=%DEVICE% ! queue ! ^
 gvaclassify model="%CLASS_MODEL_PATH1%" model-proc="%MODEL3_PROC%" device=%DEVICE% ! queue ! ^

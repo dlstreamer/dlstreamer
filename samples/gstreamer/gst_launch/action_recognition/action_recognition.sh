@@ -66,7 +66,7 @@ DIR=$(dirname "$0")
 
 PIPELINE="gst-launch-1.0 \
 $SOURCE_ELEMENT ! \
-decodebin ! \
+decodebin3 ! \
 video_inference \
   process=' \
     openvino_tensor_inference model=$MODEL_ENCODER device=$DEVICE ! \

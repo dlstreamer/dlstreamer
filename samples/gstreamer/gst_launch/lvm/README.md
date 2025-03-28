@@ -9,7 +9,7 @@ The string contains a list of GStreamer elements separated by an exclamation mar
 
 This sample builds a GStreamer pipeline of the following elements:
 * `filesrc`, `urisourcebin`, or `v4l2src` for input from file/URL/web-camera
-* `decodebin` for video decoding
+* `decodebin3` for video decoding
 * `videoconvert` for converting video frames into different color formats
 * `videoscale` for scaling video frames
 * `vapostproc` for post-processing (used in GPU pipeline)

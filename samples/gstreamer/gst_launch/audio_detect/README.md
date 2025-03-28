@@ -7,7 +7,7 @@ This sample demonstrates how to construct an audio event detection pipeline usin
 
 This sample builds a GStreamer pipeline using the following elements
 * `filesrc` or `urisourcebin`
-* `decodebin` for audio decoding
+* `decodebin3` for audio decoding
 * `audioresample`, `audioconvert` and `audiomixer` for converting and resizing audio input
 * [gvaaudiodetect](https://dlstreamer.github.io/elements/gvaaudiodetect.html) for audio event detection using ACLNet
 * [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) for converting ACLNet detection results into JSON for further processing and display

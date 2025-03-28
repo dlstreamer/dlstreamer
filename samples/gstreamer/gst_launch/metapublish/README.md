@@ -10,7 +10,7 @@ The string contains a list of GStreamer elements separated by exclamation mark `
 
 Overall this sample builds GStreamer pipeline of the following elements:
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
-* `decodebin` for video decoding
+* `decodebin3` for video decoding
 * [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) for detecting faces using the OpenVINO™ Toolkit Inference Engine
 * [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) for recognizing the age and gender of detected faces using the the OpenVINO™ Toolkit Inference Engine.
 * [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) for conversion of tensor and inference metadata to JSON format.

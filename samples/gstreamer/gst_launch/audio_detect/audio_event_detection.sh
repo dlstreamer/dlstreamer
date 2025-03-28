@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -42,7 +42,7 @@ MODEL_PATH=${MODELS_PATH}/public/aclnet/FP32/aclnet.xml
 MODEL_PROC_PATH=$(PROC_PATH $MODEL)
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! \
-decodebin ! audioresample ! audioconvert ! audio/x-raw, channels=1,format=S16LE,rate=16000 ! audiomixer output-buffer-duration=100000000 ! \
+decodebin3 ! audioresample ! audioconvert ! audio/x-raw, channels=1,format=S16LE,rate=16000 ! audiomixer output-buffer-duration=100000000 ! \
 gvaaudiodetect model=$MODEL_PATH model-proc=$MODEL_PROC_PATH sliding-window=0.2 \
 ! gvametaconvert ! gvametapublish file-path=$OUTPUT file-format=json-lines ! \
 fakesink"

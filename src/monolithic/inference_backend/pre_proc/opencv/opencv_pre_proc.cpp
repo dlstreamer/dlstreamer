@@ -100,7 +100,8 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
             resize_scale_param_x = safe_convert<double>(input_size_except_padding.width) / orig_image.size().width;
             resize_scale_param_y = safe_convert<double>(input_size_except_padding.height) / orig_image.size().height;
 
-            if (pre_proc_info->getResizeType() == InputImageLayerDesc::Resize::ASPECT_RATIO) {
+            if ((pre_proc_info->getResizeType() == InputImageLayerDesc::Resize::ASPECT_RATIO) ||
+                (pre_proc_info->getResizeType() == InputImageLayerDesc::Resize::ASPECT_RATIO_PAD)) {
                 resize_scale_param_x = resize_scale_param_y = std::min(resize_scale_param_x, resize_scale_param_y);
             }
 
@@ -213,6 +214,12 @@ cv::Mat CustomImageConvert(const cv::Mat &orig_image, const int src_color_format
 
         int shift_x = (input_size.width - image_to_insert.size().width) / 2;
         int shift_y = (input_size.height - image_to_insert.size().height) / 2;
+
+        if (pre_proc_info->getResizeType() == InputImageLayerDesc::Resize::ASPECT_RATIO_PAD) {
+            shift_x = 0;
+            shift_y = 0;
+        }
+
         cv::Rect region_to_insert(shift_x, shift_y, image_to_insert.size().width, image_to_insert.size().height);
 
         cv::Mat result(input_size, image_to_insert.type(), background_color);

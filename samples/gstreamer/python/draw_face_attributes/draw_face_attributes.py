@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -103,7 +103,7 @@ def create_launch_string():
         print("Unsupported output type")
         sys.exit()
 
-    return f"{source}={args.input} ! decodebin ! \
+    return f"{source}={args.input} ! decodebin3 ! \
     videoconvert n-threads=4 ! capsfilter caps=\"video/x-raw,format=BGRx\" ! \
     gvadetect model={args.detection_model} device=CPU ! queue ! \
     gvainference model={args.classification_model1} device=CPU inference-region=roi-list ! queue ! \

@@ -61,7 +61,7 @@ PROC_PATH() {
 HPE_MODEL_PATH=${MODELS_PATH}/intel/${HPE_MODEL}/FP32/${HPE_MODEL}.xml
 HPE_MODEL_PROC=$(PROC_PATH $HPE_MODEL)
 
-PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin ! \
+PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! \
 gvaclassify model=$HPE_MODEL_PATH model-proc=$HPE_MODEL_PROC device=$DEVICE inference-region=full-frame ! queue ! \
 $SINK_ELEMENT"
 
