@@ -1,4 +1,4 @@
-# Intel® Deep Learning Streamer Pipeline Framework Release 2025.0.1
+# Intel® Deep Learning Streamer Pipeline Framework Release 2025.0.1.2
 Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework is a streaming media analytics framework, based on GStreamer\* multimedia framework, for creating complex media analytics pipelines. It ensures pipeline interoperability and provides optimized media, and inference operations using Intel® Distribution of OpenVINO™ Toolkit Inference Engine backend, across Intel® architecture, CPU, discrete GPU, integrated GPU and NPU.
 
 This release includes Intel® DL Streamer Pipeline Framework elements to enable video and audio analytics capabilities, (e.g., object detection, classification, audio event detection), and other elements to build end-to-end optimized pipeline in GStreamer\* framework.
@@ -35,12 +35,9 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 
 | **Title**      | **High-level description**      |
 |----------------|---------------------------------|
-| LVM support | Support for Large Vision Models |
-| LVM support | Sample demonstrating image embedding extraction with Visual Transformer (LVM)  |
-| OpenVINO 2025.0 support | Update to the latest version of OpenVINO |
-| GStreamer 1.24.12 support | Update GStreamer to 1.24.12 version |
-| Updated NPU driver | Updated NPU driver to 1.13.0 version. |
-| Documentation updates | Documentation how to convert from DeepStream to Deep Learning Steamer |
+| Geti Models 2.7 version | Support for Geti Classification/Detection Models in 2.7 version  |
+| GStreamer plugins | Support for gst-rswebrtc-plugins |
+| Documentation updates | Documentation updates - "queue" element  |
 
 ## Known Issues
 
@@ -53,6 +50,19 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 | Simplified installation process for option 2 via script | In certain configurations, users may encounter visible errors  |
 | Error when using legacy YoloV5 models: Dynamic resize: Model width dimension shall be static | To avoid the issue, modify samples/download_public_models.sh by inserting the following snippet at lines 273 and 280:<br><br>python3 - <<EOF "${MODEL_NAME}"<br>import sys, os<br>from openvino.runtime import Core<br>from openvino.runtime import save_model<br>model_name = sys.argv[1]<br>core = Core()<br>os.rename(f"{model_name}_openvino_model", f"{model_name}_openvino_modelD")<br>model = core.read_model(f"{model_name}_openvino_modelD/{model_name}.xml")<br>model.reshape([-1, 3, 640, 640]) |
 
+
+# Intel® Deep Learning Streamer Pipeline Framework Release 2025.0.1
+
+## New in this Release
+
+| **Title**      | **High-level description**      |
+|----------------|---------------------------------|
+| LVM support | Support for Large Vision Models |
+| LVM support | Sample demonstrating image embedding extraction with Visual Transformer (LVM)  |
+| OpenVINO 2025.0 support | Update to the latest version of OpenVINO |
+| GStreamer 1.24.12 support | Update GStreamer to 1.24.12 version |
+| Updated NPU driver | Updated NPU driver to 1.13.0 version. |
+| Documentation updates | Documentation how to convert from DeepStream to Deep Learning Steamer |
 
 # Intel® Deep Learning Streamer Pipeline Framework Release 2025.0.0
 
