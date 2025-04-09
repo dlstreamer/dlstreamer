@@ -14,7 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4.2.0
-        path: dlstreamer-repo
+        with:
+          path: dlstreamer-repo
       
       - name: Install prerequisites using DLS_install_prerequisites.sh
         run: |
