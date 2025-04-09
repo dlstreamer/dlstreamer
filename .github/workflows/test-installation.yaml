@@ -1,0 +1,60 @@
+name: Test installation on Ubuntu24
+on:
+  push:
+    branches:
+      - 'test-installation'
+  workflow_dispatch:
+  schedule: 
+    - cron: '0 12 * * *'
+
+jobs:
+  install-dlstreamer:
+    name: Test DLStreamer installation
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.0
+        path: dlstreamer-repo
+      
+      - name: Install prerequisites using DLS_install_prerequisites.sh
+        run: |
+          chmod +x /dlstreamer-repo/scripts/DLS_install_prerequisites.sh
+          ./dlstreamer-repo/scripts/DLS_install_prerequisites.sh
+
+      - name: Setup repositories
+        run: |
+          sudo -E wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
+          sudo wget -O- https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg | sudo tee /usr/share/keyrings/sed-archive-keyring.gpg > /dev/null
+          sudo echo "deb [signed-by=/usr/share/keyrings/sed-archive-keyring.gpg] https://eci.intel.com/sed-repos/$(source /etc/os-release && echo $VERSION_CODENAME) sed main" | sudo tee /etc/apt/sources.list.d/sed.list
+          sudo bash -c 'echo -e "Package: *\nPin: origin eci.intel.com\nPin-Priority: 1000" > /etc/apt/preferences.d/sed'
+          sudo bash -c 'echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list'
+
+      - name: Install DLStreamer
+        run: |
+          sudo apt update
+          sudo apt-get install intel-dlstreamer
+
+      - name: Test hello_dlstreamer script
+        run: | 
+          mkdir -p dlstreamer-repo/test_hello_dlstreamer
+          cd dlstreamer-repo/test_hello_dlstreamer
+          /opt/intel/dlstreamer/scripts/hello_dlstreamer.sh file
+          OUTPUT_FILE_FOUND=0
+          for file in *.mp4; do
+              # Check if the file exists and is at least 1kB in size
+              if [[ -f "$file" && $(stat --printf="%s" "$file") -ge 1024 ]]; then
+                  echo "Valid .mp4 file found: $file"
+                  OUTPUT_FILE_FOUND=1
+              fi
+          done
+          if [[ $OUTPUT_FILE_FOUND -eq 0 ]]; then
+              echo "No .mp4 file(s) found or it has less than 1kB size."
+              exit 1
+          fi
+
+      - name: Upload hello_dlstreamer output video
+        uses: actions/upload-artifact@v4.4.0
+        if: always()
+        with:
+          name: hello_dlstreamer_output_video
+          path: dlstreamer-repo/test_hello_dlstreamer
