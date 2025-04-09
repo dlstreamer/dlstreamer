@@ -19,7 +19,7 @@ jobs:
       
       - name: Install prerequisites using DLS_install_prerequisites.sh
         run: |
-          chmod +x /dlstreamer-repo/scripts/DLS_install_prerequisites.sh
+          chmod +x dlstreamer-repo/scripts/DLS_install_prerequisites.sh
           ./dlstreamer-repo/scripts/DLS_install_prerequisites.sh
 
       - name: Setup repositories
