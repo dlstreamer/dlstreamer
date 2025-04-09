@@ -12,6 +12,14 @@ jobs:
     name: Test DLStreamer installation
     runs-on: ubuntu-24.04
     steps:
+      - name: Setup runner details
+        run: |
+          echo "Hostname: $(hostname)"
+          echo "CPU Name: $(lscpu | grep 'Model name' | sed 's/Model name:[ \t]*//')"
+          echo "OS Type: $(uname -o)"
+          echo "OS codename: $(lsb_release -sc)"
+          echo "Kernel Version: $(uname -r)"
+
       - name: Checkout repository
         uses: actions/checkout@v4.2.0
         with:
