@@ -1,8 +1,5 @@
 name: Test installation on Ubuntu24
 on:
-  push:
-    branches:
-      - 'test-installation'
   workflow_dispatch:
   schedule: 
     - cron: '0 12 * * *'
