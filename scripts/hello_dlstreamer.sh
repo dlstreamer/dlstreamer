@@ -37,22 +37,10 @@ else
 fi
 
 if [ -d "$MODELS_PATH"/public/yolo11s/FP32 ]; then
-	echo "Yolo11s model has already been downloaded"
+	echo "Yolo11s model exists."
 else
-	echo ""
-	echo "Downloading model yolo11s:"
-	echo "It may take up to 20mins, depending on network throughput..."
-	echo ""
-
-	mkdir -p "$MODELS_PATH"/public/yolo11s
-	mkdir -p /home/"$USER"/python3venv
-	python3 -m venv /home/"$USER"/python3venv
-	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --upgrade pip
-	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --no-dependencies torch==2.5.1+xpu torchvision==0.20.1+xpu torchaudio==2.5.1+xpu --index-url https://download.pytorch.org/whl/test/xpu
-	/home/"$USER"/python3venv/bin/pip3 install --no-cache-dir --no-dependencies PyGObject==3.50.0 ultralytics openvino==2025.0.0 numpy typing-extensions Pillow opencv-python matplotlib packaging pyparsing cycler python-dateutil kiwisolver six pyyaml tqdm requests urllib3 idna certifi psutil sympy mpmath thop setuptools
- 	# shellcheck source=/dev/null
- 	source /home/"$USER"/python3venv/bin/activate
-	/opt/intel/dlstreamer/samples/download_public_models.sh yolo11s
+	echo "Please run the script `/opt/intel/dlstreamer/samples/download_public_models.sh yolo11s` to download the model. If the model has already been downloaded, specify the path to its location."
+	exit 1
 fi
 
 echo ""
@@ -65,9 +53,15 @@ export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 OUTPUT=${1:-"display"}
 if [[ "$OUTPUT" != "display" ]] && [[ "$OUTPUT" != "file" ]]; then
     echo "Error! Wrong value for OUTPUT parameter. Supported values: display | file".
-    exit 
+    exit
+fi
+# check if the device for inference is set correctly; only CPU, GPU and NPU options are supported
+DEVICE=${2:-"CPU"}
+if [[ "$DEVICE" != "CPU" ]] && [[ "$DEVICE" != "GPU" ]] && [[ "$DEVICE" != "NPU" ]]; then
+    echo "Error! Wrong value for DEVICE parameter. Supported values: CPU | GPU | NPU".
+    exit
 fi
 
 # print pipeline and run it
 execute() { echo "$*"$'\n' ; "$@" ; }
-execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh yolo11s CPU '' "$OUTPUT"
+execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh yolo11s "$DEVICE" '' "$OUTPUT"
