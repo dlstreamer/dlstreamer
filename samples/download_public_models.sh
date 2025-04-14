@@ -12,25 +12,25 @@ SUPPORTED_MODELS=(
   "yolo_all"
   "yolox-tiny"
   "yolox_s"
-  "yolov5n" 
-  "yolov5s" 
-  "yolov5m" 
-  "yolov5l" 
-  "yolov5x" 
-  "yolov5n6" 
-  "yolov5s6" 
-  "yolov5m6" 
-  "yolov5l6" 
+  "yolov5n"
+  "yolov5s"
+  "yolov5m"
+  "yolov5l"
+  "yolov5x"
+  "yolov5n6"
+  "yolov5s6"
+  "yolov5m6"
+  "yolov5l6"
   "yolov5x6"
-  "yolov5nu" 
-  "yolov5su" 
-  "yolov5mu" 
-  "yolov5lu" 
-  "yolov5xu" 
-  "yolov5n6u" 
-  "yolov5s6u" 
-  "yolov5m6u" 
-  "yolov5l6u" 
+  "yolov5nu"
+  "yolov5su"
+  "yolov5mu"
+  "yolov5lu"
+  "yolov5xu"
+  "yolov5n6u"
+  "yolov5s6u"
+  "yolov5m6u"
+  "yolov5l6u"
   "yolov5x6u"
   "yolov7"
   "yolov8n"
@@ -66,7 +66,7 @@ SUPPORTED_MODELS=(
   "yolo11x"
   "yolo11n-obb"
   "yolo11s-obb"
-  "yolo11ms-obb"
+  "yolo11m-obb"
   "yolo11l-obb"
   "yolo11x-obb"
   "yolo11n-seg"
@@ -82,7 +82,7 @@ SUPPORTED_MODELS=(
   "centerface"
   "hsemotion"
   "deeplabv3"
-  "clip-vit-large-patch14" 
+  "clip-vit-large-patch14"
 )
 
 # Function to display text in a given color
@@ -159,6 +159,8 @@ pip install --upgrade pip
 pip install openvino==2024.6.0 || handle_error $LINENO
 pip install openvino-dev || handle_error $LINENO
 
+pip install onnx || handle_error $LINENO
+
 # Install or upgrade NNCF
 pip install nncf --upgrade || handle_error $LINENO
 
@@ -177,7 +179,7 @@ fi
 echo Downloading models to folder "$MODELS_PATH".
 
 set -euo pipefail
-# -------------- YOLOx 
+# -------------- YOLOx
 
 # check if model exists in local directory, download as needed
 if [ "$MODEL" == "yolox-tiny" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
@@ -186,7 +188,7 @@ if [ "$MODEL" == "yolox-tiny" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "
   DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
 
-  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then 
+  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     cd "$MODELS_PATH"
     echo "Downloading and converting: ${MODEL_DIR}"
     omz_downloader --name "$MODEL_NAME"
@@ -205,7 +207,7 @@ if [ "$MODEL" == "yolox_s" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-  
+
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     mkdir -p "$MODEL_DIR"
     mkdir -p "$MODEL_DIR/FP16"
@@ -318,7 +320,7 @@ for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
       cd yolov5
       wget "https://github.com/ultralytics/yolov5/releases/download/v7.0/${MODEL_NAME}.pt"
 
-      python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic 
+      python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic
       python3 - <<EOF "${MODEL_NAME}"
 import sys, os
 from openvino.runtime import Core
@@ -349,7 +351,7 @@ model.reshape([-1, 3, 640, 640])
 save_model(model, f"{model_name}_int8_openvino_model/{model_name}.xml")
 EOF
 
-     
+
       mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.xml" "$MODEL_DIR/INT8/${MODEL_NAME}.xml"
       mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.bin" "$MODEL_DIR/INT8/${MODEL_NAME}.bin"
 
@@ -373,7 +375,7 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-  
+
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     pip install onnx
     pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu || handle_error $LINENO
@@ -467,7 +469,7 @@ YOLO_MODELS=(
   ["yolov9s"]="YOLOv8"
   ["yolov9m"]="YOLOv8"
   ["yolov9c"]="YOLOv8"
-  ["yolov9e"]="YOLOv8"  
+  ["yolov9e"]="YOLOv8"
   ["yolov10n"]="yolo_v10"
   ["yolov10s"]="yolo_v10"
   ["yolov10m"]="yolo_v10"
@@ -481,7 +483,7 @@ YOLO_MODELS=(
   ["yolo11x"]="yolo_v11"
   ["yolo11n-obb"]="yolo_v11_obb"
   ["yolo11s-obb"]="yolo_v11_obb"
-  ["yolo11ms-obb"]="yolo_v11_obb"
+  ["yolo11m-obb"]="yolo_v11_obb"
   ["yolo11l-obb"]="yolo_v11_obb"
   ["yolo11x-obb"]="yolo_v11_obb"
   ["yolo11n-seg"]="yolo_v11_seg"
@@ -509,19 +511,19 @@ if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-  
+
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     echo "Downloading and converting: ${MODEL_DIR}"
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
     git clone https://github.com/Star-Clouds/CenterFace.git
     cd CenterFace/models/onnx
-    ovc centerface.onnx --input "[1,3,768,1280]" 
+    ovc centerface.onnx --input "[1,3,768,1280]"
     mv centerface.xml "$MODEL_DIR"
     mv centerface.bin "$MODEL_DIR"
     cd ../../..
     rm -rf CenterFace
-    python3 - <<EOF 
+    python3 - <<EOF
 import openvino
 import sys, os
 
@@ -554,14 +556,14 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
   MODEL_NAME="hsemotion"
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE="$MODEL_DIR/FP16/$MODEL_NAME.xml"
-  
+
   if [ ! -f "$DST_FILE" ]; then
     echo "Downloading and converting: ${MODEL_DIR}"
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
     git clone https://github.com/av-savchenko/face-emotion-recognition.git
     cd face-emotion-recognition/models/affectnet_emotions/onnx
-    
+
     ovc enet_b0_8_va_mtl.onnx --input "[16,3,224,224]"
     mkdir "$MODEL_DIR/FP16/"
     mv enet_b0_8_va_mtl.xml "$MODEL_DIR/FP16/$MODEL_NAME.xml"
@@ -577,7 +579,7 @@ if [ "$MODEL" == "clip-vit-large-patch14" ] || [ "$MODEL" == "all" ]; then
   MODEL_NAME="clip-vit-large-patch14"
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-  
+
   if [ ! -f "$DST_FILE" ]; then
     echo "Downloading and converting: ${MODEL_DIR}"
     mkdir -p "$MODEL_DIR/FP32"
@@ -620,7 +622,7 @@ ov_model.set_rt_info("68.500,66.632,70.323", ['model_info', 'scale_values'])
 ov_model.set_rt_info("122.771,116.746,104.094", ['model_info', 'mean_values'])
 ov_model.set_rt_info("True", ['model_info', 'reverse_input_channels'])
 ov_model.set_rt_info("crop", ['model_info', 'resize_type'])
-    
+
 ov.save_model(ov_model, MODEL + ".xml")
 
 os.remove(img_path)
@@ -635,6 +637,8 @@ if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE1="$MODEL_DIR/FP32/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP16/$MODEL_NAME.xml"
+
+  pip install tensorflow || handle_error $LINENO
 
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     cd "$MODELS_PATH"

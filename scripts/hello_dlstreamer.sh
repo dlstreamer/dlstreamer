@@ -36,10 +36,18 @@ else
 	echo "---------------------------------------------------------------------------------------"
 fi
 
-if [ -d "$MODELS_PATH"/public/yolo11s/FP32 ]; then
-	echo "Yolo11s model exists."
+# check if the inference model is set correctly; yolov5s, yolov8s and yolo11s are supported on this level
+MODEL=${3:-"yolo11s"}
+if [[ "$MODEL" != "yolov5s" ]] && [[ "$MODEL" != "yolov8s" ]] && [[ "$MODEL" != "yolo11s" ]]; then
+    echo "Error! Wrong MODEL parameter. Supported models: yolov5s | yolov8s | yolo11s".
+    exit
+fi
+if [ -d "$MODELS_PATH"/public/"$MODEL"/FP32 ]; then
+	echo "$MODEL model exists."
 else
-	echo "Please run the script `/opt/intel/dlstreamer/samples/download_public_models.sh yolo11s` to download the model. If the model has already been downloaded, specify the path to its location."
+	echo "Model $MODEL which you want to use cannot be found!"
+	echo "Please run the script `/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL` to download the model."
+	echo "If the model has already been downloaded, specify the path to its location."
 	exit 1
 fi
 
@@ -64,4 +72,4 @@ fi
 
 # print pipeline and run it
 execute() { echo "$*"$'\n' ; "$@" ; }
-execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh yolo11s "$DEVICE" '' "$OUTPUT"
+execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh $MODEL "$DEVICE" '' "$OUTPUT"
