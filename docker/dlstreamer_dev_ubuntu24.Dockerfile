@@ -11,7 +11,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
 
-ARG DLSTREAMER_VERSION=2025.0.1.2
+ARG DLSTREAMER_VERSION=2025.0.1.3
 ARG GST_VERSION=1.24.12
 ARG VORBIS_VERSION=1.3.7
 ARG FFMPEG_VERSION=6.1.1
@@ -572,4 +572,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
   CMD [ "bash", "-c", "pgrep bash > /dev/null || exit 1" ]
 
 CMD ["/bin/bash"]
-
