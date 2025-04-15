@@ -19,9 +19,10 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Define version
-set(VERSION_MAJOR 2025)
-set(VERSION_MINOR 0)
-set(VERSION_PATCH 1)
+set(VERSION_YEAR 2025)
+set(VERSION_MAJOR 0)
+set(VERSION_MINOR 1)
+set(VERSION_PATCH 3)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")
@@ -30,15 +31,15 @@ endif()
 
 configure_file(cmake/version.txt.in version.txt)
 
-set(PRODUCT_VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
-set(PLUGIN_VERSION ${PRODUCT_VERSION}.${GIT_INFO})
+set(PRODUCT_VERSION ${VERSION_YEAR}.${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+set(PLUGIN_VERSION ${PRODUCT_VERSION})
 
 # Propagate version to plugins
 
 add_definitions(-DPLUGIN_VERSION="${PLUGIN_VERSION}")
 add_definitions(-DPACKAGE="dlstreamer")
 add_definitions(-DPACKAGE_NAME="Intel® DL Streamer elements")
-add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/dlstreamer/dlstreamer")
+add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
 add_definitions(-DPRODUCT_FULL_NAME="Intel® DL Streamer")
 
