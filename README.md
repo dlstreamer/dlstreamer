@@ -18,12 +18,15 @@ Intel® DL Streamer Pipeline Framework is optimized for performance and function
 
 [This page](https://dlstreamer.github.io/elements/elements.html) contains a list of elements provided in this repository.
 
-### Installation
+## Prerequisites
+Please refer to [System Requirements](https://dlstreamer.github.io/get_started/system_requirements.html) for details.
+
+## Installation
 Please refer to [Install Guide](https://dlstreamer.github.io/get_started/install/install_guide_ubuntu.html) for installation options
-1. Install APT packages
-2. Run Docker image
-3. Compile from source code
-4. Build Docker image from source code
+1. [Install APT packages](https://dlstreamer.github.io/get_started/install/install_guide_ubuntu.html#option-1-install-intel-dl-streamer-pipeline-framework-from-debian-packages-using-apt-repository)
+2. [Run Docker image](https://dlstreamer.github.io/get_started/install/install_guide_ubuntu.html#option-2-install-docker-image-from-docker-hub-and-run-it)
+3. [Compile from source code](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_install_guide_compilation.html)
+4. [Build Docker image from source code](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_build_docker_image.html)
 
 ### Samples
 [Samples](https://github.com/dlstreamer/dlstreamer/tree/master/samples) available for C/C++ and Python programming, and as gst-launch command lines and scripts. 
