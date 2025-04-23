@@ -28,8 +28,10 @@ Please refer to [Install Guide](https://dlstreamer.github.io/get_started/install
 3. [Compile from source code](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_install_guide_compilation.html)
 4. [Build Docker image from source code](https://dlstreamer.github.io/dev_guide/advanced_install/advanced_build_docker_image.html)
 
-### Samples
-[Samples](https://github.com/dlstreamer/dlstreamer/tree/master/samples) available for C/C++ and Python programming, and as gst-launch command lines and scripts. 
+To see the full list of installed components check the [dockerfile content for Ubuntu24](https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/refs/heads/main/libraries/dl-streamer/docker/dlstreamer_dev_ubuntu24.Dockerfile)
+
+## Samples
+[Samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples) available for C/C++ and Python programming, and as gst-launch command lines and scripts. 
 
 ### NN models
 Intel® DL Streamer supports NN models in OpenVINO™ IR and ONNX* formats:
