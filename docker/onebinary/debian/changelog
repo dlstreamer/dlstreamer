@@ -1,0 +1,5 @@
+intel-dlstreamer (DLSTREAMER_VERSION) noble; urgency=medium
+
+  * Initial release.
+
+ -- MAINTAINER <dlstreamer@intel.com>  CURRENT_DATE_TIME
