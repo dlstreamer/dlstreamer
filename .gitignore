@@ -23,8 +23,6 @@ cmake-build-*/
 # Compiled Dynamic libraries
 *.so
 
-# Compiled Static libraries
-*.a
 # Python's Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
