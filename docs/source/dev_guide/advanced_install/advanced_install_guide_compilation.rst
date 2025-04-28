@@ -86,7 +86,7 @@ Clone and build GStreamer:
     git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 
     cd ~/gstreamer
-    git switch -c "1.26.0" "tags/1.26.0"
+    git switch -c "1.24.12" "tags/1.24.12"
     meson setup -Dexamples=disabled -Dtests=disabled -Dvaapi=enabled -Dgst-examples=disabled --buildtype=release --prefix=/opt/intel/dlstreamer/gstreamer --libdir=lib/ --libexecdir=bin/ build/
     ninja -C build
     sudo env PATH=~/python3venv/bin:$PATH meson install -C build/
@@ -115,7 +115,9 @@ Step 7: Clone Intel® DL Streamer repository
 .. code:: sh
 
     cd ~
-    git clone --recursive https://github.com/open-edge-platform/edge-ai-libraries.git
+    git clone https://github.com/open-edge-platform/edge-ai-libraries.git
+    cd edge-ai-libraries
+    git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 Step 8: Install OpenVINO™ Toolkit
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -188,6 +190,7 @@ Set up the required environment variables:
     export GST_VA_ALL_DRIVERS="1"
     export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
     export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+    export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
 .. note::
 
