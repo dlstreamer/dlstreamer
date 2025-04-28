@@ -11,6 +11,13 @@ If you installed via apt package just simple uninstall with apt
 
     sudo apt remove intel-dlstreamer
 
+If you want to remove OpenVINO as well, please use the following commands:
+
+.. code:: sh
+
+   sudo apt remove -y openvino* libopenvino-* python3-openvino*
+   sudo apt-get autoremove
+
 
 Option #2: Intel® DL Streamer Pipeline Framework Docker image
 -------------------------------------------------------------
