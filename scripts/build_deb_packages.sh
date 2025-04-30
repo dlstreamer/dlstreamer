@@ -14,16 +14,45 @@ IMAGE_NAME="dls_debs_temp_image"
 CONTAINER_NAME="dls_debs_temp_container"
 DEBS_DESTINATION_PATH="./deb_packages"
 
+# Show help message
+show_help() {
+    cat <<EOF
+
+Usage: $(basename "$0") [OPTIONS]
+
+Script for building DL Streamer Debian packages
+
+Options:
+  -h, --help                            Show this help message and exit
+  --ubuntu_version=[ubuntu22|ubuntu24]  Choosing Ubuntu version to build .deb packages (default: ubuntu24)
+
+Examples:
+  $(basename "$0")
+  $(basename "$0") --ubuntu_version=ubuntu22
+  $(basename "$0") --help
+
+EOF
+}
+
 # Set inputs
 ubuntu_version="ubuntu24"
 for i in "$@"; do
     case $i in
+        -h|--help)
+            show_help
+            exit 0
+        ;;
         --ubuntu_version=*)
             ubuntu_version="${i#*=}"
+            if [[ "$MODEL" != "ubuntu22" ]] && [[ "$MODEL" != "ubuntu24" ]]; then
+                echo "Error! Wrong Ubuntu version parameter. Supported versions: ubuntu22 | ubuntu24"
+                exit 1
+            fi
             shift
         ;;
         *)
             echo "Unknown option: $i"
+            show_help
             exit 1
         ;;
     esac

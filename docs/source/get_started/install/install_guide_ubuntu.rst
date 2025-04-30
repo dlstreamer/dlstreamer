@@ -56,8 +56,8 @@ The script installs all the essential packages needed for most users, including 
       level-zero
 
 More details about the packages can be found in the following driver links respectively:
-`Client GPU <https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages>`__,
-`Data Center GPU <https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases>`__,
+`Intel® Client GPU <https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages>`__,
+`Intel® Data Center GPU <https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases>`__,
 `Media <https://github.com/intel/media-driver/releases>`__,
 `NPU <https://github.com/intel/linux-npu-driver/releases/tag/v1.13.0>`__.
 
@@ -108,7 +108,7 @@ Step 2: Setup repositories
 
 .. note::
 
-   If you have OpenVINO installed in a version different from 2025.0.0, please uninstall the OpenVINO packages using the following commands.
+   If you have OpenVINO™ installed in a version different from 2025.0.0, please uninstall the OpenVINO™ packages using the following commands.
 
 .. code:: sh
 
