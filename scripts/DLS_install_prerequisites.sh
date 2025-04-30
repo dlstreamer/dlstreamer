@@ -9,9 +9,35 @@ npu_driver_version='1.13.0'
 reinstall_npu_driver='no'  # Default value for reinstalling the NPU driver
 on_host_or_docker='host'
 
+# Show help message
+show_help() {
+    cat <<EOF
+
+Usage: $(basename "$0") [OPTIONS]
+
+Script for installing and configuring prerequisites for DL Streamer
+
+Options:
+  -h, --help                                                  Show this help message and exit
+  --reinstall-npu-driver=[yes|no]                             (Re)install Intel® NPU driver (default: no)
+  --on-host-or-docker=[host|docker_ubuntu22|docker_ubuntu24]  Script execution on host or in Docker container (default: host)
+
+Examples:
+  $(basename "$0")
+  $(basename "$0") --reinstall-npu-driver=yes
+  $(basename "$0") --reinstall-npu-driver=yes --on-host-or-docker=docker_ubuntu24
+  $(basename "$0") --help
+
+EOF
+}
+
 # Parse command-line arguments
 for i in "$@"; do
     case $i in
+        -h|--help)
+            show_help
+            exit 0
+        ;;
         --reinstall-npu-driver=*)
             reinstall_npu_driver="${i#*=}"
             shift
@@ -22,6 +48,7 @@ for i in "$@"; do
         ;;
         *)
             echo "Unknown option: $i"
+            show_help
             exit 1
         ;;
     esac
@@ -886,3 +913,4 @@ else
         echo_color "User added to render and video groups. Please log out and log back in for the changes to take effect." "cyan"
     fi
 fi
+

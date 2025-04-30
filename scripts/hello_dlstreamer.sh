@@ -5,7 +5,74 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-# variables required by Intel(R) DL Streamer
+# Show help message
+show_help() {
+    cat <<EOF
+
+Usage: $(basename "$0") [OPTIONS]
+
+This script provides a simple way to construct and execute
+a sample DL Streamer detection pipeline with YOLO model.
+
+Options:
+  -h, --help                  Show this help message and exit
+  -m=MODEL, --model=MODEL     YOLO model name to be used for detection (default: yolo11s)
+                              Available models: yolov5s | yolov8s | yolo11s
+  -o=OUTPUT, --output=OUTPUT  Type of output from a pipeline (default: display)
+                              Available types: display | file
+  -d=DEVICE, --device=DEVICE  Device to perform detection operations on (default: CPU)
+                              Available devices: CPU | GPU | NPU
+                              Note: GPU and NPU devices require drivers (DLS_install_prerequisites.sh)
+
+Examples:
+  $(basename "$0")
+  $(basename "$0") --model=yolov8s
+  $(basename "$0") --model=yolov8s --output=file --device=NPU
+  $(basename "$0") --help
+
+EOF
+}
+
+# Parse options
+MODEL="yolo11s"
+OUTPUT="display"
+DEVICE="CPU"
+for arg in "$@"; do
+    case $arg in
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        -m=*|--model=*)
+            MODEL="${arg#*=}"
+            if [[ "$MODEL" != "yolov5s" ]] && [[ "$MODEL" != "yolov8s" ]] && [[ "$MODEL" != "yolo11s" ]]; then
+                echo "Error! Wrong MODEL parameter. Supported models: yolov5s | yolov8s | yolo11s"
+                exit 1
+            fi
+        ;;
+        -o=*|--output=*)
+            OUTPUT="${arg#*=}"
+            if [[ "$OUTPUT" != "display" ]] && [[ "$OUTPUT" != "file" ]]; then
+                echo "Error! Wrong value for OUTPUT parameter. Supported values: display | file"
+                exit 1
+            fi
+        ;;
+        -d=*|--device=*)
+            DEVICE="${arg#*=}"
+            if [[ "$DEVICE" != "CPU" ]] && [[ "$DEVICE" != "GPU" ]] && [[ "$DEVICE" != "NPU" ]]; then
+                echo "Error! Wrong value for DEVICE parameter. Supported values: CPU | GPU | NPU"
+                exit 1
+            fi
+        ;;
+        *)
+            echo "Unknown option: '$arg'"
+            show_help
+            exit 1
+        ;;
+    esac
+done
+
+# variables required by DL Streamer
 export LIBVA_DRIVER_NAME=iHD
 export GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
 export LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/opencv:/opt/openh264:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib/gstreamer-1.0:/usr/local/lib
@@ -36,12 +103,7 @@ else
 	echo "---------------------------------------------------------------------------------------"
 fi
 
-# check if the inference model is set correctly; yolov5s, yolov8s and yolo11s are supported on this level
-MODEL=${3:-"yolo11s"}
-if [[ "$MODEL" != "yolov5s" ]] && [[ "$MODEL" != "yolov8s" ]] && [[ "$MODEL" != "yolo11s" ]]; then
-    echo "Error! Wrong MODEL parameter. Supported models: yolov5s | yolov8s | yolo11s".
-    exit
-fi
+# check if the model exists
 if [ -d "$MODELS_PATH"/public/"$MODEL"/FP32 ]; then
 	echo "$MODEL model exists."
 else
@@ -56,19 +118,6 @@ echo "Testing sample pipeline:"
 echo ""
 
 export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-
-# check if the output is set to file or display, only two options are supported
-OUTPUT=${1:-"display"}
-if [[ "$OUTPUT" != "display" ]] && [[ "$OUTPUT" != "file" ]]; then
-    echo "Error! Wrong value for OUTPUT parameter. Supported values: display | file".
-    exit
-fi
-# check if the device for inference is set correctly; only CPU, GPU and NPU options are supported
-DEVICE=${2:-"CPU"}
-if [[ "$DEVICE" != "CPU" ]] && [[ "$DEVICE" != "GPU" ]] && [[ "$DEVICE" != "NPU" ]]; then
-    echo "Error! Wrong value for DEVICE parameter. Supported values: CPU | GPU | NPU".
-    exit
-fi
 
 # print pipeline and run it
 execute() { echo "$*"$'\n' ; "$@" ; }
