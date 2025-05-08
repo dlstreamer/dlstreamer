@@ -20,7 +20,7 @@ jobs:
           echo "Kernel Version: $(uname -r)"
 
       - name: Checkout repository
-        uses: actions/checkout@d632683
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #4.2.2
         with:
           path: dlstreamer-repo
       
@@ -61,7 +61,7 @@ jobs:
           fi
 
       - name: Upload hello_dlstreamer output video
-        uses: actions/upload-artifact@5076954
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #4.6.2
         if: always()
         with:
           name: hello_dlstreamer_output_video
