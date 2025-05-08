@@ -44,7 +44,7 @@ for i in "$@"; do
         ;;
         --ubuntu_version=*)
             ubuntu_version="${i#*=}"
-            if [[ "$MODEL" != "ubuntu22" ]] && [[ "$MODEL" != "ubuntu24" ]]; then
+            if [[ "$ubuntu_version" != "ubuntu22" ]] && [[ "$ubuntu_version" != "ubuntu24" ]]; then
                 echo "Error! Wrong Ubuntu version parameter. Supported versions: ubuntu22 | ubuntu24"
                 exit 1
             fi
