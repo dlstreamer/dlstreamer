@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -24,12 +24,12 @@ class KeypointsHRnetConverter : public KeypointsConverter {
     KeypointsHRnetConverter(BlobToMetaConverter::Initializer initializer) : KeypointsConverter(std::move(initializer)) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    TensorsTable convert(const OutputBlobs &output_blobs) override;
 
     static std::string getName() {
         return "keypoints_hrnet";
     }
-    static std::string getDepricatedName() {
+    static std::string getDeprecatedName() {
         return "tensor_to_keypoints_hrnet";
     }
 };

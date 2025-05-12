@@ -15,11 +15,11 @@ LABEL description="This is the one binary image of Intel® Deep Learning Streame
 LABEL vendor="Intel Corporation"
 
 ARG DLSTREAMER_VERSION=2025.0.1.3
-ARG GST_VERSION=1.24.12
+ARG GST_VERSION=1.26.1
 ARG FFMPEG_VERSION=6.1.1
 
-ARG OPENVINO_VERSION=2025.0
-ARG OPENVINO_FILENAME=openvino_toolkit_ubuntu22_2025.0.0.17942.1f68be9f594_x86_64
+ARG OPENVINO_VERSION=2025.1
+ARG OPENVINO_FILENAME=openvino_toolkit_ubuntu22_2025.1.0.18503.6fec06580ab_x86_64
 
 ENV DLSTREAMER_DIR=/opt/intel/dlstreamer
 ENV GSTREAMER_DIR=/opt/intel/dlstreamer/gstreamer
@@ -149,6 +149,7 @@ RUN \
     -Dgst-plugins-good:lame=disabled \
     -Dgst-plugins-good:flac=disabled \
     -Dgst-plugins-good:dv=disabled \
+    -Dgst-plugins-good:soup=disabled \
     -Dgst-plugins-bad:gpl=enabled \
     -Dgst-plugins-bad:va=enabled \
     -Dgst-plugins-bad:doc=disabled \
@@ -175,6 +176,7 @@ RUN \
     -Dgst-plugins-bad:dtls=enabled \
     -Dgst-plugins-bad:srtp=enabled \
     -Dgst-plugins-bad:webrtc=enabled \
+    -Dgst-plugins-bad:webrtcdsp=disabled \
     -Dgst-plugins-bad:dash=disabled \
     -Dgst-plugins-bad:aja=disabled \
     -Dgst-plugins-bad:openjpeg=disabled \
@@ -183,6 +185,8 @@ RUN \
     -Dgst-plugins-bad:ttml=disabled \
     -Dgst-plugins-bad:codec2json=disabled \
     -Dgst-plugins-bad:qroverlay=disabled \
+    -Dgst-plugins-bad:soundtouch=disabled \
+    -Dgst-plugins-bad:isac=disabled \
     -Dgst-plugins-ugly:nls=disabled \
     -Dgst-plugins-ugly:x264=enabled \
     -Dgst-plugins-ugly:gpl=enabled \
@@ -197,7 +201,8 @@ RUN \
     --libexecdir=bin/ \
     build/ && \
     ninja -C build && \
-    meson install -C build/
+    meson install -C build/ && \
+    rm -r subprojects/gst-devtools subprojects/gst-examples
 
 ENV PKG_CONFIG_PATH="${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -29,12 +29,12 @@ class KeypointsOpenPoseConverter : public KeypointsConverter {
         : KeypointsConverter(std::move(initializer)), extractor(keypoints_number) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    TensorsTable convert(const OutputBlobs &output_blobs) override;
 
     static std::string getName() {
         return "keypoints_openpose";
     }
-    static std::string getDepricatedName() {
+    static std::string getDeprecatedName() {
         return "tensor_to_keypoints_openpose";
     }
 };

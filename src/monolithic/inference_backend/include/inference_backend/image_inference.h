@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -52,8 +52,9 @@ class ImageInference {
         CallbackFunc;
     typedef std::function<void(std::vector<IFrameBase::Ptr> frames)> ErrorHandlingFunc;
 
-    static Ptr make_shared(MemoryType type, const InferenceConfig &config, Allocator *allocator, CallbackFunc callback,
-                           ErrorHandlingFunc error_handler, dlstreamer::ContextPtr context);
+    static Ptr createImageInferenceInstance(MemoryType input_image_memory_type, const InferenceConfig &config,
+                                            Allocator *allocator, CallbackFunc callback,
+                                            ErrorHandlingFunc error_handler, dlstreamer::ContextPtr context);
 
     virtual void SubmitImage(IFrameBase::Ptr frame,
                              const std::map<std::string, std::shared_ptr<InputLayerDesc>> &input_preprocessors) = 0;
@@ -160,6 +161,7 @@ __DECLARE_CONFIG_KEY(INPUT_LAYER_PRECISION);
 __DECLARE_CONFIG_KEY(FORMAT);
 __DECLARE_CONFIG_KEY(DEVICE);
 __DECLARE_CONFIG_KEY(MODEL); // Path to model
+__DECLARE_CONFIG_KEY(CUSTOM_PREPROC_LIB);
 __DECLARE_CONFIG_KEY(NIREQ);
 __DECLARE_CONFIG_KEY(DEVICE_EXTENSIONS);
 __DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS); // number inference requests running in parallel

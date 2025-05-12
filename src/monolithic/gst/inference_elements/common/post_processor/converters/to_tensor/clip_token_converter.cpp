@@ -17,7 +17,7 @@
 using namespace post_processing;
 using namespace InferenceBackend;
 
-TensorsTable CLIPTokenConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable CLIPTokenConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
     try {

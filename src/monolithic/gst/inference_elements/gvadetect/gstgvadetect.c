@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -16,7 +16,7 @@
 #define ELEMENT_LONG_NAME "Object detection (generates GstVideoRegionOfInterestMeta)"
 #define ELEMENT_DESCRIPTION                                                                                            \
     "Performs object detection using SSD-like "                                                                        \
-    "(including MobileNet-V1/V2 and ResNet), YoloV2/YoloV3/YoloV2-tiny/YoloV3-tiny "                                   \
+    "(including MobileNet-V1/V2 and ResNet), YOLOv5 - YOLO11, YOLOX "                                                  \
     "and FasterRCNN-like object detection models."
 
 enum {

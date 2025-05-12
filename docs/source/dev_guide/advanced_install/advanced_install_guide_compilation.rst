@@ -155,8 +155,8 @@ Download and install OpenVINO™ Toolkit:
 
     .. code:: sh
 
-    sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
-    source /opt/intel/openvino_2025/setupvars.sh
+        sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
+        source /opt/intel/openvino_2025/setupvars.sh
 
 Step 9: Build Intel DLStreamer
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -76,7 +76,7 @@ class YOLOv2Converter : public YOLOBaseConverter {
     static std::string getName() {
         return "yolo_v2";
     }
-    static std::string getDepricatedName() {
+    static std::string getDeprecatedName() {
         return "tensor_to_bbox_yolo_v2";
     }
 };

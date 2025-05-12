@@ -83,6 +83,8 @@ SUPPORTED_MODELS=(
   "hsemotion"
   "deeplabv3"
   "clip-vit-large-patch14"
+  "clip-vit-base-patch16"
+  "clip-vit-base-patch32"
 )
 
 # Function to display text in a given color
@@ -575,20 +577,21 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
   fi
 fi
 
-if [ "$MODEL" == "clip-vit-large-patch14" ] || [ "$MODEL" == "all" ]; then
-  MODEL_NAME="clip-vit-large-patch14"
-  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE="$MODEL_DIR/FP32/$MODEL_NAME.xml"
+mapfile -t CLIP_MODELS < <(printf "%s\n" "${SUPPORTED_MODELS[@]}" | grep '^clip-vit-')
+for MODEL_NAME in "${CLIP_MODELS[@]}"; do
+  if [ "$MODEL" == "$MODEL_NAME" ] || [ "$MODEL" == "all" ]; then
+    MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
+    DST_FILE="$MODEL_DIR/FP32/$MODEL_NAME.xml"
 
-  if [ ! -f "$DST_FILE" ]; then
-    echo "Downloading and converting: ${MODEL_DIR}"
-    mkdir -p "$MODEL_DIR/FP32"
-    cd "$MODEL_DIR/FP32"
-    IMAGE_URL="https://storage.openvinotoolkit.org/data/test_data/images/car.png"
-    IMAGE_PATH=car.png
-    wget -O $IMAGE_PATH $IMAGE_URL
-    echo "Image downloaded to $IMAGE_PATH"
-    python3 - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
+    if [ ! -f "$DST_FILE" ]; then
+      echo "Downloading and converting: ${MODEL_DIR}"
+      mkdir -p "$MODEL_DIR/FP32"
+      cd "$MODEL_DIR/FP32"
+      IMAGE_URL="https://storage.openvinotoolkit.org/data/test_data/images/car.png"
+      IMAGE_PATH=car.png
+      wget -O $IMAGE_PATH $IMAGE_URL
+      echo "Image downloaded to $IMAGE_PATH"
+      python3 - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
 import openvino as ov
@@ -627,10 +630,11 @@ ov.save_model(ov_model, MODEL + ".xml")
 
 os.remove(img_path)
 EOF
-  else
-    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
+    else
+      echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
+    fi
   fi
-fi
+done
 
 if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="deeplabv3"
