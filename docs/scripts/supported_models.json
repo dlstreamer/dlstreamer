@@ -164,5 +164,7 @@
     "GETI_Classification_Multi_Label",
     "CenterFace",
     "HSEmotion",
-    "clip-vit-large-patch14"
+    "clip-vit-large-patch14",
+    "clip-vit-base-patch16",
+    "clip-vit-base-patch32"
 ]

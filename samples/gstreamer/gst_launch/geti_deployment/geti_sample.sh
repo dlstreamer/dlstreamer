@@ -16,16 +16,19 @@ else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL=${1:-geti-segmentation} # Supported values: geti-obb, geti-segmentation, geti-detection, geti-classification-single, geti-classification-multi
-DEVICE=${2:-GPU} # Supported values: CPU, GPU, NPU
-INPUT=${3:-https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4}
-OUTPUT=${4:-file} # Supported values: file, display, fps, json, display-and-json
+MODEL_TYPE=${1:-detection} # Supported values: rotated-detection, instance-segmentation, detection, classification
+MODEL_PATH=${2:-/home/path/to/your/model.xml}
+DEVICE=${3:-CPU} # Supported values: CPU, GPU, NPU
+PREPROC_BACKEND=${4:-ie} # Supported values: ie/opencv for CPU | va/va-surface-sharing/opencv for GPU/NPU
+INPUT=${5:-https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4}
+OUTPUT=${6:-file} # Supported values: file, display, fps, json, display-and-json
 
-MODEL_PATH="${MODELS_PATH}/intel/$MODEL/FP16/$MODEL.xml"
+FULL_MODEL_PATH="${MODELS_PATH}/${MODEL_PATH}"
+echo "FULL_MODEL_PATH: $FULL_MODEL_PATH"
 
 # check if model exists in local directory
-if [ ! -f $MODEL_PATH ]; then
-  echo "Model not found: ${MODEL_PATH}"
+if [ ! -f $FULL_MODEL_PATH ]; then
+  echo "Model not found: ${FULL_MODEL_PATH}"
   exit 
 fi
 
@@ -37,27 +40,38 @@ else
   SOURCE_ELEMENT="filesrc location=${INPUT}"
 fi
 
-if [[ $DEVICE == "CPU" ]]; then
-  DECODE_ELEMENT=" ! decodebin3 !"
-  PREPROC_BACKEND="ie" 
-elif [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
+DECODE_ELEMENT="! decodebin3 !"
+if [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
   DECODE_ELEMENT="! decodebin3 ! vapostproc ! video/x-raw(memory:VAMemory) !"
-  PREPROC_BACKEND="va-surface-sharing"
+fi
+
+if [[ "$PREPROC_BACKEND" == "" ]]; then
+  PREPROC_BACKEND="ie"
+  if [[ "$DEVICE" == "GPU" ]]; then
+    PREPROC_BACKEND="va-surface-sharing"
+  fi
+else
+  if [[ "$PREPROC_BACKEND" == "ie" ]] || [[ "$PREPROC_BACKEND" == "opencv" ]] || [[ "$PREPROC_BACKEND" == "va" ]] || [[ "$PREPROC_BACKEND" == "va-surface-sharing" ]]; then
+    PREPROC_BACKEND=${PREPROC_BACKEND}
+  else
+    echo "Error wrong value for PREPROC_BACKEND parameter. Supported values: ie/opencv for CPU | va/va-surface-sharing/opencv for GPU/NPU".
+    exit 
+  fi
 fi
 
 INFERENCE_ELEMENT="gvadetect"
-if [[ $MODEL == "geti-classification-single" ]] || [[ $MODEL == "geti-classification-multi" ]]; then
+if [[ $MODEL_TYPE =~ "classification" ]]; then
   INFERENCE_ELEMENT="gvaclassify inference-region=full-frame"
 fi
 
 WT_OBB_ELEMENT=" "
-if [[ $MODEL == "geti-obb" ]]; then
+if [[ $MODEL_TYPE =~ "rotated-detection" ]]; then
   WT_OBB_ELEMENT=" obb=true "
 fi
 
 if [[ $OUTPUT == "file" ]]; then
   FILE="$(basename ${INPUT%.*})"
-  rm -f "geti_${FILE}_${MODEL}_${DEVICE}.mp4"
+  rm -f "geti_${FILE}_${MODEL_TYPE}_${DEVICE}.mp4"
   if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
     ENCODER="vah264enc"
   elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
@@ -66,7 +80,7 @@ if [[ $OUTPUT == "file" ]]; then
     echo "Error - VA-API H.264 encoder not found."
     exit
   fi
-  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT} ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=geti_${FILE}_${MODEL}_${DEVICE}.mp4"
+  SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT} ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=geti_${FILE}_${MODEL_TYPE}_${DEVICE}.mp4"
 elif [[ $OUTPUT == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark${WT_OBB_ELEMENT} ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ $OUTPUT == "fps" ]]; then
@@ -84,7 +98,7 @@ else
 fi
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
-$INFERENCE_ELEMENT model=$MODEL_PATH device=$DEVICE pre-process-backend=$PREPROC_BACKEND ! queue ! \
+$INFERENCE_ELEMENT model=$FULL_MODEL_PATH device=$DEVICE pre-process-backend=$PREPROC_BACKEND ! queue ! \
 $SINK_ELEMENT"
 
 echo "${PIPELINE}"

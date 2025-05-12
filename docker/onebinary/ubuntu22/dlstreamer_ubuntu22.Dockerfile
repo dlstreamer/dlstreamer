@@ -10,44 +10,16 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN \
     apt-get update && \
-    apt-get install -y -q --no-install-recommends gnupg=\* ca-certificates=\* wget=\* libtbb-dev=\* cmake=\* git=\* git-lfs=\* vim=\* numactl=\* && \
+    apt-get install -y -q --no-install-recommends gnupg=\* ca-certificates=\* wget=\* libtbb-dev=\* cmake=\* vim=\* numactl=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Intel® NPU drivers (optional)
+RUN wget -q https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/scripts/DLS_install_prerequisites.sh && \
+    chmod +x DLS_install_prerequisites.sh && \
+    ./DLS_install_prerequisites.sh --on-host-or-docker=docker_ubuntu22 && \
+    rm -f DLS_install_prerequisites.sh
+
 RUN \
-    mkdir debs && \
-    dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu level-zero && \
-    wget -q https://github.com/oneapi-src/level-zero/releases/download/v1.17.44/level-zero_1.17.44+u22.04_amd64.deb -P ./debs && \
-    wget -q --no-check-certificate -nH --accept-regex="ubuntu22" --cut-dirs=5 -r https://github.com/intel/linux-npu-driver/releases/expanded_assets/v1.13.0 -P ./debs && \
-    apt-get install -y -q --no-install-recommends ./debs/*.deb && \
-    rm -r -f debs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -f /etc/ssl/certs/Intel*
-
-# Intel® Data Center GPU Flex Series drivers (optional)
-# hadolint ignore=SC1091
-RUN export -n no_proxy && \
-    apt-get update && \
-    . /etc/os-release && \
-    if [[ ! "jammy" =~ ${VERSION_CODENAME} ]]; then \
-        echo "Ubuntu version ${VERSION_CODENAME} not supported"; \
-    else \
-        wget --no-check-certificate -qO- https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor --output /usr/share/keyrings/gpu-intel-graphics.gpg && \
-        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/gpu-intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy client" | \
-        tee /etc/apt/sources.list.d/intel-gpu-"${VERSION_CODENAME}".list && \
-        apt-get update; \
-    fi && \
-    apt-get install -y --no-install-recommends \
-    intel-opencl-icd=\* ocl-icd-opencl-dev=\* intel-level-zero-gpu=\* level-zero=\* \
-    libmfx1=\* libmfxgen1=\* libvpl2=\* intel-media-va-driver-non-free=\* \
-    libgbm1=\* libigdgmm12=\* libxatracker2=\* libdrm-amdgpu1=\* \
-    va-driver-all=\* vainfo=\* hwinfo=\* clinfo=\* && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN export -n no_proxy && \
     echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu22 main" | tee /etc/apt/sources.list.d/intel-openvino-2025.list && \
     wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
     apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
@@ -58,7 +30,7 @@ RUN export -n no_proxy && \
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-RUN export -n no_proxy && \
+RUN \
     apt-get update -y && \
     apt-get install -y -q --no-install-recommends intel-dlstreamer=\* && \
     apt-get clean -y && \
@@ -93,8 +65,8 @@ USER dlstreamer
 RUN \
     python3 -m venv /python3venv && \
     /python3venv/bin/pip3 install --no-cache-dir --upgrade pip && \
-    /python3venv/bin/pip3 install --no-cache-dir --no-dependencies PyGObject==3.50.0 setuptools==75.8.0
-  
+    /python3venv/bin/pip3 install --no-cache-dir --no-dependencies PyGObject==3.50.0 setuptools==70.0.0 numpy==2.2.0 tqdm==4.67.1 opencv-python==4.11.0.86
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD [ "bash", "-c", "pgrep bash > /dev/null || exit 1" ]
 

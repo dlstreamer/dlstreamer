@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,14 +13,14 @@
 
 namespace InferenceBackend {
 
-ImagePreprocessor *ImagePreprocessor::Create(ImagePreprocessorType type) {
+ImagePreprocessor *ImagePreprocessor::Create(ImagePreprocessorType type, const std::string custom_preproc_lib) {
     ImagePreprocessor *p = nullptr;
     switch (type) {
     case ImagePreprocessorType::OPENCV:
-        p = CreatePreProcOpenCV();
+        p = CreatePreProcOpenCV(custom_preproc_lib);
         break;
     case ImagePreprocessorType::VAAPI_SYSTEM:
-        p = CreatePreProcOpenCV();
+        p = CreatePreProcOpenCV(custom_preproc_lib);
         break;
     }
     if (p == nullptr)

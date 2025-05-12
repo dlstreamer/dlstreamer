@@ -18,7 +18,7 @@ struct _GstAnalyticsODExtMtdData {
     GList *params;
 };
 
-static const GstAnalyticsMtdImpl od_ext_impl = {"object-detection-extended", NULL, {NULL}};
+static const GstAnalyticsMtdImpl od_ext_impl = {"object-detection-extended", NULL, NULL, {NULL}};
 
 GstAnalyticsMtdType gst_analytics_od_ext_mtd_get_mtd_type(void) {
     return (GstAnalyticsMtdType)&od_ext_impl;

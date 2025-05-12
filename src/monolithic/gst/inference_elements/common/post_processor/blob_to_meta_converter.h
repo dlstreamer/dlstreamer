@@ -67,7 +67,7 @@ class BlobToMetaConverter {
   public:
     BlobToMetaConverter(Initializer initializer);
 
-    virtual TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
+    virtual TensorsTable convert(const OutputBlobs &output_blobs) = 0;
 
     using Ptr = std::unique_ptr<BlobToMetaConverter>;
     static Ptr create(Initializer initializer, ConverterType converter_type,

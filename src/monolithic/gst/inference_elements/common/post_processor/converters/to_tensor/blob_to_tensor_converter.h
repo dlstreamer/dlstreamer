@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -31,7 +31,7 @@ class BlobToTensorConverter : public BlobToMetaConverter {
   public:
     BlobToTensorConverter(BlobToMetaConverter::Initializer initializer);
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
+    virtual TensorsTable convert(const OutputBlobs &output_blobs) = 0;
 };
 
 } // namespace post_processing

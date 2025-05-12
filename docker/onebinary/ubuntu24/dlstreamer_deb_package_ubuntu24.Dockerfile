@@ -15,11 +15,11 @@ LABEL description="This is the one binary image of Intel® Deep Learning Streame
 LABEL vendor="Intel Corporation"
 
 ARG DLSTREAMER_VERSION=2025.0.1.3
-ARG GST_VERSION=1.24.12
+ARG GST_VERSION=1.26.1
 ARG FFMPEG_VERSION=6.1.1
 
-ARG OPENVINO_VERSION=2025.0
-ARG OPENVINO_FILENAME=openvino_toolkit_ubuntu24_2025.0.0.17942.1f68be9f594_x86_64
+ARG OPENVINO_VERSION=2025.1
+ARG OPENVINO_FILENAME=openvino_toolkit_ubuntu24_2025.1.0.18503.6fec06580ab_x86_64
 
 ENV DLSTREAMER_DIR=/opt/intel/dlstreamer
 ENV GSTREAMER_DIR=/opt/intel/dlstreamer/gstreamer
@@ -188,7 +188,8 @@ RUN \
     --libexecdir=bin/ \
     build/ && \
     ninja -C build && \
-    meson install -C build/
+    meson install -C build/ && \
+    rm -r subprojects/gst-devtools subprojects/gst-examples
 
 ENV PKG_CONFIG_PATH="${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 

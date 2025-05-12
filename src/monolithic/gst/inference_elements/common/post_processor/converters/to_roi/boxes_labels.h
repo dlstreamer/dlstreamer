@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -37,7 +37,7 @@ class BoxesLabelsConverter : public BoxesLabelsScoresConverter {
     static std::string getName() {
         return "boxes_labels";
     }
-    static std::string getDepricatedName() {
+    static std::string getDeprecatedName() {
         return "tensor_to_bbox_atss";
     }
 };

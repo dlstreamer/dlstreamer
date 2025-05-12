@@ -519,7 +519,7 @@ class MetaAggregatePrivate {
         GstGVATensorMeta *custom_meta;
         gpointer state = nullptr;
         while ((custom_meta = GST_GVA_TENSOR_META_ITERATE(meta_frame->gst_buffer(), &state))) {
-            std::string name = g_quark_to_string(custom_meta->data->name);
+            std::string name = custom_meta->data->name ? g_quark_to_string(custom_meta->data->name) : "";
             // Skip utility metadata-s
             if (name == SourceIdentifierMetadata::name || name == ModelInfoMetadata::name ||
                 name == AffineTransformInfoMetadata::name)
