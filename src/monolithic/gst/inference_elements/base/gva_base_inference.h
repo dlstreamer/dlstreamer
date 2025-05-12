@@ -55,6 +55,7 @@ typedef struct _GvaBaseInference {
     gchar *object_class;
     gchar *labels;
     gchar *scale_method;
+    gchar *custom_preproc_lib;
 
     // other fields
     struct GvaBaseInferencePrivate *priv;

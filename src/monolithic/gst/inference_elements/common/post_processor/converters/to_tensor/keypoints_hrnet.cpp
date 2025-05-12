@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -24,7 +24,7 @@
 
 using namespace post_processing;
 
-TensorsTable KeypointsHRnetConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable KeypointsHRnetConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
     try {

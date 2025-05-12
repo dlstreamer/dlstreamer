@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -113,7 +113,7 @@ void CenterfaceConverter::addLandmarksTensor(DetectedObject &detected_object, co
     detected_object.tensors.push_back(tensor);
 }
 
-TensorsTable CenterfaceConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable CenterfaceConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

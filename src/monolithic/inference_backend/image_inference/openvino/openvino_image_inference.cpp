@@ -244,6 +244,10 @@ struct ConfigHelper {
         return base_config.at(KEY_MODEL);
     }
 
+    const std::string custom_preproc_lib() const {
+        return base_config.at(KEY_CUSTOM_PREPROC_LIB);
+    }
+
     int batch_size() const {
         return std::stoi(base_config.at(KEY_BATCH_SIZE));
     }
@@ -651,46 +655,49 @@ class OpenVinoNewApiImpl {
                 gst_structure_set_value(s, "mean", &gvalue);
                 g_value_unset(&gvalue);
             }
-            if ((element.first == "resize_type") && (element.second.as<std::string>() == "fit_to_window_letterbox")) {
+            if ((element.first == "resize_type")) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
-                g_value_set_string(&gvalue, "aspect-ratio");
-                gst_structure_set_value(s, "resize", &gvalue);
-                g_value_unset(&gvalue);
-            }
-            if ((element.first == "resize_type") && (element.second.as<std::string>() == "standard")) {
-                GValue gvalue = G_VALUE_INIT;
-                g_value_init(&gvalue, G_TYPE_STRING);
-                g_value_set_string(&gvalue, "no-aspect-ratio");
-                gst_structure_set_value(s, "resize", &gvalue);
-                g_value_unset(&gvalue);
-            }
-            if ((element.first == "resize_type") && (element.second.as<std::string>() == "fit_to_window")) {
-                GValue gvalue = G_VALUE_INIT;
-                g_value_init(&gvalue, G_TYPE_STRING);
-                g_value_set_string(&gvalue, "aspect-ratio-pad");
-                gst_structure_set_value(s, "resize", &gvalue);
-                g_value_unset(&gvalue);
-            }
-            if ((element.first == "resize_type") && (element.second.as<std::string>() == "crop")) {
-                GValue gvalue = G_VALUE_INIT;
-                g_value_init(&gvalue, G_TYPE_STRING);
-                g_value_set_string(&gvalue, "central-resize");
-                gst_structure_set_value(s, "crop", &gvalue);
+
+                if (element.second.as<std::string>() == "crop") {
+                    g_value_set_string(&gvalue, "central-resize");
+                    gst_structure_set_value(s, "crop", &gvalue);
+                }
+                if (element.second.as<std::string>() == "fit_to_window_letterbox") {
+                    g_value_set_string(&gvalue, "aspect-ratio");
+                    gst_structure_set_value(s, "resize", &gvalue);
+                }
+                if (element.second.as<std::string>() == "fit_to_window") {
+                    g_value_set_string(&gvalue, "aspect-ratio-pad");
+                    gst_structure_set_value(s, "resize", &gvalue);
+                }
+                if (element.second.as<std::string>() == "standard") {
+                    g_value_set_string(&gvalue, "no-aspect-ratio");
+                    gst_structure_set_value(s, "resize", &gvalue);
+                }
                 g_value_unset(&gvalue);
             }
             if ((element.first == "reverse_input_channels") && (element.second.as<std::string>() == "True")) {
+                // Separate case for LVM
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_STRING);
                 g_value_set_string(&gvalue, "RGB");
                 gst_structure_set_value(s, "color_space", &gvalue);
                 g_value_unset(&gvalue);
             }
-            if ((element.first == "reverse_input_channels") && (element.second.as<std::string>() == "YES")) {
+            if ((element.first == "reverse_input_channels")) {
                 GValue gvalue = G_VALUE_INIT;
                 g_value_init(&gvalue, G_TYPE_INT);
-                g_value_set_int(&gvalue, gint(true));
+                g_value_set_int(&gvalue, gint(false));
+
+                std::transform(element.second.as<std::string>().begin(), element.second.as<std::string>().end(),
+                               element.second.as<std::string>().begin(), ::tolower);
+
+                if (element.second.as<std::string>() == "yes" || element.second.as<std::string>() == "true")
+                    g_value_set_int(&gvalue, gint(true));
+
                 gst_structure_set_value(s, "reverse_input_channels", &gvalue);
+                g_value_unset(&gvalue);
             }
         }
 
@@ -1290,13 +1297,14 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
         }
 
         const auto pp_type = cfg_helper.pp_type();
+        const std::string custom_preproc_lib = cfg_helper.custom_preproc_lib();
 
         // FIXME: why VAAPI ?
         if (pp_type == InferenceBackend::ImagePreprocessorType::OPENCV ||
             pp_type == InferenceBackend::ImagePreprocessorType::VAAPI_SYSTEM) {
             std::string pp_type_string = fmt::format("creating pre-processor, type: {}", pp_type);
             GVA_INFO("%s", pp_type_string.c_str());
-            pre_processor.reset(InferenceBackend::ImagePreprocessor::Create(pp_type));
+            pre_processor.reset(InferenceBackend::ImagePreprocessor::Create(pp_type, custom_preproc_lib));
         }
 
     } catch (const std::exception &e) {

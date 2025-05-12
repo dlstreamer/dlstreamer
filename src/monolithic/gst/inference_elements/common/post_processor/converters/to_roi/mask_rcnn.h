@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -81,13 +81,13 @@ class MaskRCNNConverter : public BlobToROIConverter {
         : BlobToROIConverter(std::move(initializer), confidence_threshold, true, iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    TensorsTable convert(const OutputBlobs &output_blobs) override;
 
     static std::string getName() {
         return "mask_rcnn";
     }
 
-    static std::string getDepricatedName() {
+    static std::string getDeprecatedName() {
         return "tensor_to_bbox_mask_rcnn";
     }
 };

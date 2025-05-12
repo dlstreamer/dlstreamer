@@ -110,7 +110,8 @@ uint32_t GetOptimalBatchSize(const char *device) {
     return batch_size;
 }
 
-InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference, const std::string &model_file) {
+InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference, const std::string &model_file,
+                                            const std::string &custom_preproc_lib) {
     assert(gva_base_inference && "Expected valid GvaBaseInference");
 
     InferenceConfig config;
@@ -118,6 +119,7 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
     std::map<std::string, std::string> inference = Utils::stringToMap(gva_base_inference->ie_config);
 
     base[KEY_MODEL] = model_file;
+    base[KEY_CUSTOM_PREPROC_LIB] = custom_preproc_lib;
     base[KEY_NIREQ] = std::to_string(gva_base_inference->nireq);
     if (gva_base_inference->device != nullptr) {
         std::string device = gva_base_inference->device;
@@ -222,9 +224,8 @@ bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr
             continue;
         auto input_desc = PreProcParamsParser(it->params).parse();
         // In these cases we need to switch to opencv preproc
-        // VAAPI converts color to RGBP by default
-        if (input_desc && (input_desc->doNeedDistribNormalization() ||
-                           (input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
+        // VAAPI converts color to RGBP by default (?)
+        if (input_desc && ((input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
                             input_desc->doNeedColorSpaceConversion(static_cast<int>(format)))))
             return false;
     }
@@ -238,8 +239,7 @@ bool IsModelProcSupportedForVaapiSurfaceSharing(
         if (!it || it->format != "image")
             continue;
         auto input_desc = PreProcParamsParser(it->params).parse();
-        if (input_desc && (input_desc->doNeedDistribNormalization() ||
-                           (input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
+        if (input_desc && ((input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
                             input_desc->doNeedColorSpaceConversion(static_cast<int>(format)))))
             return false;
     }
@@ -297,40 +297,48 @@ GetPreferredImagePreproc(CapsFeature caps, const std::vector<ModelInputProcessor
     return result;
 }
 
-void SetPreprocessor(InferenceConfig &config,
-                     const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
-                     GstVideoInfo *input_video_info) {
+void setPreprocessorType(InferenceConfig &config,
+                         const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
+                         GstVideoInfo *input_video_info) {
+    // Extract the caps feature and current preprocessor type from the configuration
     const auto caps = static_cast<CapsFeature>(std::stoi(config[KEY_BASE][KEY_CAPS_FEATURE]));
     const auto current = static_cast<ImagePreprocessorType>(std::stoi(config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE]));
 
-    // Select preprocessor
+    // Variable to hold the selected preprocessor type
+    ImagePreprocessorType selected_preprocessor = current;
+
+    // Determine the appropriate preprocessor type
     if (current == ImagePreprocessorType::AUTO) {
-        const auto preferred =
+        // Automatically select the preferred preprocessor type based on capabilities and input info
+        selected_preprocessor =
             GetPreferredImagePreproc(caps, model_input_processor_info, input_video_info, config[KEY_BASE][KEY_DEVICE]);
-        config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(preferred));
     } else if (!IsPreprocSupported(current, model_input_processor_info, input_video_info,
                                    config[KEY_BASE][KEY_DEVICE])) {
+        // Handle unsupported preprocessor types by attempting fallback options
         if (current == ImagePreprocessorType::IE &&
-            IsPreprocSupported(
-                ImagePreprocessorType::OPENCV, model_input_processor_info, input_video_info,
-                config[KEY_BASE][KEY_DEVICE])) { // if pre-processing params not supported by IE, change to OpenCV
-            config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(ImagePreprocessorType::OPENCV));
+            IsPreprocSupported(ImagePreprocessorType::OPENCV, model_input_processor_info, input_video_info,
+                               config[KEY_BASE][KEY_DEVICE])) {
+            // Fallback to OpenCV if IE is unsupported
+            selected_preprocessor = ImagePreprocessorType::OPENCV;
             GVA_WARNING("'pre-process-backend=ie' not supported with current settings, falling back to "
                         "'pre-process-backend=opencv'");
         } else if (current == ImagePreprocessorType::VAAPI_SURFACE_SHARING &&
                    IsPreprocSupported(ImagePreprocessorType::VAAPI_SYSTEM, model_input_processor_info, input_video_info,
                                       config[KEY_BASE][KEY_DEVICE])) {
-            config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] =
-                std::to_string(static_cast<int>(ImagePreprocessorType::VAAPI_SYSTEM));
-            GVA_WARNING(
-                "'pre-process-backend=vaapi-surface-sharing' not supported with current settings, falling back to "
-                "'pre-process-backend=vaapi'");
+            // Fallback to VAAPI_SYSTEM if VAAPI_SURFACE_SHARING is unsupported
+            selected_preprocessor = ImagePreprocessorType::VAAPI_SYSTEM;
+            GVA_WARNING("'pre-process-backend=vaapi-surface-sharing' not supported with current settings, falling back "
+                        "to 'pre-process-backend=vaapi'");
         } else {
+            // Throw an error if no suitable fallback is available
             throw std::runtime_error(
-                "Specified pre-process-backend can not be chosen due to unsupported operations defined in model-proc. "
-                "If you want to use it, please remove inappropriate parameters for desired pre-process-backend.");
+                "Specified pre-process-backend cannot be chosen due to unsupported operations defined in model-proc. "
+                "Please remove inappropriate parameters for the desired pre-process-backend.");
         }
     }
+
+    // Assign the selected preprocessor type to the configuration
+    config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE] = std::to_string(static_cast<int>(selected_preprocessor));
 }
 
 std::string three_doubles_to_str(const std::array<double, 3> &v) {
@@ -609,7 +617,8 @@ dlstreamer::ContextPtr createVaDisplay(GvaBaseInference *gva_base_inference) {
 } // namespace
 
 InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_inference, const std::string &model_file,
-                                                const std::string &model_proc_path, const std::string &labels_str) {
+                                                const std::string &model_proc_path, const std::string &labels_str,
+                                                const std::string &custom_preproc_lib) {
     assert(gva_base_inference && "Expected a valid pointer to GvaBaseInference");
 
     if (!Utils::fileExists(model_file))
@@ -617,6 +626,17 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
 
     if (Utils::symLink(model_file))
         throw std::invalid_argument("ERROR: model file '" + model_file + "' is a symbolic link");
+
+    if (!custom_preproc_lib.empty()) {
+
+        if (!Utils::fileExists(custom_preproc_lib))
+            throw std::invalid_argument("ERROR: custom preprocessing library '" + custom_preproc_lib +
+                                        "' does not exist");
+
+        if (Utils::symLink(custom_preproc_lib))
+            throw std::invalid_argument("ERROR: custom preprocessing library '" + custom_preproc_lib +
+                                        "' is a symbolic link");
+    }
 
     Model model;
 
@@ -648,9 +668,9 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         gva_base_inference->batch_size = GetOptimalBatchSize(gva_base_inference->device);
 
     UpdateModelReshapeInfo(gva_base_inference);
-    InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference, model_file);
+    InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference, model_file, custom_preproc_lib);
     UpdateConfigWithLayerInfo(model.input_processor_info, ie_config);
-    SetPreprocessor(ie_config, model.input_processor_info, gva_base_inference->info);
+    setPreprocessorType(ie_config, model.input_processor_info, gva_base_inference->info);
     memory_type =
         GetMemoryType(GetMemoryType(static_cast<CapsFeature>(std::stoi(ie_config[KEY_BASE][KEY_CAPS_FEATURE]))),
                       static_cast<ImagePreprocessorType>(std::stoi(ie_config[KEY_BASE][KEY_PRE_PROCESSOR_TYPE])));
@@ -682,7 +702,7 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         ie_config[KEY_BASE]["frame-height"] = std::to_string(gva_base_inference->info->height);
     }
 
-    auto image_inference = ImageInference::make_shared(
+    auto image_inference = ImageInference::createImageInferenceInstance(
         memory_type, ie_config, allocator.get(), std::bind(&InferenceImpl::InferenceCompletionCallback, this, _1, _2),
         std::bind(&InferenceImpl::PushFramesIfInferenceFailed, this, _1), std::move(va_dpy));
     if (!image_inference)
@@ -710,11 +730,16 @@ InferenceImpl::InferenceImpl(GvaBaseInference *gva_base_inference) {
         labels_str = gva_base_inference->labels;
     }
 
+    std::string custom_preproc_lib;
+    if (gva_base_inference->custom_preproc_lib) {
+        custom_preproc_lib = gva_base_inference->custom_preproc_lib;
+    }
+
     allocator = CreateAllocator(gva_base_inference->allocator_name);
 
     GVA_INFO("Loading model: device=%s, path=%s", std::string(gva_base_inference->device).c_str(), model_file.c_str());
     GVA_INFO("Initial settings: batch_size=%u, nireq=%u", gva_base_inference->batch_size, gva_base_inference->nireq);
-    this->model = CreateModel(gva_base_inference, model_file, model_proc, labels_str);
+    this->model = CreateModel(gva_base_inference, model_file, model_proc, labels_str, custom_preproc_lib);
 }
 
 dlstreamer::ContextPtr InferenceImpl::GetDisplay(GvaBaseInference *gva_base_inference) {

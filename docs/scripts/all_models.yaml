@@ -1,4 +1,20 @@
 # Newest models
+clip-vit-base-patch32:
+  source: public
+  format: pytorch
+  task_type: lvm
+  readme: https://huggingface.co/openai/clip-vit-base-patch32
+  source_readme: https://huggingface.co/openai/clip-vit-base-patch32
+  labels-file: 
+  model-proc: not required
+clip-vit-base-patch16:
+  source: public
+  format: pytorch
+  task_type: lvm
+  readme: https://huggingface.co/openai/clip-vit-base-patch16
+  source_readme: https://huggingface.co/openai/clip-vit-base-patch16
+  labels-file: 
+  model-proc: not required
 clip-vit-large-patch14:
   source: public
   format: pytorch

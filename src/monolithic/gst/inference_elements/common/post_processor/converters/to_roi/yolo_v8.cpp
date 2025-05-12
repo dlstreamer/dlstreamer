@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -61,7 +61,7 @@ void YOLOv8Converter::parseOutputBlob(const float *data, const std::vector<size_
     }
 }
 
-TensorsTable YOLOv8Converter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8Converter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
@@ -90,7 +90,7 @@ TensorsTable YOLOv8Converter::convert(const OutputBlobs &output_blobs) const {
     return TensorsTable{};
 }
 
-TensorsTable YOLOv8ObbConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8ObbConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
@@ -119,7 +119,7 @@ TensorsTable YOLOv8ObbConverter::convert(const OutputBlobs &output_blobs) const 
     return TensorsTable{};
 }
 
-TensorsTable YOLOv8PoseConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8PoseConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
@@ -351,7 +351,7 @@ void YOLOv8SegConverter::parseOutputBlob(const float *boxes_data, const std::vec
     }
 }
 
-TensorsTable YOLOv8SegConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8SegConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

@@ -7,7 +7,7 @@
 
 RUN_PREFIX=
 
-OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.0/linux/openvino_toolkit_ubuntu22_2025.0.0.17942.1f68be9f594_x86_64.tgz"
+OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/linux/openvino_toolkit_ubuntu22_2025.1.0.18503.6fec06580ab_x86_64.tgz"
 OV_ARCHIVE_EXT=".tgz"
 OV_CHECKSUM_EXT=".tgz.sha256"
 OV_LOCAL_ARCHIVE_PATH=/tmp/openvino_installation
