@@ -13,6 +13,8 @@
 // For logger_name
 #include <dlstreamer/element.h>
 
+#include <spdlog/fmt/bundled/ranges.h>
+
 #include "openvino_image_inference.h"
 
 #include "config.h"
