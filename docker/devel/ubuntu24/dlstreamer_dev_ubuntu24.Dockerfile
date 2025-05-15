@@ -27,7 +27,12 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN userdel -r ubuntu
 
+COPY scripts/DLS_install_prerequisites.sh /DLS_install_prerequisites.sh
+
 RUN \
+    chmod +x /DLS_install_prerequisites.sh && \
+    /DLS_install_prerequisites.sh --on-host-or-docker=docker_ubuntu24 && \
+    rm -f /DLS_install_prerequisites.sh && \
     apt-get update && \
     apt-get install -y -q --no-install-recommends wget=\* xz-utils=\* python3-pip=\* python3-gi=\* gcc-multilib=\* libglib2.0-dev=\* \
     flex=\* bison=\* autoconf=\* automake=\* libtool=\* libogg-dev=\* make=\* g++=\* libva-dev=\* yasm=\* libglx-dev=\* libdrm-dev=\* \
@@ -36,10 +41,6 @@ RUN \
     libcairo2-dev=\* libxt-dev=\* libgirepository1.0-dev=\* libgles2-mesa-dev=\* wayland-protocols=\* libcurl4-openssl-dev=\* \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
     linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* && \
-    wget -q https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/scripts/DLS_install_prerequisites.sh && \
-    chmod +x DLS_install_prerequisites.sh && \
-    ./DLS_install_prerequisites.sh --on-host-or-docker=docker_ubuntu24 && \
-    rm -f DLS_install_prerequisites.sh && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -245,7 +246,7 @@ RUN \
 # Intel® DL Streamer
 WORKDIR "$DLSTREAMER_DIR"
 
-COPY libraries/dl-streamer/ "${DLSTREAMER_DIR}"
+COPY . "${DLSTREAMER_DIR}"
 
 RUN \
     mkdir build && \
