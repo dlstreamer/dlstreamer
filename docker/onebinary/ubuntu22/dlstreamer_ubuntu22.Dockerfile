@@ -22,19 +22,19 @@ RUN wget -q https://raw.githubusercontent.com/open-edge-platform/edge-ai-librari
 RUN \
     echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu22 main" | tee /etc/apt/sources.list.d/intel-openvino-2025.list && \
     wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    wget -q -O- https://eci.intel.com/sed-repos/gpg-keys/GPG-PUB-KEY-INTEL-SED.gpg | tee /usr/share/keyrings/sed-archive-keyring.gpg > /dev/null && \
-    echo "deb [signed-by=/usr/share/keyrings/sed-archive-keyring.gpg] https://eci.intel.com/sed-repos/jammy sed main" | tee /etc/apt/sources.list.d/sed.list && \
-    echo "deb-src [signed-by=/usr/share/keyrings/sed-archive-keyring.gpg] https://eci.intel.com/sed-repos/jammy sed main" | tee -a /etc/apt/sources.list.d/sed.list && \
-    bash -c 'echo -e "Package: *\nPin: origin eci.intel.com\nPin-Priority: 1000" > /etc/apt/preferences.d/sed'
+    apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+
+RUN mkdir -p /debs
+COPY ./deb_packages/*.deb /debs/
 
 ARG DEBIAN_FRONTEND=noninteractive
 
 RUN \
     apt-get update -y && \
-    apt-get install -y -q --no-install-recommends intel-dlstreamer=\* && \
+    apt-get install -y -q --no-install-recommends /debs/*.deb && \
     apt-get clean -y && \
     rm -rf /var/lib/apt/lists/* && \
+    rm -rf /debs && \
     useradd -ms /bin/bash dlstreamer && \
     chown -R dlstreamer: /opt && \
     chmod -R u+rw /opt
