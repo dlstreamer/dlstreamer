@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -147,9 +147,12 @@ void BlobToROIConverter::runNms(std::vector<DetectedObject> &candidates) const {
 
             assert(union_area != 0 && "union_area is null. Both of the boxes have zero areas.");
             const double overlap = inter_area / union_area;
-            if (overlap > iou_threshold)
+            if (overlap > iou_threshold) {
+                for (auto tensor : p_candidate->tensors) {
+                    gst_structure_free(tensor);
+                }
                 p_candidate = candidates.erase(p_candidate);
-            else
+            } else
                 ++p_candidate;
         }
     }
