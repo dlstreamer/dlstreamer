@@ -5,7 +5,7 @@ clip-vit-base-patch32:
   task_type: lvm
   readme: https://huggingface.co/openai/clip-vit-base-patch32
   source_readme: https://huggingface.co/openai/clip-vit-base-patch32
-  labels-file: 
+  labels-file:
   model-proc: not required
 clip-vit-base-patch16:
   source: public
@@ -13,7 +13,7 @@ clip-vit-base-patch16:
   task_type: lvm
   readme: https://huggingface.co/openai/clip-vit-base-patch16
   source_readme: https://huggingface.co/openai/clip-vit-base-patch16
-  labels-file: 
+  labels-file:
   model-proc: not required
 clip-vit-large-patch14:
   source: public
@@ -21,7 +21,7 @@ clip-vit-large-patch14:
   task_type: lvm
   readme: https://huggingface.co/openai/clip-vit-large-patch14
   source_readme: https://huggingface.co/openai/clip-vit-large-patch14
-  labels-file: 
+  labels-file:
   model-proc: not required
 YOLOv5:
   source: public
@@ -81,7 +81,7 @@ YOLO11:
   format: pytorch
   task_type: detection
   readme: https://dlstreamer.github.io/dev_guide/yolo_models.html
-  source_readme: https://docs.ultralytics.com/tasks/detect/ 
+  source_readme: https://docs.ultralytics.com/tasks/detect/
   model-proc: not required
 YOLOX:
   source: public
@@ -97,7 +97,7 @@ CenterFace:
   task_type: detection
   readme: https://github.com/Star-Clouds/CenterFace/tree/master
   source_readme: https://github.com/Star-Clouds/CenterFace/tree/master
-  labels-file: 
+  labels-file:
   model-proc: not required
 HSEmotion:
   source: public
@@ -105,7 +105,7 @@ HSEmotion:
   task_type: emotion recognition
   readme: https://github.com/av-savchenko/face-emotion-recognition/tree/main
   source_readme: https://github.com/av-savchenko/face-emotion-recognition/tree/main
-  labels-file: 
+  labels-file:
   model-proc: not required
 
 mask_rcnn_inception_resnet_v2_atrous_coco:
@@ -2700,7 +2700,7 @@ mobilenet-yolo-v4-syg:
     paper of MobileNetV2<https://arxiv.org/abs/1801.04381> and YOLOv4<https://arxiv.org/abs/2004.10934>
   license: https://raw.githubusercontent.com/david8862/keras-YOLOv3-model-set/master/LICENSE
   mAP: 86.35%
-  model-proc: https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/mobilenet-yolo-v4-syg.json
+  model-proc: https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/mobilenet-yolo-v4-syg.json
   name: mobilenet-yolo-v4-syg
   openvino_devices: CPU
   readme: https://github.com/openvinotoolkit/open_model_zoo/tree/master//models/public/mobilenet-yolo-v4-syg

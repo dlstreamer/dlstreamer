@@ -133,7 +133,7 @@ Step 3: Install Intel® DL Streamer Pipeline Framework
 **Congratulations! Intel® DL Streamer is now installed and ready for use!**
 
 
-To see the full list of installed components check the `dockerfile content for Ubuntu24 <https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/refs/heads/main/libraries/dl-streamer/docker/dlstreamer_dev_ubuntu24.Dockerfile>`__
+To see the full list of installed components check the `Dockerfile content for Ubuntu 24 <https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/docker/devel/ubuntu24/dlstreamer_dev_ubuntu24.Dockerfile>`__
 
 
 [Optional] Step 4: Python dependencies
