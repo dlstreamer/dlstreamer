@@ -7,9 +7,10 @@
 FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
-
+ARG BUILD_ARG=Debug
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
+ARG DLSTREAMER_VERSION=2025.0.1.3
 
 ARG GST_VERSION=1.26.1
 ARG FFMPEG_VERSION=6.1.1
@@ -182,7 +183,7 @@ RUN \
     -Dgstreamer-vaapi:glx=enabled \
     -Dgstreamer-vaapi:wayland=enabled \
     -Dgstreamer-vaapi:egl=enabled \
-    --buildtype=debug \
+    --buildtype=${BUILD_ARG,} \
     --prefix=${GSTREAMER_DIR} \
     --libdir=lib/ \
     --libexecdir=bin/ \
@@ -265,8 +266,8 @@ ENV LD_LIBRARY_PATH=$INTEL_OPENVINO_DIR/tools/compile_tool:$INTEL_OPENVINO_DIR/r
 ENV PYTHONPATH=$INTEL_OPENVINO_DIR/python/${PYTHON_VERSION}:$PYTHONPATH
 
 # DLStreamer environment variables
-ENV LIBDIR=${DLSTREAMER_DIR}/build/intel64/Debug/lib
-ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/Debug/bin
+ENV LIBDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/lib
+ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/bin
 ENV PATH=${GSTREAMER_DIR}/bin:${BINDIR}:${PATH}
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH}
 ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:${LIBRARY_PATH}
@@ -283,7 +284,7 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 # Build DLStreamer
 RUN \
     cmake \
-    -DCMAKE_BUILD_TYPE=Debug \
+    -DCMAKE_BUILD_TYPE=${BUILD_ARG} \
     -DENABLE_PAHO_INSTALLATION=ON \
     -DENABLE_RDKAFKA_INSTALLATION=ON \
     -DENABLE_VAAPI=ON \
