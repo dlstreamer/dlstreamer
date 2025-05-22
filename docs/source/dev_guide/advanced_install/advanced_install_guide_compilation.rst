@@ -1,4 +1,4 @@
-Ubuntu advanced installation - compilation from source files
+Advanced installation - compilation from source files
 ============================================================
 
 The easiest way to install Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework is installing it from pre-built Debian packages.
@@ -7,7 +7,7 @@ If you would like to follow this way, please go to :doc:`../../get_started/insta
 The instruction below focuses on installation steps with building Intel® DL Streamer Pipeline Framework from the source code
 provided in `Open Edge Platform repository <https://github.com/open-edge-platform/edge-ai-libraries.git>`__.
 
-Step 1: Install prerequisites
+Step 1: Install prerequisites (only for Ubuntu)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Please go through prerequisites 1 & 2 described in :doc:`../../get_started/install/install_guide_ubuntu`
@@ -43,6 +43,22 @@ Step 2: Install build dependencies
                 libcairo2-dev libxt-dev libgirepository1.0-dev libgles2-mesa-dev wayland-protocols libcurl4-openssl-dev \
                 libssh2-1-dev cmake git valgrind numactl libvpx-dev libopus-dev libsrtp2-dev libxv-dev \
                 linux-libc-dev libpmix2 libhwloc15 libhwloc-plugins libxcb1-dev libx11-xcb-dev
+
+    .. tab:: Fedora 41
+
+        .. code:: sh
+
+            sudo dnf install \
+                https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+                https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+
+            sudo dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
+                flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
+                python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel \
+                gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
+                cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel \
+                libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel \
+                kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
 
 Step 3: Set up a Python environment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -87,6 +103,7 @@ Clone and build GStreamer:
 
     cd ~/gstreamer
     git switch -c "1.26.1" "tags/1.26.1"
+    export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
     meson setup -Dexamples=disabled -Dtests=disabled -Dvaapi=enabled -Dgst-examples=disabled --buildtype=release --prefix=/opt/intel/dlstreamer/gstreamer --libdir=lib/ --libexecdir=bin/ build/
     ninja -C build
     sudo env PATH=~/python3venv/bin:$PATH meson install -C build/
@@ -124,21 +141,10 @@ Step 8: Install OpenVINO™ Toolkit
 
 Download and install OpenVINO™ Toolkit:
 
-.. tabs::
+.. code:: sh
 
-    .. tab:: Ubuntu 24
-
-        .. code:: sh
-
-            cd ~/edge-ai-libraries/libraries/dl-streamer
-            sudo ./scripts/install_dependencies/install_openvino_ubuntu24.sh
-
-    .. tab:: Ubuntu 22
-
-        .. code:: sh
-
-            cd ~/edge-ai-libraries/libraries/dl-streamer
-            sudo ./scripts/install_dependencies/install_openvino.sh
+    cd ~/edge-ai-libraries/libraries/dl-streamer
+    sudo ./scripts/install_dependencies/install_openvino.sh
 
 .. note::
 
@@ -181,16 +187,33 @@ Step 10: Set up environment
 
 Set up the required environment variables:
 
-.. code:: sh
+.. tabs::
 
-    export LIBVA_DRIVER_NAME=iHD
-    export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
-    export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:$LD_LIBRARY_PATH"
-    export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
-    export GST_VA_ALL_DRIVERS="1"
-    export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-    export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
-    export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+    .. tab:: Ubuntu
+
+        .. code:: sh
+
+            export LIBVA_DRIVER_NAME=iHD
+            export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
+            export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:$LD_LIBRARY_PATH"
+            export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
+            export GST_VA_ALL_DRIVERS="1"
+            export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+            export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+            export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+
+    .. tab:: Fedora
+
+        .. code:: sh
+
+            export LIBVA_DRIVER_NAME=iHD
+            export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
+            export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:$LD_LIBRARY_PATH"
+            export LIBVA_DRIVERS_PATH="/usr/lib64/dri-nonfree"
+            export GST_VA_ALL_DRIVERS="1"
+            export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+            export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+            export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
 .. note::
 

@@ -5,9 +5,40 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
+set -eo pipefail
+
+# shellcheck source=/dev/null
+. /etc/os-release
+if [[ "$ID" == "ubuntu" && "$VERSION_ID" == "24.04" ]]; then
+    echo "Ubuntu 24.04 detected"
+    OS="ubuntu24"
+    update_cmd=(apt-get update)
+    install_cmd=(apt-get install -y)
+    DEBIAN_FRONTEND=noninteractive
+elif [[ "$ID" == "ubuntu" && "$VERSION_ID" == "22.04" ]]; then
+    echo "Ubuntu 22.04 detected"
+    OS="ubuntu22"
+    update_cmd=(apt-get update)
+    install_cmd=(apt-get install -y)
+    DEBIAN_FRONTEND=noninteractive
+elif [[ "$ID" == "rhel" && "$VERSION_ID" == 8* ]]; then
+    echo "RHEL 8 detected"
+    OS="rhel8"
+    update_cmd=()
+    install_cmd=(dnf install -y)
+elif [[ "$ID" == "fedora" && "$VERSION_ID" == "41" ]]; then
+    echo "Fedora 41 detected"
+    OS="rhel8"
+    update_cmd=()
+    install_cmd=(dnf install -y)
+else
+    echo "Unsupported system: $ID $VERSION_ID"
+fi
+
+
 RUN_PREFIX=
 
-OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/linux/openvino_toolkit_ubuntu22_2025.1.0.18503.6fec06580ab_x86_64.tgz"
+OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/linux/openvino_toolkit_${OS}_2025.1.0.18503.6fec06580ab_x86_64.tgz"
 OV_ARCHIVE_EXT=".tgz"
 OV_CHECKSUM_EXT=".tgz.sha256"
 OV_LOCAL_ARCHIVE_PATH=/tmp/openvino_installation
@@ -115,15 +146,16 @@ fi
 # DOWNLOAD, VERIFY, EXTRACT
 # ==============================================================================
 $RUN_PREFIX mkdir -p $OV_LOCAL_ARCHIVE_PATH
-$RUN_PREFIX apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y wget
+$RUN_PREFIX "${update_cmd[@]}"
+$RUN_PREFIX "${install_cmd[@]}" wget
 
 # Download OpenVINO™ archive and .sha256 files to temp folder
-$RUN_PREFIX wget "${OV_REMOTE_ARCHIVE_PATH}" -A "*_ubuntu22_*${OV_ARCHIVE_EXT},*_ubuntu22_*${OV_CHECKSUM_EXT}" -P ${OV_LOCAL_ARCHIVE_PATH} -r -l1 -nd -np -e robots=off -U mozilla
+$RUN_PREFIX wget "${OV_REMOTE_ARCHIVE_PATH}" -A "*_${OS}_*${OV_ARCHIVE_EXT},*_${OS}_*${OV_CHECKSUM_EXT}" -P ${OV_LOCAL_ARCHIVE_PATH} -r -l1 -nd -np -e robots=off -U mozilla
 
 # Verify contents, extract and move to install folder
 $RUN_PREFIX pushd $OV_LOCAL_ARCHIVE_PATH
 
-$RUN_PREFIX sha256sum -c ./*"${OV_CHECKSUM_EXT}" >& checksum_results || true 
+$RUN_PREFIX sha256sum -c ./*"${OV_CHECKSUM_EXT}" >& checksum_results || true
 if grep -q "No such file or directory" checksum_results; then
     echo "checksum file not found .. continuing"
 elif grep -q "OK" checksum_results; then
@@ -141,8 +173,8 @@ OV_SAMPLES_PATH=${OV_INSTALL_MOUNT}/samples
 # Handle requests for uninstall
 if [ "$OV_UNINSTALL" == "true" ]; then
     # Dynamically identify the first version encountered and allow user to confirm uninstall
-    if ls /opt/intel/openvino_ubuntu22_* 1> /dev/null 2>&1; then
-        OPENVINO_VERSION=$(ls -d /opt/intel/openvino_ubuntu22_*) && OPENVINO_VERSION=${OPENVINO_VERSION#*openvino_}
+    if ls "/opt/intel/openvino_${OS}_*" 1> /dev/null 2>&1; then
+        OPENVINO_VERSION=$(ls -d "/opt/intel/openvino_${OS}_*") && OPENVINO_VERSION=${OPENVINO_VERSION#*openvino_}
         OV_INSTALL_PATH="/opt/intel/openvino_${OPENVINO_VERSION}"
     else
         echo "WARNING: No installation of OpenVINO™ was found."
@@ -198,7 +230,8 @@ fi
 
 if [ "$INSTALL_DEV_TOOLS" == "true" ]; then
     export DEBIAN_FRONTEND=noninteractive
-    $RUN_PREFIX apt-get install -y python3-pip python3-sympy && pip3 install --upgrade pip setuptools
+    $RUN_PREFIX "${update_cmd[@]}"
+    $RUN_PREFIX "${install_cmd[@]}" python3-pip python3-sympy && pip3 install --upgrade pip setuptools
     if [ -n "$EXTRA_PYPI_INDEX_URL" ]; then
         $RUN_PREFIX python3 -m pip config set global.extra-index-url "${EXTRA_PYPI_INDEX_URL}"
     fi

@@ -8,16 +8,16 @@
 CURDIR=$PWD
 cd /tmp/ || exit
 
-if [ -n "$(command -v apt-get)" ]
-then
+if [ -n "$(command -v apt-get)" ]; then
     apt-get update && apt-get install -y --no-install-recommends \
         uuid uuid-dev libssl-dev gcc g++ make curl ca-certificates
-elif [ -n "$(command -v yum)" ]
-then
-    yum check-update; yum install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates
+elif [ -n "$(command -v dnf)" ]; then
+    dnf install -y libuuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates
+elif [ -n "$(command -v yum)" ]; then
+    yum install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates
 else
-    echo "ERROR: Neither yum nor apt-get found"
-    exit
+    echo "ERROR: Neither apt-get, dnf, nor yum found"
+    exit 1
 fi
 
 curl -sSL https://github.com/edenhill/librdkafka/archive/v1.5.0.tar.gz | tar -xz
@@ -41,4 +41,4 @@ make install
 cd ..
 rm -rf paho.mqtt.c-1.3.4
 
-cd "$CURDIR" || return
+cd "$CURDIR" || exit
