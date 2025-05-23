@@ -129,7 +129,26 @@ Note the pipeline creates only two instances of inference models:
     gvadetect model=${MODEL_FILE_1} device=GPU pre-process-backend=va model-instance-id=inf1 batch-size=4 ! queue ! \
     gvaclassify model=${MODEL_FILE_2} device=NPU pre-process-backend=va model-instance-id=inf2 batch-size=4 ! queue ! gvafpscounter ! fakesink
 
-5. The Intel® DL Streamer Pipeline Framework performance benchmark results
+5. Multi-stream pipelines with meta-aggregation element
+-------------------------------------------------------
+
+The multi-stage and multi-stream scenarios can use the `gvametaaggregate <https://dlstreamer.github.io/elements/gvametaaggregate.html>`__ element to aggregate the results from multiple branches of the pipeline. 
+The aggregated results are published as a single JSON metadata output.
+The following example shows how to use the gvametaaggregate element to aggregate the results from two streams pipelines.
+
+.. code:: shell
+
+  gst-launch-1.0 filesrc location=${VIDEO_FILE_1} ! decodebin3 ! videoconvert ! \
+    tee name=t t. ! queue ! gvametaaggregate name=a !
+    gvaclassify model=${MODEL_FILE_2} device=CPU ! queue ! \
+    gvametaconvert format=json add-tensor-data=true ! gvametapublish file-path=./result.json method=file file-format=json-lines ! \
+    fakesink sync=false t. ! queue ! \
+    gvadetect model=${MODEL_FILE_1} device=GPU ! a. \
+    filesrc location=${VIDEO_FILE_1} ! decodebin3 ! videoconvert ! \
+    gvadetect model=${MODEL_FILE_1} device=GPU ! a.
+    
+
+6. The Intel® DL Streamer Pipeline Framework performance benchmark results
 --------------------------------------------------------------------------
 
 The Intel® DL Streamer Pipeline Framework example performance benchmark results can be found as a part of the `Smart Cities Accelerated by Intel® Graphics Solutions paper <https://www.intel.com/content/www/us/en/secure/content-details/826398/smart-cities-accelerated-by-intel-gpus-arc-gpu-addendum.html?wapkw=smart%20cities&DocID=826398>`__.
