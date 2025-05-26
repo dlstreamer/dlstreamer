@@ -187,6 +187,16 @@ To run the hello_dlstreamer script, execute the following command:
    export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:$PATH
    export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
+
+or run: 
+
+..  code:: sh
+
+   source /opt/intel/dlstreamer/scripts/setup_dls_config.sh
+
+to configure environment variables for the current terminal session.
+
+
 [Optional] Step 6: Auxiliary installation steps
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
