@@ -19,6 +19,7 @@
 #include "converters/to_tensor/keypoints_hrnet.h"
 #include "converters/to_tensor/keypoints_openpose.h"
 #include "converters/to_tensor/label.h"
+#include "converters/to_tensor/paddle_ocr.h"
 #include "converters/to_tensor/raw_data_copy.h"
 #include "converters/to_tensor/semantic_mask.h"
 #include "converters/to_tensor/text.h"
@@ -182,6 +183,8 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
             return std::make_unique<SemanticMaskConverter>(std::move(initializer));
         else if (converter_name == docTROCRConverter::getName())
             return std::make_unique<docTROCRConverter>(std::move(initializer));
+        else if (converter_name == PaddleOCRConverter::getName())
+            return std::make_unique<PaddleOCRConverter>(std::move(initializer));
         else
             throw std::runtime_error("Unsupported converter: " + converter_name);
     default:
