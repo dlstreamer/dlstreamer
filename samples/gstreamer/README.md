@@ -41,7 +41,7 @@ python3 -m pip install openvino-dev[onnx]
 ```
 > **NOTE**: To install all available frameworks run this command:
 ```sh
-python3 -m pip openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
+python3 -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 ```
 
 ## Input video
