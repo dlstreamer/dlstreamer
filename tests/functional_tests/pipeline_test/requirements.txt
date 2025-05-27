@@ -1,0 +1,8 @@
+tabulate
+junit-xml
+XlsxWriter
+zxing-cpp
+pyzbar
+six
+openpyxl
+colorlog
