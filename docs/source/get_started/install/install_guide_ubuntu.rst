@@ -37,7 +37,7 @@ Step 2: Execute the script and follow its instructions
    ./DLS_install_prerequisites.sh
 
 
-The script installs all the essential packages needed for most users, including the following packages:
+The script installs all the essential packages needed for most Intel® Client GPU users, including the following packages:
 
 ..  code:: sh
 
@@ -57,9 +57,10 @@ The script installs all the essential packages needed for most users, including 
 
 More details about the packages can be found in the following driver links respectively:
 `Intel® Client GPU <https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages>`__,
-`Intel® Data Center GPU <https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases>`__,
 `Media <https://github.com/intel/media-driver/releases>`__,
 `NPU <https://github.com/intel/linux-npu-driver/releases/tag/v1.13.0>`__.
+
+Running DL Streamer on Intel® Data Center GPU (Flex) requires specific drivers. In such case, please follow drivers installing instruction on `Intel® Data Center GPU website <https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases>`__.
 
 .. _2:
 
@@ -188,7 +189,7 @@ To run the hello_dlstreamer script, execute the following command:
    export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
 
-or run: 
+or run:
 
 ..  code:: sh
 

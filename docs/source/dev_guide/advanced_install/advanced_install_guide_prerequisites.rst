@@ -10,65 +10,13 @@ Prerequisite 1 - Intel® GPU drivers for computing and media runtimes
 --------------------------------------------------------------------
 
 To use GPU as an inference device or to use graphics hardware encoding/decoding capabilities, it is required to install GPU computing and media runtime drivers.
-
-A. Install dependencies and register additional APT repositories.
-
-..  code:: sh
-
-   # Install dependencies
-   sudo apt-get update && sudo apt-get install curl wget gpg software-properties-common jq
-
-   # Register Intel® oneAPI APT repository
-   curl -fsSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | sudo gpg --dearmor --output /usr/share/keyrings/intel-sw-products.gpg
-   echo "deb [signed-by=/usr/share/keyrings/intel-sw-products.gpg] https://apt.repos.intel.com/oneapi all main" | sudo tee /etc/apt/sources.list.d/intel-oneapi.list
-
-
-B. Please cheek that you can see a ``renderD*`` device in ``/dev/dri`` directory before installation. You should be able to see a ``renderD128`` for the integrated GPU or ``renderD129`` for the discrete GPU.
-
-   .. code:: sh
-
-      user@my-host:~$ ll /dev/dri | grep renderD
-      crw-rw----  1 root render 226, 128 Aug  6 22:41 renderD128
-   
-   If you can see see the device, please follow the next step C. If you cannot see it, please follow instructions to the full installation processes, including Kernel Mode drivers:
-         -  `For Intel® Data Center GPU Flex Series and Intel® Data Center GPU Max Series <https://dgpu-docs.intel.com/driver/installation.html>`__
-         -  `For Intel® Arc™ GPUs <https://dgpu-docs.intel.com/driver/client/overview.html>`__
-
-C. To register Intel® Graphics APT repository, please use **only one** of the following according to your hardware:
+Please follow the up-to-date instruction according to your hardware:
 
 -  For Intel® Data Center GPU Flex Series and Intel® Data Center GPU Max Series:
-   
-   ..  code:: sh
-   
-      # Download Intel® Graphics APT repository key
-      wget -qO - https://repositories.intel.com/graphics/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-
-      # Download Intel® Graphics APT repository
-      # [Ubuntu 24.04]
-      echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu noble flex" | sudo tee /etc/apt/sources.list.d/intel-graphics.list
-      # [Ubuntu 22.04]
-      echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/graphics/ubuntu jammy flex" | sudo tee /etc/apt/sources.list.d/intel-graphics.list
-
+   https://dgpu-docs.intel.com/driver/client/overview.html
 
 -  For Intel® Client and Arc™ GPUs:
-   
-   ..  code:: sh
-   
-       # Download Intel® Graphics APT repository key
-      wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | sudo gpg --yes --dearmor --output /usr/share/keyrings/intel-graphics.gpg
-
-      # Download Intel® Graphics APT repository
-      # [Ubuntu 24.04]
-      echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu noble client" | sudo tee /etc/apt/sources.list.d/intel-graphics.list
-      # [Ubuntu 22.04]
-      echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy client" | sudo tee /etc/apt/sources.list.d/intel-graphics.list
-
-D. Install or update packages responsible for computing and media runtimes:
-
-   .. code:: sh
-
-      # Install
-      sudo apt-get update && sudo apt-get install intel-level-zero-gpu level-zero
+   https://dgpu-docs.intel.com/driver/installation.html
 
 
 Prerequisite 2 - Install Intel® NPU drivers
