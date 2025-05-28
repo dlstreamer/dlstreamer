@@ -1,14 +1,48 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "blob_to_tensor_converter.h"
+#include "clip_token_converter.h"
+#include "docTR_ocr.h"
+#include "keypoints_3d.h"
+#include "keypoints_hrnet.h"
+#include "keypoints_openpose.h"
+#include "label.h"
+#include "paddle_ocr.h"
+#include "raw_data_copy.h"
+#include "semantic_mask.h"
+#include "text.h"
 
 #include <exception>
 
 using namespace post_processing;
+
+BlobToMetaConverter::Ptr BlobToTensorConverter::create(BlobToMetaConverter::Initializer initializer,
+                                                       const std::string &converter_name) {
+
+    if (converter_name == RawDataCopyConverter::getName())
+        return std::make_unique<RawDataCopyConverter>(std::move(initializer));
+    else if (converter_name == KeypointsHRnetConverter::getName())
+        return std::make_unique<KeypointsHRnetConverter>(std::move(initializer));
+    else if (converter_name == Keypoints3DConverter::getName())
+        return std::make_unique<Keypoints3DConverter>(std::move(initializer));
+    else if (converter_name == LabelConverter::getName())
+        return std::make_unique<LabelConverter>(std::move(initializer));
+    else if (converter_name == TextConverter::getName())
+        return std::make_unique<TextConverter>(std::move(initializer));
+    else if (converter_name == SemanticMaskConverter::getName())
+        return std::make_unique<SemanticMaskConverter>(std::move(initializer));
+    else if (converter_name == docTROCRConverter::getName())
+        return std::make_unique<docTROCRConverter>(std::move(initializer));
+    else if (converter_name == CLIPTokenConverter::getName())
+        return std::make_unique<CLIPTokenConverter>(std::move(initializer));
+    else if (converter_name == PaddleOCRConverter::getName())
+        return std::make_unique<PaddleOCRConverter>(std::move(initializer));
+    throw std::runtime_error("ToTensorConverter \"" + converter_name + "\" is not implemented.");
+}
 
 BlobToTensorConverter::BlobToTensorConverter(BlobToMetaConverter::Initializer initializer)
     : BlobToMetaConverter(std::move(initializer)),
