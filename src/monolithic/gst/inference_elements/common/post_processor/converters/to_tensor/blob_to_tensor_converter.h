@@ -32,6 +32,9 @@ class BlobToTensorConverter : public BlobToMetaConverter {
     BlobToTensorConverter(BlobToMetaConverter::Initializer initializer);
 
     virtual TensorsTable convert(const OutputBlobs &output_blobs) = 0;
+
+    static BlobToMetaConverter::Ptr create(BlobToMetaConverter::Initializer initializer,
+                                           const std::string &converter_name);
 };
 
 } // namespace post_processing

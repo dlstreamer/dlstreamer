@@ -13,15 +13,14 @@
 #include "converters/to_roi/yolo_v2.h"
 #include "converters/to_roi/yolo_v3.h"
 #include "converters/to_roi/yolo_v8.h"
+#include "converters/to_tensor/blob_to_tensor_converter.h"
 #include "converters/to_tensor/clip_token_converter.h"
-#include "converters/to_tensor/docTR_ocr.h"
 #include "converters/to_tensor/keypoints_3d.h"
 #include "converters/to_tensor/keypoints_hrnet.h"
 #include "converters/to_tensor/keypoints_openpose.h"
 #include "converters/to_tensor/label.h"
 #include "converters/to_tensor/paddle_ocr.h"
 #include "converters/to_tensor/raw_data_copy.h"
-#include "converters/to_tensor/semantic_mask.h"
 #include "converters/to_tensor/text.h"
 
 #include "gva_base_inference.h"
@@ -166,27 +165,11 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
     case ConverterType::TO_ROI:
         return BlobToROIConverter::create(std::move(initializer), converter_name);
     case ConverterType::TO_TENSOR:
-        if (converter_name == RawDataCopyConverter::getName())
-            return std::make_unique<RawDataCopyConverter>(std::move(initializer));
-        else if (converter_name == KeypointsHRnetConverter::getName())
-            return std::make_unique<KeypointsHRnetConverter>(std::move(initializer));
-        else if (converter_name == Keypoints3DConverter::getName())
-            return std::make_unique<Keypoints3DConverter>(std::move(initializer));
-        else if (converter_name == KeypointsOpenPoseConverter::getName()) {
+        if (converter_name == KeypointsOpenPoseConverter::getName()) {
             auto keypoints_number = getKeypointsNumber(tensor.get());
             return std::make_unique<KeypointsOpenPoseConverter>(std::move(initializer), keypoints_number);
-        } else if (converter_name == LabelConverter::getName())
-            return std::make_unique<LabelConverter>(std::move(initializer));
-        else if (converter_name == TextConverter::getName())
-            return std::make_unique<TextConverter>(std::move(initializer));
-        else if (converter_name == SemanticMaskConverter::getName())
-            return std::make_unique<SemanticMaskConverter>(std::move(initializer));
-        else if (converter_name == docTROCRConverter::getName())
-            return std::make_unique<docTROCRConverter>(std::move(initializer));
-        else if (converter_name == PaddleOCRConverter::getName())
-            return std::make_unique<PaddleOCRConverter>(std::move(initializer));
-        else
-            throw std::runtime_error("Unsupported converter: " + converter_name);
+        } else
+            return BlobToTensorConverter::create(std::move(initializer), converter_name);
     default:
         throw std::runtime_error("Invalid converter type.");
     }

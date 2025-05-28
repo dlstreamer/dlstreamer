@@ -90,7 +90,7 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
             new YOLOxConverter(std::move(initializer), confidence_threshold, iou_threshold, classes));
     }
 
-    throw std::runtime_error("Converter \"" + converter_name + "\" is not implemented.");
+    throw std::runtime_error("ToROIConverter \"" + converter_name + "\" is not implemented.");
 }
 
 TensorsTable BlobToROIConverter::toTensorsTable(const DetectedObjectsTable &bboxes_table) const {
