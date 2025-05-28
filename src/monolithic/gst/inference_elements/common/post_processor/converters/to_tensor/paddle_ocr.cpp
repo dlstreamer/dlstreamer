@@ -58,8 +58,7 @@ TensorsTable PaddleOCRConverter::convert(const OutputBlobs &output_blobs) {
                 const auto item = get_data_by_batch_index(data, data_size, batch_size, batch_elem_index);
                 const float *item_data = item.first;
 
-                std::string decoded_text =
-                    decodeOutputTensor(item_data);
+                std::string decoded_text = decodeOutputTensor(item_data);
 
                 if (decoded_text.size() > SEQ_MINLEN)
                     classification_result.set_string("label", decoded_text);
