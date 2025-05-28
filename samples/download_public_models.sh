@@ -85,6 +85,7 @@ SUPPORTED_MODELS=(
   "clip-vit-large-patch14"
   "clip-vit-base-patch16"
   "clip-vit-base-patch32"
+  "ch_PP-OCRv4_rec_infer" # PaddlePaddle OCRv4 multilingual model
 )
 
 # Function to display text in a given color
@@ -650,7 +651,7 @@ if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
     cd "$MODEL_DIR"
-    python3 - "$DST_FILE1" <<EOF
+    python3 - <<EOF "$DST_FILE1"
 import openvino
 import sys, os, shutil
 
@@ -667,6 +668,56 @@ shutil.rmtree('FP32')
 shutil.rmtree('FP16')
 openvino.save_model(ov_model, './FP32/' + 'deeplabv3.xml', compress_to_fp16=False)
 openvino.save_model(ov_model, './FP16/' + 'deeplabv3.xml', compress_to_fp16=True)
+EOF
+  else
+    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
+  fi
+fi
+
+# PaddlePaddle OCRv4 multilingual model
+if [[ "$MODEL" == "ch_PP-OCRv4_rec_infer" ]] || [[ "$MODEL" == "all" ]]; then
+  MODEL_NAME="ch_PP-OCRv4_rec_infer"
+  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
+  DST_FILE1="$MODEL_DIR/FP32/$MODEL_NAME.xml"
+  DST_FILE2="$MODEL_DIR/FP16/$MODEL_NAME.xml"
+
+  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
+    mkdir -p "$MODEL_DIR"
+    echo "Downloading and converting: ${MODEL_DIR}"
+    cd "$MODEL_DIR"
+    wget "https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/$MODEL_NAME.tar"
+    python3 - <<EOF "$MODEL_NAME" "$MODEL_DIR" "$DST_FILE1"
+import tarfile
+import openvino as ov
+import sys, os, shutil
+
+model_name = sys.argv[1]
+model_dir = sys.argv[2]
+orig_model_path = sys.argv[1]
+
+file = tarfile.open(f"{model_name}.tar")
+res = file.extractall(model_dir)
+file.close()
+if not res:
+    print(f"Model Extracted to {model_dir}.")
+else:
+    print("Error Extracting the model.")
+
+ov_model = ov.convert_model("ch_PP-OCRv4_rec_infer/inference.pdmodel")
+ov_model.reshape({"x": [-1, 3, 48, 192]})
+
+ov_model.set_rt_info("paddle_ocr", ['model_info', 'model_type'])
+ov_model.set_rt_info("58.395, 57.12, 57.375", ['model_info', 'scale_values'])  #std = [0.229, 0.224, 0.225]
+ov_model.set_rt_info("123.675, 116.28, 103.53", ['model_info', 'mean_values'])  #mean = [0.485, 0.456, 0.406]
+ov_model.set_rt_info("True", ['model_info', 'reverse_input_channels'])
+ov_model.set_rt_info("standard", ['model_info', 'resize_type'])
+
+ov.save_model(ov_model, './FP32/' + 'ch_PP-OCRv4_rec_infer.xml', compress_to_fp16=False)
+ov.save_model(ov_model, './FP16/' + 'ch_PP-OCRv4_rec_infer.xml', compress_to_fp16=True)
+
+shutil.rmtree(model_name)
+os.remove(f"{model_name}.tar")
+
 EOF
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
