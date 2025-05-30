@@ -116,8 +116,9 @@ std::string PaddleOCRConverter::decode(const std::vector<int> &text_index) {
             continue;
         }
 
-        // Append the corresponding character from charset
-        char_list += CHARACTER_SET[current_index];
+        if (current_index >= 0 && current_index < (int)CHARACTER_SET.size()) {
+            char_list.append(CHARACTER_SET[current_index]);
+        }
     }
 
     return char_list; // Return the decoded text
