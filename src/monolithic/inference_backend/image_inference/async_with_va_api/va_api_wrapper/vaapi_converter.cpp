@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -346,6 +346,12 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst, const Inp
 
     // Scale and csc mode
     pipeline_param.filter_flags = va_api_dst.scaling_flags;
+
+    // Set the pipeline_flags respectively along with filter_flags
+    pipeline_param.pipeline_flags = 0;
+    if (pipeline_param.filter_flags == VA_FILTER_SCALING_FAST) {
+        pipeline_param.pipeline_flags = VA_PROC_PIPELINE_FAST;
+    }
 
     // Crop ROI
     VARectangle src_surface_region = {.x = safe_convert<int16_t>(src.rect.x),
