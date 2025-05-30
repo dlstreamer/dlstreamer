@@ -48,6 +48,7 @@ SUPPORTED_MODELS=(
   "yolov8m-seg"
   "yolov8l-seg"
   "yolov8x-seg"
+  "yolov8_license_plate_detector"
   "yolov9t"
   "yolov9s"
   "yolov9m"
@@ -508,6 +509,46 @@ for MODEL_NAME in "${!YOLO_MODELS[@]}"; do
   fi
 done
 
+# A model from https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8 
+if [[ "$MODEL" == "yolov8_license_plate_detector" ]] || [[ "$MODEL" == "all" ]]; then
+  MODEL_NAME="yolov8_license_plate_detector"
+  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
+  DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
+  DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
+
+  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
+    echo "Downloading and converting: ${MODEL_DIR}"
+    mkdir -p "$MODEL_DIR"
+    cd "$MODEL_DIR"
+
+    wget --no-check-certificate 'https://drive.usercontent.google.com/uc?export=download&id=1Zmf5ynaTFhmln2z7Qvv-tgjkWQYQ9Zdw' -O ${MODEL_NAME}.pt
+    
+    python3 - <<EOF "$MODEL_NAME" 
+from ultralytics import YOLO
+import openvino, sys, shutil, os
+
+model_name = sys.argv[1]
+weights = model_name + '.pt'
+
+model = YOLO(weights)
+model.info()
+converted_path = model.export(format='openvino')
+converted_model = converted_path + '/' + model_name + '.xml'
+core = openvino.Core()
+ov_model = core.read_model(model=converted_model)
+
+ov_model.set_rt_info('YOLOv8', ['model_info', 'model_type'])
+
+openvino.save_model(ov_model, './FP32/' + model_name + '.xml', compress_to_fp16=False)
+openvino.save_model(ov_model, './FP16/' + model_name + '.xml', compress_to_fp16=True)
+shutil.rmtree(converted_path)
+os.remove(f"{model_name}.pt")
+EOF
+    
+  else
+    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
+  fi
+fi
 
 if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="centerface"
