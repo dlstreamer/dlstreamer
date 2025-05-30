@@ -1,1 +1,6 @@
+.github
+.git
+.gitignore
+.vscode
+build
 tests
