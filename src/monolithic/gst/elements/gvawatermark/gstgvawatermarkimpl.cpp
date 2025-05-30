@@ -768,3 +768,13 @@ std::unique_ptr<Renderer> Impl::createGPURenderer(dlstreamer::ImageFormat format
                                          GST_VIDEO_INFO_HEIGHT(_vinfo));
     return std::unique_ptr<Renderer>(renderer);
 }
+
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvawatermarkimpl", GST_RANK_NONE, GST_TYPE_GVA_WATERMARK_IMPL))
+        return FALSE;
+
+    return TRUE;
+}
+
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvawatermarkimpl, PRODUCT_FULL_NAME " gvawatermarkimpl element",
+                  plugin_init, PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

@@ -659,3 +659,13 @@ void gva_inference_class_init(GvaInferenceClass *klass) {
                                                         "in this element",
                                                         nullptr, param_flags));
 }
+
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvainference", GST_RANK_NONE, gva_inference_get_type()))
+        return FALSE;
+
+    return TRUE;
+}
+
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvainference, PRODUCT_FULL_NAME " gvainference element",
+                  plugin_init, PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

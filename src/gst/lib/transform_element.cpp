@@ -113,7 +113,9 @@ class GstDlsTransform {
         _parent_class = GST_BASE_TRANSFORM_CLASS(g_type_class_peek_parent(_class_data));
         _logger = log::init_logger(GST_CAT_DEFAULT, nullptr);
         _gst_context = std::make_shared<GSTContext>(&base->element);
+#if !(_MSC_VER)
         _gst_mapper = std::make_shared<MemoryMapperAnyToGST>(nullptr, _gst_context);
+#endif
         //_gst_mapper = std::make_shared<MemoryMapperCache>(_gst_mapper);
         if (_class_data->desc->params) {
             for (auto const &param : *_class_data->desc->params) {

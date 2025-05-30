@@ -282,3 +282,13 @@ static GstFlowReturn gst_gva_fpscounter_transform_ip(GstBaseTransform *trans, Gs
 
     return GST_FLOW_OK;
 }
+
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvafpscounter", GST_RANK_NONE, GST_TYPE_GVA_FPSCOUNTER))
+        return FALSE;
+
+    return TRUE;
+}
+
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvafpscounter, PRODUCT_FULL_NAME " gvafpscounter element",
+                  plugin_init, PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

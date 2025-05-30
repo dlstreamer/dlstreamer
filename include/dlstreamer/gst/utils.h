@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -168,7 +168,7 @@ inline FrameInfo gst_tensor_caps_to_frame_info(const GstCaps *caps, guint index)
     info.media_type = MediaType::Tensors;
 
     GstStructure *gst_structure = gst_caps_get_structure(caps, index);
-    uint num_tensors = 0;
+    guint num_tensors = 0;
     gst_structure_get_uint(gst_structure, "num_tensors", &num_tensors);
     if (!num_tensors)
         return info;

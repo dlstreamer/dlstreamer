@@ -34,6 +34,11 @@
 
 #include <opencv2/opencv.hpp>
 
+extern "C" gboolean gst_gva_json_meta_init(GstMeta *meta, gpointer params, GstBuffer *buffer);
+extern "C" gboolean gst_gva_json_meta_transform(GstBuffer *dest_buf, GstMeta *src_meta, GstBuffer *src_buf, GQuark type,
+                                                gpointer data);
+extern "C" void gst_gva_json_meta_free(GstMeta *meta, GstBuffer *buffer);
+
 namespace GVA {
 
 /**
@@ -283,6 +288,20 @@ class VideoFrame {
      */
     void add_message(const std::string &message) {
         const GstMetaInfo *meta_info = gst_meta_get_info(GVA_JSON_META_IMPL_NAME);
+
+        if (g_once_init_enter((GstMetaInfo **)&meta_info)) {
+            GstMetaInfo *info =
+                gst_meta_info_new(gst_gva_json_meta_api_get_type(), GVA_JSON_META_IMPL_NAME, sizeof(GstGVAJSONMeta));
+            const GstMetaInfo *meta = NULL;
+            info->api = gst_gva_json_meta_api_get_type();
+            info->init_func = gst_gva_json_meta_init;
+            info->free_func = gst_gva_json_meta_free;
+            info->transform_func = gst_gva_json_meta_transform;
+            info->serialize_func = nullptr;
+            info->deserialize_func = nullptr;
+            meta = gst_meta_info_register(info);
+            g_once_init_leave((GstMetaInfo **)&meta_info, (GstMetaInfo *)meta);
+        }
 
         if (!gst_buffer_is_writable(buffer))
             throw std::runtime_error("Buffer is not writable.");
