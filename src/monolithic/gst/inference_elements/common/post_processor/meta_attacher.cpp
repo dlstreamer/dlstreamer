@@ -74,8 +74,8 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                 const auto &labels = blob_to_meta.getLabels();
                 if (j == 0 && !labels.empty()) {
                     gsize length = labels.size();
-                    gfloat confidence_levels[length] = {0};
-                    GQuark class_quarks[length];
+                    std::vector<gfloat> confidence_levels(length, 0.0f);
+                    std::vector<GQuark> class_quarks(length, 0);
 
                     for (size_t i = 0; i < length; i++) {
                         class_quarks[i] = g_quark_from_string(labels[i].c_str());
@@ -108,8 +108,8 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
 
                     // create class descriptor if one does not exists
                     if (!found) {
-                        if (!gst_analytics_relation_meta_add_cls_mtd(relation_meta, length, confidence_levels,
-                                                                     class_quarks, &cls_descriptor_mtd)) {
+                        if (!gst_analytics_relation_meta_add_cls_mtd(relation_meta, length, confidence_levels.data(),
+                                                                     class_quarks.data(), &cls_descriptor_mtd)) {
                             throw std::runtime_error("Failed to add class descriptor to meta");
                         }
                     }
@@ -262,8 +262,8 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
             const auto &labels = blob_to_meta.getLabels();
             if (!labels.empty()) {
                 gsize length = labels.size();
-                gfloat confidence_levels[length] = {0};
-                GQuark class_quarks[length];
+                std::vector<gfloat> confidence_levels(length, 0.0f);
+                std::vector<GQuark> class_quarks(length, 0);
 
                 for (size_t i = 0; i < length; i++) {
                     class_quarks[i] = g_quark_from_string(labels[i].c_str());
@@ -296,8 +296,8 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
 
                 // create class descriptor if one does not exists
                 if (!found) {
-                    if (!gst_analytics_relation_meta_add_cls_mtd(od_meta.meta, length, confidence_levels, class_quarks,
-                                                                 &cls_descriptor_mtd)) {
+                    if (!gst_analytics_relation_meta_add_cls_mtd(od_meta.meta, length, confidence_levels.data(),
+                                                                 class_quarks.data(), &cls_descriptor_mtd)) {
                         throw std::runtime_error("Failed to add class descriptor to meta");
                     }
                 }

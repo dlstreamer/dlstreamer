@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -369,7 +369,7 @@ cv::Mat convertClassIndicesToBGR(const cv::Mat &classMap, const std::vector<cv::
     cv::Mat colorMap(classMap.size(), CV_8UC3);
     for (int i = 0; i < classMap.rows; ++i) {
         for (int j = 0; j < classMap.cols; ++j) {
-            int64_t classIdx = classMap.at<int64_t>(i, j);
+            auto classIdx = classMap.at<int>(i, j);
             colorMap.at<cv::Vec3b>(i, j) = colorPalette[classIdx];
         }
     }

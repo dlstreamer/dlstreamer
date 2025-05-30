@@ -112,3 +112,13 @@ void gst_gva_detect_init(GstGvaDetect *gvadetect) {
     gvadetect->base_inference.type = GST_GVA_DETECT_TYPE;
     gvadetect->threshold = DEFAULT_THRESHOLD;
 }
+
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvadetect", GST_RANK_NONE, GST_TYPE_GVA_DETECT))
+        return FALSE;
+
+    return TRUE;
+}
+
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvadetect, PRODUCT_FULL_NAME " gvadetect element", plugin_init,
+                  PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)
