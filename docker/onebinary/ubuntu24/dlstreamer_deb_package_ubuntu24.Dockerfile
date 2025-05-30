@@ -12,7 +12,6 @@ ARG DLSTREAMER_BUILD_NUMBER
 
 ARG DEBIAN_FRONTEND=noninteractive
 
-
 # hadolint ignore=DL3002
 USER root
 ENV USER=dlstreamer
