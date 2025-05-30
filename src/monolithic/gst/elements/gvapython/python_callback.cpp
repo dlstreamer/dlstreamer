@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -77,6 +77,7 @@ PythonContextInitializer::~PythonContextInitializer() {
 void PythonContextInitializer::initialize() {
     /* load libpython.so and initilize pygobject */
     Dl_info libpython_info = Dl_info();
+#if !(_MSC_VER)
     dladdr((void *)Py_IsInitialized, &libpython_info);
     GModule *libpython = g_module_open(libpython_info.dli_fname, G_MODULE_BIND_LAZY);
     if (!pygobject_init(3, 0, 0)) {
@@ -85,6 +86,7 @@ void PythonContextInitializer::initialize() {
     if (libpython) {
         g_module_close(libpython);
     }
+#endif
     /* init arguments passed to a python script*/
     static wchar_t tmp[] = L"";
     static wchar_t *empty_argv[] = {tmp};
