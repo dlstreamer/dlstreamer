@@ -64,16 +64,11 @@ INTEL_ONEAPI_KEYRING_PATH="/usr/share/keyrings/intel-sw-products.gpg"
 INTEL_ONEAPI_KEY_URL="https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"
 INTEL_ONEAPI_LIST="intel-oneapi.list"
 
-
-INTEL_DC_GPU_KEY_URL="https://repositories.intel.com/gpu/intel-graphics.key"
-INTEL_DC_GPU_REPO_URL_22="https://repositories.intel.com/gpu/ubuntu jammy/lts/2350 unified"
-
 INTEL_CL_GPU_KEY_URL="https://repositories.intel.com/gpu/intel-graphics.key"
 INTEL_CL_GPU_REPO_URL_22="https://repositories.intel.com/gpu/ubuntu jammy unified"
 INTEL_CL_GPU_REPO_URL_24="https://repositories.intel.com/gpu/ubuntu noble unified"
 
 INTEL_GPU_KEYRING_PATH="/usr/share/keyrings/intel-graphics.gpg"
-
 
 INTEL_GPU_LIST_22="intel-gpu-jammy.list"
 INTEL_GPU_LIST_24="intel-gpu-noble.list"
@@ -216,7 +211,7 @@ install_packages() {
 
     # Run apt-get install and use tee to duplicate the output to the log file
     # while still displaying it to the user
-    timeout --foreground $APT_GET_TIMEOUT $SUDO_PREFIX apt-get install -y "$@" 2>&1 | tee "$log_file"
+    timeout --foreground $APT_GET_TIMEOUT $SUDO_PREFIX apt-get install -y --allow-downgrades "$@" 2>&1 | tee "$log_file"
     local status=${PIPESTATUS[0]}
 
     # Check the exit status of the apt-get install command
@@ -330,37 +325,29 @@ install_deb_package() {
     fi
 }
 
-
+# This function configures the Intel® Client GPU based on the Ubuntu version
 setup_gpu(){
     local ubuntu_version="${1:-$(lsb_release -rs)}"
     case $intel_gpu_state in
         1)
             configure_repository "$INTEL_CL_GPU_KEY_URL" "$INTEL_GPU_KEYRING_PATH" "$INTEL_CL_GPU_REPO_URL" "$INTEL_GPU_LIST"
-            echo_color "\n Intel® client GPU repository has been configured.\n" "green"
+            echo_color "\n Intel® Client GPU repository has been configured.\n" "green"
             ;;
         2)
-            configure_repository "$INTEL_DC_GPU_KEY_URL" "$INTEL_GPU_KEYRING_PATH" "$INTEL_DC_GPU_REPO_URL" "$INTEL_GPU_LIST"
-            echo_color "\n Intel® Data Center GPU repository has been configured.\n" "green"
+            echo_color "\n Your system contains Intel® Data Center GPU. To install proper drivers, please visit: https://dgpu-docs.intel.com/driver/installation.html#ubuntu" "bred"
+            exit 1
             ;;
     esac
     $SUDO_PREFIX apt update
-
-    if [ "$intel_gpu_state" -eq 1 ]; then
-        install_packages libze-intel-gpu1 libze1 intel-opencl-icd clinfo
-        if [ "$ubuntu_version" == "24.04" ]; then
-            install_packages intel-gsc
-        fi
-    elif [ "$intel_gpu_state" -eq 2 ]; then
-        install_packages linux-headers-"$(uname -r)" linux-modules-extra-"$(uname -r)" \
-                         flex bison intel-fw-gpu intel-i915-dkms xpu-smi \
-                         intel-opencl-icd intel-level-zero-gpu level-zero \
-                         intel-media-va-driver-non-free libmfxgen1 libvpl2 \
-                         libegl-mesa0 libegl1-mesa libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri \
-                         libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm12 libxatracker2 mesa-va-drivers \
-                         mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all vainfo hwinfo clinfo
+    # Install common packages for Intel GPU
+    install_packages libze-intel-gpu1 libze1 clinfo intel-media-va-driver-non-free
+    # Additional packages for Ubuntu 22.04/24.04
+    if [ "$ubuntu_version" == "24.04" ]; then
+        install_packages intel-gsc intel-opencl-icd=25.05.32567.19-1099~24.04
+    else
+        install_packages intel-opencl-icd
     fi
 }
-
 # Function to get .deb package URLs from the latest release of a GitHub repository
 get_deb_urls() {
     local REPO=$1
@@ -580,7 +567,6 @@ if [ "$on_host_or_docker" == "host" ]; then
         22.04)
             echo_color " Detected Ubuntu version: $ubuntu_version. " "green"
             INTEL_CL_GPU_REPO_URL=$INTEL_CL_GPU_REPO_URL_22
-            INTEL_DC_GPU_REPO_URL=$INTEL_DC_GPU_REPO_URL_22
             INTEL_GPU_LIST=$INTEL_GPU_LIST_22
             ;;
         *)
@@ -615,7 +601,7 @@ fi
 
 if [ "$on_host_or_docker" == "docker_ubuntu22" ] || [ "$on_host_or_docker" == "docker_ubuntu24" ]; then
     update_package_lists
-    install_packages curl wget gpg
+    install_packages curl wget gpg software-properties-common
 
     SUDO_PREFIX=""
     intel_gpu_state=1
@@ -637,7 +623,6 @@ if [ "$on_host_or_docker" == "docker_ubuntu22" ] || [ "$on_host_or_docker" == "d
 
     setup_gpu "$ubuntu_version"
     update_package_lists
-    install_packages intel-media-va-driver-non-free
 
     #-----------CHECK IF GPU DRIVERS ARE INSTALLED-------------------------------
     # Check for the presence of renderD* devices
@@ -678,7 +663,7 @@ $SUDO_PREFIX rm -rf /etc/apt/sources.list.d/intel*
 $SUDO_PREFIX apt --fix-broken install -y
 $SUDO_PREFIX rm -rf /var/cache/apt/archives/*.deb
 update_package_lists
-install_packages curl wget jq gpg software-properties-common pciutils
+install_packages curl wget jq gpg pciutils software-properties-common
 
 #-----------------------INSTALL GPU DRIVERS------------------------------
 
@@ -700,6 +685,8 @@ if [ -n "$intel_gpus" ]; then
     if [ -n "$intel_dc_gpu" ]; then
         intel_gpu_state=2
         gpu_info="$intel_dc_gpu"
+        echo_color "\n Your system contains Intel® Data Center GPU. To install proper drivers, please follow the instruction at: https://dgpu-docs.intel.com/driver/installation.html" "bred"
+        exit 1
     else
         # If no DC GPU is found, it must be a client GPU
         intel_client_gpu=$(echo -e "$intel_gpus")
@@ -716,7 +703,7 @@ case $intel_gpu_state in
         echo_color "\n No Intel® GPU detected." "bred"
         ;;
     1)
-        echo_color "\n Intel® client GPU detected:" "bgreen"
+        echo_color "\n Intel® Client GPU detected:" "bgreen"
         echo -e " --------------------------------"
         echo -e " $gpu_info"
         echo -e " --------------------------------"
@@ -781,9 +768,7 @@ if [ $intel_gpu_state -ne 0 ]; then
     #$SUDO_PREFIX usermod -a -G render "$USER" || handle_error "Failed to add user to render group."
 fi
 
-#----------------------INSTALL MEDIA DRIVER--------------------------------
 update_package_lists
-install_packages intel-media-va-driver-non-free
 
 #-------------------------STEP 3-------------------------------------------
 #-----------CHECK IF SYSTEM CONTAINS NPU-------------------------------
@@ -900,10 +885,10 @@ else
 
         case $intel_gpu_state in
         1)
-            echo_color " To enable GPU support, install the client GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages.\n" "cyan"
+            echo_color " To enable GPU support, install the Intel® Client GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/client/overview.html \n" "cyan"
             ;;
         2)
-            echo_color " To enable GPU support, install Intel® Data Center GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html.\n" "cyan"
+            echo_color " To enable GPU support, install the Intel® Data Center GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html#ubuntu \n" "cyan"
             ;;
         esac
 
@@ -913,4 +898,3 @@ else
         echo_color "User added to render and video groups. Please log out and log back in for the changes to take effect." "cyan"
     fi
 fi
-
