@@ -28,7 +28,7 @@ The sample uses the [`yolov8_license_plate_detector`](https://github.com/Muhamma
 ## Running
 
 ```sh
-    export MODELS_PATH=/home/"$USER"/models
+    export MODELS_PATH="$HOME"/models
     cd /opt/intel/dlstreamer/samples/gstreamer/gst_launch/lpr/
     ../../../download_public_models.sh yolov8_license_plate_detector
     ../../../download_public_models.sh ch_PP-OCRv4_rec_infer
