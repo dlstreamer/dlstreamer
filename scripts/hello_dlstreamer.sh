@@ -72,24 +72,34 @@ for arg in "$@"; do
     esac
 done
 
+# shellcheck source=/dev/null
+. /etc/os-release
+
 # variables required by DL Streamer
 export LIBVA_DRIVER_NAME=iHD
-export GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
+export GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
 export LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/opencv:/opt/openh264:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib/gstreamer-1.0:/usr/local/lib
-export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 export GST_VA_ALL_DRIVERS=1
-export PYTHONPATH=/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:/opt/intel/dlstreamer/python:/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:
-export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0
-export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:/home/$USER/.local/bin:/home/$USER/python3venv/bin:$PATH
+export PYTHONPATH=/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:/opt/intel/dlstreamer/python:/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages
+export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH
+if [ "$ID" == "ubuntu" ]; then
+    export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+    export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0
+    DLS_VERSION=$(dpkg -s intel-dlstreamer | grep '^Version:' | sed -En "s/Version: (.*)/\1/p")
+elif [ "$ID" == "fedora" ] || [ "$ID" == "rhel" ]; then
+    export LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
+    export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib64/girepository-1.0
+    DLS_VERSION=$(rpm -q --qf '%{VERSION}\n' intel-dlstreamer)
+else
+    echo "Unsupported system: $ID $VERSION_ID"
+    exit 1
+fi
 
 # variables required by test pipeline
-export MODELS_PATH=/home/"$USER"/models
+export MODELS_PATH="$HOME"/models
 
 # remove gstreamer cache
 rm -rf ~/.cache/gstreamer-1.0
-
-# get Intel(R) DL Streamer version
-DLS_VERSION=$(dpkg -s intel-dlstreamer | grep '^Version:' | sed -En "s/Version: (.*)/\1/p")
 
 if [ -z "$DLS_VERSION" ]; then
 	echo "-------------------------------------"
@@ -108,7 +118,7 @@ if [ -d "$MODELS_PATH"/public/"$MODEL"/FP32 ]; then
 	echo "$MODEL model exists."
 else
 	echo "Model $MODEL which you want to use cannot be found!"
-	echo "Please run the script `/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL` to download the model."
+	echo "Please run the script \`/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL\` to download the model."
 	echo "If the model has already been downloaded, specify the path to its location."
 	exit 1
 fi

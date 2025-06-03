@@ -8,9 +8,9 @@ FROM ubuntu:24.04
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_ARG=Debug
+
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
-ARG DLSTREAMER_VERSION=2025.0.1.3
 
 ARG GST_VERSION=1.26.1
 ARG FFMPEG_VERSION=6.1.1
@@ -20,6 +20,7 @@ ARG OPENVINO_FILENAME=openvino_toolkit_ubuntu24_2025.1.0.18503.6fec06580ab_x86_6
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
 ENV GSTREAMER_DIR=/opt/intel/dlstreamer/gstreamer
+ENV INTEL_OPENVINO_DIR=/opt/intel/openvino_$OPENVINO_VERSION.0
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_VA_ALL_DRIVERS=1
@@ -218,9 +219,9 @@ RUN \
 RUN \
     wget -q --no-check-certificate https://storage.openvinotoolkit.org/repositories/openvino/packages/"$OPENVINO_VERSION"/linux/"$OPENVINO_FILENAME".tgz && \
     tar -xf "$OPENVINO_FILENAME".tgz && \
-    mv "$OPENVINO_FILENAME" /opt/intel/openvino_"$OPENVINO_VERSION".0 && \
+    mv "$OPENVINO_FILENAME" ${INTEL_OPENVINO_DIR} && \
     rm "$OPENVINO_FILENAME".tgz && \
-    /opt/intel/openvino_"$OPENVINO_VERSION".0/install_dependencies/install_openvino_dependencies.sh -y
+    ${INTEL_OPENVINO_DIR}/install_dependencies/install_openvino_dependencies.sh -y
 
 # OpenCV
 WORKDIR /
@@ -256,7 +257,6 @@ RUN \
 WORKDIR $DLSTREAMER_DIR/build
 
 # OpenVINO environment variables
-ENV INTEL_OPENVINO_DIR=/opt/intel/openvino_$OPENVINO_VERSION.0
 ENV OpenVINO_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
 ENV InferenceEngine_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
 ENV ngraph_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
@@ -270,8 +270,8 @@ ENV LIBDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/lib
 ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/bin
 ENV PATH=${GSTREAMER_DIR}/bin:${BINDIR}:${PATH}
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:${PKG_CONFIG_PATH}
-ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:${LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:${LD_LIBRARY_PATH}
+ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C

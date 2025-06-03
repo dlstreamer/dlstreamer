@@ -33,6 +33,7 @@ elif [[ "$ID" == "fedora" && "$VERSION_ID" == "41" ]]; then
     install_cmd=(dnf install -y)
 else
     echo "Unsupported system: $ID $VERSION_ID"
+    exit 1
 fi
 
 
