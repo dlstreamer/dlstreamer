@@ -31,7 +31,6 @@ RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     cp -r ${DLSTREAMER_DIR} /deb-pkg/opt/intel/dlstreamer && \
     cp -rT ${GSTREAMER_DIR} /deb-pkg/opt/intel/dlstreamer/gstreamer && \
-    cp -r ${INTEL_OPENVINO_DIR} /deb-pkg/opt/intel/openvino_$OPENVINO_VERSION.0 && \
     cp /usr/local/lib/libopencv*.so.410 /deb-pkg/opt/opencv/ && \
     cp ${GSTREAMER_DIR}/lib/libopenh264.so /deb-pkg/opt/openh264/libopenh264.so.7 && \
     cp /usr/local/lib/librdkafka++.so /deb-pkg/opt/rdkafka/librdkafka++.so.1 && \
@@ -49,11 +48,7 @@ RUN \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/infrastructure && \
-    rm -rf /deb-pkg/opt/intel/dlstreamer/tests && \
-    rm -rf /deb-pkg/opt/intel/dlstreamer/gstreamer/src/gstreamer-${GST_VERSION}/.git* && \
-    rm -rf /deb-pkg/opt/intel/dlstreamer/gstreamer/src/gstreamer-${GST_VERSION}/.vscode && \
-    rm -f /deb-pkg/opt/intel/dlstreamer/gstreamer/src/gstreamer-${GST_VERSION}/.editorconfig && \
-    rm -f /deb-pkg/opt/intel/dlstreamer/gstreamer/src/gstreamer-${GST_VERSION}/.indent*
+    rm -rf /deb-pkg/opt/intel/dlstreamer/tests
 
 COPY docker/onebinary/debian /deb-pkg/debian
 

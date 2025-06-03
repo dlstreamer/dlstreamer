@@ -6,6 +6,8 @@
 
 FROM fedora:41
 
+ARG BUILD_ARG=Debug
+
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
 
@@ -17,6 +19,7 @@ ARG OPENVINO_FILENAME=openvino_toolkit_rhel8_2025.1.0.18503.6fec06580ab_x86_64
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
 ENV GSTREAMER_DIR=/opt/intel/dlstreamer/gstreamer
+ENV INTEL_OPENVINO_DIR=/opt/intel/openvino_$OPENVINO_VERSION.0
 ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_VA_ALL_DRIVERS=1
@@ -176,7 +179,7 @@ RUN \
     -Dgstreamer-vaapi:glx=enabled \
     -Dgstreamer-vaapi:wayland=enabled \
     -Dgstreamer-vaapi:egl=enabled \
-    --buildtype=debug \
+    --buildtype=${BUILD_ARG,} \
     --prefix=${GSTREAMER_DIR} \
     --libdir=lib/ \
     --libexecdir=bin/ \
@@ -211,9 +214,9 @@ RUN \
 RUN \
     wget -q --no-check-certificate https://storage.openvinotoolkit.org/repositories/openvino/packages/"$OPENVINO_VERSION"/linux/"$OPENVINO_FILENAME".tgz && \
     tar -xf "$OPENVINO_FILENAME".tgz && \
-    mv "$OPENVINO_FILENAME" /opt/intel/openvino_"$OPENVINO_VERSION".0 && \
+    mv "$OPENVINO_FILENAME" ${INTEL_OPENVINO_DIR} && \
     rm "$OPENVINO_FILENAME".tgz && \
-    /opt/intel/openvino_"$OPENVINO_VERSION".0/install_dependencies/install_openvino_dependencies.sh -y
+    ${INTEL_OPENVINO_DIR}/install_dependencies/install_openvino_dependencies.sh -y
 
 # OpenCV
 WORKDIR /
@@ -249,7 +252,6 @@ RUN \
 WORKDIR $DLSTREAMER_DIR/build
 
 # OpenVINO environment variables
-ENV INTEL_OPENVINO_DIR=/opt/intel/openvino_$OPENVINO_VERSION.0
 ENV OpenVINO_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
 ENV InferenceEngine_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
 ENV ngraph_DIR=$INTEL_OPENVINO_DIR/runtime/cmake
@@ -259,12 +261,12 @@ ENV LD_LIBRARY_PATH=$INTEL_OPENVINO_DIR/tools/compile_tool:$INTEL_OPENVINO_DIR/r
 ENV PYTHONPATH=$INTEL_OPENVINO_DIR/python/${PYTHON_VERSION}:$PYTHONPATH
 
 # DLStreamer environment variables
-ENV LIBDIR=${DLSTREAMER_DIR}/build/intel64/Debug/lib
-ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/Debug/bin
+ENV LIBDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/lib
+ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/bin
 ENV PATH=${GSTREAMER_DIR}/bin:${BINDIR}:${PATH}
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib64/pkgconfig:${PKG_CONFIG_PATH}
-ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:${LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:${LD_LIBRARY_PATH}
+ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C
@@ -276,15 +278,22 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 
 # Build DLStreamer
 RUN \
+    if [ "${BUILD_ARG}" == "Debug" ]; then \
+        C_FLAGS="-Og -g"; \
+        CXX_FLAGS="-Og -g"; \
+    else \
+        C_FLAGS=""; \
+        CXX_FLAGS=""; \
+    fi && \
     cmake \
-    -DCMAKE_BUILD_TYPE=Debug \
-    -DCMAKE_C_FLAGS="-Og -g" \
-    -DCMAKE_CXX_FLAGS="-Og -g" \
-    -DENABLE_PAHO_INSTALLATION=ON \
-    -DENABLE_RDKAFKA_INSTALLATION=ON \
-    -DENABLE_VAAPI=ON \
-    -DENABLE_SAMPLES=ON \
-    .. && \
+        -DCMAKE_BUILD_TYPE=${BUILD_ARG} \
+        -DCMAKE_C_FLAGS="${C_FLAGS}" \
+        -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" \
+        -DENABLE_PAHO_INSTALLATION=ON \
+        -DENABLE_RDKAFKA_INSTALLATION=ON \
+        -DENABLE_VAAPI=ON \
+        -DENABLE_SAMPLES=ON \
+        .. && \
     make -j "$(nproc)" && \
     usermod -a -G video dlstreamer && \
     chown -R dlstreamer:dlstreamer /home/dlstreamer

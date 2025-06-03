@@ -4,37 +4,34 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-FROM ubuntu:24.04
+FROM fedora:41
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN \
-    apt-get update && \
-    apt-get install -y -q --no-install-recommends gnupg=\* ca-certificates=\* wget=\* libtbb-dev=\* cmake=\* vim=\* numactl=\* && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN wget -q https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/scripts/DLS_install_prerequisites.sh && \
-    chmod +x DLS_install_prerequisites.sh && \
-    ./DLS_install_prerequisites.sh --on-host-or-docker=docker_ubuntu24 && \
-    rm -f DLS_install_prerequisites.sh
+    dnf install -y \
+    "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
+    "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm" && \
+    dnf clean all
 
 RUN \
-    echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | tee /etc/apt/sources.list.d/intel-openvino-2025.list && \
-    wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+    printf "[OpenVINO]\n\
+name=Intel(R) Distribution of OpenVINO\n\
+baseurl=https://yum.repos.intel.com/openvino\n\
+enabled=1\n\
+gpgcheck=1\n\
+repo_gpgcheck=1\n\
+gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB\n" >/tmp/openvino.repo && \
+    mv /tmp/openvino.repo /etc/yum.repos.d
 
-RUN mkdir -p /debs
-COPY ./deb_packages/*.deb /debs/
+RUN mkdir -p /rpms
 
-ARG DEBIAN_FRONTEND=noninteractive
+COPY ./rpm_packages/*.rpm /rpms/
 
+# Download and install DLS rpm package
 RUN \
-    apt-get update -y && \
-    apt-get install -y -q --no-install-recommends /debs/*.deb && \
-    apt-get clean -y && \
-    rm -rf /var/lib/apt/lists/* && \
-    rm -rf /debs && \
+    dnf install -y /rpms/*.rpm && \
+    dnf clean all && \
     useradd -ms /bin/bash dlstreamer && \
     chown -R dlstreamer: /opt && \
     chmod -R u+rw /opt
@@ -45,15 +42,15 @@ RUN \
     chmod -R u+w /python3venv
 
 ENV LIBVA_DRIVER_NAME=iHD
-ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
+ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
 ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/opencv:/opt/openh264:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib/gstreamer-1.0:/usr/local/lib
-ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
 ENV PATH=/python3venv/bin:/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:$PATH
 ENV PYTHONPATH=/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:/home/dlstreamer/dlstreamer/python:/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:
 ENV TERM=xterm
-ENV GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0
+ENV GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib64/girepository-1.0
 
 RUN \
     usermod -a -G video dlstreamer && \
