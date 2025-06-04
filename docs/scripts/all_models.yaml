@@ -62,6 +62,13 @@ YOLOv8-SEG:
   readme: https://dlstreamer.github.io/dev_guide/yolo_models.html
   source_readme: https://docs.ultralytics.com/tasks/segment/
   model-proc: not required
+yolov8_license_plate_detector:
+  source: public
+  format: pytorch
+  task_type: detection
+  readme: https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8
+  source_readme: https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8
+  model-proc: not required
 YOLOv9:
   source: public
   format: pytorch
@@ -91,6 +98,13 @@ YOLOX:
   source_readme: https://github.com/Megvii-BaseDetection/YOLOX
   labels-file: https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/labels/coco_80cl.txt
   model-proc: https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/model_proc/public/yolo-x.json
+ch_PP-OCRv4_rec_infer:
+  source: public
+  format: paddle
+  task_type: ocr
+  readme: https://github.com/PaddlePaddle/PaddleOCR
+  source_readme: https://github.com/PaddlePaddle/PaddleOCR
+  model-proc: not required
 CenterFace:
   source: public
   format: onnx
