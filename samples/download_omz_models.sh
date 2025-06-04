@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2024 Intel Corporation
+# Copyright (C) 2020-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -15,8 +15,10 @@ fi
 
 echo Downloading models to folder "$MODELS_PATH"
 
-if ! python3 -m pip show -qq openvino-dev; then
-  echo "Script requires Open Model Zoo python modules, please install via 'python3 -m pip install openvino-dev[onnx]'";
+if ! python3 -m pip show -qq openvino-dev || ! python3 -m pip show -qq tensorflow; then
+  echo "This script requires the Open Model Zoo Python modules and TensorFlow."
+  echo "Please install them using the following command:"
+  echo "python3 -m pip install tensorflow openvino-dev[onnx]"
   exit 1
 fi
 
