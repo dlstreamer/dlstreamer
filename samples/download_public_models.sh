@@ -164,13 +164,13 @@ pip install openvino==2024.6.0 || handle_error $LINENO
 pip install openvino-dev || handle_error $LINENO
 
 pip install onnx || handle_error $LINENO
-
+pip install seaborn || handle_error $LINENO
 # Install or upgrade NNCF
 pip install nncf --upgrade || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install ultralytics --upgrade || handle_error $LINENO
+  pip install ultralytics --upgrade --extra-index-url https://download.pytorch.org/whl/cpu || handle_error $LINENO
 fi
 
 # Install dependencies for CLIP models
