@@ -750,7 +750,7 @@ ov_model.reshape({"x": [-1, 3, 48, 192]})
 ov_model.set_rt_info("paddle_ocr", ['model_info', 'model_type'])
 ov_model.set_rt_info("58.395, 57.12, 57.375", ['model_info', 'scale_values'])  #std = [0.229, 0.224, 0.225]
 ov_model.set_rt_info("123.675, 116.28, 103.53", ['model_info', 'mean_values'])  #mean = [0.485, 0.456, 0.406]
-ov_model.set_rt_info("True", ['model_info', 'reverse_input_channels'])
+ov_model.set_rt_info("true", ['model_info', 'reverse_input_channels'])
 ov_model.set_rt_info("standard", ['model_info', 'resize_type'])
 
 ov.save_model(ov_model, './FP32/' + 'ch_PP-OCRv4_rec_infer.xml', compress_to_fp16=False)
