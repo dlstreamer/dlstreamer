@@ -166,5 +166,7 @@
     "HSEmotion",
     "clip-vit-large-patch14",
     "clip-vit-base-patch16",
-    "clip-vit-base-patch32"
+    "clip-vit-base-patch32",
+    "yolov8_license_plate_detector",
+    "ch_PP-OCRv4_rec_infer"
 ]
