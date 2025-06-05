@@ -95,9 +95,6 @@ else
     exit 1
 fi
 
-# variables required by test pipeline
-export MODELS_PATH="$HOME"/models
-
 # remove gstreamer cache
 rm -rf ~/.cache/gstreamer-1.0
 
@@ -117,9 +114,9 @@ fi
 if [ -d "$MODELS_PATH"/public/"$MODEL"/FP32 ]; then
 	echo "$MODEL model exists."
 else
-	echo "Model $MODEL which you want to use cannot be found!"
+	echo "Model $MODEL which you want to use cannot be found at $MODELS_PATH!"
 	echo "Please run the script \`/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL\` to download the model."
-	echo "If the model has already been downloaded, specify the path to its location."
+	echo "If the model has already been downloaded, specify the path to its location (for instance: export MODELS_PATH=/home/user/you_path)."
 	exit 1
 fi
 
