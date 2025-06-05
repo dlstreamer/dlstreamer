@@ -26,7 +26,11 @@ The sample uses the [`clip-vit-large-patch14`](https://huggingface.co/openai/cli
 
 ## Running
 
+```sh
+    export MODELS_PATH="$HOME"/models
+    ../../../download_public_models.sh clip-vit-large-patch14
     ./generate_frame_embeddings.sh [INPUT] [DEVICE] [OUTPUT] [MODEL]
+```
 
 The sample takes four command-line *optional* parameters:
 
