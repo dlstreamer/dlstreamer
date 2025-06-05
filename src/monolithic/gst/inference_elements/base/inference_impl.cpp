@@ -11,6 +11,7 @@
 #include "common/pre_processor_info_parser.hpp"
 #include "common/pre_processors.h"
 #include "config.h"
+#include "gmutex_lock_guard.h"
 #include "gst_allocator_wrapper.h"
 #include "gva_base_inference_priv.hpp"
 #include "gva_caps.h"
@@ -854,6 +855,7 @@ void InferenceImpl::PushOutput() {
         for (const std::shared_ptr<InferenceFrame> &inference_roi : (*frame).inference_rois) {
             gint meta_id = 0;
             if (NEW_METADATA && inference_roi->roi.id >= 0) {
+                GMutexLockGuard guard(&inference_roi->gva_base_inference->meta_mutex);
                 GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(inference_roi->buffer);
                 if (!relation_meta) {
                     throw std::runtime_error("Failed to find relation meta");
@@ -1042,6 +1044,7 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             /* iterates through buffer's meta and pushes it in vector if inference needed. */
             gpointer state = NULL;
             if (NEW_METADATA) {
+                GMutexLockGuard guard(&gva_base_inference->meta_mutex);
                 GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
                 if (relation_meta) {
                     GstAnalyticsODMtd od_meta;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,16 +14,17 @@ using namespace post_processing;
 /* class FrameWrapper */
 
 FrameWrapper::FrameWrapper(InferenceFrame &frame)
-    : buffer(frame.buffer), model_instance_id(frame.gva_base_inference->model_instance_id), roi(&frame.roi),
+    : buffer(frame.buffer), model_instance_id(frame.gva_base_inference->model_instance_id),
+      meta_mutex(&frame.gva_base_inference->meta_mutex), roi(&frame.roi),
       image_transform_info(frame.image_transform_info), width(frame.info->width), height(frame.info->height),
       roi_classifications(&frame.roi_classifications) {
 }
 
 // This constructor is only called for micro-elements, initialization of the rest of the fields is not required because
 // they are not used there
-FrameWrapper::FrameWrapper(GstBuffer *buf, const std::string &instance_id)
-    : buffer(buf), model_instance_id(instance_id), roi(nullptr), image_transform_info(nullptr), width(0), height(0),
-      roi_classifications(nullptr) {
+FrameWrapper::FrameWrapper(GstBuffer *buf, const std::string &instance_id, GMutex *meta_mutex)
+    : buffer(buf), model_instance_id(instance_id), meta_mutex(meta_mutex), roi(nullptr), image_transform_info(nullptr),
+      width(0), height(0), roi_classifications(nullptr) {
 }
 
 /* class FramesWrapper */
@@ -36,8 +37,9 @@ FramesWrapper::FramesWrapper(const InferenceFrames &frames) : created_from_buf(f
     }
 }
 
-FramesWrapper::FramesWrapper(GstBuffer *buffer, const std::string &instance_id) : created_from_buf(true) {
-    FrameWrapper fw(buffer, instance_id);
+FramesWrapper::FramesWrapper(GstBuffer *buffer, const std::string &instance_id, GMutex *meta_mutex)
+    : created_from_buf(true) {
+    FrameWrapper fw(buffer, instance_id, meta_mutex);
     _frames.push_back(fw);
 }
 
