@@ -15,7 +15,7 @@ PaddleOCR tensor output = [B, L, N] where:
     B - batch size
     L - sequence length (maximum number of characters in the recognized text)
     N - number of elements in the model's character set
-*/ 
+*/
 class PaddleOCRConverter : public BlobToTensorConverter {
   public:
     PaddleOCRConverter(BlobToMetaConverter::Initializer initializer);
