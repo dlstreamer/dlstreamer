@@ -18,6 +18,8 @@
 
 namespace post_processing {
 
+const std::string DEFAULT_ANOMALY_DETECTION_TASK = "classification";
+
 class BlobToTensorConverter : public BlobToMetaConverter {
   protected:
     std::unique_ptr<FeatureToggling::Runtime::RuntimeFeatureToggler> raw_tensor_copying;

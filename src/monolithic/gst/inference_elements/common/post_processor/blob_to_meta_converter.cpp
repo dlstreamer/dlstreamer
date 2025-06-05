@@ -168,8 +168,9 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
         if (converter_name == KeypointsOpenPoseConverter::getName()) {
             auto keypoints_number = getKeypointsNumber(tensor.get());
             return std::make_unique<KeypointsOpenPoseConverter>(std::move(initializer), keypoints_number);
-        } else
+        } else {
             return BlobToTensorConverter::create(std::move(initializer), converter_name);
+        }
     default:
         throw std::runtime_error("Invalid converter type.");
     }

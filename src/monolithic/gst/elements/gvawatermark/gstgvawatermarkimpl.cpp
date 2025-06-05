@@ -461,7 +461,9 @@ bool Impl::render(GstBuffer *buffer) {
         preparePrimsForTensor(tensor, ff_rect, prims);
         if (tensor.label().size() > 1) {
             appendStr(ff_text, tensor.label());
-            ff_text << int(tensor.confidence() * 100) << "%";
+            if (tensor.confidence() > 0.0) {
+                ff_text << int(tensor.confidence() * 100) << "%";
+            }
         }
     }
 

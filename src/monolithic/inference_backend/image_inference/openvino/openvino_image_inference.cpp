@@ -509,6 +509,8 @@ class OpenVinoNewApiImpl {
                 g_value_init(&gvalue, G_TYPE_STRING);
                 g_value_set_string(&gvalue, element.second.as<std::string>().c_str());
                 gst_structure_set_value(s, "converter", &gvalue);
+                GST_INFO("[get_model_info_postproc] model_type: %s", element.second.as<std::string>().c_str());
+                GST_INFO("[get_model_info_postproc] converter: %s", g_value_get_string(&gvalue));
                 g_value_unset(&gvalue);
             }
             if ((element.first.find("multilabel") != std::string::npos) &&
@@ -521,6 +523,8 @@ class OpenVinoNewApiImpl {
                 else
                     g_value_set_string(&gvalue, "multi");
                 gst_structure_set_value(s, "method", &gvalue);
+                GST_INFO("[get_model_info_postproc] multilabel: %s", element.second.as<std::string>().c_str());
+                GST_INFO("[get_model_info_postproc] method: %s", g_value_get_string(&gvalue));
                 g_value_unset(&gvalue);
             }
             if ((element.first.find("output_raw_scores") != std::string::npos) &&
@@ -533,6 +537,8 @@ class OpenVinoNewApiImpl {
                 else
                     g_value_set_string(&gvalue, "softmax");
                 gst_structure_set_value(s, "method", &gvalue);
+                GST_INFO("[get_model_info_postproc] output_raw_scores: %s", element.second.as<std::string>().c_str());
+                GST_INFO("[get_model_info_postproc] method: %s", g_value_get_string(&gvalue));
                 g_value_unset(&gvalue);
             }
             if (element.first.find("confidence_threshold") != std::string::npos) {
@@ -540,6 +546,7 @@ class OpenVinoNewApiImpl {
                 g_value_init(&gvalue, G_TYPE_DOUBLE);
                 g_value_set_double(&gvalue, element.second.as<double>());
                 gst_structure_set_value(s, "confidence_threshold", &gvalue);
+                GST_INFO("[get_model_info_postproc] confidence_threshold: %f", element.second.as<double>());
                 g_value_unset(&gvalue);
             }
             if (element.first.find("iou_threshold") != std::string::npos) {
@@ -547,6 +554,39 @@ class OpenVinoNewApiImpl {
                 g_value_init(&gvalue, G_TYPE_DOUBLE);
                 g_value_set_double(&gvalue, element.second.as<double>());
                 gst_structure_set_value(s, "iou_threshold", &gvalue);
+                GST_INFO("[get_model_info_postproc] iou_threshold: %f", element.second.as<double>());
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("image_threshold") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_DOUBLE);
+                g_value_set_double(&gvalue, element.second.as<double>());
+                gst_structure_set_value(s, "image_threshold", &gvalue);
+                GST_INFO("[get_model_info_postproc] image_threshold: %f", element.second.as<double>());
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("pixel_threshold") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_DOUBLE);
+                g_value_set_double(&gvalue, element.second.as<double>());
+                gst_structure_set_value(s, "pixel_threshold", &gvalue);
+                GST_INFO("[get_model_info_postproc] pixel_threshold: %f", element.second.as<double>());
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("normalization_scale") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_DOUBLE);
+                g_value_set_double(&gvalue, element.second.as<double>());
+                gst_structure_set_value(s, "normalization_scale", &gvalue);
+                GST_INFO("[get_model_info_postproc] normalization_scale: %f", element.second.as<double>());
+                g_value_unset(&gvalue);
+            }
+            if (element.first.find("task") != std::string::npos) {
+                GValue gvalue = G_VALUE_INIT;
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, element.second.as<std::string>().c_str());
+                gst_structure_set_value(s, "anomaly_task", &gvalue);
+                GST_INFO("[get_model_info_postproc] anomaly_task: %s", element.second.as<std::string>().c_str());
                 g_value_unset(&gvalue);
             }
             if (element.first.find("labels") != std::string::npos) {
@@ -560,6 +600,7 @@ class OpenVinoNewApiImpl {
                     g_value_set_string(&label, el.c_str());
                     gst_value_array_append_value(&gvalue, &label);
                     g_value_unset(&label);
+                    GST_INFO("[get_model_info_postproc] label: %s", el.c_str());
                 }
                 gst_structure_set_value(s, "labels", &gvalue);
                 g_value_unset(&gvalue);
@@ -603,6 +644,7 @@ class OpenVinoNewApiImpl {
                     g_value_init(&gvalue, G_TYPE_DOUBLE);
                     g_value_set_double(&gvalue, element.second.as<double>());
                     gst_structure_set_value(s, "scale", &gvalue);
+                    GST_INFO("[get_model_info_preproc] scale: %f", element.second.as<double>());
                     g_value_unset(&gvalue);
                 } else if (values.size() == 3) {
 
@@ -619,6 +661,7 @@ class OpenVinoNewApiImpl {
                         g_value_init(&item, G_TYPE_DOUBLE);
                         g_value_set_double(&item, scale_value);
                         gst_value_array_append_value(&gvalue, &item);
+                        GST_INFO("[get_model_info_preproc] scale_values: %f", scale_value);
                         g_value_unset(&item);
                     }
 
@@ -655,6 +698,7 @@ class OpenVinoNewApiImpl {
 
                 // Set the array in the GstStructure
                 gst_structure_set_value(s, "mean", &gvalue);
+                GST_INFO("[get_model_info_preproc] mean: %s", g_value_get_string(&gvalue));
                 g_value_unset(&gvalue);
             }
             if ((element.first == "resize_type")) {
@@ -677,6 +721,8 @@ class OpenVinoNewApiImpl {
                     g_value_set_string(&gvalue, "no-aspect-ratio");
                     gst_structure_set_value(s, "resize", &gvalue);
                 }
+                GST_INFO("[get_model_info_preproc] resize_type: %s", element.second.as<std::string>().c_str());
+                GST_INFO("[get_model_info_preproc] resize: %s", g_value_get_string(&gvalue));
                 g_value_unset(&gvalue);
             }
             if ((element.first == "reverse_input_channels") && (element.second.as<std::string>() == "True")) {
@@ -685,6 +731,9 @@ class OpenVinoNewApiImpl {
                 g_value_init(&gvalue, G_TYPE_STRING);
                 g_value_set_string(&gvalue, "RGB");
                 gst_structure_set_value(s, "color_space", &gvalue);
+                GST_INFO("[get_model_info_preproc] reverse_input_channels: %s",
+                         element.second.as<std::string>().c_str());
+                GST_INFO("[get_model_info_preproc] color_space: %s", g_value_get_string(&gvalue));
                 g_value_unset(&gvalue);
             }
             if ((element.first == "reverse_input_channels")) {
@@ -699,6 +748,8 @@ class OpenVinoNewApiImpl {
                     g_value_set_int(&gvalue, gint(true));
 
                 gst_structure_set_value(s, "reverse_input_channels", &gvalue);
+                GST_INFO("[get_model_info_preproc] reverse_input_channels: %s",
+                         element.second.as<std::string>().c_str());
                 g_value_unset(&gvalue);
             }
         }

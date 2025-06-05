@@ -10,6 +10,16 @@ This sample assumes a user has already trained models using Intel® Geti™ Plat
 
 ```sh
 -intel
+ |-geti-anomaly-detection/          # model trained with Geti™ 'Anomaly detection PADIM/STFPM/UFlow' project
+   |-padim/FP16                     # PADIM model
+     |-openvino.xml                 # model metadata
+     |-openvino.bin                 # model weights
+   |-stfpm/FP16                     # STFPM model
+     |-openvino.xml                 # model metadata
+     |-openvino.bin                 # model weights     
+   |-uflow/FP32                     # UFlow model
+     |-openvino.xml                 # model metadata
+     |-openvino.bin                 # model weights
  |-geti-detection/FP16              # model trained with Geti™ 'Detection bounding box' project
    |-openvino.xml                   # model metadata
    |-openvino.bin                   # model weights
@@ -19,7 +29,7 @@ This sample assumes a user has already trained models using Intel® Geti™ Plat
  |-geti-classification-multi/FP16   # model trained with Geti™ 'Classification multi label' project
    |-openvino.xml                   # model metadata
    |-openvino.bin                   # model weights
- |-geti-classification-multi/FP16   # model trained with Geti™ 'Classification multi label' project
+ |-geti-classification-multi/FP32   # model trained with Geti™ 'Classification multi label' project
    |-openvino.xml                   # model metadata
    |-openvino.bin                   # model weights
  |-geti-obb/FP16                    # model trained with Geti™ 'Oriented Bounding Box Detection' project
@@ -43,6 +53,13 @@ The 'geti_sample.sh' script sample builds GStreamer pipeline composed of the fol
 * `autovideosink` for rendering output video into screen
 * `vah264enc` or `vah264lpenc` and `filesink` for encoding video stream and storing in a local file
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
+
+Example deployment of Geti™ anomaly detection model using CPU device, saving results into a file on local disk. 
+```sh
+./geti_sample.sh anomaly_detection CPU
+```
+
+![example](./pcb_normal_vs_anomaly.jpg)
 
 Example deployment of Geti™ bounding-box detection model using GPU device, saving results into a file on local disk. 
 ```sh
