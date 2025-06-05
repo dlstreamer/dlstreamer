@@ -1,0 +1,17 @@
+{
+    "dependencies": [
+        "opencv",
+        "pkgconf",
+        "spdlog",
+        "opencl",
+        "dlfcn-win32",
+        "fmt",
+        "pthread"
+    ],
+    "overrides": [
+    {
+        "name": "fmt",
+        "version": "10.2.1"
+    }
+]
+}

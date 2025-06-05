@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -30,7 +30,9 @@ file (GLOB MAIN_HEADERS
 add_library(${TARGET_NAME} SHARED ${MAIN_SRC} ${MAIN_HEADERS})
 set_compile_flags(${TARGET_NAME})
 
-target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+if(UNIX)
+    target_compile_options(${TARGET_NAME} PRIVATE -Wno-error=unused-variable -Wno-error=unused-parameter)
+endif()
 
 target_include_directories(${TARGET_NAME}
 PUBLIC

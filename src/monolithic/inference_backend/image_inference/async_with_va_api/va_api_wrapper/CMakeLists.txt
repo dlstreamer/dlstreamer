@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,7 +8,9 @@ set (TARGET_NAME "va_api_wrapper")
 
 find_package(PkgConfig)
 pkg_search_module(VA va libva REQUIRED)
-pkg_search_module(VADRM va-drm libva-drm REQUIRED)
+if(UNIX)
+    pkg_search_module(VADRM va-drm libva-drm REQUIRED)
+endif()
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
