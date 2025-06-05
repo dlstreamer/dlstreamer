@@ -1,11 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
+#include "glib.h"
 #include "inference_backend/image_inference.h"
 
 #include <gst/video/gstvideometa.h>
@@ -19,10 +20,11 @@ namespace post_processing {
 class FrameWrapper {
   public:
     FrameWrapper(InferenceFrame &);
-    FrameWrapper(GstBuffer *, const std::string &instance_id);
+    FrameWrapper(GstBuffer *, const std::string &instance_id, GMutex *meta_mutex);
 
     GstBuffer *buffer;
     std::string model_instance_id;
+    mutable GMutex *meta_mutex;
 
     /* not used for micro elements because they do not use coordinates restorer & regular tensor attachers */
     GstVideoRegionOfInterestMeta *roi;
@@ -37,7 +39,7 @@ using InferenceFrames = std::vector<std::shared_ptr<InferenceFrame>>;
 class FramesWrapper {
   public:
     FramesWrapper(const InferenceFrames &);
-    FramesWrapper(GstBuffer *, const std::string &instance_id);
+    FramesWrapper(GstBuffer *, const std::string &instance_id, GMutex *meta_mutex);
 
     bool empty() const;
     size_t size() const;
