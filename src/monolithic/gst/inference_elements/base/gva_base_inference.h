@@ -77,6 +77,8 @@ typedef struct _GvaBaseInference {
     gboolean initialized;
     guint64 num_skipped_frames;
     guint64 frame_num;
+
+    GMutex meta_mutex;
 } GvaBaseInference;
 
 typedef struct _GvaBaseInferenceClass {

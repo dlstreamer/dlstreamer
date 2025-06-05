@@ -6,6 +6,7 @@
 
 #include "meta_attacher.h"
 
+#include "gmutex_lock_guard.h"
 #include "gva_utils.h"
 #include "processor_types.h"
 #include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
@@ -61,6 +62,7 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
             gva_buffer_check_and_make_writable(writable_buffer, PRETTY_FUNCTION_NAME);
 
             if (NEW_METADATA) {
+                GMutexLockGuard guard(frame.meta_mutex);
                 GQuark gquark_label = g_quark_from_string(label);
 
                 gdouble conf;
@@ -245,6 +247,7 @@ void TensorToROIAttacher::attach(const TensorsTable &tensors_batch, FramesWrappe
         GstBuffer *buffer = frames[i].buffer;
 
         if (NEW_METADATA) {
+            GMutexLockGuard guard(frames[i].meta_mutex);
             GstAnalyticsODMtd od_meta;
             if (!findODMeta(buffer, frames[i].roi, &od_meta)) {
                 GST_WARNING("No detection tensors were found for this buffer in case of roi-list inference.");
