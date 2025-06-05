@@ -8,6 +8,10 @@ cmake_minimum_required(VERSION 3.20)
 
 project(DL_Streamer C CXX)
 
+if (WIN32)
+    add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
+    add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
+endif()
 
 if(NOT(UNIX) AND NOT(WIN32))
     message(FATAL_ERROR "Only UNIX and Windows supported")
@@ -117,13 +121,11 @@ include(CMakeDependentOption)
 option(ENABLE_SAMPLES "Parameter to enable samples building" ON)
 cmake_dependent_option(TREAT_WARNING_AS_ERROR "Treat build warnings as errors" ON "UNIX" OFF)
 cmake_dependent_option(ENABLE_ITT "Enable ITT for tracing" ON "UNIX AND NOT ${CMAKE_SYSTEM_PROCESSOR} STREQUAL aarch64" OFF)
-cmake_dependent_option(ENABLE_VAAPI "Parameter to enable VAAPI for image pre-processing" ON "UNIX" OFF)
+cmake_dependent_option(ENABLE_VAAPI "Parameter to enable VAAPI for image pre-processing" ON "UNIX" ON)
 cmake_dependent_option(ENABLE_PAHO_INSTALLATION "Enables paho-mqtt3c installation" OFF "UNIX" OFF)
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
-
-
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 
@@ -183,7 +185,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DHAVE_CONFIG_H")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DHAVE_CONFIG_H")
 
 
-
 # Find common packages
 
 find_package(Threads REQUIRED)
@@ -196,9 +197,7 @@ link_directories(${GSTREAMER_LIBRARY_DIRS})
 
 add_subdirectory(include/dlstreamer)
 add_subdirectory(include/dlstreamer/gst/videoanalytics)
-if(NOT(WIN32))
-    add_subdirectory(src)
-endif()
+add_subdirectory(src)
 add_subdirectory(src/monolithic)
 add_subdirectory(thirdparty)
 add_subdirectory(python)
@@ -209,5 +208,4 @@ if(${ENABLE_SAMPLES})
     #add_subdirectory(samples/ffmpeg_openvino/cpp/decode_resize_inference)
     #add_subdirectory(samples/ffmpeg_dpcpp/rgb_to_grayscale)
 endif()
-
 
