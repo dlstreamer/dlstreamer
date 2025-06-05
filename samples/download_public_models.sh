@@ -665,7 +665,7 @@ for input in ov_model.inputs:
 ov_model.set_rt_info("clip_token", ['model_info', 'model_type'])
 ov_model.set_rt_info("68.500,66.632,70.323", ['model_info', 'scale_values'])
 ov_model.set_rt_info("122.771,116.746,104.094", ['model_info', 'mean_values'])
-ov_model.set_rt_info("True", ['model_info', 'reverse_input_channels'])
+ov_model.set_rt_info("RGB", ['model_info', 'color_space'])
 ov_model.set_rt_info("crop", ['model_info', 'resize_type'])
 
 ov.save_model(ov_model, MODEL + ".xml")
