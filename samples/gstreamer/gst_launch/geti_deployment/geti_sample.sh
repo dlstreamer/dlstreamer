@@ -16,12 +16,35 @@ else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL_TYPE=${1:-detection} # Supported values: rotated-detection, instance-segmentation, detection, classification
+# Default values for parameters
+# MODEL_TYPE can be rotated-detection, instance-segmentation, detection, geti-detection, classification, geti-obb, geti-segmentation, geti-classification-single, geti-classification-multi,anomaly-detection
+MODEL_TYPE=${1:-detection}
 MODEL_PATH=${2:-/home/path/to/your/model.xml}
-DEVICE=${3:-CPU} # Supported values: CPU, GPU, NPU
-PREPROC_BACKEND=${4:-ie} # Supported values: ie/opencv for CPU | va/va-surface-sharing/opencv for GPU/NPU
+# Supported values: CPU, GPU, NPU
+DEVICE=${3:-CPU}
+# PREPROC_BACKEND can be ie/opencv for CPU or va/va-surface-sharing GPU or va for NPU.
+PREPROC_BACKEND=${4:-"ie"}
+# INPUT can be a file path, a URL, or a video device (e.g., /dev/video0)
 INPUT=${5:-https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4}
-OUTPUT=${6:-file} # Supported values: file, display, fps, json, display-and-json
+# OUTPUT can be file, display, fps, json, display-and-json
+OUTPUT=${6:-file}
+
+if [[ ! $MODEL_TYPE =~ ^(rotated-detection|instance-segmentation|detection|geti-detection|classification|geti-classification-single|geti-classification-multi|geti-obb|geti-segmentation|anomaly-detection)$ ]]; then
+  echo "Error: Invalid MODEL_TYPE. Supported values: rotated-detection, instance-segmentation, detection, classification, anomaly-detection." >&2
+  exit 1
+fi
+if [[ ! $DEVICE =~ ^(CPU|GPU|NPU)$ ]]; then
+  echo "Error: Invalid DEVICE. Supported values: CPU, GPU, NPU." >&2
+  exit 1
+fi
+if [[ ! $PREPROC_BACKEND =~ ^(ie|opencv|va|va-surface-sharing)?$ ]]; then
+  echo "Error: Invalid PREPROC_BACKEND. Supported values: ie/opencv for CPU or va/va-surface-sharing GPU or va for NPU" >&2
+  exit 1
+fi
+if [[ ! $OUTPUT =~ ^(file|display|fps|json|display-and-json)?$ ]]; then
+  echo "Error: Invalid OUTPUT. Supported values: file, display, fps, json, display-and-json." >&2
+  exit 1
+fi
 
 FULL_MODEL_PATH="${MODELS_PATH}/${MODEL_PATH}"
 echo "FULL_MODEL_PATH: $FULL_MODEL_PATH"
@@ -45,22 +68,25 @@ if [[ $DEVICE == "GPU" ]] || [[ $DEVICE == "NPU" ]]; then
   DECODE_ELEMENT="! decodebin3 ! vapostproc ! video/x-raw(memory:VAMemory) !"
 fi
 
+# Validate and set PREPROC_BACKEND based on DEVICE
 if [[ "$PREPROC_BACKEND" == "" ]]; then
-  PREPROC_BACKEND="ie"
+  PREPROC_BACKEND="ie" # Default value for CPU
   if [[ "$DEVICE" == "GPU" ]]; then
-    PREPROC_BACKEND="va-surface-sharing"
+    PREPROC_BACKEND="va-surface-sharing" # Default value for GPU
+  fi
+  if [[ "$DEVICE" == "NPU" ]]; then
+    PREPROC_BACKEND="va" # Default value for NPU
   fi
 else
   if [[ "$PREPROC_BACKEND" == "ie" ]] || [[ "$PREPROC_BACKEND" == "opencv" ]] || [[ "$PREPROC_BACKEND" == "va" ]] || [[ "$PREPROC_BACKEND" == "va-surface-sharing" ]]; then
     PREPROC_BACKEND=${PREPROC_BACKEND}
   else
     echo "Error wrong value for PREPROC_BACKEND parameter. Supported values: ie/opencv for CPU | va/va-surface-sharing/opencv for GPU/NPU".
-    exit 
   fi
 fi
 
 INFERENCE_ELEMENT="gvadetect"
-if [[ $MODEL_TYPE =~ "classification" ]]; then
+if [[ $MODEL_TYPE =~ "classification" ]] || [[ $MODEL_TYPE =~ "anomaly-detection" ]]; then
   INFERENCE_ELEMENT="gvaclassify inference-region=full-frame"
 fi
 
