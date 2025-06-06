@@ -626,6 +626,18 @@ class OpenVinoNewApiImpl {
         std::shared_ptr<ov::Model> _model;
         _model = core().read_model(model_file);
 
+        // Warn if model quantization runtime does not match current runtime
+        if (_model->has_rt_info({"nncf"})) {
+            const ov::AnyMap nncfConfig = _model->get_rt_info<const ov::AnyMap>("nncf");
+            const std::string modelVersion = _model->get_rt_info<const std::string>("Runtime_version");
+            const std::string runtimeVersion = ov::get_openvino_version().buildNumber;
+
+            if (nncfConfig.count("quantization") && (modelVersion != runtimeVersion))
+                g_warning("Model quantization runtime (%s) does not match current runtime (%s). Results may be "
+                          "inaccurate. Please re-quantize the model with the current runtime version.",
+                          modelVersion.c_str(), runtimeVersion.c_str());
+        }
+
         if (_model->has_rt_info({"model_info"})) {
             modelConfig = _model->get_rt_info<ov::AnyMap>("model_info");
             s = gst_structure_new_empty(layer_name.data());
