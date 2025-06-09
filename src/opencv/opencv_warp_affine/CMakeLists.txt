@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2022 Intel Corporation
+# Copyright (C) 2022-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,6 +8,7 @@ set(TARGET_NAME opencv_warp_affine)
 
 find_package(OpenCV REQUIRED)
 find_package(OpenCL REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 
 add_library(${TARGET_NAME} OBJECT opencv_warp_affine.cpp)
 set_compile_flags(${TARGET_NAME})
@@ -16,7 +17,9 @@ target_include_directories(${TARGET_NAME}
 PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 PRIVATE
+        ${OpenCL_INCLUDE_DIRS}
         ${OpenCV_INCLUDE_DIRS}
+        ${VA_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}

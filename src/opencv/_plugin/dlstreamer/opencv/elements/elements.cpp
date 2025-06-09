@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -16,7 +16,11 @@
 
 extern "C" {
 
+#if !(_MSC_VER)
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
+#else
+const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
+#endif
     &opencv_find_contours,
     &opencv_barcode_detector,
     &opencv_object_association,
