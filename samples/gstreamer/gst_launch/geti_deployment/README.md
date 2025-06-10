@@ -54,12 +54,22 @@ The 'geti_sample.sh' script sample builds GStreamer pipeline composed of the fol
 * `vah264enc` or `vah264lpenc` and `filesink` for encoding video stream and storing in a local file
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
-Example deployment of Geti™ anomaly detection model using CPU device, saving results into a file on local disk. 
+Before running **geti_deployment** samples 
+
 ```sh
-./geti_sample.sh anomaly_detection CPU
+    export MODELS_PATH="$HOME"/models
+    cd /opt/intel/dlstreamer/samples/gstreamer/gst_launch/geti_deployment/
+```
+
+Example deployment of Geti™ anomaly detection UFlow model using CPU device, saving results into a file on local disk. 
+> **NOTE**: User must provide a relevant input video file.
+
+```sh
+./geti_sample.sh anomaly-detection uflow/FP32/model.xml CPU opencv INPUT_VIDEO_FILE json
 ```
 
 ![example](./pcb_normal_vs_anomaly.jpg)
+
 
 Example deployment of Geti™ bounding-box detection model using GPU device, saving results into a file on local disk. 
 ```sh
