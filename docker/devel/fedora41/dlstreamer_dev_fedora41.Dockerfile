@@ -6,7 +6,7 @@
 
 FROM fedora:41
 
-ARG BUILD_ARG=Debug
+ARG BUILD_ARG=Release
 
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
