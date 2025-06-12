@@ -204,26 +204,23 @@ void YOLOv8PoseConverter::parseOutputBlob(const float *data, const std::vector<s
             }
 
             // create tensor with keypoints
-            GstStructure *tensor = gst_structure_copy(getModelProcOutputInfo().get());
-            gst_structure_set_name(tensor, "keypoints");
-            gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
-            gst_structure_set(tensor, "format", G_TYPE_STRING, "keypoints", NULL);
+            GstStructure *gst_structure = gst_structure_copy(getModelProcOutputInfo().get());
+            GVA::Tensor tensor(gst_structure);
+
+            tensor.set_name("keypoints");
+            tensor.set_format("keypoints");
 
             // set tensor data (positions)
-            copy_buffer_to_structure(tensor, reinterpret_cast<const void *>(positions.data),
-                                     keypoint_count * 2 * sizeof(float));
+            tensor.set_dims({static_cast<uint32_t>(keypoint_count), 2});
+            tensor.set_data(reinterpret_cast<const void *>(positions.data), keypoint_count * 2 * sizeof(float));
+            tensor.set_precision(GVA::Tensor::Precision::FP32);
 
-            // set dimensions of tensor data
-            std::vector<uint32_t> dims_vector = {static_cast<uint32_t>(keypoint_count), 2};
-            GVA::copy_vector_to_structure<uint32_t>(tensor, "dims", dims_vector);
+            // set additional tensor properties as vectors: confidence, point names and point connections
+            tensor.set_vector<float>("confidence", confidences);
+            tensor.set_vector<std::string>("point_names", point_names);
+            tensor.set_vector<std::string>("point_connections", point_connections);
 
-            // set keypoint confidence, point names and point connections
-            GVA::copy_vector_to_structure<float>(tensor, "confidence", confidences);
-            GVA::copy_vector_to_structure<std::string>(tensor, "point_names", point_names);
-            GVA::copy_vector_to_structure<std::string>(tensor, "point_connections", point_connections);
-
-            detected_object.tensors.push_back(tensor);
-
+            detected_object.tensors.push_back(tensor.gst_structure());
             objects.push_back(detected_object);
         }
         output_data += object_size;
@@ -297,20 +294,19 @@ void YOLOv8SegConverter::parseOutputBlob(const float *boxes_data, const std::vec
             });
 
             // create segmentation mask tensor
-            GstStructure *tensor = gst_structure_copy(getModelProcOutputInfo().get());
-            gst_structure_set_name(tensor, "mask_yolov8");
-            gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
-            gst_structure_set(tensor, "format", G_TYPE_STRING, "segmentation_mask", NULL);
+            GstStructure *gst_structure = gst_structure_copy(getModelProcOutputInfo().get());
+            GVA::Tensor tensor(gst_structure);
+            tensor.set_name("mask_yolov8");
+            tensor.set_format("segmentation_mask");
 
             // set tensor data
-            std::vector<uint32_t> dims_vector = {safe_convert<uint32_t>(cropped_mask.cols),
-                                                 safe_convert<uint32_t>(cropped_mask.rows)};
-            GVA::copy_vector_to_structure<uint32_t>(tensor, "dims", dims_vector);
-            copy_buffer_to_structure(tensor, reinterpret_cast<const void *>(cropped_mask.data),
-                                     cropped_mask.rows * cropped_mask.cols * sizeof(float));
+            tensor.set_dims({safe_convert<uint32_t>(cropped_mask.cols), safe_convert<uint32_t>(cropped_mask.rows)});
+            tensor.set_precision(GVA::Tensor::Precision::FP32);
+            tensor.set_data(reinterpret_cast<const void *>(cropped_mask.data),
+                            cropped_mask.rows * cropped_mask.cols * sizeof(float));
 
             // add tensor to the list of detected objects
-            detected_object.tensors.push_back(tensor);
+            detected_object.tensors.push_back(tensor.gst_structure());
             objects.push_back(detected_object);
         }
         output_data += object_size;
