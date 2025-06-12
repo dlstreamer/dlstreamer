@@ -26,36 +26,6 @@
 
 namespace GVA {
 
-// helper function to convert vectors into GST_TYPE_ARRAY metadata
-template <typename T>
-void copy_vector_to_structure(GstStructure *gst_struct, const char *field_name, const std::vector<T> &data) {
-    GValue gvalue = G_VALUE_INIT;
-    GValue garray = G_VALUE_INIT;
-    gst_value_array_init(&garray, data.size());
-
-    for (size_t i = 0; i < data.size(); i++) {
-        if constexpr (std::is_same<T, uint32_t>::value) {
-            g_value_init(&gvalue, G_TYPE_UINT);
-            g_value_set_uint(&gvalue, data[i]);
-        } else if constexpr (std::is_same<T, float>::value) {
-            g_value_init(&gvalue, G_TYPE_FLOAT);
-            g_value_set_float(&gvalue, data[i]);
-        } else if constexpr (std::is_same<T, std::string>::value) {
-            g_value_init(&gvalue, G_TYPE_STRING);
-            g_value_set_string(&gvalue, data[i].c_str());
-        } else {
-            throw std::invalid_argument("Unsupported data type");
-        }
-
-        // append GValue to GST Array
-        gst_value_array_append_value(&garray, &gvalue);
-        g_value_unset(&gvalue);
-    }
-
-    gst_structure_set_value(gst_struct, field_name, &garray);
-    g_value_unset(&garray);
-}
-
 /**
  * @brief This class represents tensor - map-like storage for inference result information, such as output blob
  * description (output layer dims, layout, rank, precision, etc.), inference result in a raw and interpreted forms.
@@ -125,6 +95,23 @@ class Tensor {
     }
 
     /**
+     * @brief Set raw data buffer as inference output data
+     * @param buffer with data element
+     * @param size of data buffer in bytes
+     */
+    void set_data(const void *buffer, size_t size) {
+        if (!_structure || !buffer)
+            throw std::invalid_argument("Failed to copy buffer to structure: null arguments");
+
+        GVariant *v = g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, buffer, size, 1);
+        if (not v)
+            throw std::invalid_argument("Failed to create GVariant array");
+        gsize n_elem;
+        gst_structure_set(_structure, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
+                          g_variant_get_fixed_array(v, &n_elem, 1), NULL);
+    }
+
+    /**
      * @brief Get inference result blob dimensions info
      * @return vector of dimensions. Empty vector if dims are not set
      */
@@ -141,6 +128,14 @@ class Tensor {
     }
 
     /**
+     * @brief Set inference result blob dimensions info
+     * @param dims vector of dimensions
+     */
+    void set_dims(const std::vector<guint> &dims) {
+        set_vector("dims", dims);
+    }
+
+    /**
      * @brief Get inference output blob precision
      * @return Enum Precision, Precision::UNSPECIFIED if can't be read
      */
@@ -149,6 +144,14 @@ class Tensor {
             return (Precision)get_int("precision");
         else
             return Precision::UNSPECIFIED;
+    }
+
+    /**
+     * @brief Set inference output blob precision
+     * @param precision of inference data buffer
+     */
+    void set_precision(const Precision precision) {
+        set_int("precision", static_cast<int>(precision));
     }
 
     /**
@@ -163,11 +166,27 @@ class Tensor {
     }
 
     /**
+     * @brief Set layout of output blob precision
+     * @param layout of inference data buffer
+     */
+    void set_layout(const Layout layout) {
+        set_int("layout", static_cast<int>(layout));
+    }
+
+    /**
      * @brief Get inference result blob layer name
      * @return layer name as a string, empty string if failed to get
      */
     std::string layer_name() const {
         return get_string("layer_name");
+    }
+
+    /**
+     * @brief Set name of output blob layer
+     * @param name of output blob layer
+     */
+    void set_layer_name(const std::string &name) {
+        set_string("layer_name", name);
     }
 
     /**
@@ -179,6 +198,14 @@ class Tensor {
     }
 
     /**
+     * @brief Set model name of output blob
+     * @param name of output blob model
+     */
+    void set_model_name(const std::string &name) {
+        set_string("model_name", name);
+    }
+
+    /**
      * @brief Get data format as specified in model pre/post-processing json configuration
      * @return format as a string, empty string if failed to get
      */
@@ -186,8 +213,28 @@ class Tensor {
         return get_string("format");
     }
 
+    /**
+     * @brief Set inference output blob precision
+     * @param format of inference data buffer
+     */
+    void set_format(const std::string &format) {
+        set_string("format", format);
+    }
+
+    /**
+     * @brief Get tensor type as a string
+     * @return Tensor instance's type
+     */
     std::string type() const {
         return get_string("type");
+    }
+
+    /**
+     * @brief Set tensor type as a string
+     * @param type of tensor data buffer
+     */
+    void set_type(const std::string &type) {
+        set_string("type", type);
     }
 
     /**
@@ -202,11 +249,27 @@ class Tensor {
     }
 
     /**
+     * @brief Set Tensor instance's name
+     * @param name of tensor instance
+     */
+    void set_name(const std::string &name) {
+        gst_structure_set_name(_structure, name.c_str());
+    }
+
+    /**
      * @brief Get confidence of detection or classification result extracted from the tensor
      * @return confidence of inference result as a double, 0 if failed to get
      */
     double confidence() const {
         return get_double("confidence");
+    }
+
+    /**
+     * @brief Set confidence of detection or classification result
+     * @param confidence of inference result
+     */
+    void set_confidence(const double confidence) {
+        set_double("confidence", confidence);
     }
 
     /**
@@ -217,6 +280,17 @@ class Tensor {
     std::string label() const {
         if (!this->is_detection())
             return get_string("label");
+        else
+            throw std::runtime_error("Detection GVA::Tensor can't have label.");
+    }
+
+    /**
+     * @brief Set label. It will throw an exception if called for detection Tensor
+     * @param label label name as a string
+     */
+    void set_label(const std::string &label) {
+        if (!this->is_detection())
+            set_string("label", label);
         else
             throw std::runtime_error("Detection GVA::Tensor can't have label.");
     }
@@ -283,21 +357,68 @@ class Tensor {
     }
 
     /**
-     * @brief Get float vector contained in value stored at field_name
-     * @param field_name field name
-     * @return float vector stored at field_name if field_name is found and contains an float array, empty vector
-     * otherwise
+     * @brief Get vector stored as  GST_TYPE_ARRAY field
+     * @param field_name name of GST_TYPE_ARRAY field to get
+     * @return vector with data of type T
      */
-    std::vector<float> get_float_vector(const std::string &field_name) const {
-        GValueArray *arr = NULL;
-        gst_structure_get_array(_structure, field_name.c_str(), &arr);
-        std::vector<float> result;
-        if (arr) {
-            for (guint i = 0; i < arr->n_values; ++i)
-                result.push_back(g_value_get_float(g_value_array_get_nth(arr, i)));
-            g_value_array_free(arr);
+    template <typename T>
+    std::vector<T> get_vector(const char *field_name) const {
+        const GValue *garray = gst_structure_get_value(_structure, field_name);
+        guint size = gst_value_array_get_size(garray);
+        std::vector<T> result;
+        result.resize(size);
+
+        for (guint i = 0; i < size; i++) {
+            const GValue *element = gst_value_array_get_value(garray, i);
+            if constexpr (std::is_same<T, uint32_t>::value || std::is_same<T, guint>::value) {
+                guint value = g_value_get_uint(element);
+                result[i] = static_cast<T>(value);
+            } else if constexpr (std::is_same<T, float>::value) {
+                gfloat value = g_value_get_float(element);
+                result[i] = static_cast<T>(value);
+            } else if constexpr (std::is_same<T, std::string>::value) {
+                std::string value = g_value_get_string(element);
+                result[i] = value;
+            } else {
+                throw std::invalid_argument("Unsupported data type");
+            }
         }
+
         return result;
+    }
+
+    /**
+     * @brief Set vector as GST_TYPE_ARRAY field
+     * @param field_name name of GST_TYPE_ARRAY field to set
+     * @param data vector to set
+     */
+    template <typename T>
+    void set_vector(const char *field_name, const std::vector<T> &data) {
+        GValue gvalue = G_VALUE_INIT;
+        GValue garray = G_VALUE_INIT;
+        gst_value_array_init(&garray, data.size());
+
+        for (size_t i = 0; i < data.size(); i++) {
+            if constexpr (std::is_same<T, uint32_t>::value || std::is_same<T, guint>::value) {
+                g_value_init(&gvalue, G_TYPE_UINT);
+                g_value_set_uint(&gvalue, data[i]);
+            } else if constexpr (std::is_same<T, float>::value) {
+                g_value_init(&gvalue, G_TYPE_FLOAT);
+                g_value_set_float(&gvalue, data[i]);
+            } else if constexpr (std::is_same<T, std::string>::value) {
+                g_value_init(&gvalue, G_TYPE_STRING);
+                g_value_set_string(&gvalue, data[i].c_str());
+            } else {
+                throw std::invalid_argument("Unsupported data type");
+            }
+
+            // append GValue to GST Array
+            gst_value_array_append_value(&garray, &gvalue);
+            g_value_unset(&gvalue);
+        }
+
+        gst_structure_set_value(_structure, field_name, &garray);
+        g_value_unset(&garray);
     }
 
     /**
@@ -325,24 +446,6 @@ class Tensor {
      */
     void set_double(const std::string &field_name, double value) {
         gst_structure_set(_structure, field_name.c_str(), G_TYPE_DOUBLE, value, NULL);
-    }
-
-    /**
-     * @brief Set Tensor instance's name
-     */
-    void set_name(const std::string &name) {
-        gst_structure_set_name(_structure, name.c_str());
-    }
-
-    /**
-     * @brief Set label. It will throw an exception if called for detection Tensor
-     * @param label label name as a string
-     */
-    void set_label(const std::string &label) {
-        if (!this->is_detection())
-            set_string("label", label);
-        else
-            throw std::runtime_error("Detection GVA::Tensor can't have label.");
     }
 
     /**
@@ -464,7 +567,7 @@ class Tensor {
             GstAnalyticsKeypointGroupMtd *keypoint_group_mtd = mtd;
             const std::vector<guint> dimensions = dims();
             const std::vector<float> positions = data<float>();
-            const std::vector<float> confidence = get_float_vector("confidence");
+            const std::vector<float> confidence = get_vector<float>("confidence");
             const gsize keypoint_count = dimensions[0];
             const gsize keypoint_dimension = dimensions[1];
 
@@ -690,28 +793,23 @@ class Tensor {
             }
 
             // create keypoint tensor
-            GstStructure *tensor = gst_structure_new_empty("keypoints");
-            gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
-            gst_structure_set(tensor, "format", G_TYPE_STRING, "keypoints", NULL);
+            GstStructure *gst_structure = gst_structure_new_empty("keypoints");
+            Tensor tensor(gst_structure); // use Tensor wrapper
 
-            // set dimensions of tensor data
-            std::vector<uint32_t> dims_vector = {static_cast<uint32_t>(keypoint_count), 2};
-            copy_vector_to_structure<uint32_t>(tensor, "dims", dims_vector);
+            tensor.set_precision(Precision::FP32);
+            tensor.set_format(std::string("keypoints"));
 
-            // set tensor data (positions)
-            GVariant *v =
-                g_variant_new_fixed_array(G_VARIANT_TYPE_BYTE, reinterpret_cast<const void *>(positions.data()),
-                                          keypoint_count * keypoint_dimension * sizeof(float), 1);
-            gsize n_elem;
-
-            gst_structure_set(tensor, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
-                              g_variant_get_fixed_array(v, &n_elem, 1), NULL);
+            // set tensor data and its dimensions
+            tensor.set_dims({static_cast<guint>(keypoint_count), 2});
+            tensor.set_data(reinterpret_cast<const void *>(positions.data()),
+                            keypoint_count * keypoint_dimension * sizeof(float));
 
             // set keypoint confidence, point names and point connections
-            copy_vector_to_structure<float>(tensor, "confidences", confidences);
-            copy_vector_to_structure<std::string>(tensor, "point_names", point_names);
-            copy_vector_to_structure<std::string>(tensor, "point_connections", point_connections);
-            return tensor;
+            tensor.set_vector<float>("confidences", confidences);
+            tensor.set_vector<std::string>("point_names", point_names);
+            tensor.set_vector<std::string>("point_connections", point_connections);
+
+            return tensor.gst_structure();
 
         } else if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_cls_mtd_get_mtd_type()) {
             GstAnalyticsClsMtd *cls_mtd = &mtd;

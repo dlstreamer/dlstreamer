@@ -616,7 +616,7 @@ void Impl::preparePrimsForKeypoints(const GVA::Tensor &tensor, GVA::Rect<double>
         return;
 
     const auto keypoints_data = tensor.data<float>();
-    const auto confidence = tensor.get_float_vector("confidence");
+    const auto confidence = tensor.get_vector<float>("confidence");
 
     if (keypoints_data.empty())
         throw std::runtime_error("Keypoints array is empty.");
