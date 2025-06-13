@@ -23,5 +23,24 @@ Example for downloading YOLOv11s model:
 
     ./samples/download_public_models.sh yolo11s
 
+Quantization
+^^^^^^^^^^^^
 
+You can perform INT8 quantization on some of the models by specifying a second parameter with a dataset to be used for the quantization process.
 
+.. code-block:: none
+
+    ./samples/download_public_models.sh yolo11s coco128
+
+Currently available datasets are ``coco`` and ``coco128``.
+
+.. note::
+   ``coco`` is a very large dataset of over 20GB and containing more than a 100,000 images. Quantization on this dataset can take a very long time. For development purposes, it is recommended to use ``coco128`` instead which is much lighter.
+
+Models which currently support quantization are:
+
+   - YOLOv5: nu, su, mu, lu, xu, n6u, s6u, m6u, l6u, x6u
+   - YOLOv8: n, s, m, l, x
+   - YOLOV9: t, s, m, c, e
+   - YOLOv10: n, s, m, b, l, x
+   - YOLOv11: n, s, m, l, x
