@@ -17,11 +17,7 @@
 
 extern "C" {
 
-#if !(_MSC_VER)
 DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = {
-#else
-const dlstreamer::ElementDesc *dlstreamer_elements[] = {
-#endif
     &rate_adjust, &tensor_convert, &tensor_histogram, &tensor_sliding_window,
     // post-processing for object detection
     &tensor_postproc_add_params, &tensor_postproc_detection, &tensor_postproc_yolo,

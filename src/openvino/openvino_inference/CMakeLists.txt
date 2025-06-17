@@ -6,7 +6,7 @@
 
 set(TARGET_NAME "openvino_inference")
 
-find_package(OpenVINO REQUIRED Runtime)
+find_package(OpenVINO REQUIRED)
 pkg_search_module(VA va libva REQUIRED)
 
 add_library(${TARGET_NAME} OBJECT openvino_inference.cpp)
