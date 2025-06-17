@@ -7,6 +7,7 @@
 set (TARGET_NAME "gvaattachroi")
 
 find_package(PkgConfig REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
@@ -32,6 +33,8 @@ target_include_directories(${TARGET_NAME}
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
     )
+
+target_link_directories(${TARGET_NAME} PUBLIC ${VA_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}
     PRIVATE

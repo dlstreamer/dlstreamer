@@ -5,12 +5,8 @@
 # ==============================================================================
 
 set(TARGET_NAME "dlstreamer_cpu")
-
-add_library(${TARGET_NAME} SHARED ${MAIN_SRC} elements.cpp)
-set_compile_flags(${TARGET_NAME})
-
-target_link_libraries(${TARGET_NAME}
-PRIVATE
+set(SOURCES ${MAIN_SRC} elements.cpp)
+set(LIBS
     dlstreamer_api
     rate_adjust
     meta_smooth
@@ -20,21 +16,12 @@ PRIVATE
     tensor_postproc
 )
 
-install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+add_library(${TARGET_NAME} SHARED ${SOURCES})
+add_library(${TARGET_NAME}_static STATIC ${SOURCES})
 
-add_library(${TARGET_NAME}_static STATIC ${MAIN_SRC} elements.cpp)
-set_compile_flags(${TARGET_NAME}_static)
-
-target_link_libraries(${TARGET_NAME}_static
-PRIVATE
-    dlstreamer_api
-    rate_adjust
-    meta_smooth
-    tensor_convert
-    tensor_histogram
-    tensor_sliding_window
-    tensor_postproc
-)
-
-set_target_properties(${TARGET_NAME}_static PROPERTIES OUTPUT_NAME ${TARGET_NAME})
-install(TARGETS ${TARGET_NAME}_static DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+foreach(target ${TARGET_NAME} ${TARGET_NAME}_static)
+    set_compile_flags(${target})
+    target_link_libraries(${target} PRIVATE ${LIBS})
+    set_target_properties(${target} PROPERTIES OUTPUT_NAME ${TARGET_NAME})
+    install(TARGETS ${target} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+endforeach()

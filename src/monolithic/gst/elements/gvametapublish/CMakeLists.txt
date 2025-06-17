@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2021 Intel Corporation
+# Copyright (C) 2021-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -7,6 +7,7 @@
 set (TARGET_NAME "gvametapublish")
 
 find_package(PkgConfig REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 
 
@@ -38,6 +39,8 @@ PUBLIC
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
 )
+
+target_link_directories(${TARGET_NAME} PUBLIC ${VA_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE

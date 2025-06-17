@@ -210,11 +210,7 @@ class OpenclTensorNormalize : public BaseTransform {
 
 extern "C" {
 
-#if !(_MSC_VER)
 DLS_EXPORT ElementDesc opencl_tensor_normalize = {.name = "opencl_tensor_normalize",
-#else
-ElementDesc opencl_tensor_normalize = {.name = "opencl_tensor_normalize",
-#endif
                                                   .description =
                                                       "Convert U8 tensor to U8 or F32 tensor with normalization",
                                                   .author = "Intel Corporation",

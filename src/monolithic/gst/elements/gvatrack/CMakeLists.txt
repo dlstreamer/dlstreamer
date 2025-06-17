@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2020-2024 Intel Corporation
+# Copyright (C) 2020-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -8,6 +8,7 @@ set (TARGET_NAME "gvatrack")
 
 find_package(OpenCV REQUIRED core imgproc)
 find_package(PkgConfig REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 
 file (GLOB_RECURSE MAIN_SRC
@@ -35,6 +36,7 @@ PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/modules/platform/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/modules/kernels/kalman_filter/inc
     ${CMAKE_CURRENT_SOURCE_DIR}/vas/modules/components/ot/inc
+    ${VA_INCLUDE_DIRS}
 )
 
 target_link_libraries(${TARGET_NAME}

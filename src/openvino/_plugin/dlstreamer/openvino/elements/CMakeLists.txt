@@ -1,19 +1,27 @@
 # ==============================================================================
-# Copyright (C) 2022-2024 Intel Corporation
+# Copyright (C) 2022-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 set(TARGET_NAME "dlstreamer_openvino")
 
-add_library(${TARGET_NAME} SHARED elements.cpp)
-set_compile_flags(${TARGET_NAME})
+find_package(OpenVINO REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 
-target_link_libraries(${TARGET_NAME}
-PRIVATE
-    logger
-    dlstreamer_api
-    openvino_inference
-)
+set(SOURCES elements.cpp)
+set(LINK_LIBS openvino::runtime logger dlstreamer_api openvino_inference)
 
-install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+foreach(TYPE SHARED STATIC)
+    if(${TYPE} STREQUAL "SHARED")
+        set(LIB_NAME ${TARGET_NAME})
+    else()
+        set(LIB_NAME ${TARGET_NAME}_static)
+    endif()
+    add_library(${LIB_NAME} ${TYPE} ${SOURCES})
+    set_compile_flags(${LIB_NAME})
+    target_link_directories(${LIB_NAME} PUBLIC ${VA_LIBRARY_DIRS})
+    target_link_libraries(${LIB_NAME} PRIVATE ${LINK_LIBS})
+    set_target_properties(${LIB_NAME} PROPERTIES OUTPUT_NAME ${TARGET_NAME})
+    install(TARGETS ${LIB_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+endforeach()
