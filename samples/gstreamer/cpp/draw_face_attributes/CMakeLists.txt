@@ -16,7 +16,7 @@ pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
-file (GLOB MAIN_SRC *.cpp)
+file (GLOB MAIN_SRC *.cpp ${DLSTREAMER_BASE_DIR}/src/gst/metadata/*.c)
 
 file (GLOB MAIN_HEADERS *.h)
 

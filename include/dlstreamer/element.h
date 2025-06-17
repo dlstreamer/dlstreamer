@@ -107,11 +107,11 @@ static Element *create_element(DictionaryCPtr params, const ContextPtr &app_cont
 } // namespace dlstreamer
 
 #if _MSC_VER
-#define DLS_EXPORT __attribute__((dllexport))
+#define DLS_EXPORT __declspec(dllexport)
 #else
 #define DLS_EXPORT __attribute__((visibility("default")))
 #endif
 
 extern "C" {
-extern const dlstreamer::ElementDesc *dlstreamer_elements[];
+extern DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[];
 }
