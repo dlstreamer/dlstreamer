@@ -1675,6 +1675,10 @@ const std::string &OpenVINOImageInference::GetModelName() const {
     return model_name;
 }
 
+size_t OpenVINOImageInference::GetBatchSize() const {
+    return safe_convert<size_t>(batch_size);
+}
+
 size_t OpenVINOImageInference::GetNireq() const {
     return safe_convert<size_t>(nireq);
 }

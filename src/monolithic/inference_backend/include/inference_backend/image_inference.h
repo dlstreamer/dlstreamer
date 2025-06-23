@@ -60,6 +60,7 @@ class ImageInference {
                              const std::map<std::string, std::shared_ptr<InputLayerDesc>> &input_preprocessors) = 0;
 
     virtual const std::string &GetModelName() const = 0;
+    virtual size_t GetBatchSize() const = 0;
     virtual size_t GetNireq() const = 0;
     virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                         int &memory_type) const = 0;

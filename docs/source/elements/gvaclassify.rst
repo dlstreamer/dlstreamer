@@ -101,6 +101,9 @@ input and outputs classification results with metadata.
     model-instance-id   : Identifier for sharing resources between inference elements of the same type. Elements with the instance-id will share model and other properties. If not specified, a unique identifier will be generated.
                           flags: readable, writable
                           String. Default: ""
+    scheduling-policy   : Scheduling policy across streams sharing same model instance: throughput (select first incoming frame), latency (select frames with earliest presentation time).
+                          flags: readable, writable
+                          String. Default: "throughput"
     model-proc          : Path to JSON file with description of input/output layers pre-processing/post-processing
                           flags: readable, writable
                           String. Default: ""
