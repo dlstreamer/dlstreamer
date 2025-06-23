@@ -1136,6 +1136,29 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             output_lock.lock();
         }
 
+        // schedule frames according to their presentation time
+        if (!strcmp(gva_base_inference->scheduling_policy, "latency")) {
+            // find latest presentation timestamp in buffered frames
+            GstClockTime latest_pts = 0;
+            for (const auto &output_frame : output_frames)
+                if ((output_frame.buffer->pts != GST_CLOCK_TIME_NONE) && (output_frame.buffer->pts > latest_pts))
+                    latest_pts = output_frame.buffer->pts;
+
+            // pause if total number of buffered frames exceeds max number of frames in flight,
+            // and frame presentation time is later than ones already queued
+            while ((buffer->pts > latest_pts) &&
+                   (output_frames.size() > model.inference->GetNireq() * model.inference->GetBatchSize())) {
+                output_lock.unlock();
+                lock.unlock();
+                std::this_thread::sleep_for(std::chrono::milliseconds(10));
+                lock.lock();
+                output_lock.lock();
+                for (const auto &output_frame : output_frames)
+                    if ((output_frame.buffer->pts != GST_CLOCK_TIME_NONE) && (output_frame.buffer->pts > latest_pts))
+                        latest_pts = output_frame.buffer->pts;
+            }
+        }
+
         if (!inference_count && output_frames.empty()) {
             // If we don't need to run inference and there are no frames queued for inference then finish transform
             return GST_FLOW_OK;

@@ -46,6 +46,7 @@ typedef struct _GvaBaseInference {
     gboolean no_block;
     guint nireq;
     gchar *model_instance_id;
+    gchar *scheduling_policy;
     guint cpu_streams;
     guint gpu_streams;
     gchar *ie_config;
