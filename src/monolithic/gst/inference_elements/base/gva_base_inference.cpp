@@ -21,6 +21,7 @@
 
 #define DEFAULT_MODEL nullptr
 #define DEFAULT_MODEL_INSTANCE_ID nullptr
+#define DEFAULT_SCHEDULING_POLICY "throughput"
 #define DEFAULT_MODEL_PROC nullptr
 #define DEFAULT_DEVICE "CPU"
 #define DEFAULT_PRE_PROC "" // empty = autoselection
@@ -88,6 +89,7 @@ enum {
     PROP_NO_BLOCK,
     PROP_NIREQ,
     PROP_MODEL_INSTANCE_ID,
+    PROP_SCHEDULING_POLICY,
     PROP_PRE_PROC_BACKEND,
     PROP_MODEL_PROC,
     PROP_CPU_THROUGHPUT_STREAMS,
@@ -194,6 +196,14 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
             "Identifier for sharing a loaded model instance between elements of the same type. Elements with the "
             "same model-instance-id will share all model and inference engine related properties",
             DEFAULT_MODEL_INSTANCE_ID, param_flags));
+
+    g_object_class_install_property(
+        gobject_class, PROP_SCHEDULING_POLICY,
+        g_param_spec_string(
+            "scheduling-policy", "Scheduling Policy",
+            "Scheduling policy across streams sharing same model instance: "
+            "throughput (select first incoming frame), latency (select frames with earliest presentation time)",
+            DEFAULT_SCHEDULING_POLICY, (GParamFlags)(param_flags)));
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_PROC_BACKEND,
@@ -415,6 +425,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->no_block = DEFAULT_NO_BLOCK;
     base_inference->nireq = DEFAULT_NIREQ;
     base_inference->model_instance_id = g_strdup(DEFAULT_MODEL_INSTANCE_ID);
+    base_inference->scheduling_policy = g_strdup(DEFAULT_SCHEDULING_POLICY);
     base_inference->pre_proc_type = g_strdup(DEFAULT_PRE_PROC);
     // TODO: make one property for streams
     base_inference->cpu_streams = DEFAULT_CPU_THROUGHPUT_STREAMS;
@@ -550,6 +561,10 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
     case PROP_MODEL_INSTANCE_ID:
         g_free(base_inference->model_instance_id);
         base_inference->model_instance_id = g_value_dup_string(value);
+        break;
+    case PROP_SCHEDULING_POLICY:
+        g_free(base_inference->scheduling_policy);
+        base_inference->scheduling_policy = g_value_dup_string(value);
         break;
     case PROP_PRE_PROC_BACKEND:
         g_free(base_inference->pre_proc_type);
