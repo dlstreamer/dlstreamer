@@ -204,27 +204,27 @@ efficientnet-v2-s:
 GETI_Detection:
   source: GETI
   task_type: detection
-  readme: https://geti.intel.com/
+  readme: https://www.intel.com/content/www/us/en/developer/tools/tiber/edge-platform/model-builder.html
   model-proc: not required
 GETI_Detection_Oriented:
   source: GETI
   task_type: detection
-  readme: https://geti.intel.com/
+  readme: https://www.intel.com/content/www/us/en/developer/tools/tiber/edge-platform/model-builder.html
   model-proc: not required
 GETI_Instance_Segmentation:
   source: GETI
   task_type: segmentation
-  readme: https://geti.intel.com/
+  readme: https://www.intel.com/content/www/us/en/developer/tools/tiber/edge-platform/model-builder.html
   model-proc: not required
 GETI_Classification_Single_Label:
   source: GETI
   task_type: classification
-  readme: https://geti.intel.com/
+  readme: https://www.intel.com/content/www/us/en/developer/tools/tiber/edge-platform/model-builder.html
   model-proc: not required
 GETI_Classification_Multi_Label:
   source: GETI
   task_type: classification
-  readme: https://geti.intel.com/
+  readme: https://www.intel.com/content/www/us/en/developer/tools/tiber/edge-platform/model-builder.html
   model-proc: not required
 
 # OpenZoo models
