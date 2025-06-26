@@ -50,7 +50,7 @@ The samples demonstrate deployment and inference with GStreamer command line too
 The sample `yolo_detect.sh` script can be used to build and run an object detection pipeline.
 
 ```sh
-./yolo_detect.sh <MODEL> <DEVICE> <INPUT> <OUTPUT_TYPE>
+./yolo_detect.sh <MODEL> <DEVICE> <INPUT> <OUTPUT_TYPE> <PRECISION>
 ```
 > **NOTE**: Prior to running `yolo_detect.sh`, ensure that you execute the `download_public_models.sh` script found in the top-level `samples` directory. This will allow you to download the full suite of YOLO models or select an individual model from the options presented above.
 
