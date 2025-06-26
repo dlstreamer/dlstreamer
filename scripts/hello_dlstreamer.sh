@@ -15,14 +15,16 @@ This script provides a simple way to construct and execute
 a sample DL Streamer detection pipeline with YOLO model.
 
 Options:
-  -h, --help                  Show this help message and exit
-  -m=MODEL, --model=MODEL     YOLO model name to be used for detection (default: yolo11s)
-                              Available models: yolov5s | yolov8s | yolo11s
-  -o=OUTPUT, --output=OUTPUT  Type of output from a pipeline (default: display)
-                              Available types: display | file
-  -d=DEVICE, --device=DEVICE  Device to perform detection operations on (default: CPU)
-                              Available devices: CPU | GPU | NPU
-                              Note: GPU and NPU devices require drivers (DLS_install_prerequisites.sh)
+  -h, --help                            Show this help message and exit
+  -m=MODEL, --model=MODEL               YOLO model name to be used for detection (default: yolo11s)
+                                        Available models: yolov5su | yolov8s | yolo11s
+  -p=PRECISION, --precision=PRECISION   Selected precision of the model (default: INT8)
+                                        Available types: INT8 | FP32 | FP16
+  -o=OUTPUT, --output=OUTPUT            Type of output from a pipeline (default: display)
+                                        Available types: display | file
+  -d=DEVICE, --device=DEVICE            Device to perform detection operations on (default: GPU)
+                                        Available devices: CPU | GPU | NPU
+                                        Note: GPU and NPU devices require drivers (DLS_install_prerequisites.sh)
 
 Examples:
   $(basename "$0")
@@ -35,8 +37,9 @@ EOF
 
 # Parse options
 MODEL="yolo11s"
+PRECISION="INT8"
 OUTPUT="display"
-DEVICE="CPU"
+DEVICE="GPU"
 for arg in "$@"; do
     case $arg in
         -h|--help)
@@ -45,8 +48,15 @@ for arg in "$@"; do
             ;;
         -m=*|--model=*)
             MODEL="${arg#*=}"
-            if [[ "$MODEL" != "yolov5s" ]] && [[ "$MODEL" != "yolov8s" ]] && [[ "$MODEL" != "yolo11s" ]]; then
-                echo "Error! Wrong MODEL parameter. Supported models: yolov5s | yolov8s | yolo11s"
+            if [[ "$MODEL" != "yolov5su" ]] && [[ "$MODEL" != "yolov8s" ]] && [[ "$MODEL" != "yolo11s" ]]; then
+                echo "Error! Wrong MODEL parameter. Supported models: yolov5su | yolov8s | yolo11s"
+                exit 1
+            fi
+        ;;
+        -p=*|--precision=*)
+            PRECISION="${arg#*=}"
+            if [[ "$PRECISION" != "INT8" ]] && [[ "$PRECISION" != "FP32" ]] && [[ "$PRECISION" != "FP16" ]]; then
+                echo "Error! Wrong PRECISION parameter. Supported types: INT8 | FP32 | FP16"
                 exit 1
             fi
         ;;
@@ -71,6 +81,12 @@ for arg in "$@"; do
         ;;
     esac
 done
+
+GPUS=$(find /dev/dri/ -name "render*")
+if [ -z $GPUS ]; then
+    echo "WARN: No GPU detected, switching to CPU"
+    DEVICE=CPU
+fi
 
 # shellcheck source=/dev/null
 . /etc/os-release
@@ -111,11 +127,17 @@ else
 fi
 
 # check if the model exists
-if [ -d "$MODELS_PATH"/public/"$MODEL"/FP32 ]; then
+if [ -d "$MODELS_PATH"/public/"$MODEL"/$PRECISION ]; then
 	echo "$MODEL model exists."
 else
 	echo "Model $MODEL which you want to use cannot be found at $MODELS_PATH!"
-	echo "Please run the script \`/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL\` to download the model."
+
+    if [[ $PRECISION == "INT8" ]]; then
+	    echo "Please run the script \`/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL coco128\` to download the model."
+    else
+	    echo "Please run the script \`/opt/intel/dlstreamer/samples/download_public_models.sh $MODEL\` to download the model."
+    fi
+
 	echo "If the model has already been downloaded, specify the path to its location (for instance: export MODELS_PATH=/home/user/you_path)."
 	exit 1
 fi
@@ -128,4 +150,4 @@ export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
 # print pipeline and run it
 execute() { echo "$*"$'\n' ; "$@" ; }
-execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh $MODEL "$DEVICE" '' "$OUTPUT"
+execute /opt/intel/dlstreamer/samples/gstreamer/gst_launch/detection_with_yolo/yolo_detect.sh $MODEL "$DEVICE" '' "$OUTPUT" '' "$PRECISION"

@@ -17,17 +17,24 @@ else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s, yolo11s, yolo11s-obb, yolo11s-seg, yolo11s-pose
-DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
+MODEL=${1:-"yolox_s"}   # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s, yolo11s, yolo11s-obb, yolo11s-seg, yolo11s-pose
+DEVICE=${2:-"GPU"}      # Supported values: CPU, GPU, NPU
 INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
-OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-json
-PPBKEND=${5:-""}      # Supported values: ie, opencv, va, va-surface-sharing
+OUTPUT=${4:-"file"}     # Supported values: file, display, fps, json, display-and-json
+PPBKEND=${5:-""}        # Supported values: ie, opencv, va, va-surface-sharing
+PRECISION=${6:-"INT8"}  # Supported values: INT8, FP32, FP16
 
 cd "$(dirname "$0")"
 
 if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
     echo "Error - No support of Yolov10s for NPU."
     exit
+fi
+
+GPUS=$(find /dev/dri/ -name "render*")
+if [ -z $GPUS ]; then
+    echo "WARN: No GPU detected, switching to CPU"
+    DEVICE=CPU
 fi
 
 IE_CONFIG=""
@@ -64,7 +71,12 @@ fi
 
 cd - 1>/dev/null
 
-MODEL_PATH="${MODELS_PATH}/public/$MODEL/FP32/$MODEL.xml"
+if [[ $PRECISION != "INT8" ]] && [[ $PRECISION != "FP32" ]] && [[ $PRECISION != "FP16" ]]; then
+  echo "Unsupported model precision: $PRECISION" >&2
+  exit 1
+fi
+
+MODEL_PATH="${MODELS_PATH}/public/$MODEL/$PRECISION/$MODEL.xml"
 
 # check if model exists in local directory
 if [ ! -f $MODEL_PATH ]; then
