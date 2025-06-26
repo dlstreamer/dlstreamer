@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2020-2024 Intel Corporation
+# Copyright (C) 2020-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -7,6 +7,7 @@
 set (TARGET_NAME "gvapython")
 
 find_package(PkgConfig REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.16 REQUIRED)
 pkg_check_modules(PYGOBJECT pygobject-3.0)
@@ -36,6 +37,8 @@ PRIVATE
     ${PYTHON_INCLUDE_DIRS}
     ${PYGOBJECT_INCLUDE_DIRS}
 )
+
+target_link_directories(${TARGET_NAME} PUBLIC ${VA_LIBRARY_DIRS})
 
 target_link_libraries(${TARGET_NAME}
 PRIVATE
