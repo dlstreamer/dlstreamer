@@ -11,11 +11,13 @@ pkg_search_module(VA va libva REQUIRED)
 pkg_check_modules(GSTREAMER gstreamer-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.14 REQUIRED)
 pkg_check_modules(GSTALLOC gstreamer-allocators-1.0 REQUIRED)
+pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
 file (GLOB ATTACHROI_SRC
         *.cpp
         *.c
+        ${DLSTREAMER_BASE_DIR}/src/gst/metadata/*.c
 )
 
 file (GLOB ATTACHROI_HEADERS
@@ -41,7 +43,9 @@ target_link_libraries(${TARGET_NAME}
         ${GSTREAMER_LIBRARIES}
         ${GSTVIDEO_LIBRARIES}
         ${GSTALLOC_LIBRARIES}
+        ${GSTANALYTICS_LIBRARIES}
         common
+        dlstreamer_gst_meta
         utils
     )
 
