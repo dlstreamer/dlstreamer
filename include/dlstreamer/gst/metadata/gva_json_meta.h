@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,6 +17,12 @@
 #define GVA_JSON_META_API_NAME "GstGVAJSONMetaAPI"
 #define GVA_JSON_META_IMPL_NAME "GstGVAJSONMeta"
 
+#if _MSC_VER
+#define DLS_EXPORT __declspec(dllexport)
+#else
+#define DLS_EXPORT __attribute__((visibility("default")))
+#endif
+
 G_BEGIN_DECLS
 
 typedef struct _GstGVAJSONMeta GstGVAJSONMeta;
@@ -33,14 +39,14 @@ struct _GstGVAJSONMeta {
  * @brief This function registers, if needed, and returns GstMetaInfo for _GstGVAJSONMeta
  * @return const GstMetaInfo* for registered type
  */
-const GstMetaInfo *gst_gva_json_meta_get_info(void);
+DLS_EXPORT const GstMetaInfo *gst_gva_json_meta_get_info(void);
 
 /**
  * @brief This function registers, if needed, and returns a GType for api "GstGVAJSONMetaAPI" and associate it with
  * GVA_JSON_META_TAG tag
  * @return GType type
  */
-GType gst_gva_json_meta_api_get_type(void);
+DLS_EXPORT GType gst_gva_json_meta_api_get_type(void);
 
 /**
  * @def GST_GVA_JSON_META_INFO

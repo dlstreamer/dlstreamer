@@ -6,6 +6,8 @@
 
 set(TARGET_NAME "gstdlstreamer_elements")
 
+include_directories(${DLSTREAMER_BASE_DIR}/src/cpu/_plugin/)
+
 pkg_search_module(VA va libva REQUIRED)
 
 add_subdirectory(batch_create)
@@ -23,6 +25,8 @@ file(GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/batch_create/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/batch_split/*.cpp
+    ${DLSTREAMER_BASE_DIR}/src/cpu/tensor_postproc/*.cpp
+    ${DLSTREAMER_BASE_DIR}/src/cpu/tensor_postproc/yolo/*.cpp
 )
 
 file(GLOB MAIN_HEADERS

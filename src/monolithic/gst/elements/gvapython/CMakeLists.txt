@@ -51,3 +51,9 @@ PRIVATE
 )
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+
+if(WIN32)
+    find_package(dlfcn-win32 REQUIRED)
+    target_include_directories(${TARGET_NAME} PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${dlfcn-win32_LIBRARIES})
+endif()

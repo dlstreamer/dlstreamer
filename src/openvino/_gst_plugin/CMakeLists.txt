@@ -8,7 +8,9 @@ set(TARGET_NAME "gstdlstreamer_openvino")
 
 find_package(OpenVINO REQUIRED)
 
-add_library(${TARGET_NAME} SHARED register_elements.cpp  ../_plugin/dlstreamer/openvino/elements/elements.cpp)
+file(GLOB_RECURSE ELEMENTS_CPP_FILE "${CMAKE_CURRENT_SOURCE_DIR}/../*/elements.cpp")
+
+add_library(${TARGET_NAME} SHARED register_elements.cpp ${ELEMENTS_CPP_FILE})
 set_compile_flags(${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME}

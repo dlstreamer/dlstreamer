@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -28,6 +28,6 @@ struct GvaMetaPublishFileClass {
     GvaMetaPublishBaseClass base;
 };
 
-GType gva_meta_publish_file_get_type(void);
+GST_EXPORT GType gva_meta_publish_file_get_type(void);
 
 G_END_DECLS
