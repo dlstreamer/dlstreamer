@@ -21,18 +21,16 @@ fi
 # === RUN CONTAINER AND COPY FILES ===
 echo "Running container to extract .deb files..."
 docker run --name "$CONTAINER_NAME" "$IMAGE_NAME" bash -c '
-    mkdir -p /debs_to_copy
     shopt -s nullglob
-    files=(/intel-dlstreamer*.deb)
+    files=(/debs/intel-dlstreamer*.deb)
     if [ ${#files[@]} -eq 0 ]; then
         echo "No .deb files found in /"
         exit 1
     fi
-    cp "${files[@]}" /debs_to_copy/
 '
 echo "Copying files from container to host..."
 mkdir -p "$DEBS_DESTINATION_PATH"
-docker cp "$CONTAINER_NAME:/debs_to_copy/." "$DEBS_DESTINATION_PATH"
+docker cp "$CONTAINER_NAME:/debs/." "$DEBS_DESTINATION_PATH"
 echo "Cleaning up container..."
 docker rm "$CONTAINER_NAME"
 echo "Finished."

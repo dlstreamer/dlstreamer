@@ -1,5 +1,3 @@
 opt/intel/dlstreamer/ /opt/intel/
 opt/opencv/ /opt/
-opt/openh264/ /opt/
 opt/rdkafka/ /opt/
-opt/ffmpeg/ /opt/
