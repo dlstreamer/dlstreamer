@@ -11,9 +11,9 @@
 set -euo pipefail
 
 if [ -z "${MODELS_PATH:-}" ]; then
-  echo "Error: MODELS_PATH is not set." >&2 
+  echo "Error: MODELS_PATH is not set." >&2
   exit 1
-else 
+else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
@@ -28,7 +28,7 @@ cd "$(dirname "$0")"
 
 if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
     echo "Error - No support of Yolov10s for NPU."
-    exit
+    exit 1
 fi
 
 GPUS=$(find /dev/dri/ -name "render*")
@@ -81,7 +81,7 @@ MODEL_PATH="${MODELS_PATH}/public/$MODEL/$PRECISION/$MODEL.xml"
 # check if model exists in local directory
 if [ ! -f $MODEL_PATH ]; then
   echo "Model not found: ${MODEL_PATH}"
-  exit 
+  exit 1
 fi
 
 if [[ "$INPUT" == "/dev/video"* ]]; then
@@ -107,7 +107,7 @@ else
     PREPROC_BACKEND=${PPBKEND}
   else
     echo "Error wrong value for PREPROC_BACKEND parameter. Supported values: ie | opencv | va | va-surface-sharing".
-    exit 
+    exit 1
   fi
 fi
 
@@ -120,7 +120,7 @@ if [[ "$OUTPUT" == "file" ]]; then
     ENCODER="vah264lpenc"
   else
     echo "Error - VA-API H.264 encoder not found."
-    exit
+    exit 1
   fi
   SINK_ELEMENT="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=yolo_${FILE}_${MODEL}_${DEVICE}.mp4"
 elif [[ "$OUTPUT" == "display" ]] || [[ -z $OUTPUT ]]; then
@@ -136,7 +136,7 @@ elif [[ "$OUTPUT" == "display-and-json" ]]; then
 else
   echo Error wrong value for SINK_ELEMENT parameter
   echo Valid values: "file" - render to file, "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
-  exit
+  exit 1
 fi
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
