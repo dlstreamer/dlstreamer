@@ -10,7 +10,7 @@ find_package(OpenCV REQUIRED)
 find_package(OpenCL REQUIRED)
 pkg_search_module(VA va libva REQUIRED)
 
-add_library(${TARGET_NAME} OBJECT opencv_warp_affine.cpp)
+add_library(${TARGET_NAME} STATIC opencv_warp_affine.cpp)
 set_compile_flags(${TARGET_NAME})
 
 target_include_directories(${TARGET_NAME}
@@ -28,3 +28,6 @@ PUBLIC
         ${OpenCV_LIBS}
         ${OpenCL_LIBRARY}
 )
+
+install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
+

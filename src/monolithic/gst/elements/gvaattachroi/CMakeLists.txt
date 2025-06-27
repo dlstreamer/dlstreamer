@@ -17,7 +17,6 @@ pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 file (GLOB ATTACHROI_SRC
         *.cpp
         *.c
-        ${DLSTREAMER_BASE_DIR}/src/gst/metadata/*.c
 )
 
 file (GLOB ATTACHROI_HEADERS

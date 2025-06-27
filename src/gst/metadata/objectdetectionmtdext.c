@@ -20,7 +20,7 @@ struct _GstAnalyticsODExtMtdData {
 
 static const GstAnalyticsMtdImpl od_ext_impl = {"object-detection-extended", NULL, NULL, {NULL}};
 
-GstAnalyticsMtdType gst_analytics_od_ext_mtd_get_mtd_type(void) {
+DLS_EXPORT GstAnalyticsMtdType gst_analytics_od_ext_mtd_get_mtd_type(void) {
     return (GstAnalyticsMtdType)&od_ext_impl;
 }
 
@@ -48,7 +48,7 @@ gboolean gst_analytics_od_ext_mtd_get_class_id(const GstAnalyticsODExtMtd *handl
     return TRUE;
 }
 
-GList *gst_analytics_od_ext_mtd_get_params(const GstAnalyticsODExtMtd *handle) {
+DLS_EXPORT GList *gst_analytics_od_ext_mtd_get_params(const GstAnalyticsODExtMtd *handle) {
     GstAnalyticsODExtMtdData *data;
     g_return_val_if_fail(handle, NULL);
     data = (GstAnalyticsODExtMtdData *)gst_analytics_relation_meta_get_mtd_data(handle->meta, handle->id);

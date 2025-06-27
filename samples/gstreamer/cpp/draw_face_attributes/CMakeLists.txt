@@ -16,16 +16,16 @@ pkg_check_modules(GSTVIDEO gstreamer-video-1.0>=1.16 REQUIRED)
 pkg_check_modules(GSTANALYTICS gstreamer-analytics-1.0>=1.16 REQUIRED)
 pkg_check_modules(GLIB2 glib-2.0 REQUIRED)
 
-file (GLOB MAIN_SRC *.cpp ${DLSTREAMER_BASE_DIR}/src/gst/metadata/*.c)
+file (GLOB MAIN_SRC *.cpp)
 
 file (GLOB MAIN_HEADERS *.h)
 
 set(GSTREAMER_INCLUDE_DIR /opt/intel/dlstreamer/gstreamer/include/gstreamer-1.0)
-set(OPENCV_INCLUDE_DIR /usr/include/opencv4)
+set(OPENCV_INCLUDE_DIR /opt/opencv/include)
 set(DLSTREAMER_INCLUDE_DIRS /opt/intel/dlstreamer/include)
 link_directories(${TARGET_NAME} /opt/intel/dlstreamer/build/intel64/Release/lib
         /opt/intel/dlstreamer/gstreamer/lib
-        /usr/lib/x86_64-linux-gnu
+        /opt/opencv
 )
 
 add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
