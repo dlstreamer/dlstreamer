@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Copyright (C) 2020-2024 Intel Corporation
+# Copyright (C) 2020-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -28,8 +28,8 @@ fi
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}" || exit
 
-ln -s /opt/opencv/libopencv_imgproc.so.410 /opt/opencv/libopencv_imgproc.so
-ln -s /opt/opencv/libopencv_core.so.410 /opt/opencv/libopencv_core.so
+ln -s /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so.4.6.0 /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so
+ln -s /usr/lib/x86_64-linux-gnu/libopencv_core.so.4.6.0 /usr/lib/x86_64-linux-gnu/libopencv_core.so
 
 export PKG_CONFIG_PATH=/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:/opt/intel/dlstreamer/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
