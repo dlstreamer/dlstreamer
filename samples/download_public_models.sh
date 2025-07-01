@@ -189,7 +189,7 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics || handle_error $LINENO
+  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
 fi
 
 # Set the name of the virtual environment directory
@@ -219,7 +219,7 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics || handle_error $LINENO
+  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
 fi
 
 # Install dependencies for CLIP models
@@ -570,11 +570,6 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
-
-
-  if [[ $QUANTIZE != "" ]]; then
-    quantize_yolo_model "$MODEL_NAME"
-  fi
 fi
 
 # Function to export YOLO model
@@ -682,7 +677,12 @@ YOLO_MODELS=(
 # Iterate over the models and export them
 for MODEL_NAME in "${!YOLO_MODELS[@]}"; do
   if [ "$MODEL" == "$MODEL_NAME" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
-    export_yolo_model "$MODEL_NAME" "${YOLO_MODELS[$MODEL_NAME]}" "$QUANTIZE"
+    MODEL_NAME_UPPER=$(echo "$MODEL_NAME" | tr '[:lower:]' '[:upper:]')
+    if [[ $MODEL_NAME_UPPER == *"OBB"* || $MODEL_NAME_UPPER == *"POSE"* || $MODEL_NAME_UPPER == *"SEG"* ]]; then
+      export_yolo_model "$MODEL_NAME" "${YOLO_MODELS[$MODEL_NAME]}" ""
+    else
+      export_yolo_model "$MODEL_NAME" "${YOLO_MODELS[$MODEL_NAME]}" "$QUANTIZE"
+    fi
   fi
 done
 
@@ -941,3 +941,10 @@ EOF
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
 fi
+
+# Deactivate and remove venvs
+echo "Removing Python virtual environments..."
+deactivate
+rm -r $VENV_DIR
+rm -r $VENV_DIR_QUANT
+echo "Removed"
