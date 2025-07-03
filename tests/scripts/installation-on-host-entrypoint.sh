@@ -45,7 +45,7 @@ echo_color "Stopping all running Docker containers" "blue"
 docker ps -q | xargs -r docker stop || true
 echo_color "Removing all stopped Docker containers" "blue"
 docker ps -a -q | xargs -r docker rm || true
-sudo docker system prune -a -f
+docker system prune -a -f
 
 # List remaining Docker containers
 echo_color "Listing all remaining Docker containers" "blue"
@@ -104,11 +104,11 @@ if [[ ! " jammy noble " =~  ${VERSION_CODENAME}  ]]; then
 else
     if [[ "${VERSION_CODENAME}" == "jammy" ]]; then
         sudo bash -c 'echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu22 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list'
-        echo_color "Completed to configure OpenVINO™ repository access before DL Streamer installation for Ubuntu22" "magenta"
+        echo_color "Completed to configure OpenVINO™ repository access before DL Streamer installation for Ubuntu 22" "magenta"
     fi
     if [[ "${VERSION_CODENAME}" == "noble" ]]; then
         sudo bash -c 'echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list'
-        echo_color "Completed to configure OpenVINO™ repository access before DL Streamer installation for Ubuntu24" "magenta"
+        echo_color "Completed to configure OpenVINO™ repository access before DL Streamer installation for Ubuntu 24" "magenta"
     fi
 fi
 
@@ -175,16 +175,6 @@ echo "PYTHONPATH: ${PYTHONPATH}"
 echo "TERM: ${TERM}"
 echo "GST_VAAPI_DRM_DEVICE: ${GST_VAAPI_DRM_DEVICE}"
 echo "GST_VAAPI_ALL_DRIVERS: ${GST_VAAPI_ALL_DRIVERS}"
-
-#Change owner of /opt/opencv (needed for cpp_draw_attributes sample)
-echo_color "Show /opt directory before chown command" "blue"
-ls -l /opt
-sudo chown -R $USER /opt/opencv
-echo_color "Show /opt directory after chown command" "blue"
-ls -l /opt
-
-echo "Checking if vapostproc exists"
-gst-inspect-1.0 vapostproc
 
 if gst-inspect-1.0 gvadetect &> /dev/null; then
     echo_color " Intel® DL Streamer verification successful" "green"
