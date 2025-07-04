@@ -96,3 +96,6 @@ add_subdirectory(gvaattachroi)
 add_subdirectory(gvametapublish)
 add_subdirectory(gvapython)
 add_subdirectory(gvatrack)
+add_subdirectory(gvadeskew)
+add_subdirectory(gvawatermark3d)
+
