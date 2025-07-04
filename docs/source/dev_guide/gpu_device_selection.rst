@@ -6,7 +6,7 @@ This page describes GPU device selection on a multi-GPU system.
 1. Media (VAAPI based) elements
 -------------------------------
 
-GStreamer `VAAPI plugin <https://gstreamer.freedesktop.org/documentation/vaapi/index.html>`__ supports environment variable
+GStreamer `VAAPI plugin https://gstreamer.freedesktop.org/documentation/vaapi/index.html <https://github.com/GStreamer/gstreamer-vaapi>`__ supports environment variable
 **GST_VAAPI_DRM_DEVICE** which allows to select GPU device for VAAPI elements (and ``decodebin3`` element in case it
 internally works on VAAPI elements).
 
