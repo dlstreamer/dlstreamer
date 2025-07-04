@@ -31,10 +31,12 @@ if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
     exit 1
 fi
 
-GPUS=$(find /dev/dri/ -name "render*")
-if [ -z $GPUS ]; then
-    echo "WARN: No GPU detected, switching to CPU"
-    DEVICE=CPU
+if [[ `uname` != "MINGW64"* ]]; then
+    GPUS=$(find /dev/dri/ -name "render*")
+    if [ -z $GPUS ]; then
+        echo "WARN: No GPU detected, switching to CPU"
+        DEVICE=CPU
+    fi
 fi
 
 IE_CONFIG=""

@@ -40,8 +40,8 @@ typedef struct {
     GstMeta meta;
     GQuark event_type;
     gint id;
-    gulong start_timestamp;
-    gulong end_timestamp;
+    guint64 start_timestamp;
+    guint64 end_timestamp;
 
     GList *params;
 } GstGVAAudioEventMeta;
