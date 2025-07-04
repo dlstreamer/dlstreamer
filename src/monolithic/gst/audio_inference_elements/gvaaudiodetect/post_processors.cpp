@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,8 +34,8 @@ void ExtractDetectionResults(AudioInferenceFrame *frame, AudioInferenceOutput *i
 
                     // Add detection tensor
                     GstStructure *detection =
-                        gst_structure_new("detection", "start_timestamp", G_TYPE_LONG, frame->startTime,
-                                          "end_timestamp", G_TYPE_LONG, frame->endTime, "label_id", G_TYPE_INT,
+                        gst_structure_new("detection", "start_timestamp", G_TYPE_UINT64, frame->startTime,
+                                          "end_timestamp", G_TYPE_UINT64, frame->endTime, "label_id", G_TYPE_INT,
                                           index + 1, "confidence", G_TYPE_DOUBLE, confidence, NULL);
 
                     CopyOutputBlobToGstStructure(blob_iter.second, detection, infOutput->model_name.c_str(),
