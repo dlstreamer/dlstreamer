@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -180,8 +180,8 @@ class AudioFrame {
         GstGVAAudioEventMeta *meta = gst_gva_buffer_add_audio_event_meta(buffer, label.c_str(), start_time, end_time);
 
         // Add detection tensor
-        GstStructure *detection = gst_structure_new("detection", "start_timestamp", G_TYPE_LONG, start_time,
-                                                    "end_timestamp", G_TYPE_LONG, end_time, NULL);
+        GstStructure *detection = gst_structure_new("detection", "start_timestamp", G_TYPE_UINT64, start_time,
+                                                    "end_timestamp", G_TYPE_UINT64, end_time, NULL);
         if (confidence) {
             gst_structure_set(detection, "confidence", G_TYPE_DOUBLE, confidence, NULL);
         }
