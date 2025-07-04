@@ -80,7 +80,7 @@ RUN \
     curl -sSL --insecure https://github.com/intel/linux-npu-driver/releases/expanded_assets/v1.13.0 | \
     grep -oP 'href="\K[^"]*'24.04'[^"]*\.deb' | \
     while read -r url; do \
-        curl -sSL -O "https://github.com${url}" --output-dir ./npu_debs; \
+    curl -sSL -O "https://github.com${url}" --output-dir ./npu_debs; \
     done && \
     rm ./npu_debs/intel-fw-npu* && \
     apt-get install -y -q --no-install-recommends ./npu_debs/*.deb && \
@@ -96,13 +96,9 @@ RUN \
     libgirepository1.0-dev=\* libx265-dev=\* libx264-dev=\* libde265-dev=\* gudev-1.0=\* libusb-1.0=\* nasm=\* python3-venv=\* \
     libcairo2-dev=\* libxt-dev=\* libgirepository1.0-dev=\* libgles2-mesa-dev=\* wayland-protocols=\* \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
-    linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
-
-RUN \
-    apt-get update && \
-    apt-get install -y -q --no-install-recommends ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* && \
+    linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* \
+    ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
+    libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -275,7 +271,7 @@ RUN \
     apt-get update && apt-get install --no-install-recommends -y "openvino-${OPENVINO_VERSION}"=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
- 
+
 ENV PKG_CONFIG_PATH=$PKG_CONFIG_PATH:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig
 
 WORKDIR "$DLSTREAMER_DIR"
@@ -337,13 +333,20 @@ RUN apt-get update && \
 
 RUN \
     mkdir -p /deb-pkg/opt/intel/ && \
-    cp -r "${DLSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer && \
+    cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
+    cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
+    cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
+    cp -r "${DLSTREAMER_DIR}/scripts/" /deb-pkg/opt/intel/dlstreamer/ && \
+    cp -r "${DLSTREAMER_DIR}/include/" /deb-pkg/opt/intel/dlstreamer/ && \
+    cp "${DLSTREAMER_DIR}/README.md" /deb-pkg/opt/intel/dlstreamer && \
     cp -rT "${GSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer/gstreamer && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/infrastructure && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/tests && \
+    find /deb-pkg/opt/intel/dlstreamer/bin -type f ! -name "liblibrarymock1.so" ! -name "liblibrarymock2.so" ! -name "draw_face_attributes" -exec rm -f {} + && \
+    find /deb-pkg/opt/intel/dlstreamer/bin -type d -empty -delete && \
     find /deb-pkg/opt/intel -name "*.a" -delete
 
 COPY docker/ubuntu/debian /deb-pkg/debian
@@ -372,7 +375,7 @@ RUN userdel -r ubuntu
 # install prerequisites - gcc and cmake are needed to run .cpp samples
 RUN \
     apt-get update && \
-    apt-get install -y -q --no-install-recommends curl=\* gcc=\* cmake=\* libtbb12=\* gpg=\* ca-certificates=\* && \
+    apt-get install -y -q --no-install-recommends curl=\* gpg=\* ca-certificates=\* libtbb12=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -398,7 +401,7 @@ RUN \
     curl -sSL --insecure https://github.com/intel/linux-npu-driver/releases/expanded_assets/v1.13.0 | \
     grep -oP 'href="\K[^"]*'24.04'[^"]*\.deb' | \
     while read -r url; do \
-        curl -sSL -O "https://github.com${url}" --output-dir ./npu_debs; \
+    curl -sSL -O "https://github.com${url}" --output-dir ./npu_debs; \
     done && \
     rm ./npu_debs/intel-fw-npu* && \
     apt-get install -y -q --no-install-recommends ./npu_debs/*.deb && \
@@ -426,19 +429,14 @@ RUN \
     chown -R dlstreamer: /opt && \
     chmod -R u+rw /opt
 
-RUN \
-    mkdir /python3venv && \
-    chown -R dlstreamer: /python3venv && \
-    chmod -R u+w /python3venv
-
 # DL Streamer environment variables
 ENV LIBVA_DRIVER_NAME=iHD
-ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
-ENV PATH=/python3venv/bin:/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:$PATH
+ENV PATH=/python3venv/bin:/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/bin:$PATH
 ENV PYTHONPATH=/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:/home/dlstreamer/dlstreamer/python:/opt/intel/dlstreamer/gstreamer/lib/python3/dist-packages:
 ENV TERM=xterm
 ENV GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0
@@ -449,11 +447,6 @@ RUN \
 
 WORKDIR /home/dlstreamer
 USER dlstreamer
-
-RUN \
-    python3 -m venv /python3venv && \
-    /python3venv/bin/pip3 install --no-cache-dir --upgrade pip && \
-    /python3venv/bin/pip3 install --no-cache-dir --no-dependencies PyGObject==3.50.0 setuptools==78.1.1 numpy==2.2.0 tqdm==4.67.1 opencv-python==4.11.0.86
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD [ "bash", "-c", "pgrep bash > /dev/null || exit 1" ]
