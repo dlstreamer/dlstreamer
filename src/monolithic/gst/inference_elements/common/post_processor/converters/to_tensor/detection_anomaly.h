@@ -45,6 +45,9 @@ class DetectionAnomalyConverter : public BlobToTensorConverter {
     static std::string getName() {
         return "AnomalyDetection";
     }
+
+  private:
+    void logParamsStats(const std::string &pred_label, const double &pred_score, const double &image_threshold_norm);
 };
 
 } // namespace post_processing
