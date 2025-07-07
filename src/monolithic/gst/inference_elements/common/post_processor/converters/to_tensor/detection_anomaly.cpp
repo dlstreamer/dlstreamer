@@ -75,22 +75,7 @@ TensorsTable DetectionAnomalyConverter::convert(const OutputBlobs &output_blobs)
 
             pred_label = labels[pred_score > image_threshold_norm ? 1 : 0];
 
-            if (pred_label == "Normal" || pred_label == "Anomaly") {
-                if (pred_label == "Normal") {
-                    lbl_normal_cnt++;
-                } else {
-                    lbl_anomaly_cnt++;
-                }
-            } else {
-                throw std::runtime_error("Anomaly-detection converter: Not supported Label."
-                                         "Expected 'Normal' or 'Anomaly', got: " +
-                                         pred_label);
-            }
-
-            GVA_INFO("pred_label: %s, pred_score: %f, image_threshold: %f, "
-                     "image_threshold_norm: %f, normalization_scale: %f, #normal: %u, #anomaly: %u",
-                     pred_label.c_str(), pred_score, image_threshold, image_threshold_norm, normalization_scale,
-                     lbl_normal_cnt, lbl_anomaly_cnt);
+            logParamsStats(pred_label, pred_score, image_threshold_norm);
 
             const std::string layer_name = blob_iter.first;
             for (size_t frame_index = 0; frame_index < batch_size; ++frame_index) {
@@ -115,4 +100,24 @@ TensorsTable DetectionAnomalyConverter::convert(const OutputBlobs &output_blobs)
     }
 
     return tensors_table;
+}
+
+void DetectionAnomalyConverter::logParamsStats(const std::string &pred_label, const double &pred_score,
+                                               const double &image_threshold_norm) {
+    if (pred_label == "Normal" || pred_label == "Anomaly") {
+        if (pred_label == "Normal") {
+            lbl_normal_cnt++;
+        } else {
+            lbl_anomaly_cnt++;
+        }
+    } else {
+        throw std::runtime_error("Anomaly-detection converter: Not supported Label."
+                                 "Expected 'Normal' or 'Anomaly', got: " +
+                                 pred_label);
+    }
+
+    GVA_INFO("pred_label: %s, pred_score: %f, image_threshold: %f, "
+             "image_threshold_norm: %f, normalization_scale: %f, #normal: %u, #anomaly: %u",
+             pred_label.c_str(), pred_score, image_threshold, image_threshold_norm, normalization_scale, lbl_normal_cnt,
+             lbl_anomaly_cnt);
 }
