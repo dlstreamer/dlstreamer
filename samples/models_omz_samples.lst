@@ -20,4 +20,6 @@ instance-segmentation-security-0002
 person-detection-retail-0013
 person-vehicle-bike-detection-crossroad-0078
 single-human-pose-estimation-0001
-emotions-recognition-retail-0003
+emotions-recognition-retail-0003	
+ssdlite_mobilenet_v2
+vehicle-license-plate-detection-barrier-0106

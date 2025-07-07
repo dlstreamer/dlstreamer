@@ -6,6 +6,7 @@
 # ==============================================================================
 
 set -e
+MODEL_NAME=${1:-all}
 
 if [ -z "$MODELS_PATH" ]; then
   echo "MODELS_PATH is not specified"
@@ -22,6 +23,12 @@ if ! python3 -m pip show -qq openvino-dev || ! python3 -m pip show -qq tensorflo
   exit 1
 fi
 
-mkdir -p "${MODELS_PATH}" && \
-omz_downloader --list "$(dirname "$0")"/models_omz_samples.lst -o "$MODELS_PATH" && \
-omz_converter --list "$(dirname "$0")"/models_omz_samples.lst -o "$MODELS_PATH" -d "$MODELS_PATH"
+if [ "${MODEL_NAME}" == "all" ]; then
+  mkdir -p "${MODELS_PATH}" && \
+  omz_downloader --list "$(dirname "$0")"/models_omz_samples.lst -o "$MODELS_PATH" && \
+  omz_converter --list "$(dirname "$0")"/models_omz_samples.lst -o "$MODELS_PATH" -d "$MODELS_PATH"
+else
+  echo "Downloading specified model: $MODEL_NAME"
+  omz_downloader --name "$MODEL_NAME" -o "$MODELS_PATH" && \
+  omz_converter --name "$MODEL_NAME" -o "$MODELS_PATH" -d "$MODELS_PATH"
+fi
