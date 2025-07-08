@@ -46,7 +46,7 @@ Requires: libva-utils
 Requires: openexr
 Requires: tbb
 Requires: intel-media-driver
-Requires: openvino-2025.1.0
+Requires: openvino-2025.2.0
 
 %description
 This package contains Intel DL Streamer.

@@ -14,8 +14,8 @@ LABEL vendor="Intel Corporation"
 ARG GST_VERSION=1.26.1
 ARG FFMPEG_VERSION=6.1.1
 
-ARG OPENVINO_VERSION=2025.1
-ARG OPENVINO_FILENAME=openvino_toolkit_rhel8_2025.1.0.18503.6fec06580ab_x86_64
+ARG OPENVINO_VERSION=2025.2
+ARG OPENVINO_FILENAME=openvino_toolkit_rhel8_2025.2.0.19140.c01cd93e24d_x86_64
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
 ENV GSTREAMER_DIR=/opt/intel/dlstreamer/gstreamer
