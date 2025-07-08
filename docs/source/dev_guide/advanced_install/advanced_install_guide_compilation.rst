@@ -52,16 +52,16 @@ Step 2: Install build dependencies
 
         .. code:: sh
 
-            sudo dnf install \
+            sudo dnf install -y \
                 https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
                 https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
             sudo dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
                 flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
-                python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel \
+                python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
                 gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
-                cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel \
-                libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel \
+                cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel which \
+                libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
                 kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
 
 Step 3: Set up a Python environment
@@ -117,21 +117,43 @@ Step 6: Build OpenCV (ubuntu 22/fedora)
 
 Download and build OpenCV:
 
-.. code:: sh
+.. tabs::
 
-    wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
-    wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
-    unzip opencv.zip && \
-    unzip opencv_contrib.zip && \
-    rm opencv.zip opencv_contrib.zip && \
-    mv opencv-4.6.0 opencv && \
-    mv opencv_contrib-4.6.0 opencv_contrib && \
-    mkdir -p opencv/build
+    .. tab:: Ubuntu 22
 
-    cd ~/opencv/build
-    cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
-    ninja -j "$(nproc)"
-    sudo env PATH=~/python3venv/bin:$PATH ninja install
+        .. code:: sh
+
+            wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
+            wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
+            unzip opencv.zip && \
+            unzip opencv_contrib.zip && \
+            rm opencv.zip opencv_contrib.zip && \
+            mv opencv-4.6.0 opencv && \
+            mv opencv_contrib-4.6.0 opencv_contrib && \
+            mkdir -p opencv/build
+
+            cd ~/opencv/build
+            cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+            ninja -j "$(nproc)"
+            sudo env PATH=~/python3venv/bin:$PATH ninja install
+
+    .. tab:: Fedora 41
+
+        .. code:: sh
+
+            wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip
+            wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip
+            unzip opencv.zip && \
+            unzip opencv_contrib.zip && \
+            rm opencv.zip opencv_contrib.zip && \
+            mv opencv-4.10.0 opencv && \
+            mv opencv_contrib-4.10.0 opencv_contrib && \
+            mkdir -p opencv/build
+
+            cd ~/opencv/build
+            cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+            ninja -j "$(nproc)"
+            sudo env PATH=~/python3venv/bin:$PATH ninja install
 
 Step 7: Clone Intel® DL Streamer repository
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -190,7 +212,7 @@ Step 9: Build Intel DLStreamer
 
             cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
             make -j "$(nproc)"
-
+    
     .. tab:: Ubuntu 22
 
         .. code:: sh
@@ -209,14 +231,16 @@ Step 9: Build Intel DLStreamer
 
             cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
             make -j "$(nproc)"
-
+    
     .. tab:: Fedora
 
         .. code:: sh
 
             cd ~/edge-ai-libraries/libraries/dl-streamer
 
-            sudo ./scripts/install_metapublish_dependencies.sh
+            curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
+            cd ./librdkafka-2.3.0
+            ./configure && make && make INSTALL=install install
 
             mkdir build
             cd build

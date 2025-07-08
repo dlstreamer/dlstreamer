@@ -13,36 +13,34 @@ AutoReqProv:    no
 %define __os_install_post %{nil}
 
 Requires: glib2-devel
-Requires: libjpeg-turbo-devel
+Requires: libjpeg-turbo
 Requires: libdrm
 Requires: wayland-devel
-Requires: libX11-devel
-Requires: libpng-devel
+Requires: libX11
+Requires: libpng
 Requires: libva
-Requires: libcurl-devel
-Requires: libvorbis-devel
-Requires: libde265-devel
-Requires: libXext-devel
+Requires: libcurl
+Requires: libde265
+Requires: libXext
 Requires: mesa-libGL
 Requires: mesa-libGLU
-Requires: libgudev1-devel
-Requires: wget
-Requires: bzip2
-Requires: ffmpeg
-Requires: paho-c-devel
+Requires: libgudev
+Requires: paho-c
 Requires: python3
-Requires: python3-devel
 Requires: python3-pip
 Requires: python3-gobject
-Requires: python3-gobject-devel
-Requires: cairo-devel
-Requires: gcc
-Requires: gobject-introspection-devel
-Requires: libvpx-devel
-Requires: opus-devel
-Requires: libsrtp-devel
-Requires: libXv-devel
+Requires: cairo
+Requires: cairo-gobject
+Requires: gobject-introspection
+Requires: libvpx
+Requires: opus
+Requires: libsrtp
+Requires: libXv
 Requires: libva-utils
+Requires: libogg
+Requires: libusb1
+Requires: x265-libs
+Requires: x264-libs
 Requires: openexr
 Requires: tbb
 Requires: intel-media-driver
@@ -81,7 +79,6 @@ done
 %license LICENSE
 /opt/intel/dlstreamer/
 /opt/opencv/
-/opt/openh264/
 /opt/rdkafka/
 /opt/ffmpeg/
 
