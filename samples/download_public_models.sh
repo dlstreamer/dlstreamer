@@ -180,7 +180,7 @@ source "$VENV_DIR_QUANT/bin/activate"
 pip install --no-cache-dir --upgrade pip
 
 # Install OpenVINO module
-pip install --no-cache-dir openvino==2025.1.0 || handle_error $LINENO
+pip install --no-cache-dir openvino==2025.2.0 || handle_error $LINENO
 
 pip install --no-cache-dir onnx || handle_error $LINENO
 pip install --no-cache-dir seaborn || handle_error $LINENO

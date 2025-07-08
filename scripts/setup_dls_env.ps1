@@ -50,9 +50,9 @@ $env:GST_PLUGIN_SCANNER = [System.Environment]::GetEnvironmentVariable('GST_PLUG
 echo 'Searching for OpenVINO'
 if (-Not [System.IO.File]::Exists('C:\openvino\setupvars.ps1')) {
 	echo 'Installing OpenVINO'
-    curl -Uri https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.1/windows/openvino_toolkit_windows_2025.1.0.18503.6fec06580ab_x86_64.zip -OutFile openvino.zip
+    curl -Uri https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/windows/openvino_toolkit_windows_2025.2.0.19140.c01cd93e24d_x86_64.zip -OutFile openvino.zip
 	Expand-Archive -LiteralPath 'openvino.zip' -DestinationPath 'C:\'
-	mv C:\openvino_toolkit_windows_2025.1.0.18503.6fec06580ab_x86_64 C:\openvino
+	mv C:\openvino_toolkit_windows_2025.2.0.19140.c01cd93e24d_x86_64 C:\openvino
 	rm openvino.zip
 } else {
 	echo 'OpenVINO found'
