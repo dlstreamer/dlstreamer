@@ -46,8 +46,8 @@ static GstStaticPadTemplate audio_sinktemplate =
 
 struct TestAudioData {
     std::string label;
-    gulong start_time;
-    gulong end_time;
+    guint64 start_time;
+    guint64 end_time;
     gint label_id;
     gdouble confidence;
 };
@@ -56,8 +56,8 @@ void setup_audio_inbuffer(GstBuffer *inbuffer, gpointer user_data) {
     TestAudioData *test_data = static_cast<TestAudioData *>(user_data);
     ck_assert_msg(test_data != NULL, "Passed data is not TestData");
     GstStructure *detection =
-        gst_structure_new("detection", "start_timestamp", G_TYPE_LONG, test_data->start_time, "end_timestamp",
-                          G_TYPE_LONG, test_data->end_time, "label_id", G_TYPE_INT, test_data->label_id, "confidence",
+        gst_structure_new("detection", "start_timestamp", G_TYPE_UINT64, test_data->start_time, "end_timestamp",
+                          G_TYPE_UINT64, test_data->end_time, "label_id", G_TYPE_INT, test_data->label_id, "confidence",
                           G_TYPE_DOUBLE, test_data->confidence, NULL);
     GstStructure *other_struct =
         gst_structure_new("other_struct", "label", G_TYPE_STRING, "test_label", "model_name", G_TYPE_STRING,
