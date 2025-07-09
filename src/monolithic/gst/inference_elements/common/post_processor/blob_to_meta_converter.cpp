@@ -138,7 +138,8 @@ BlobToMetaConverter::BlobToMetaConverter(Initializer initializer)
 }
 
 BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, ConverterType converter_type,
-                                                     const std::string &displayed_layer_name_in_meta) {
+                                                     const std::string &displayed_layer_name_in_meta,
+                                                     const std::string &custom_postproc_lib) {
     GstStructureUniquePtr &tensor = initializer.model_proc_output_info;
 
     const std::string converter_name = checkOnNameDeprecation(getConverterType(tensor.get()));
@@ -163,13 +164,13 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
             throw std::runtime_error("Unsupported converter '" + converter_name + "' for type RAW");
         break;
     case ConverterType::TO_ROI:
-        return BlobToROIConverter::create(std::move(initializer), converter_name);
+        return BlobToROIConverter::create(std::move(initializer), converter_name, custom_postproc_lib);
     case ConverterType::TO_TENSOR:
         if (converter_name == KeypointsOpenPoseConverter::getName()) {
             auto keypoints_number = getKeypointsNumber(tensor.get());
             return std::make_unique<KeypointsOpenPoseConverter>(std::move(initializer), keypoints_number);
         } else {
-            return BlobToTensorConverter::create(std::move(initializer), converter_name);
+            return BlobToTensorConverter::create(std::move(initializer), converter_name, custom_postproc_lib);
         }
     default:
         throw std::runtime_error("Invalid converter type.");

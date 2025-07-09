@@ -9,6 +9,7 @@
 #include "boxes_labels.h"
 #include "boxes_scores.h"
 #include "centerface.h"
+#include "custom_to_roi.h"
 #include "detection_output.h"
 #include "mask_rcnn.h"
 #include "yolo_base.h"
@@ -36,7 +37,8 @@
 using namespace post_processing;
 
 BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initializer initializer,
-                                                    const std::string &converter_name) {
+                                                    const std::string &converter_name,
+                                                    const std::string &custom_postproc_lib) {
     auto &model_proc_output_info = initializer.model_proc_output_info;
     if (model_proc_output_info == nullptr)
         throw std::runtime_error("model_proc_output_info have been hot initialized.");
@@ -47,7 +49,10 @@ BlobToMetaConverter::Ptr BlobToROIConverter::create(BlobToMetaConverter::Initial
     double iou_threshold = DEFAULT_IOU_THRESHOLD;
     gst_structure_get_double(model_proc_output_info.get(), "iou_threshold", &iou_threshold);
 
-    if (converter_name == DetectionOutputConverter::getName())
+    if (!custom_postproc_lib.empty())
+        return BlobToMetaConverter::Ptr(
+            new CustomToRoiConverter(std::move(initializer), confidence_threshold, iou_threshold, custom_postproc_lib));
+    else if (converter_name == DetectionOutputConverter::getName())
         return BlobToMetaConverter::Ptr(new DetectionOutputConverter(std::move(initializer), confidence_threshold));
     else if (converter_name == BoxesLabelsConverter::getName())
         return BlobToMetaConverter::Ptr(new BoxesLabelsConverter(std::move(initializer), confidence_threshold));
