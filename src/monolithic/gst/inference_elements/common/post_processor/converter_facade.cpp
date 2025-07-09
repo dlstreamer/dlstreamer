@@ -77,7 +77,8 @@ CoordinatesRestorer::Ptr ConverterFacade::createCoordinatesRestorer(ConverterTyp
 ConverterFacade::ConverterFacade(std::unordered_set<std::string> all_layer_names, GstStructure *model_proc_output_info,
                                  ConverterType converter_type, AttachType attach_type,
                                  const ModelImageInputInfo &input_image_info, const ModelOutputsInfo &outputs_info,
-                                 const std::string &model_name, const std::vector<std::string> &labels)
+                                 const std::string &model_name, const std::vector<std::string> &labels,
+                                 const std::string &custom_postproc_lib)
     : layer_names_to_process(std::move(all_layer_names)), process_all_outputs(true) {
 
     GstStructureUniquePtr smart_model_proc_output_info(gst_structure_copy(model_proc_output_info), gst_structure_free);
@@ -89,7 +90,8 @@ ConverterFacade::ConverterFacade(std::unordered_set<std::string> all_layer_names
     const auto displayed_layer_name_to_process = getDisplayedLayerNameInMeta(
         std::vector<std::string>(layer_names_to_process.cbegin(), layer_names_to_process.cend()));
 
-    blob_to_meta = BlobToMetaConverter::create(std::move(initializer), converter_type, displayed_layer_name_to_process);
+    blob_to_meta = BlobToMetaConverter::create(std::move(initializer), converter_type, displayed_layer_name_to_process,
+                                               custom_postproc_lib);
     coordinates_restorer =
         createCoordinatesRestorer(converter_type, attach_type, input_image_info, model_proc_output_info);
     meta_attacher = MetaAttacher::create(converter_type, attach_type);
@@ -98,7 +100,7 @@ ConverterFacade::ConverterFacade(std::unordered_set<std::string> all_layer_names
 ConverterFacade::ConverterFacade(GstStructure *model_proc_output_info, ConverterType converter_type,
                                  AttachType attach_type, const ModelImageInputInfo &input_image_info,
                                  const ModelOutputsInfo &outputs_info, const std::string &model_name,
-                                 const std::vector<std::string> &labels)
+                                 const std::vector<std::string> &labels, const std::string &custom_postproc_lib)
     : process_all_outputs(false) {
     if (model_proc_output_info == nullptr) {
         throw std::runtime_error("Can not get model_proc output information.");
@@ -119,7 +121,8 @@ ConverterFacade::ConverterFacade(GstStructure *model_proc_output_info, Converter
     const auto displayed_layer_name_to_process = getDisplayedLayerNameInMeta(
         std::vector<std::string>(layer_names_to_process.cbegin(), layer_names_to_process.cend()));
 
-    blob_to_meta = BlobToMetaConverter::create(std::move(initializer), converter_type, displayed_layer_name_to_process);
+    blob_to_meta = BlobToMetaConverter::create(std::move(initializer), converter_type, displayed_layer_name_to_process,
+                                               custom_postproc_lib);
     coordinates_restorer =
         createCoordinatesRestorer(converter_type, attach_type, input_image_info, model_proc_output_info);
     meta_attacher = MetaAttacher::create(converter_type, attach_type);
