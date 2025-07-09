@@ -101,7 +101,7 @@ class BlobToROIConverter : public BlobToMetaConverter {
     TensorsTable convert(const OutputBlobs &output_blobs) = 0;
 
     static BlobToMetaConverter::Ptr create(BlobToMetaConverter::Initializer initializer,
-                                           const std::string &converter_name);
+                                           const std::string &converter_name, const std::string &custom_postproc_lib);
     static const size_t min_dims_size = 2;
 };
 

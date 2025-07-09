@@ -6,6 +6,7 @@
 
 #include "blob_to_tensor_converter.h"
 #include "clip_token_converter.h"
+#include "custom_to_tensor.h"
 #include "detection_anomaly.h"
 #include "docTR_ocr.h"
 #include "keypoints_3d.h"
@@ -21,9 +22,11 @@
 using namespace post_processing;
 
 BlobToMetaConverter::Ptr BlobToTensorConverter::create(BlobToMetaConverter::Initializer initializer,
-                                                       const std::string &converter_name) {
-
-    if (converter_name == RawDataCopyConverter::getName())
+                                                       const std::string &converter_name,
+                                                       const std::string &custom_postproc_lib) {
+    if (!custom_postproc_lib.empty())
+        return std::make_unique<CustomToTensorConverter>(std::move(initializer), custom_postproc_lib);
+    else if (converter_name == RawDataCopyConverter::getName())
         return std::make_unique<RawDataCopyConverter>(std::move(initializer));
     else if (converter_name == KeypointsHRnetConverter::getName())
         return std::make_unique<KeypointsHRnetConverter>(std::move(initializer));

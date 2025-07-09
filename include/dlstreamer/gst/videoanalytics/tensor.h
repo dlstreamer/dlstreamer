@@ -440,12 +440,30 @@ class Tensor {
     }
 
     /**
+     * @brief Set field_name with uint64 value
+     * @param field_name field name
+     * @param value value to set
+     */
+    void set_uint64(const std::string &field_name, uint64_t value) {
+        gst_structure_set(_structure, field_name.c_str(), G_TYPE_UINT64, value, NULL);
+    }
+
+    /**
      * @brief Set field_name with double value
      * @param field_name field name
      * @param value value to set
      */
     void set_double(const std::string &field_name, double value) {
         gst_structure_set(_structure, field_name.c_str(), G_TYPE_DOUBLE, value, NULL);
+    }
+
+    /**
+     * @brief Set field_name with bool value
+     * @param field_name field name
+     * @param value value to set
+     */
+    void set_bool(const std::string &field_name, bool value) {
+        gst_structure_set(_structure, field_name.c_str(), G_TYPE_BOOLEAN, value, NULL);
     }
 
     /**
@@ -555,6 +573,19 @@ class Tensor {
      */
     GstStructure *gst_structure() const {
         return _structure;
+    }
+
+    /**
+     * @brief Returns a string representation of the underlying GstStructure.
+     * @return String with GstStructure contents.
+     */
+    std::string to_string() const {
+        gchar *str = gst_structure_to_string(_structure);
+        if (!str)
+            return {};
+        std::string result(str);
+        g_free(str);
+        return result;
     }
 
     /**
@@ -823,7 +854,7 @@ class Tensor {
             for (size_t i = 0; i < class_count; i++) {
                 gfloat confidence = gst_analytics_cls_mtd_get_level(cls_mtd, i);
                 GQuark quark_label = gst_analytics_cls_mtd_get_quark(cls_mtd, i);
-                std::string label = std::string(g_quark_to_string(quark_label));
+                std::string label = quark_label ? std::string(g_quark_to_string(quark_label)) : "";
 
                 if (!label.empty()) {
                     if (!result_label.empty() and !isspace(result_label.back()))

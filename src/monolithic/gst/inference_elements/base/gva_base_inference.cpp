@@ -70,6 +70,8 @@
 
 #define DEFAULT_CUSTOM_PREPROC_LIB nullptr
 
+#define DEFAULT_CUSTOM_POSTPROC_LIB nullptr
+
 G_DEFINE_TYPE_WITH_PRIVATE(GvaBaseInference, gva_base_inference, GST_TYPE_BASE_TRANSFORM);
 
 GST_DEBUG_CATEGORY_STATIC(gva_base_inference_debug_category);
@@ -101,7 +103,8 @@ enum {
     PROP_LABELS,
     PROP_LABELS_FILE,
     PROP_SCALE_METHOD,
-    PROP_CUSTOM_PREPROC_LIB
+    PROP_CUSTOM_PREPROC_LIB,
+    PROP_CUSTOM_POSTPROC_LIB
 };
 
 GType gst_gva_base_inference_get_inf_region(void) {
@@ -188,6 +191,11 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         g_param_spec_string("custom-preproc-lib", "Custom Pre-processing Library",
                             "Path to the .so file defining custom input image pre-processing",
                             DEFAULT_CUSTOM_PREPROC_LIB, param_flags));
+
+    g_object_class_install_property(gobject_class, PROP_CUSTOM_POSTPROC_LIB,
+                                    g_param_spec_string("custom-postproc-lib", "Custom Post-processing Library",
+                                                        "Path to the .so file defining custom model output converter",
+                                                        DEFAULT_CUSTOM_POSTPROC_LIB, param_flags));
 
     g_object_class_install_property(
         gobject_class, PROP_MODEL_INSTANCE_ID,
@@ -399,6 +407,9 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
 
     g_free(base_inference->custom_preproc_lib);
     base_inference->custom_preproc_lib = nullptr;
+
+    g_free(base_inference->custom_postproc_lib);
+    base_inference->custom_postproc_lib = nullptr;
 }
 
 void gva_base_inference_init(GvaBaseInference *base_inference) {
@@ -451,6 +462,7 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->labels = DEFAULT_LABELS;
     base_inference->scale_method = nullptr;
     base_inference->custom_preproc_lib = g_strdup(DEFAULT_MODEL_PROC);
+    base_inference->custom_postproc_lib = g_strdup(DEFAULT_CUSTOM_POSTPROC_LIB);
 }
 
 GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstStateChange transition) {
@@ -634,6 +646,11 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         base_inference->custom_preproc_lib = g_value_dup_string(value);
         GST_INFO_OBJECT(base_inference, "custom-preproc-lib: %s", base_inference->custom_preproc_lib);
         break;
+    case PROP_CUSTOM_POSTPROC_LIB:
+        g_free(base_inference->custom_postproc_lib);
+        base_inference->custom_postproc_lib = g_value_dup_string(value);
+        GST_INFO_OBJECT(base_inference, "custom-postproc-lib: %s", base_inference->custom_postproc_lib);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
@@ -711,6 +728,9 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_CUSTOM_PREPROC_LIB:
         g_value_set_string(value, base_inference->custom_preproc_lib);
+        break;
+    case PROP_CUSTOM_POSTPROC_LIB:
+        g_value_set_string(value, base_inference->custom_postproc_lib);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
