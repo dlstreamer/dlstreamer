@@ -60,7 +60,7 @@ RUN \
     dnf install -y \
     "https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm" \
     "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm" && \
-    dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
+    dnf install -y libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
     flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
     python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
     gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
@@ -112,7 +112,7 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 RUN \
     mkdir -p /src/ffmpeg && \
-    wget -q --no-check-certificate "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.gz" -O "/src/ffmpeg/ffmpeg-${FFMPEG_VERSION}.tar.gz" && \
+    curl -sSL --insecure "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.gz" -o "/src/ffmpeg/ffmpeg-${FFMPEG_VERSION}.tar.gz" && \
     tar -xf "/src/ffmpeg/ffmpeg-${FFMPEG_VERSION}.tar.gz" -C /src/ffmpeg && \
     rm "/src/ffmpeg/ffmpeg-${FFMPEG_VERSION}.tar.gz"
 
@@ -243,7 +243,7 @@ RUN \
     shopt -s dotglob && \
     mv gst-plugins-rs/* . && \
     git checkout 207196a0334da74c4db9db7c565d882cb9ebc07d && \
-    wget -q --no-check-certificate -O- https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.85.0 && \
+    curl -sSL --insecure https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.85.0 && \
     source "$HOME"/.cargo/env && \
     cargo install cargo-c --version=0.10.11 --locked && \
     cargo update && \
