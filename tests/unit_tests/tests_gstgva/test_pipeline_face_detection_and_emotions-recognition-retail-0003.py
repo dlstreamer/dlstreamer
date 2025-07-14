@@ -29,29 +29,29 @@ PIPELINE_STR = """appsrc name=mysrc \
 ! appsink name=mysink emit-signals=true sync=false """.format(d_model_path, c_model_path, c_model_proc_path)
 
 GOLD_TRUE = [
-    BBox(0.6924214363098145, 0.1818782240152359, 0.8225287199020386, 0.5060485601425171,
+    BBox(0.6926184892654419, 0.18179790675640106, 0.822385311126709, 0.5055984705686569,
          [
              {
                  'label': "surprise",
-                 'layer_name': "Plus692_Output_0",
-                 'name': "ANY"
+                 'layer_name': "prob_emotion",
+                 'name': "detection"
              }
          ], class_id=1
          ),
-    BBox(0.18316438794136047, 0.19858478009700775, 0.3025963306427002, 0.5096352100372314,
+    BBox(0.18315134942531586, 0.19866728782653809, 0.30272287130355835, 0.5095890760421753,
          [
              {
-                 'label': "happiness",
-                 'layer_name': "Plus692_Output_0",
-                 'name': "ANY"
+                 'label': "happy",
+                 'layer_name': "prob_emotion",
+                 'name': "emotion"
              }
          ], class_id=1
          )
 ]
 
 
-class TestDetectionClassificationONNXPipeline(unittest.TestCase):
-    def test_detection_classification_onnx_pipeline(self):
+class TestDetectionClassificationPipeline(unittest.TestCase):
+    def test_pipeline_face_detection_and_emotions_recognition_retail_0003(self):
         pipeline_runner = TestPipelineRunner()
         pipeline_runner.set_pipeline(PIPELINE_STR,
                                      IMAGE_PATH,
