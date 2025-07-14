@@ -23,7 +23,7 @@ GST_START_TEST(test_breakmydata_detection) {
     /*
         OBJECT_DETECTION
     */
-    ExitStatus status = get_model_path(detection_model_path, MAX_STR_PATH_SIZE, "ssdlite_mobilenet_v2", "FP32");
+    ExitStatus status = get_model_path(detection_model_path, MAX_STR_PATH_SIZE, "yolo11s", "FP32");
     ck_assert(status == EXIT_STATUS_SUCCESS);
     get_video_file_path(video_file_path, MAX_STR_PATH_SIZE, "Pexels_Videos_4786.mp4");
 
