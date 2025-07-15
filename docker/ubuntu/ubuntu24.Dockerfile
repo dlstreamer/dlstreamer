@@ -98,7 +98,7 @@ RUN \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
     linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* \
     ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
-    libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* && \
+    libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* libxml2-dev=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -147,6 +147,10 @@ WORKDIR /home/dlstreamer
 
 RUN \
     git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
+
+    ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig/:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+
+RUN ldconfig
 
 WORKDIR /home/dlstreamer/gstreamer
 

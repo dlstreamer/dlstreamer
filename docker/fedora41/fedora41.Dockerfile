@@ -149,6 +149,10 @@ WORKDIR /home/dlstreamer
 RUN \
     git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 
+ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig/:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+
+RUN ldconfig
+
 WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
