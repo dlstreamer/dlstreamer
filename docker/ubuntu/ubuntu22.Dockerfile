@@ -62,7 +62,7 @@ RUN \
     curl -fsSL https://repositories.intel.com/gpu/intel-graphics.key | \
     gpg --dearmor -o /usr/share/keyrings/intel-graphics.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | \
-    tee /etc/apt/sources.list.d/intel-gpu-noble.list
+    tee /etc/apt/sources.list.d/intel-gpu-jammy.list
 
 RUN \
     apt-get update && \
@@ -72,19 +72,16 @@ RUN \
     rm -rf /var/lib/apt/lists/*
 
 # Intel NPU drivers and prerequisites installation
-RUN \
-    mkdir -p ./npu_debs && \
-    curl -sSL -o ./npu_debs/level-zero_1.17.44+u22.04_amd64.deb https://github.com/oneapi-src/level-zero/releases/download/v1.17.44/level-zero_1.17.44+u22.04_amd64.deb && \
-    curl -sSL --insecure https://github.com/intel/linux-npu-driver/releases/expanded_assets/v1.13.0 | \
-    grep -oP 'href="\K[^"]*'22.04'[^"]*\.deb' | \
-    while read -r url; do \
-    curl -sSL -O "https://github.com${url}" --output-dir ./npu_debs; \
-    done && \
-    rm ./npu_debs/intel-fw-npu* && \
-    apt-get install -y -q --no-install-recommends ./npu_debs/*.deb && \
-    rm -rf ./npu_debs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /tmp/npu_deps
+    
+RUN curl -L -O https://github.com/oneapi-src/level-zero/releases/download/v1.18.5/level-zero_1.18.5+u22.04_amd64.deb && \
+    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-driver-compiler-npu_1.13.0.20250131-13074932693_ubuntu22.04_amd64.deb && \
+    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-fw-npu_1.13.0.20250131-13074932693_ubuntu22.04_amd64.deb && \
+    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-level-zero-npu_1.13.0.20250131-13074932693_ubuntu22.04_amd64.deb && \
+    apt-get update && apt-get install --no-install-recommends -y /tmp/npu_deps/*.deb && \
+    rm -rf /var/lib/apt/lists/* /tmp/npu_deps
+
+WORKDIR /
 
 RUN \
     apt-get update && \
@@ -455,19 +452,16 @@ RUN \
     rm -rf /var/lib/apt/lists/*
 
 # Intel NPU drivers and prerequisites installation
-RUN \
-    mkdir -p ./npu_debs && \
-    curl -sSL -o ./npu_debs/level-zero_1.17.44+u22.04_amd64.deb https://github.com/oneapi-src/level-zero/releases/download/v1.17.44/level-zero_1.17.44+u22.04_amd64.deb && \
-    curl -sSL --insecure https://github.com/intel/linux-npu-driver/releases/expanded_assets/v1.13.0 | \
-    grep -oP 'href="\K[^"]*'22.04'[^"]*\.deb' | \
-    while read -r url; do \
-    curl -sSL -O "https://github.com${url}" --output-dir ./npu_debs; \
-    done && \
-    rm ./npu_debs/intel-fw-npu* && \
-    apt-get install -y -q --no-install-recommends ./npu_debs/*.deb && \
-    rm -rf ./npu_debs && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+WORKDIR /tmp/npu_deps
+    
+RUN curl -L -O https://github.com/oneapi-src/level-zero/releases/download/v1.18.5/level-zero_1.18.5+u22.04_amd64.deb && \
+    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-driver-compiler-npu_1.13.0.20250131-13074932693_ubuntu22.04_amd64.deb && \
+    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-fw-npu_1.13.0.20250131-13074932693_ubuntu22.04_amd64.deb && \
+    curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-level-zero-npu_1.13.0.20250131-13074932693_ubuntu22.04_amd64.deb && \
+    apt-get update && apt-get install --no-install-recommends -y /tmp/npu_deps/*.deb && \
+    rm -rf /var/lib/apt/lists/* /tmp/npu_deps
+
+WORKDIR /
 
 RUN curl -fsSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
     gpg --dearmor -o /usr/share/keyrings/intel-sw-products.gpg && \
