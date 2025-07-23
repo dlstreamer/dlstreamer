@@ -118,6 +118,7 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
     InferenceConfig config;
     std::map<std::string, std::string> base;
     std::map<std::string, std::string> inference = Utils::stringToMap(gva_base_inference->ie_config);
+    std::map<std::string, std::string> preproc;
 
     base[KEY_MODEL] = model_file;
     base[KEY_CUSTOM_PREPROC_LIB] = custom_preproc_lib;
@@ -184,9 +185,16 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
     }
     base[KEY_CAPS_FEATURE] = std::to_string(static_cast<int>(gva_base_inference->caps_feature));
 
+    // add KEY_VAAPI_THREAD_POOL_SIZE, KEY_VAAPI_FAST_SCALE_LOAD_FACTOR elements to preprocessor config
+    // other elements from pre_processor info are consumed by model proc info
+    for (const auto &element : Utils::stringToMap(gva_base_inference->pre_proc_config)) {
+        if (element.first == KEY_VAAPI_THREAD_POOL_SIZE || element.first == KEY_VAAPI_FAST_SCALE_LOAD_FACTOR)
+            preproc[element.first] = element.second;
+    }
+
     config[KEY_BASE] = base;
     config[KEY_INFERENCE] = inference;
-    config[KEY_PRE_PROCESSOR] = Utils::stringToMap(gva_base_inference->pre_proc_config);
+    config[KEY_PRE_PROCESSOR] = preproc;
 
     return config;
 }
@@ -654,9 +662,12 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         model.input_processor_info = model_proc_provider.parseInputPreproc();
         model.output_processor_info = model_proc_provider.parseOutputPostproc();
     } else {
-        // use model metadata file to construct preprocessing info
-        model.input_processor_info =
-            ModelProcProvider::parseInputPreproc(ImageInference::GetModelInfoPreproc(model_file));
+        // combine runtime section of model metadata file and command line pre-process parameters
+        std::map<std::string, GstStructure *> model_config =
+            ImageInference::GetModelInfoPreproc(model_file, gva_base_inference->pre_proc_config);
+
+        // to construct preprocessor info
+        model.input_processor_info = ModelProcProvider::parseInputPreproc(model_config);
     }
 
     if (Utils::symLink(labels_str))
