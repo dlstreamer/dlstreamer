@@ -70,7 +70,8 @@ class ImageInference {
     // TODO: return map<OutputLayerDesc>
     virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const = 0;
     virtual std::map<std::string, GstStructure *> GetModelInfoPostproc() const = 0;
-    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file);
+    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file,
+                                                                     const gchar *pre_proc_config);
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;

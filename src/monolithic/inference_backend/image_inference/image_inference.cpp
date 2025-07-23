@@ -21,8 +21,9 @@ ImagePreprocessorType getPreProcType(const std::map<std::string, std::string> &b
 
 } // namespace
 
-std::map<std::string, GstStructure *> ImageInference::GetModelInfoPreproc(const std::string model_file) {
-    return OpenVINOImageInference::GetModelInfoPreproc(model_file);
+std::map<std::string, GstStructure *> ImageInference::GetModelInfoPreproc(const std::string model_file,
+                                                                          const gchar *preproc_config) {
+    return OpenVINOImageInference::GetModelInfoPreproc(model_file, preproc_config);
 }
 
 ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType input_image_memory_type,
