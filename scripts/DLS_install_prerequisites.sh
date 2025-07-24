@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-npu_driver_version='1.13.0'
+npu_driver_version='1.19.0'
 reinstall_npu_driver='no'  # Default value for reinstalling the NPU driver
 on_host_or_docker='host'
 
@@ -533,10 +533,10 @@ install_npu() {
     $SUDO_PREFIX rm -rf ./npu_debs
     mkdir -p ./npu_debs
     dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-driver-compiler-npu_1.13.0.20250131-13074932693_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-fw-npu_1.13.0.20250131-13074932693_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.13.0/intel-level-zero-npu_1.13.0.20250131-13074932693_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
-    wget https://github.com/oneapi-src/level-zero/releases/download/v1.18.5/level-zero_1.18.5+u${ubuntu_version}_amd64.deb
+    wget https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
+    wget https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-fw-npu_1.19.0.20250707-16111289554_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
+    wget https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-level-zero-npu_1.19.0.20250707-16111289554_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
+    wget https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u${ubuntu_version}_amd64.deb -P ./npu_debs
     $SUDO_PREFIX apt update
     $SUDO_PREFIX apt install libtbb12
     $SUDO_PREFIX  dpkg -i ./npu_debs/*.deb
@@ -805,7 +805,7 @@ then
                 intel_npu="Intel® NPU"
             fi
 
-            line_to_add="export ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so"
+            line_to_add="export ZE_ENABLE_ALT_DRIVERS=libze_intel_npu.so"
 
             # Define the .bash_profile file path for the current user
             bash_profile="${HOME}/.bash_profile"
