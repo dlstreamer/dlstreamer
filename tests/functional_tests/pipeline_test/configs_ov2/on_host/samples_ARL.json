@@ -444,6 +444,26 @@
             "name": "multistream_twomodels_npu_npu",
             "dataset.groundtruth": "multi_stream_twomodels_NPU_NPU.json",
             "sample.command": "{sample.dir}/gst_launch/multi_stream/multi_stream_sample.sh,{dataset.video}/Pexels_Videos_4786_960x540.mp4,NPU,NPU,yolov8s,yolov9c,json"
+        },
+        "custom_postproc_detect_CPU": {
+            "name": "custom_postproc_detect_CPU",
+            "dataset.groundtruth": "custom_postproc_detect_CPU.json",
+            "sample.command": "{sample.dir}/gst_launch/custom_postproc/detect/build_and_run.sh,CPU,json,{dataset.video}/Pexels_Videos_1192116-sd_640_360_30fps.mp4"
+        },
+        "custom_postproc_detect_GPU": {
+            "name": "custom_postproc_detect_GPU",
+            "dataset.groundtruth": "custom_postproc_detect_GPU.json",
+            "sample.command": "{sample.dir}/gst_launch/custom_postproc/detect/build_and_run.sh,GPU,json,{dataset.video}/Pexels_Videos_1192116-sd_640_360_30fps.mp4"
+        },
+        "custom_postproc_classify_CPU": {
+            "name": "custom_postproc_classify_CPU",
+            "dataset.groundtruth": "custom_postproc_classify_CPU.json",
+            "sample.command": "{sample.dir}/gst_launch/custom_postproc/classify/build_and_run.sh,CPU,json,{dataset.video}/Fun_at_a_Fair.mp4"
+        },
+        "custom_postproc_classify_GPU": {
+            "name": "custom_postproc_classify_GPU",
+            "dataset.groundtruth": "custom_postproc_classify_GPU.json",
+            "sample.command": "{sample.dir}/gst_launch/custom_postproc/classify/build_and_run.sh,GPU,json,{dataset.video}/Fun_at_a_Fair.mp4"
         }
     }
 }

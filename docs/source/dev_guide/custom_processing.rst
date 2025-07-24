@@ -100,6 +100,9 @@ that implements the post-processing logic without modifying the DL Streamer sour
 This approach provides flexibility and modularity while maintaining clean separation
 between the core framework and custom processing logic.
 
+A practical example implementations demonstrated in
+`sample <https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc>`__
+
 **Important Requirements**
 
 Your custom library must use the **GStreamer Analytics Library** which provides
@@ -117,28 +120,23 @@ At this time, support is available only for **detection** and **classification**
 - **Object Detection** (``GstAnalyticsODMtd``) - works only with ``gvadetect`` element
 - **Classification** (``GstAnalyticsClsMtd``) - works with both ``gvadetect`` and ``gvaclassify`` elements
 
-The custom library approach is implemented through two specialized converters:
-
-- ``custom_to_roi`` - for object detection models that output regions of interest
-- ``custom_to_tensor`` - for models that output tensor data
-
 **Implementation Requirements**
 
 Your custom library must export a ``Convert`` function with the following signature:
 
 .. code-block:: c
 
-   void Convert(GstTensorMeta *tmeta,
-                const GstStructure *network_info,
-                const GstStructure *params_info,
-                GstAnalyticsRelationMeta *relation_meta);
+   void Convert(GstTensorMeta *outputTensors,
+                const GstStructure *network,
+                const GstStructure *params,
+                GstAnalyticsRelationMeta *relationMeta);
 
 Where:
 
-- ``tmeta`` - contains output tensor data from the model inference
-- ``network_info`` - model metadata including labels, input dimensions
-- ``params_info`` - processing parameters like confidence thresholds
-- ``relation_meta`` - output structure for attaching results
+- ``outputTensors`` - contains output tensor data from the model inference
+- ``network`` - model metadata including labels, input dimensions
+- ``params`` - processing parameters like confidence thresholds
+- ``relationMeta`` - output structure for attaching results
 
 **Important Notes:**
 
@@ -161,7 +159,7 @@ Use the ``custom-postproc-lib`` parameter directly in DLS elements
 
 Here are examples of custom post-processing libraries for both use cases:
 
-**Example 1: Object Detection (custom_to_roi)**
+**Example 1: Object Detection**
 
 .. code-block:: c
 
@@ -230,7 +228,7 @@ Here are examples of custom post-processing libraries for both use cases:
        }
    }
 
-**Example 2: Classification (custom_to_tensor)**
+**Example 2: Classification**
 
 .. code-block:: c
 

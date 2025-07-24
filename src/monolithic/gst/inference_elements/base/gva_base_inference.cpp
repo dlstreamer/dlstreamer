@@ -192,10 +192,14 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
                             "Path to the .so file defining custom input image pre-processing",
                             DEFAULT_CUSTOM_PREPROC_LIB, param_flags));
 
-    g_object_class_install_property(gobject_class, PROP_CUSTOM_POSTPROC_LIB,
-                                    g_param_spec_string("custom-postproc-lib", "Custom Post-processing Library",
-                                                        "Path to the .so file defining custom model output converter",
-                                                        DEFAULT_CUSTOM_POSTPROC_LIB, param_flags));
+    g_object_class_install_property(
+        gobject_class, PROP_CUSTOM_POSTPROC_LIB,
+        g_param_spec_string("custom-postproc-lib", "Custom Post-processing Library",
+                            "Path to the .so file defining custom model output converter. "
+                            "The library must implement the Convert function: "
+                            "void Convert(GstTensorMeta *outputTensors, const GstStructure *network, "
+                            "const GstStructure *params, GstAnalyticsRelationMeta *relationMeta);",
+                            DEFAULT_CUSTOM_POSTPROC_LIB, param_flags));
 
     g_object_class_install_property(
         gobject_class, PROP_MODEL_INSTANCE_ID,

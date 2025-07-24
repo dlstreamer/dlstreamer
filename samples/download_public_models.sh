@@ -787,10 +787,29 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
 
     ovc enet_b0_8_va_mtl.onnx --input "[16,3,224,224]"
     mkdir "$MODEL_DIR/FP16/"
-    mv enet_b0_8_va_mtl.xml "$MODEL_DIR/FP16/$MODEL_NAME.xml"
-    mv enet_b0_8_va_mtl.bin "$MODEL_DIR/FP16/$MODEL_NAME.bin"
+    mv enet_b0_8_va_mtl.xml "$MODEL_DIR/$MODEL_NAME.xml"
+    mv enet_b0_8_va_mtl.bin "$MODEL_DIR/$MODEL_NAME.bin"
     cd ../../../..
     rm -rf face-emotion-recognition
+    python3 - <<EOF
+import openvino
+import sys, os
+
+core = openvino.Core()
+ov_model = core.read_model(model='hsemotion.xml')
+
+ov_model.set_rt_info("anger contempt disgust fear happiness neutral sadness surprise", ['model_info', 'labels'])
+ov_model.set_rt_info("label", ['model_info', 'model_type'])
+ov_model.set_rt_info("True", ['model_info', 'output_raw_scores'])
+ov_model.set_rt_info("fit_to_window_letterbox", ['model_info', 'resize_type'])
+ov_model.set_rt_info("255", ['model_info', 'scale_values'])
+
+print(ov_model)
+
+openvino.save_model(ov_model, './FP16/' + 'hsemotion.xml')
+os.remove('hsemotion.xml')
+os.remove('hsemotion.bin')
+EOF
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
