@@ -432,7 +432,7 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 # install prerequisites - gcc and cmake are needed to run .cpp samples
 RUN \
     apt-get update && \
-    apt-get install -y -q --no-install-recommends  libtbb12=\* curl=\* gcc=\* cmake=\*  gpg=\* ca-certificates=\* && \
+    apt-get install -y -q --no-install-recommends  libtbb12=\* curl=\* gcc=\* cmake=\*  gpg=\* ca-certificates=\* git=\* python3-venv=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
