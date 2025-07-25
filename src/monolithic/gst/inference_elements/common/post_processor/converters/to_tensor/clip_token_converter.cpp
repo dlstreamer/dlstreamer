@@ -24,32 +24,40 @@ TensorsTable CLIPTokenConverter::convert(const OutputBlobs &output_blobs) {
         const size_t batch_size = getModelInputImageInfo().batch_size;
         tensors_table.resize(batch_size);
 
-        // Process only the first blob
-        auto blob_iter = output_blobs.begin();
-        if (blob_iter != output_blobs.end()) {
-            OutputBlob::Ptr blob = blob_iter->second;
-            if (not blob) {
+        for (const auto &blob_iter : output_blobs) {
+            OutputBlob::Ptr blob = blob_iter.second;
+            if (!blob) {
                 throw std::invalid_argument("Output blob is empty");
             }
 
-            const std::string &layer_name = blob_iter->first; // inference_layer_name:pooler_output:1495
+            const std::string &layer_name = blob_iter.first;
 
             for (size_t frame_index = 0; frame_index < batch_size; ++frame_index) {
                 GstStructure *tensor_data = BlobToTensorConverter::createTensor().gst_structure();
+                if (blob->GetDims().size() == 2) {
+                    // Process pooler_output
+                    // shape: [N, 1024] for clip-vit-large, [N, 512] for clip-vit-base
+                    CopyOutputBlobToGstStructure(blob, tensor_data, BlobToMetaConverter::getModelName().c_str(),
+                                                 layer_name.c_str(), batch_size, frame_index);
+                } else if (blob->GetDims().size() == 3) {
+                    // Process last_hidden_state
+                    auto dims = blob->GetDims();
+                    auto clip_token_size = dims[2]; // tensor shape: [N, 257, 1024]
 
-                auto dims = blob->GetDims();
-                auto clip_token_size = dims[2]; // tensor shape: [N, 257, 1024]
+                    CopyOutputBlobToGstStructure(blob, tensor_data, BlobToMetaConverter::getModelName().c_str(),
+                                                 layer_name.c_str(), batch_size, frame_index,
+                                                 clip_token_size * sizeof(float));
 
-                CopyOutputBlobToGstStructure(blob, tensor_data, BlobToMetaConverter::getModelName().c_str(),
-                                             layer_name.c_str(), batch_size, frame_index,
-                                             clip_token_size * sizeof(float));
-
-                // Adjusting tensor dimensions - we retrieved just the token, and skipped the rest of embeddings
-                const GValue *dims_value = gst_structure_get_value(tensor_data, "dims");
-                GValue *element = (GValue *)gst_value_array_get_value(dims_value, 1);
-                g_value_set_uint(element, 1);
-                // Now set the modified array back to the structure
-                gst_structure_set_value(tensor_data, "dims", dims_value);
+                    // Adjusting tensor dimensions - we retrieved just the token, and skipped the rest of embeddings
+                    const GValue *dims_value = gst_structure_get_value(tensor_data, "dims");
+                    GValue *element = (GValue *)gst_value_array_get_value(dims_value, 1);
+                    g_value_set_uint(element, 1);
+                    // Now set the modified array back to the structure
+                    gst_structure_set_value(tensor_data, "dims", dims_value);
+                } else {
+                    throw std::runtime_error("Unsupported output blob dimensions for CLIPTokenConverter: " +
+                                             std::to_string(blob->GetDims().size()));
+                }
 
                 // In different versions of GStreamer, tensors_batch are attached to the buffer in a different order.
                 // Thus, we identify our meta using tensor_id.
