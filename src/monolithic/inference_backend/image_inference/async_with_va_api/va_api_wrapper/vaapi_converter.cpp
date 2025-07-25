@@ -199,8 +199,8 @@ VaApiConverter::VaApiConverter(VaApiContext *context) : _context(context) {
 }
 
 void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerDesc::Ptr &pre_proc_info,
-                                                          uint16_t dst_width, uint16_t dst_height,
-                                                          VARectangle &src_surface_region,
+                                                          uint16_t src_width, uint16_t src_height, uint16_t dst_width,
+                                                          uint16_t dst_height, VARectangle &src_surface_region,
                                                           VARectangle &dst_surface_region,
                                                           VAProcPipelineParameterBuffer &pipeline_param,
                                                           const ImageTransformationParams::Ptr &image_transform_info) {
@@ -272,45 +272,62 @@ void VaApiConverter::SetupPipelineRegionsWithCustomParams(const InputImageLayerD
         uint16_t cropped_width = dst_surface_region.width - cropped_border_x;
         uint16_t cropped_height = dst_surface_region.height - cropped_border_y;
 
-        switch (pre_proc_info->getCropType()) {
-        case InputImageLayerDesc::Crop::CENTRAL:
-            cropped_border_x /= 2;
-            cropped_border_y /= 2;
-            break;
-        case InputImageLayerDesc::Crop::TOP_LEFT:
-            cropped_border_x = 0;
-            cropped_border_y = 0;
-            break;
-        case InputImageLayerDesc::Crop::TOP_RIGHT:
-            cropped_border_y = 0;
-            break;
-        case InputImageLayerDesc::Crop::BOTTOM_LEFT:
-            cropped_border_x = 0;
-            break;
-        case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
-            break;
-        default:
-            break;
+        if (pre_proc_info->getCropType() == InputImageLayerDesc::Crop::CENTRAL_RESIZE) {
+            uint16_t crop_size = std::min(src_width, src_height);
+            uint16_t startX = (src_width - crop_size) / 2;
+            uint16_t startY = (src_height - crop_size) / 2;
+
+            src_surface_region.x = safe_convert<int16_t>(startX);
+            src_surface_region.y = safe_convert<int16_t>(startY);
+            src_surface_region.width = crop_size;
+            src_surface_region.height = crop_size;
+
+            dst_surface_region.width = input_width_except_padding;
+            dst_surface_region.height = input_height_except_padding;
+
+            if (image_transform_info)
+                image_transform_info->CropHasDone(startX, startY);
+        } else {
+            switch (pre_proc_info->getCropType()) {
+            case InputImageLayerDesc::Crop::CENTRAL:
+                cropped_border_x /= 2;
+                cropped_border_y /= 2;
+                break;
+            case InputImageLayerDesc::Crop::TOP_LEFT:
+                cropped_border_x = 0;
+                cropped_border_y = 0;
+                break;
+            case InputImageLayerDesc::Crop::TOP_RIGHT:
+                cropped_border_y = 0;
+                break;
+            case InputImageLayerDesc::Crop::BOTTOM_LEFT:
+                cropped_border_x = 0;
+                break;
+            case InputImageLayerDesc::Crop::BOTTOM_RIGHT:
+                break;
+            default:
+                throw std::runtime_error("Unknown crop format.");
+            }
+
+            // Should have this size after src_crop & src_resize
+            dst_surface_region.width = cropped_width;
+            dst_surface_region.height = cropped_height;
+
+            if (image_transform_info)
+                image_transform_info->CropHasDone(cropped_border_x, cropped_border_y);
+
+            cropped_border_x = safe_convert<uint16_t>(safe_convert<double>(cropped_border_x) / resize_scale_param_x);
+            cropped_border_y = safe_convert<uint16_t>(safe_convert<double>(cropped_border_y) / resize_scale_param_y);
+            cropped_width = safe_convert<uint16_t>(safe_convert<double>(cropped_width) / resize_scale_param_x);
+            cropped_height = safe_convert<uint16_t>(safe_convert<double>(cropped_height) / resize_scale_param_y);
+
+            // Actualy we crop src before resize to get 1 preproc pipeline instead 2 (src->dst_resized + dst_resized ->
+            // cropped)
+            src_surface_region.x += cropped_border_x;
+            src_surface_region.y += cropped_border_y;
+            src_surface_region.width = cropped_width;
+            src_surface_region.height = cropped_height;
         }
-
-        // Should have this size after src_crop & src_resize
-        dst_surface_region.width = cropped_width;
-        dst_surface_region.height = cropped_height;
-
-        if (image_transform_info)
-            image_transform_info->CropHasDone(cropped_border_x, cropped_border_y);
-
-        cropped_border_x = safe_convert<uint16_t>(safe_convert<double>(cropped_border_x) / resize_scale_param_x);
-        cropped_border_y = safe_convert<uint16_t>(safe_convert<double>(cropped_border_y) / resize_scale_param_y);
-        cropped_width = safe_convert<uint16_t>(safe_convert<double>(cropped_width) / resize_scale_param_x);
-        cropped_height = safe_convert<uint16_t>(safe_convert<double>(cropped_height) / resize_scale_param_y);
-
-        // Actualy we crop src before resize to get 1 preproc pipeline instead 2 (src->dst_resized + dst_resized ->
-        // cropped)
-        src_surface_region.x += cropped_border_x;
-        src_surface_region.y += cropped_border_y;
-        src_surface_region.width = cropped_width;
-        src_surface_region.height = cropped_height;
     }
 
     // Add padding for The padding and padding from aspect-ratio resize
@@ -378,7 +395,8 @@ void VaApiConverter::Convert(const Image &src, VaApiImage &va_api_dst, const Inp
                                       .height = src_surface_region.height};
 
     if (pre_proc_info && pre_proc_info->isDefined()) {
-        SetupPipelineRegionsWithCustomParams(pre_proc_info, safe_convert<uint16_t>(dst.width),
+        SetupPipelineRegionsWithCustomParams(pre_proc_info, safe_convert<uint16_t>(src.width),
+                                             safe_convert<uint16_t>(src.height), safe_convert<uint16_t>(dst.width),
                                              safe_convert<uint16_t>(dst.height), src_surface_region, dst_surface_region,
                                              pipeline_param, image_transform_info);
 
