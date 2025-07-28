@@ -1018,6 +1018,14 @@ class OpenVinoNewApiImpl {
         }
 
         _batch_size = config.batch_size();
+        if (_batch_size == 0) {
+            try {
+                _batch_size = core().get_property(config.device(), ov::optimal_batch_size);
+            } catch (...) {
+                _batch_size = 1; // Fallback if optimal batch size property is not supported
+            }
+        }
+
         GVA_DEBUG("Setting batch size of %d to model", _batch_size);
         ov::set_batch(_model, _batch_size);
 
@@ -1359,6 +1367,7 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
 
         model_name = _impl->_model->get_friendly_name();
         nireq = _impl->_nireq;
+        batch_size = _impl->_batch_size;
         image_layer = _impl->_image_input_name;
 
         for (int i = 0; i < nireq; i++) {

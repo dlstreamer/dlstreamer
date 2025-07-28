@@ -103,14 +103,6 @@ ImagePreprocessorType ImagePreprocessorTypeFromString(const std::string &image_p
                              ". Check element's description for supported property values.");
 }
 
-uint32_t GetOptimalBatchSize(const char *device) {
-    uint32_t batch_size = 1;
-    // if the device has the format GPU.x we assume that these are discrete graphics and choose larger batch
-    if (device and std::string(device).find("GPU.") != std::string::npos)
-        batch_size = 8;
-    return batch_size;
-}
-
 InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference, const std::string &model_file,
                                             const std::string &custom_preproc_lib) {
     assert(gva_base_inference && "Expected valid GvaBaseInference");
@@ -684,9 +676,6 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
     // It will be parsed in PostProcessor
     model.labels = labels_str;
 
-    if (gva_base_inference->batch_size == 0)
-        gva_base_inference->batch_size = GetOptimalBatchSize(gva_base_inference->device);
-
     UpdateModelReshapeInfo(gva_base_inference);
     InferenceConfig ie_config = CreateNestedInferenceConfig(gva_base_inference, model_file, custom_preproc_lib);
     UpdateConfigWithLayerInfo(model.input_processor_info, ie_config);
@@ -729,6 +718,10 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         throw std::runtime_error("Failed to create inference instance");
     model.inference = image_inference;
     model.name = image_inference->GetModelName();
+
+    // if auto batch size was requested, use the actual batch size determined by inference instance
+    if (gva_base_inference->batch_size == 0)
+        gva_base_inference->batch_size = model.inference->GetBatchSize();
 
     return model;
 }

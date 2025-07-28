@@ -76,7 +76,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::string model_name;
     std::string image_layer;
 
-    const int batch_size;
+    int batch_size;
     int nireq;
     SafeQueue<std::shared_ptr<BatchRequest>> freeRequests;
 
