@@ -2,11 +2,9 @@
     "dependencies": [
         "opencv",
         "pkgconf",
-        "spdlog",
         "opencl",
         "dlfcn-win32",
-        "fmt",
-        "pthread"
+        "fmt"
     ],
     "overrides": [
     {

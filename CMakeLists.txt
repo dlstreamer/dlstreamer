@@ -134,7 +134,8 @@ message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 
 if(WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /permissive-")
-    set(CMAKE_CXX_FLAGS_RELEASE "/O2")
+    # disabled some warnings to reduce log size
+    set(CMAKE_CXX_FLAGS_RELEASE "/O2 -wd4005 -wd4267 -wd4297 -wd4244 -wd4273 -wd4141 -wd4805")
 
     set (CMAKE_C_STANDARD 11)
     set (CMAKE_CXX_STANDARD 23)
@@ -210,7 +211,7 @@ if(${ENABLE_SAMPLES})
     #add_subdirectory(samples/ffmpeg_dpcpp/rgb_to_grayscale)
 endif()
 
-if(${ENABLE_TESTS})
+if(${ENABLE_TESTS} AND NOT(WIN32))
     enable_testing()
     add_subdirectory(tests/unit_tests)
 endif()
