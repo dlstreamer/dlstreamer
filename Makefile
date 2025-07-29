@@ -8,7 +8,7 @@
 SHELL := /bin/bash
 nproc ?= 1
 
-GSTREAMER_TAG 	:= 1.26.1
+GSTREAMER_TAG 	:= 1.26.4
 OPENCV_TAG 		:= 4.6.0
 
 DLSTREAMER_VERSION 	:= 0.0.0
