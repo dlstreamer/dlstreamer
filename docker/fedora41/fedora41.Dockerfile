@@ -38,7 +38,7 @@ ARG BUILD_ARG=Release
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
 
-ARG GST_VERSION=1.26.1
+ARG GST_VERSION=1.26.4
 ARG FFMPEG_VERSION=6.1.1
 
 ARG OPENVINO_VERSION=2025.2.0
@@ -246,7 +246,7 @@ RUN \
     git clone https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git && \
     shopt -s dotglob && \
     mv gst-plugins-rs/* . && \
-    git checkout 207196a0334da74c4db9db7c565d882cb9ebc07d && \
+    git checkout "tags/gstreamer-$GST_VERSION" && \
     curl -sSL --insecure https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.86.0 && \
     source "$HOME"/.cargo/env && \
     cargo install cargo-c --version=0.10.11 --locked && \
