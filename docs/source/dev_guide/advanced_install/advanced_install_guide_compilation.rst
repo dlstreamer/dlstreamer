@@ -111,7 +111,7 @@ Clone and build GStreamer:
     git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 
     cd ~/gstreamer
-    git switch -c "1.26.1" "tags/1.26.1"
+    git switch -c "1.26.4" "tags/1.26.4"
     export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig/:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
     sudo ldconfig
     meson setup -Dexamples=disabled -Dtests=disabled -Dvaapi=enabled -Dgst-examples=disabled --buildtype=release --prefix=/opt/intel/dlstreamer/gstreamer --libdir=lib/ --libexecdir=bin/ build/
