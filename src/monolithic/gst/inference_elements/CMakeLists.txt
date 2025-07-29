@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -93,4 +93,10 @@ PUBLIC
 
 if(${ENABLE_VAAPI})
     target_link_libraries(${TARGET_NAME} PRIVATE va_api_wrapper image_inference_async)
+endif()
+
+if(WIN32)
+    find_package(dlfcn-win32 REQUIRED)
+    target_include_directories(${TARGET_NAME} PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
+    target_link_libraries(${TARGET_NAME} PRIVATE ${dlfcn-win32_LIBRARIES})
 endif()
