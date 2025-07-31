@@ -40,6 +40,11 @@ Inference plugins
 
        *[eg syntax]* *gst-launch-1.0 ... ! decodebin3 ! audioresample ! audioconvert ! audio/x-raw ... ! audiomixer ... ! gvaaudiodetect model=$mAudioDetect ! ... OUT*
 
+   * - :doc:`gvagenai <gvagenai>`
+     - Performs inference using GenAI models. It can be used to generate text descriptions from images or video.
+
+       *[eg syntax]* *gst-launch-1.0 ... ! decodebin3 ! videoconvert ! gvagenai model=$mGenAI device=GPU ! ... OUT*
+
 
 Auxiliary plugins
 -----------------
@@ -92,6 +97,7 @@ Auxiliary plugins
    gvainference
    gvatrack
    gvaaudiodetect
+   gvagenai
    gvaattachroi
    gvafpscounter
    gvametaaggregate
