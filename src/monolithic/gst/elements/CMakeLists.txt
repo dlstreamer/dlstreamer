@@ -98,4 +98,6 @@ add_subdirectory(gvapython)
 add_subdirectory(gvatrack)
 add_subdirectory(gvadeskew)
 add_subdirectory(gvawatermark3d)
-
+if(ENABLE_GENAI)
+    add_subdirectory(gvagenai)
+endif()
