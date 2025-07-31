@@ -127,6 +127,7 @@ cmake_dependent_option(ENABLE_TESTS "Parameter to enable tests building" ON "UNI
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
+option(ENABLE_GENAI "Enables GenAI elements" OFF)
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 
