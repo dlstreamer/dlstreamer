@@ -181,31 +181,15 @@ To run the hello_dlstreamer script, execute the following command:
 
    To set up Linux with the relevant environment variables every time a new terminal is opened, open ~/.bashrc and add the following lines:
 
-..  tabs::
+..  code:: sh
 
-   ..  tab:: Ubuntu 22
-
-      .. code-block:: sh
-
-         export LIBVA_DRIVER_NAME=iHD
-         export GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
-         export LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
-         export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
-         export GST_VA_ALL_DRIVERS=1
-         export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/bin:$PATH
-         export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-
-   ..  tab:: Ubuntu 24
-
-      .. code-block:: sh
-
-         export LIBVA_DRIVER_NAME=iHD
-         export GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
-         export LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/usr/local/lib/gstreamer-1.0:/usr/local/lib
-         export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
-         export GST_VA_ALL_DRIVERS=1
-         export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/bin:$PATH
-         export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+   export LIBVA_DRIVER_NAME=iHD
+   export GST_PLUGIN_PATH=/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
+   export LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/build/intel64/Release/lib:/opt/opencv:/opt/openh264:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+   export LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+   export GST_VA_ALL_DRIVERS=1
+   export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:$PATH
+   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 
 
 or run:

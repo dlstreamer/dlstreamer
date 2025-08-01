@@ -77,23 +77,53 @@ Create a Python virtual environment and install required Python packages:
     pip install --upgrade pip==24.0
     pip install meson==1.4.1 ninja==1.11.1.1
 
-Step 4: Build FFmpeg (fedora only)
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Step 4: Build/Install FFmpeg 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Download and build FFmpeg:
+NOTE: If you have built and installed a different version of ffmpeg locally, it can cause build errors. It is recommended to uninstall it first.
+You can uninstall it with the following command (if installed from source):
 
-.. code:: sh
+.. tabs::
 
-    mkdir ~/ffmpeg
-    wget --no-check-certificate https://ffmpeg.org/releases/ffmpeg-6.1.1.tar.gz -O ~/ffmpeg/ffmpeg-6.1.1.tar.gz
-    tar -xf ~/ffmpeg/ffmpeg-6.1.1.tar.gz -C ~/ffmpeg
-    rm ~/ffmpeg/ffmpeg-6.1.1.tar.gz
+    .. tab:: Ubuntu
 
-    cd ~/ffmpeg/ffmpeg-6.1.1
-    ./configure --enable-pic --enable-shared --enable-static --enable-avfilter --enable-vaapi \
-        --extra-cflags="-I/include" --extra-ldflags="-L/lib" --extra-libs=-lpthread --extra-libs=-lm --bindir="/bin"
-    make -j "$(nproc)"
-    sudo make install
+        You can uninstall it with the following command (if installed from source):
+
+        .. code:: sh
+
+            cd ${HOME}/ffmpeg # Change to the directory where ffmpeg was built
+            sudo make uninstall
+
+        Then reinstall ffmpeg libs:
+
+        .. code:: sh
+
+            sudo apt-get install --reinstall ffmpeg libpostproc-dev libavfilter-dev libavdevice-dev \
+                        libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev
+
+    .. tab:: Fedora
+
+        You can uninstall it with the following command (if installed from source):
+
+        .. code:: sh
+
+            cd ${HOME}/ffmpeg # Change to the directory where ffmpeg was built
+            sudo make uninstall
+
+        Download and build FFmpeg:
+
+        .. code:: sh
+
+            mkdir ~/ffmpeg
+            wget --no-check-certificate https://ffmpeg.org/releases/ffmpeg-6.1.1.tar.gz -O ~/ffmpeg/ffmpeg-6.1.1.tar.gz
+            tar -xf ~/ffmpeg/ffmpeg-6.1.1.tar.gz -C ~/ffmpeg
+            rm ~/ffmpeg/ffmpeg-6.1.1.tar.gz
+
+            cd ~/ffmpeg/ffmpeg-6.1.1
+            ./configure --enable-pic --enable-shared --enable-static --enable-avfilter --enable-vaapi \
+                --extra-cflags="-I/include" --extra-ldflags="-L/lib" --extra-libs=-lpthread --extra-libs=-lm --bindir="/bin"
+            make -j "$(nproc)"
+            sudo make install
 
 Step 5: Build GStreamer
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -101,6 +131,7 @@ Step 5: Build GStreamer
 Make sure that previous GStreamer installation is removed:
 
 .. code:: sh
+
     sudo rm -rf /opt/intel/dlstreamer/gstreamer
 
 Clone and build GStreamer:
