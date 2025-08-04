@@ -73,7 +73,28 @@ Yet antoher example run of `yolo11s` model with GPU device on your own mp4 video
 ./yolo_detect.sh yolov9c CPU path/to/your/video.mp4 display
 ```
 
-Please examine `yolo_detect.sh` script to see how to source data from input camera and how to generate other types of the output. 
+Example run of `yolo11s-obb` model with FP32 precision with GPU device on online video with VAAPI acceleration, saving results to file:
+
+```sh
+./yolo_detect.sh yolo11s-obb GPU https://videos.pexels.com/video-files/3150382/3150382-sd_640_338_25fps.mp4 file va FP32
+```
+
+Sample output for `yolo11s-obb` model:
+
+![Sample Output](yolo11s-obb_sample_output.jpeg)
+
+Example run of `yolo11s-seg` model with FP32 precision with GPU device on online video with VAAPI acceleration, saving results to file:
+
+```sh
+./yolo_detect.sh yolo11s-seg GPU https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4 file va FP32
+```
+
+Sample output for `yolo11s-seg` model:
+
+![Sample Output](yolo11s-seg_sample_output.jpeg)
+
+Please examine `yolo_detect.sh` script to see how to source data from input camera and how to generate other types of the output.
 
 ## See also
+
 * [Samples overview](../../README.md)
