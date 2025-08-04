@@ -193,13 +193,15 @@ void RendererI420::draw_line(std::vector<cv::Mat> &mats, render::Line line) {
 void RendererI420::draw_instance_mask(std::vector<cv::Mat> &mats, render::InstanceSegmantationMask mask) {
     (void)mats;
     (void)mask;
-    throw std::logic_error("Function not yet implemented");
+    throw std::logic_error("Drawing instance segmentation masks is not yet supported for I420 video format. "
+                           "Currently supported formats: BGR, RGB, BGRx, RGBx, BGRA and NV12.");
 }
 
 void RendererI420::draw_semantic_mask(std::vector<cv::Mat> &mats, render::SemanticSegmantationMask mask) {
     (void)mats;
     (void)mask;
-    throw std::logic_error("Function not yet implemented");
+    throw std::logic_error("Drawing semantic segmentation masks is not yet supported for I420 video format. "
+                           "Currently supported formats: BGR, RGB, BGRx, RGBx, BGRA only.");
 }
 
 void RendererNV12::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
@@ -311,7 +313,8 @@ void RendererNV12::draw_instance_mask(std::vector<cv::Mat> &mats, render::Instan
 void RendererNV12::draw_semantic_mask(std::vector<cv::Mat> &mats, render::SemanticSegmantationMask mask) {
     (void)mats;
     (void)mask;
-    throw std::logic_error("Function not yet implemented");
+    throw std::logic_error("Drawing semantic segmentation masks is not yet supported for NV12 video format. "
+                           "Currently supported formats: BGR, RGB, BGRx, RGBx, BGRA only.");
 }
 
 void RendererBGR::draw_rectangle(std::vector<cv::Mat> &mats, render::Rect rect) {
