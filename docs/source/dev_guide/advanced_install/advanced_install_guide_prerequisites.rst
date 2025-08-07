@@ -61,7 +61,7 @@ C. Install the newest Intel® NPU driver. Please follow 'Installation procedure'
 
    .. code:: sh
 
-      export ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so
+      export ZE_ENABLE_ALT_DRIVERS=libze_intel_npu.so
 
    The issue should be fixed with newer versions of Intel® NPU drivers and Intel® OpenVINO™ NPU plugins.
 
