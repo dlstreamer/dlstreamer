@@ -15,7 +15,8 @@ echo 'Setting variables: LIBVA_DRIVER_NAME, LIBVA_DRIVERS_PATH, Path (for LIBVA)
 [Environment]::SetEnvironmentVariable('LIBVA_DRIVER_NAME', 'vaon12', [System.EnvironmentVariableTarget]::User)
 [Environment]::SetEnvironmentVariable('LIBVA_DRIVERS_PATH', (Get-Item .).FullName + '\Microsoft.Direct3D.VideoAccelerationCompatibilityPack.1.0.2\build\native\x64\bin\', [System.EnvironmentVariableTarget]::User)
 $USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
-if (-Not $USER_PATH.Contains('VideoAccelerationCompatibilityPack')) {
+$pathEntries = $USER_PATH -split ';'
+if (-Not ($pathEntries -contains 'VideoAccelerationCompatibilityPack')) {
 	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ';' + [Environment]::GetEnvironmentVariable('LIBVA_DRIVERS_PATH', 'User'), [System.EnvironmentVariableTarget]::User)
 }
 
@@ -23,18 +24,20 @@ echo 'Setting variables: GST_PLUGIN_PATH, Path (for DLLs)'
 $CURRENT_DIR = (Get-Item .).FullName
 [Environment]::SetEnvironmentVariable('GST_PLUGIN_PATH', "C:\gstreamer\1.0\msvc_x86_64\bin;C:\gstreamer\1.0\msvc_x86_64\lib\gstreamer-1.0;$CURRENT_DIR", [System.EnvironmentVariableTarget]::User)
 $USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
-if (-Not [Environment]::GetEnvironmentVariable('Path', 'User').Contains($CURRENT_DIR)) {
-	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ';' + $CURRENT_DIR, [System.EnvironmentVariableTarget]::User)
+$pathEntries = $USER_PATH -split ';'
+if (-Not ($pathEntries -contains $CURRENT_DIR)) {
+    [Environment]::SetEnvironmentVariable('Path', ($USER_PATH + ';' + $CURRENT_DIR), [System.EnvironmentVariableTarget]::User)
 }
 
 echo 'Setting variables: GST_PLUGIN_SCANNER'
 $GSTREAMER_PLUGIN_SCANNER_PATH = (Get-ChildItem -Filter gst-plugin-scanner.exe -Recurse -Path 'C:\gstreamer' -Include 'gst-plugin-scanner.exe' -ErrorAction SilentlyContinue) | Select-Object -First 1
 [Environment]::SetEnvironmentVariable('GST_PLUGIN_SCANNER', $GSTREAMER_PLUGIN_SCANNER_PATH, [System.EnvironmentVariableTarget]::User)
 
-if (-Not [Environment]::GetEnvironmentVariable('Path', 'User').Contains('gstreamer')) {
-	echo 'Setting variables: Path (for gst-launch-1.0)'
-	$GSTREAMER_DIR = (Get-ChildItem -Filter gst-launch-1.0.exe -Recurse -Path 'C:\gstreamer' -Include 'gst-launch-1.0.exe' -ErrorAction SilentlyContinue).DirectoryName | Select-Object -First 1
-	$USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
+echo 'Setting variables: Path (for gst-launch-1.0)'
+$GSTREAMER_DIR = (Get-ChildItem -Filter gst-launch-1.0.exe -Recurse -Path 'C:\gstreamer' -Include 'gst-launch-1.0.exe' -ErrorAction SilentlyContinue).DirectoryName | Select-Object -First 1
+$USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
+$pathEntries = $USER_PATH -split ';'
+if (-Not ($pathEntries -contains $GSTREAMER_DIR)) {
 	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ';' + $GSTREAMER_DIR, [System.EnvironmentVariableTarget]::User)
 }
 
@@ -83,6 +86,7 @@ echo "Generating GStreamer cache. It may take up to a few minutes for the first 
 echo "Please wait for a moment... "
 
 try {
+	del C:\Users\$env:USERNAME\AppData\Local\Microsoft\Windows\INetCache\gstreamer-1.0\registry.x86_64-msvc.bin
 	$(gst-inspect-1.0.exe gvadetect)
 } catch {
 	echo "Error caught - clearing a cache and retrying..."
