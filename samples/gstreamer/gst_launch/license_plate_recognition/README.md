@@ -23,7 +23,9 @@ This sample builds a GStreamer pipeline of the following elements:
 
 ## Models
 
-The sample uses the [`yolov8_license_plate_detector`](https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8) model for license plate detection and the [`ch_PP-OCRv4_rec_infer`](https://github.com/PaddlePaddle/PaddleOCR) model for optical character recognition (OCR). The necessary conversion to the OpenVINO™ format is performed by the `download_public_models.sh` script located in the `samples` directory.
+The sample uses the [`yolov8_license_plate_detector`](https://github.com/open-edge-platform/edge-ai-resources/blob/main/models/license-plate-reader.zip) model for license plate detection and the [`ch_PP-OCRv4_rec_infer`](https://github.com/PaddlePaddle/PaddleOCR) model for optical character recognition (OCR). The necessary conversion to the OpenVINO™ format is performed by the `download_public_models.sh` script located in the `samples` directory.
+
+The accuracy of license plate detection depends on whether the applied model has been trained using data representing license plates from a specific region. In addition to the default model used in this example, the same pipeline can be used with other license plate detectors, such as the one available [`here`](https://github.com/Muhammad-Zeerak-Khan/Automatic-License-Plate-Recognition-using-YOLOv8).
 
 ## Running
 
