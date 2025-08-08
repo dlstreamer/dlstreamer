@@ -698,8 +698,13 @@ if [[ "$MODEL" == "yolov8_license_plate_detector" ]] || [[ "$MODEL" == "all" ]];
     cd "$MODEL_DIR"
 
     curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
-    unzip -o ${MODEL_NAME}.zip
-    rm -f ${MODEL_NAME}.zip
+    python3 -c "
+import zipfile
+import os
+with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
+    zip_ref.extractall('.')
+os.remove('${MODEL_NAME}.zip')
+"
 
     mkdir -p FP32 
     cp license-plate-reader/models/yolov8n/yolov8n_retrained.bin FP32/${MODEL_NAME}.bin
@@ -908,8 +913,13 @@ if [[ "$MODEL" == "ch_PP-OCRv4_rec_infer" ]] || [[ "$MODEL" == "all" ]]; then
     cd "$MODEL_DIR"
 
     curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
-    unzip -o ${MODEL_NAME}.zip
-    rm -f ${MODEL_NAME}.zip
+    python3 -c "
+import zipfile
+import os
+with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
+    zip_ref.extractall('.')
+os.remove('${MODEL_NAME}.zip')
+"
 
     mkdir -p FP32 
     cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.bin FP32/${MODEL_NAME}.bin
