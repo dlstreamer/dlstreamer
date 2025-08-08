@@ -690,38 +690,28 @@ done
 if [[ "$MODEL" == "yolov8_license_plate_detector" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="yolov8_license_plate_detector"
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
-  DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
+  DST_FILE1="$MODEL_DIR/FP32/$MODEL_NAME.xml"
 
-  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
+  if [[ ! -f "$DST_FILE1" ]]; then
     echo "Downloading and converting: ${MODEL_DIR}"
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
 
-    curl -L -k -o ${MODEL_NAME}.pt 'https://drive.usercontent.google.com/uc?export=download&id=1Zmf5ynaTFhmln2z7Qvv-tgjkWQYQ9Zdw'
+    curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
+    python3 -c "
+import zipfile
+import os
+with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
+    zip_ref.extractall('.')
+os.remove('${MODEL_NAME}.zip')
+"
 
-    python3 - <<EOF "$MODEL_NAME"
-from ultralytics import YOLO
-import openvino, sys, shutil, os
-
-model_name = sys.argv[1]
-weights = model_name + '.pt'
-
-model = YOLO(weights)
-model.info()
-converted_path = model.export(format='openvino')
-converted_model = converted_path + '/' + model_name + '.xml'
-core = openvino.Core()
-ov_model = core.read_model(model=converted_model)
-
-ov_model.set_rt_info('YOLOv8', ['model_info', 'model_type'])
-
-openvino.save_model(ov_model, './FP32/' + model_name + '.xml', compress_to_fp16=False)
-openvino.save_model(ov_model, './FP16/' + model_name + '.xml', compress_to_fp16=True)
-shutil.rmtree(converted_path)
-os.remove(f"{model_name}.pt")
-EOF
-
+    mkdir -p FP32 
+    cp license-plate-reader/models/yolov8n/yolov8n_retrained.bin FP32/${MODEL_NAME}.bin
+    cp license-plate-reader/models/yolov8n/yolov8n_retrained.xml FP32/${MODEL_NAME}.xml
+    chmod -R u+w license-plate-reader
+    rm -rf license-plate-reader
+    cd ..
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
@@ -915,47 +905,28 @@ fi
 if [[ "$MODEL" == "ch_PP-OCRv4_rec_infer" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="ch_PP-OCRv4_rec_infer"
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE1="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-  DST_FILE2="$MODEL_DIR/FP16/$MODEL_NAME.xml"
+  DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
 
-  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
-    mkdir -p "$MODEL_DIR"
+  if [[ ! -f "$DST_FILE1" ]]; then
     echo "Downloading and converting: ${MODEL_DIR}"
+    mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
-    curl -L -O "https://paddleocr.bj.bcebos.com/PP-OCRv4/chinese/$MODEL_NAME.tar"
-    python3 - <<EOF "$MODEL_NAME" "$MODEL_DIR" "$DST_FILE1"
-import tarfile
-import openvino as ov
-import sys, os, shutil
 
-model_name = sys.argv[1]
-model_dir = sys.argv[2]
-orig_model_path = sys.argv[1]
+    curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
+    python3 -c "
+import zipfile
+import os
+with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
+    zip_ref.extractall('.')
+os.remove('${MODEL_NAME}.zip')
+"
 
-file = tarfile.open(f"{model_name}.tar")
-res = file.extractall(model_dir)
-file.close()
-if not res:
-    print(f"Model Extracted to {model_dir}.")
-else:
-    print("Error Extracting the model.")
-
-ov_model = ov.convert_model("ch_PP-OCRv4_rec_infer/inference.pdmodel")
-ov_model.reshape({"x": [-1, 3, 48, 192]})
-
-ov_model.set_rt_info("paddle_ocr", ['model_info', 'model_type'])
-ov_model.set_rt_info("58.395, 57.12, 57.375", ['model_info', 'scale_values'])  #std = [0.229, 0.224, 0.225]
-ov_model.set_rt_info("123.675, 116.28, 103.53", ['model_info', 'mean_values'])  #mean = [0.485, 0.456, 0.406]
-ov_model.set_rt_info("true", ['model_info', 'reverse_input_channels'])
-ov_model.set_rt_info("standard", ['model_info', 'resize_type'])
-
-ov.save_model(ov_model, './FP32/' + 'ch_PP-OCRv4_rec_infer.xml', compress_to_fp16=False)
-ov.save_model(ov_model, './FP16/' + 'ch_PP-OCRv4_rec_infer.xml', compress_to_fp16=True)
-
-shutil.rmtree(model_name)
-os.remove(f"{model_name}.tar")
-
-EOF
+    mkdir -p FP32 
+    cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.bin FP32/${MODEL_NAME}.bin
+    cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.xml FP32/${MODEL_NAME}.xml
+    chmod -R u+w license-plate-reader
+    rm -rf license-plate-reader
+    cd ..
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
