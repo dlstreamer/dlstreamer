@@ -18,7 +18,7 @@ else
 fi
 
 # Command-line parameters
-INPUT=${1:-https://videos.pexels.com/video-files/30787543/13168475_1280_720_25fps.mp4}
+INPUT=${1:-https://github.com/open-edge-platform/edge-ai-resources/raw/main/videos/ParkingVideo.mp4}
 DEVICE=${2:-GPU}     # Device for decode and inference in OpenVINO(TM) format, examples: AUTO, CPU, GPU, GPU.0
 OUTPUT=${3:-fps}     # Output type, valid values: display, fps, json, display-and-json, file
 
