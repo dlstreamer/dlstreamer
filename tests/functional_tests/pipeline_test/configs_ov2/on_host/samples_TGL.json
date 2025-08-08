@@ -285,11 +285,6 @@
             "dataset.groundtruth": "detection_yolov5su_GPU.json",
             "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolov5su,GPU,{dataset.video}/Pexels_Videos_4786.mp4,json,,FP32"
         },
-         "yolox_5su_int8_GPU": {
-            "name": "yolox_5su_int8_GPU",
-            "dataset.groundtruth": "detection_yolov5su_int8_GPU.json",
-            "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolov5su,GPU,{dataset.video}/Pexels_Videos_4786.mp4,json,,INT8"
-        },
         "yolov7_GPU": {
             "name": "yolov7_GPU",
             "dataset.groundtruth": "detection_yolov7_GPU.json",
@@ -299,11 +294,6 @@
             "name": "yolov8s_GPU",
             "dataset.groundtruth": "detection_yolov8s_GPU.json",
             "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolov8s,GPU,{dataset.video}/Pexels_Videos_4786.mp4,json,,FP32"
-        },
-        "yolov8s_int8_GPU": {
-            "name": "yolov8s_int8_GPU",
-            "dataset.groundtruth": "detection_yolov8s_int8_GPU.json",
-            "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolov8s,GPU,{dataset.video}/Pexels_Videos_4786.mp4,json,,INT8"
         },
         "yolov9c_GPU": {
             "name": "yolov9c_GPU",
@@ -319,11 +309,6 @@
             "name": "yolo11s_GPU",
             "dataset.groundtruth": "yolo11s_GPU_identity_1000.json",
             "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolo11s,GPU,{dataset.video}/Pexels_Videos_1192116-sd_640_360_30fps.mp4 {identity_1000},json,,FP32"
-        },
-        "yolo11s_int8_GPU": {
-            "name": "yolo11s_int8_GPU",
-            "dataset.groundtruth": "detection_yolo11s_int8_GPU.json",
-            "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolo11s,GPU,{dataset.video}/Pexels_Videos_1192116-sd_640_360_30fps.mp4 {identity_1000},json,,INT8"
         },
         "yolo11s-obb_GPU": {
             "name": "yolo11s-obb_GPU",
