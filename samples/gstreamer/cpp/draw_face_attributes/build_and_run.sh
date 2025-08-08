@@ -11,6 +11,8 @@ OUTPUT=${2:-json} # Valid values: display, display-and-json, json, file
 DEVICE=${3:-CPU} # Valid devices: CPU, GPU,NPU?
 OUTPUT_DIRECTORY=${4:-/home/dlstreamer/} #Path where to copy output.json
 
+. /etc/os-release
+
 if [ -z "${MODELS_PATH:-}" ]; then
   echo "Error: MODELS_PATH is not set." >&2
   exit 1
@@ -28,13 +30,14 @@ fi
 mkdir -p "${BUILD_DIR}"
 cd "${BUILD_DIR}" || exit
 
-ln -s /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so.4.6.0 /usr/lib/x86_64-linux-gnu/libopencv_imgproc.so
-ln -s /usr/lib/x86_64-linux-gnu/libopencv_core.so.4.6.0 /usr/lib/x86_64-linux-gnu/libopencv_core.so
-
 export PKG_CONFIG_PATH=/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:/opt/intel/dlstreamer/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig
 
 if [ -f /etc/lsb-release ]; then
-    cmake "${BASE_DIR}"
+    if [ "$VERSION_ID" == "22.04" ]; then
+      cmake "${BASE_DIR}" -DCMAKE_C_FLAGS="-I/opt/opencv/include" -DCMAKE_CXX_FLAGS="-I/opt/opencv/include" -DCMAKE_EXE_LINKER_FLAGS="-L/opt/opencv"
+    else
+      cmake "${BASE_DIR}"
+    fi
 else
     cmake3 "${BASE_DIR}"
 fi
