@@ -85,7 +85,7 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 |[preview] Enabled Intel® Arc™ B-Series Graphics [products formerly Battlemage] | Validated with Ubuntu 24.04, 6.12.3-061203-generic and the latest Intel® Graphics Compute Runtime for oneAPI Level Zero and OpenCL™ Driver v24.52.32224.5 + the latest public Intel Graphics Media Driver version + pre-rerelease Intel® Graphics Memory Management Library version |
 | OpenVINO 2024.6 support | Update to the latest version of OpenVINO |
 | Updated NPU driver | Updated NPU driver to 1.10.1 version. |
-| Bug fixing | Running multiple gstreamer pipeline objects in the same process on dGPU leads to error; DLStreamer docker image build is failing (2024.2.2 and 2024.3.0 versions); Fixed installation scripts: minor fixes of GPU, NPU installation section; Updated documentation: cleanup, added missed parts, added DLS system requirements | 
+| Bug fixing | Running multiple gstreamer pipeline objects in the same process on dGPU leads to error; DLStreamer docker image build is failing (2024.2.2 and 2024.3.0 versions); Fixed installation scripts: minor fixes of GPU, NPU installation section; Updated documentation: cleanup, added missed parts, added DLS system requirements |
 
 
 # Intel® Deep Learning Streamer Pipeline Framework Release 2024.3.0
@@ -97,7 +97,7 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 | GStreamer 1.24.10  | Updated GStreamer to the 1.24.10 version |
 | Documentation for MQTT  |	Documentation for MQTT updated |
 | Added support for numactl  |	Added support for numactl in the docker image |
-| Enabled Intel® Core™ Ultra Processors (Series 2) (formerly codenamed Lunar Lake)  | Validated with Ubuntu 24.04, 6.12.3-061203-generic  | 
+| Enabled Intel® Core™ Ultra Processors (Series 2) (formerly codenamed Lunar Lake)  | Validated with Ubuntu 24.04, 6.12.3-061203-generic  |
 
 
 # Intel® Deep Learning Streamer Pipeline Framework Release 2024.2.2
@@ -109,7 +109,7 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 | Installation of Intel® DL Streamer Pipeline Framework from Debian packages using APT repository | Support for apt-get install has been added. |
 | Yolo11s-pose support | Added support for Yolo11s-pose model. |
 | Change in gvafpscounter element | Reset FPS counters whenever a stream is added/removed. |
-| OpenVINO updated | OpenVINO updated to the 2024.5 version. | 
+| OpenVINO updated | OpenVINO updated to the 2024.5 version. |
 | GStreamer 1.24.9 | Updated GStreamer to the 1.24.9 version. |
 | NPU 1.10.0 | NPU drivers updated to NPU 1.10.0 version. |
 | Bugs fixing | Fixed issue with failing performance tests ; Fixed fuzzy tests ; Enabled debug mode ; Created TLS configuration that allows for secure communication between DL Streamer and MQTT broker; Fixed python error: init_threadstate: thread state already initialized; Fixed problem with DLS compilation / GSTreamer base plugin error.; Fixed issue with sample_test: python_draw_face_attributes on Ubuntu 24.04; Fixed issue with sample_test: gvapython cpu/gpu on Ubuntu 24.04 |
@@ -144,7 +144,7 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 
 ## Fixed Issues
 
-| **Issue**   | **Issue Description**  | 
+| **Issue**   | **Issue Description**  |
 |----------------|------------------------|
 |Github issue: [#431](https://github.com/dlstreamer/dlstreamer/issues/431)|WARNING: erroneous pipeline: no element "gvadetect"|
 |Github issue: [#433](https://github.com/dlstreamer/dlstreamer/issues/433)|WARNING: erroneous pipeline: no element "gvaattachroi" inside Docker image 2024.1.2-dev-ubuntu24|
@@ -170,7 +170,7 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 
 ## Fixed Issues
 
-| **Issue**   | **Issue Description**  | 
+| **Issue**   | **Issue Description**  |
 |----------------|------------------------|
 | [#425](https://github.com/dlstreamer/dlstreamer/issues/425) | when using inference-region=roi-list vs full-frame in my classification pipeline, classification data does not get published |
 | [#432](https://github.com/dlstreamer/dlstreamer/issues/432) | Installation issues with gst-ugly plugins |
@@ -191,8 +191,8 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 | Documentation updates | Enhance Performance Guide and Model Preparation section |
 | Fix samples errors | Fixed errors on action_recognition, geti, yolo and ffmpeg (customer issue) samples |
 | Fix memory grow with `meta_overlay` | Fix for Meta Overlay memory leak with DLS Arch 2.0 |
-| Fix pipeline which failed to start with mobilenet-v2-1.0-224 model  | 
-| Fix batch-size error -> with yolov8 model and other yolo models | 
+| Fix pipeline which failed to start with mobilenet-v2-1.0-224 model  |
+| Fix batch-size error -> with yolov8 model and other yolo models |
 
 
 # Intel® Deep Learning Streamer Pipeline Framework Release 2024.1.0
