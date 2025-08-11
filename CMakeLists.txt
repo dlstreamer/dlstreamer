@@ -23,10 +23,9 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # Define version
-set(VERSION_YEAR 2025)
-set(VERSION_MAJOR 0)
+set(VERSION_MAJOR 2025)
 set(VERSION_MINOR 1)
-set(VERSION_PATCH 3)
+set(VERSION_PATCH 2)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")
@@ -35,7 +34,7 @@ endif()
 
 configure_file(cmake/version.txt.in version.txt)
 
-set(PRODUCT_VERSION ${VERSION_YEAR}.${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
+set(PRODUCT_VERSION ${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH})
 set(PLUGIN_VERSION ${PRODUCT_VERSION})
 
 # Propagate version to plugins

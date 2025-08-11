@@ -41,7 +41,7 @@ LABEL vendor="Intel Corporation"
 ARG GST_VERSION=1.26.4
 ARG OPENVINO_VERSION=2025.2.0
 
-ARG DLSTREAMER_VERSION=2025.0.1.3
+ARG DLSTREAMER_VERSION=2025.1.2
 ARG DLSTREAMER_BUILD_NUMBER
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
@@ -73,7 +73,7 @@ RUN \
 
 # Intel NPU drivers and prerequisites installation
 WORKDIR /tmp/npu_deps
-    
+
 RUN curl -L -O https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u22.04_amd64.deb && \
     curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb && \
     curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-fw-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb && \
@@ -453,7 +453,7 @@ RUN \
 
 # Intel NPU drivers and prerequisites installation
 WORKDIR /tmp/npu_deps
-    
+
 RUN curl -L -O https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u22.04_amd64.deb && \
     curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb && \
     curl -L -O https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-fw-npu_1.19.0.20250707-16111289554_ubuntu22.04_amd64.deb && \
