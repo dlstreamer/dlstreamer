@@ -30,7 +30,8 @@
 #                      V
 #                  dlstreamer
 # ==============================================================================
-FROM ubuntu:22.04 AS builder
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}ubuntu:22.04 AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_ARG=Release
@@ -422,7 +423,8 @@ RUN \
     mv "/intel-dlstreamer_${DLSTREAMER_VERSION}_amd64.deb" "/intel-dlstreamer_${DLSTREAMER_VERSION}.${DLSTREAMER_BUILD_NUMBER}_amd64.deb"
 
 # ==============================================================================
-FROM ubuntu:22.04 AS dlstreamer
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}ubuntu:22.04 AS dlstreamer
 ARG DLSTREAMER_VERSION
 ARG DLSTREAMER_BUILD_NUMBER
 # Build final image for dlstreamer - using .deb packages for installation
