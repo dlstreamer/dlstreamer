@@ -43,7 +43,7 @@ ARG FFMPEG_VERSION=6.1.1
 
 ARG OPENVINO_VERSION=2025.2.0
 
-ARG DLSTREAMER_VERSION=2025.0.1.3
+ARG DLSTREAMER_VERSION=2025.1.2
 ARG DLSTREAMER_BUILD_NUMBER
 
 ENV DLSTREAMER_DIR=/home/dlstreamer/dlstreamer
@@ -311,8 +311,8 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 COPY --from=ffmpeg-builder /copy_libs/ /usr/local/lib/
 COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libswresample* /usr/local/lib/pkgconfig/
 COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libav* /usr/local/lib/pkgconfig/
-COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libswscale* /usr/local/lib/pkgconfig/ 
-COPY --from=ffmpeg-builder /usr/local/include/ /usr/local/include/ 
+COPY --from=ffmpeg-builder /usr/local/lib/pkgconfig/libswscale* /usr/local/lib/pkgconfig/
+COPY --from=ffmpeg-builder /usr/local/include/ /usr/local/include/
 COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
 COPY --from=opencv-builder /copy_libs/ /usr/local/lib64/

@@ -272,7 +272,7 @@ This section prepares the environment to run examples described below. It is sui
 
          .. code-block:: sh
 
-             docker run -it --rm -v ${MODELS_PATH}:/home/dlstreamer/models --env MODELS_PATH=/home/dlstreamer/models intel/dlstreamer:2025.0.1.2-ubuntu22
+             docker run -it --rm -v ${MODELS_PATH}:/home/dlstreamer/models --env MODELS_PATH=/home/dlstreamer/models intel/dlstreamer:2025.1.2-ubuntu22
 
       ..  tab:: Ubuntu 24
 
