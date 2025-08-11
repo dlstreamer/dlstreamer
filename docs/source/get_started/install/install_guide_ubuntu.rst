@@ -275,8 +275,8 @@ Step 4: Pull the Intel® DL Streamer Docker image from Docker Hub
 Visit <https://hub.docker.com/r/intel/dlstreamer/> Intel® DL Streamer image docker hub to select the most appropriate version.
 By default , the latest docker image points to Ubuntu 24 version.
 
-For **Ubuntu 22.04** please specify tag e.g. **2025.0.1.2-ubuntu22**.
-For **Ubuntu 24.04** please use **latest** tag or specified version e.g. **2025.0.1.2-ubuntu24**.
+For **Ubuntu 22.04** please specify tag e.g. **2025.1.2-ubuntu22**.
+For **Ubuntu 24.04** please use **latest** tag or specified version e.g. **2025.1.2-ubuntu24**.
 
 ..  tabs::
 
@@ -284,7 +284,7 @@ For **Ubuntu 24.04** please use **latest** tag or specified version e.g. **2025.
 
       .. code-block:: sh
 
-          docker pull intel/dlstreamer:2025.0.1.2-ubuntu22
+          docker pull intel/dlstreamer:2025.1.2-ubuntu22
 
    ..  tab:: Ubuntu 24
 
@@ -304,7 +304,7 @@ To confirm that your installation is completed successfully, please run a contai
 
       .. code-block:: sh
 
-          docker run -it intel/dlstreamer:2025.0.1.2-ubuntu22
+          docker run -it intel/dlstreamer:2025.1.2-ubuntu22
 
    ..  tab:: Ubuntu 24
 

@@ -6,7 +6,7 @@
 # ==============================================================================
 
 # Variables
-DLSTREAMER_VERSION="2025.0.1.3"
+DLSTREAMER_VERSION="2025.1.2"
 DEB_PKGS_DOCKERFILE_U22="./docker/ubuntu/ubuntu22.Dockerfile"
 DEB_PKGS_DOCKERFILE_U24="./docker/ubuntu/ubuntu24.Dockerfile"
 DLSTREAMER_BUILD="local"
