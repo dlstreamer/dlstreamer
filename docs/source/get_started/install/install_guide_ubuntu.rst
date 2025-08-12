@@ -190,13 +190,13 @@ To run the hello_dlstreamer script, execute the following command:
    export GST_VA_ALL_DRIVERS=1
    export PATH=/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/build/intel64/Release/bin:$PATH
    export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-
+   export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0
 
 or run:
 
 ..  code:: sh
 
-   source /opt/intel/dlstreamer/scripts/setup_dls_config.sh
+   source /opt/intel/dlstreamer/scripts/setup_dls_env.sh
 
 to configure environment variables for the current terminal session.
 
