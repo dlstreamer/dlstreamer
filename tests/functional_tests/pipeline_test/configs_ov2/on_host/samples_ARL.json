@@ -278,11 +278,6 @@
             "dataset.groundtruth": "yolo11s-seg_GPU_identity_1000.json",
             "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolo11s-seg,GPU,{dataset.video}/Pexels_Videos_1192116-sd_640_360_30fps.mp4 {identity_1000},json,,FP32"
         },
-        "yolo11s-pose_GPU": {
-            "name": "yolo11s-pose_GPU",
-            "dataset.groundtruth": "yolo11s-pose_GPU.json",
-            "sample.command": "{sample.dir}/gst_launch/detection_with_yolo/yolo_detect.sh,yolo11s-pose,GPU,{dataset.video}/ballerina.mp4,json,,FP32"
-        },
         "yolov8n-obb_GPU": {
             "name": "yolov8n-obb_GPU",
             "dataset.groundtruth": "detection_yolov8n_obb_GPU.json",
