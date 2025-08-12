@@ -18,8 +18,8 @@ namespace ot {
 #if 1
 #define LINEAR_CALC(val, aa, bb, cc, dd, x_diff, y_diff)                                                               \
     val = static_cast<uint8_t>(static_cast<int32_t>((aa) * (1024 - x_diff) * (1024 - y_diff) +                         \
-                                                    (bb)*x_diff * (1024 - y_diff) + (cc)*y_diff * (1024 - x_diff) +    \
-                                                    (dd)*x_diff * y_diff) >>                                           \
+                                                    (bb) * x_diff * (1024 - y_diff) +                                  \
+                                                    (cc) * y_diff * (1024 - x_diff) + (dd) * x_diff * y_diff) >>       \
                                20);
 
 #define REDUCE_CAL_NV12

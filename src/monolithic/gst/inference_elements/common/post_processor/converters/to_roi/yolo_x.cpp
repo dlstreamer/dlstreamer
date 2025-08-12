@@ -81,8 +81,8 @@ void YOLOxConverter::parseOutputBlob(const float *data, const std::vector<size_t
                                                  BlobToMetaConverter::getLabelByLabelId(main_class), 1.0f / input_width,
                                                  1.0f / input_height, true));
             } // height loop
-        }     // width  loop
-    }         // stride loop
+        } // width  loop
+    } // stride loop
 }
 
 TensorsTable YOLOxConverter::convert(const OutputBlobs &output_blobs) {

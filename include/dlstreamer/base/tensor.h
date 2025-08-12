@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -23,7 +23,7 @@ static constexpr auto plane_index = "plane_index"; // int
 static constexpr auto offset_x = "offset_x";       // int
 static constexpr auto offset_y = "offset_y";       // int
 static constexpr auto data = "data";               // void*
-};                                                 // namespace tensor::key
+}; // namespace tensor::key
 
 class BaseTensor : public Tensor {
   public:
