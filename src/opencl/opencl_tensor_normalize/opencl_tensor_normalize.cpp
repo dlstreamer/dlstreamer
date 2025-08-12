@@ -15,8 +15,6 @@ namespace dlstreamer {
 #define INPUT_TYPE "unsigned char"
 #define OUTPUT_DTYPE DataType::Float32
 #define OUTPUT_TYPE "float"
-//#define OUTPUT_DTYPE DataType::UInt8
-//#define OUTPUT_TYPE "unsigned char"
 
 // The macro assumes _ERR variable used inside _FUNC to capture error code
 #define CL_CALL(_FUNC)                                                                                                 \

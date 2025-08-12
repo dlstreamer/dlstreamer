@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,7 +17,7 @@ namespace dlstreamer {
 namespace tensor::key {
 static constexpr auto dma_fd = "dma_fd";             // (int)
 static constexpr auto drm_modifier = "drm_modifier"; // (int)
-};                                                   // namespace tensor::key
+}; // namespace tensor::key
 
 class DMATensor : public BaseTensor {
   public:
