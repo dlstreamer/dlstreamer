@@ -5,7 +5,7 @@ integration with the Intel® DL Streamer pipeline.
 
 > **NOTE:** The instructions provided below are comprehensive, but for convenience,
 >  it is recommended to use the
-> [download_public_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/download_public_models.sh)
+> [download_public_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/download_public_models.sh)
 > script. This script will download all supported Yolo models and perform
 > the necessary conversions automatically.
 >
