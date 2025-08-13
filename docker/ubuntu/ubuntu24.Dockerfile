@@ -263,6 +263,29 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 
+# Build librealsense
+WORKDIR /home/dlstreamer
+
+RUN apt-get update && apt-get install -y --no-install-recommends libssl-dev libusb-1.0-0-dev libudev-dev pkg-config libgtk-3-dev && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
+RUN git clone https://github.com/IntelRealSense/librealsense.git librealsense
+
+WORKDIR /home/dlstreamer/librealsense
+
+RUN mkdir build
+
+WORKDIR /home/dlstreamer/librealsense/build
+
+RUN \
+    cmake ../ -DCMAKE_BUILD_TYPE="${BUILD_ARG}" -DBUILD_EXAMPLES=false -DBUILD_GRAPHICAL_EXAMPLES=false && \
+    make -j "$(nproc)" && \
+    make install
+
+# Build DL Streamer
+WORKDIR /home/dlstreamer
+
 RUN apt-get update && apt-get install --no-install-recommends -y gnupg=\* && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -303,15 +326,16 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 # Build DLStreamer
 RUN \
     cmake \
-    -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
-    -DENABLE_PAHO_INSTALLATION=ON \
-    -DENABLE_RDKAFKA_INSTALLATION=ON \
-    -DENABLE_VAAPI=ON \
-    -DENABLE_SAMPLES=ON \
-    .. && \
-    make -j "$(nproc)" && \
-    usermod -a -G video dlstreamer && \
-    chown -R dlstreamer:dlstreamer /home/dlstreamer
+       -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
+       -DENABLE_PAHO_INSTALLATION=ON \
+       -DENABLE_RDKAFKA_INSTALLATION=ON \
+       -DENABLE_VAAPI=ON \
+       -DENABLE_SAMPLES=ON \
+       -DENABLE_REALSENSE=ON \
+       .. && \
+       make -j "$(nproc)" && \
+       usermod -a -G video dlstreamer && \
+       chown -R dlstreamer:dlstreamer /home/dlstreamer
 
 WORKDIR /home/dlstreamer
 USER dlstreamer
