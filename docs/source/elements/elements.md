@@ -24,8 +24,10 @@ gst-inspect-1.0 utility
 | [gvametaaggregate](./gvametaaggregate.md) | Aggregates inference results from multiple pipeline branches.<br>[eg syntax] gst-launch-1.0 … ! decodebin3 ! tee name=t t. ! queue ! gvametaaggregate name=a ! gvaclassify … ! gvaclassify … ! gvametaconvert … ! gvametapublish … ! fakesink t. ! queue ! gvadetect … ! a.<br>                                                                                               |
 | [gvametaconvert](./gvametaconvert.md)   | Converts the metadata structure to JSON or raw text formats, can write output to a file.|
 | [gvametapublish](./gvametapublish.md)   | Publishes the JSON metadata to MQTT or Kafka message brokers or files.<br>[eg syntax] gst-launch-1.0 … ! decodebin3 ! gvadetect model=$mDetect device=GPU … ! gvametaconvert format=json … ! gvametapublish … ! … OUT<br> |
-| [gvapython](./gvapython.md)        | Provides a callback to execute user-defined Python functions on every frame, used to augment DLStreamer with user-defined algorithms (e.g. metadata conversion, inference post-processing).<br>[eg syntax] gst-launch-1.0 … !  gvaclassify ! gvapython module={gvapython.callback_module.classAge_pp} ! … OUT<br>                                                             |
+| [gvapython](./gvapython.md)        | Provides a callback to execute user-defined Python functions on every frame, used to augment DLStreamer with user-defined algorithms (e.g. metadata conversion, inference post-processing).<br>[eg syntax] gst-launch-1.0 … !  gvaclassify ! gvapython module={gvapython.callback_module.classAge_pp} ! … OUT<br>
+| [gvarealsense](./gvarealsense.md)        | Provides integration with Intel RealSense cameras, enabling video and depth stream capture for use in GStreamer pipelines..<br>[eg syntax] gst-launch-1.0 ... gvarealsense camera=/dev/video0 ! queue ! fakesink dump=true<br>                                                             |
 | [gvawatermark](./gvawatermark.md)     | Overlays the metadata on the video frame to visualize the inference results.<br>[eg syntax] gst-launch-1.0 … ! decodebin3 ! gvadetect … ! gvawatermark ! … |
+
 
 :::{.toctree}
 :maxdepth: 1
@@ -43,6 +45,7 @@ gvametaaggregate
 gvametaconvert
 gvametapublish
 gvapython
+gvarealsense
 gvawatermark
 gstelements
 :::
