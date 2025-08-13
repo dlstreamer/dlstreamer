@@ -14,7 +14,7 @@ necessary conversions, and places the model files in a directory
 specified by the MODELS_PATH environment variable.
 
 Link to check
-[supported models](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/download_public_models.sh#L12)
+[supported models](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/download_public_models.sh#L12)
 
 Example for downloading YOLOv11s model:
 

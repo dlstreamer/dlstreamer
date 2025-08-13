@@ -17,14 +17,14 @@ connecting elements programmatically), set pad probe callback(s) on
 source or sink pad of any element in the pipeline, etc.
 
 Please see Python sample
-[draw_face_attributes.py](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/python/draw_face_attributes/draw_face_attributes.py)
+[draw_face_attributes.py](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/python/draw_face_attributes/draw_face_attributes.py)
 as one of examples.
 
 ## 2. Video-analytics specific Python bindings
 
 As GVA plugin registers inference specific metadata, another [Python
 library
-gstgva](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/python/gstgva)
+gstgva](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/python/gstgva)
 in this repository is complimentary to *pygst* and additionally provides
 Python bindings for GVA specific types such as *GstGVATensorMeta* and
 *GstGVAJSONMeta* and access to inference specific fields in

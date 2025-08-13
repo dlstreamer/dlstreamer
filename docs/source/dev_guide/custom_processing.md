@@ -5,7 +5,7 @@ output. The tensor is abstract N-dimension array, in GStreamer inference
 plugins it stored under frame [Metadata ](metadata) using flexible key-value container
 [GstStructure](https://gstreamer.freedesktop.org/documentation/gstreamer/gststructure.html).
 The C++ class **GVA::Tensor** with [header-only
-implementation](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/include/dlstreamer/gst/videoanalytics/tensor.h#L38)
+implementation](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/include/dlstreamer/gst/videoanalytics/tensor.h#L38)
 helps C++ applications access the tensor data.
 
 The DL model inference integration into real application typically
@@ -50,7 +50,7 @@ The C/C++ application can either
   consumption
 
 The pad probe callback demonstrated in C++ sample
-[draw_face_attributes](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/cpp/draw_face_attributes/main.cpp)
+[draw_face_attributes](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/cpp/draw_face_attributes/main.cpp)
 
 ## 2. Set C/Python callback in the middle of GStreamer pipeline
 
@@ -86,13 +86,13 @@ Please refer to GStreamer documentation and samples how to implement new
 GStreamer element and register GStreamer plugin.
 
 If frame processing function implemented in C++, it can utilize
-[GVA::Tensor](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/include/dlstreamer/gst/videoanalytics/tensor.h#L38)
+[GVA::Tensor](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/include/dlstreamer/gst/videoanalytics/tensor.h#L38)
 helper class
 
 ## 5. Modify source code of post-processors for gvadetect/gvaclassify elements
 
 You can add new or modify any suitable existing
-[post-processor](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/src/monolithic/gst/inference_elements/common/post_processor/blob_to_meta_converter.cpp)
+[post-processor](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/src/monolithic/gst/inference_elements/common/post_processor/blob_to_meta_converter.cpp)
 for gvadetect/gvaclassify elements.
 
 ## 6. Create custom post-processing library
@@ -104,7 +104,7 @@ flexibility and modularity while maintaining clean separation between
 the core framework and custom processing logic.
 
 A practical example implementations demonstrated in
-[sample](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc)
+[sample](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc)
 
 **Important Requirements**
 

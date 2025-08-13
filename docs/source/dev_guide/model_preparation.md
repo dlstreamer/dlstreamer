@@ -3,9 +3,9 @@
 When getting started with Intel® DL Streamer, the best way to obtain a
 collection of models ready for use in video analytics pipelines is to
 run
-[download_omz_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/download_omz_models.sh)
+[download_omz_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/download_omz_models.sh)
 and
-[download_public_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/download_public_models.sh).
+[download_public_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/download_public_models.sh).
 These scripts will download models from
 [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) and other
 sources, handle the necessary conversions and put model files in a
@@ -15,7 +15,7 @@ This way, you will be able to easily perform the most popular tasks,
 such as object detection and classification, instance segmentation, face
 localization and many others. For examples of how to set up Intel® DL
 Streamer pipelines that carry out these functions, please refer to the
-[sample directory](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch).
+[sample directory](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch).
 
 If you're interested in designing custom pipelines, make sure to review the
 [Supported Models](https://dlstreamer.github.io/supported_models.html) table for

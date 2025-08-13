@@ -26,7 +26,7 @@ interfaces:
 
 Many examples how to create C++ elements can be found on github
 repository in [folder
-src](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/src)
+src](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/src)
 and sub-folders.
 
 ## Element description
@@ -86,7 +86,7 @@ auto ffmpeg_source = create_source(ffmpeg_multi_source, {{"inputs", inputs}}, ff
 ```
 
 See direct programming samples
-[ffmpeg_openvino](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/ffmpeg_openvino)
+[ffmpeg_openvino](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/ffmpeg_openvino)
 and
-[ffmpeg_dpcpp](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/ffmpeg_dpcpp)
+[ffmpeg_dpcpp](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/ffmpeg_dpcpp)
 for examples.
