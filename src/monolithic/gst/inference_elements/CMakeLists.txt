@@ -30,6 +30,7 @@ file (GLOB MAIN_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/converters/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/*.c
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvarealsense/*.cpp
 )
 
 file (GLOB MAIN_HEADERS
@@ -62,6 +63,7 @@ PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/gvaclassify/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvadetect/
     ${CMAKE_CURRENT_SOURCE_DIR}/gvainference/
+    ${CMAKE_CURRENT_SOURCE_DIR}/gvarealsense/
     ${DLSTREAMER_BASE_DIR}/src/base/dlstreamer_logger/
 PRIVATE
     ${GSTREAMER_INCLUDE_DIRS}
