@@ -126,7 +126,7 @@ sudo apt-get install intel-dlstreamer
 use!**
 
 To see the full list of installed components check the
-[Dockerfile content for Ubuntu 24](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile)
+[Dockerfile content for Ubuntu 24](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile)
 
 ### [Optional] Step 4: Python dependencies
 

@@ -483,7 +483,7 @@ In the above pipeline:
 4. `gvawatermark` displays the ROIs and their attributes.
 
 See
-[model-proc](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/model_proc)
+[model-proc](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/model_proc)
 for the model-procs and its input and output specifications.
 
 ## Exercise 3: Use object tracking to improve performance {#object-tracking}
@@ -600,14 +600,14 @@ In the above pipeline:
 
 For publishing the results to MQTT or Kafka, please refer to the
 [metapublish
-samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/metapublish).
+samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/metapublish).
 
 You have completed this tutorial. Now, start creating your video
 analytics pipeline with Intel® DL Streamer Pipeline Framework!
 
 ## Next Steps
 
-- [Samples overview](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/README.md)
+- [Samples overview](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/README.md)
 - [Elements](../elements/elements.md)
 - [How to create model-proc file](../dev_guide/how_to_create_model_proc_file.md)
 

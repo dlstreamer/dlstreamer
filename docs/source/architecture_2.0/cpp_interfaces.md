@@ -17,7 +17,7 @@ handles on CPU and GPU
 
 The memory interop sub-component is available via APT installation
 `sudo apt install intel-dlstreamer-cpp` and on
-[github](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/include/dlstreamer).
+[github](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/include/dlstreamer).
 
 > **Note:** This sub-component implemented as C++ header-only library. Python
 > bindings for this library coming in next releases.
@@ -99,12 +99,12 @@ allocated object) or passing allocation parameters to C++ constructor
 
 Many examples how to allocate memory and create and use memory mappers
 can be found by searching word `mapper` in [samples
-https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples\>]{.title-ref}\_\_
+https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples\>]{.title-ref}\_\_
 and [src
-https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/src\>]{.title-ref}\_\_
+https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/src\>]{.title-ref}\_\_
 folders on github source code, for example FFmpeg+DPCPP sample
 [rgb_to_grayscale
-https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/ffmpeg_dpcpp/rgb_to_grayscale\>]()
+https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/ffmpeg_dpcpp/rgb_to_grayscale\>]()
 and almost every C++ element.
 
 There is special mapper

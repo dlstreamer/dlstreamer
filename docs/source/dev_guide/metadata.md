@@ -5,11 +5,11 @@ Inference plugins utilize standard GStreamer metadata
 for object detection and classification use cases (elements
 **gvadetect**, **gvaclassify**), and define two custom metadata types
 
-- [GstGVATensorMeta](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/include/dlstreamer/gst/metadata/gva_tensor_meta.h)
+- [GstGVATensorMeta](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/include/dlstreamer/gst/metadata/gva_tensor_meta.h)
   for output of **gvainference** element performing generic inference
   on any model with image-compatible input layer and any format of
   output layer(s)
-- [GstGVAJSONMeta](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/include/dlstreamer/gst/metadata/gva_json_meta.h)
+- [GstGVAJSONMeta](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/include/dlstreamer/gst/metadata/gva_json_meta.h)
   for output of **gvametaconvert** element performing conversion of
   **GstVideoRegionOfInterestMeta** into JSON format
 
@@ -42,7 +42,7 @@ tensor dimensions, data precision, etc.
 
 Using the following pipeline as an example (more examples can be found
 in the
-[gst_launch](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch)
+[gst_launch](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch)
 folder)
 
 ```bash
