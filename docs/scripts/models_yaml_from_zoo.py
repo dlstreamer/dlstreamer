@@ -13,7 +13,7 @@ from argparse import ArgumentParser
 from jsonschema import validate
 
 OV_MODEL_ZOO_URL = 'https://github.com/openvinotoolkit/open_model_zoo/tree/master/'
-DLSTREAMER_URL='https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/'
+DLSTREAMER_URL='https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/'
 PIPELINE_ZOO_URL='https://github.com/dlstreamer/pipeline-zoo-models/tree/main/'
 
 dldt_str = 'dl' + 'dt'
@@ -240,7 +240,7 @@ for key, value in models.items():
         tempv = tempv[0].get('source', '')
     value.pop('files', None)
 
-    models_filtered[key] = value 
+    models_filtered[key] = value
 
 with open(args.output, 'w') as file:
     yaml.dump(models_filtered, file)
