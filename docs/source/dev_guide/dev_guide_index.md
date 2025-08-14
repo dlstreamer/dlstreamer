@@ -1,10 +1,11 @@
 # Developer Guide
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 2
 
 advanced_install/advanced_install_guide_index
-metadata model_preparation
+metadata
+model_preparation
 model_info_xml
 python_bindings
 custom_plugin_installation

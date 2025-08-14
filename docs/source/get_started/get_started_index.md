@@ -1,6 +1,6 @@
 # Get Started
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 2
 
 system_requirements

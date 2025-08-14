@@ -27,8 +27,8 @@ To answer this question, you need to answer the following:
 2. Is one image resize enough as a pre-processing?
 3. Does the model have one output layer?
 4. Is the default post-processing suitable for the output layer type of
-   the model? About default behavior read
-   [here](./model_proc_file.md#post-processing-configuration).
+   the model? For more details, refer to the section about the
+   [default behavior](./model_proc_file.md#post-processing-configuration).
 5. Is it necessary to specify labels so that the post-processor uses
    this information and adds it to the classification or detection
    results?

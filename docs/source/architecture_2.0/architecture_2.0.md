@@ -16,7 +16,7 @@ architecture 2.0, aiming for the following goals:
    [Source](./api_ref/class_dlstreamer_Source),
    [Transform](./api_ref/class_dlstreamer_Transform) and
    [Sink](./api_ref/class_dlstreamer_Sink) for C++ elements implemented in next sub-component. See
-   [Memory Interop and C++ abstract interfaces](cpp_interfaces) for details.
+   [Memory Interop and C++ abstract interfaces](./cpp_interfaces) for details.
 2. **\"non-GStreamer\" backend support via C++/Python programming.**
    Expose Intel® DL Streamer functional blocks (elements) as both
    GStreamer elements and C++/Python interfaces accessible by any
@@ -49,7 +49,7 @@ and ③ inside block **Intel® DL Streamer Pipeline Framework**
 > (some changes/renaming may occur). It could be used for evaluation and
 > prototyping, it's not recommended for production usage yet.
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 1
 
 migration_guide
