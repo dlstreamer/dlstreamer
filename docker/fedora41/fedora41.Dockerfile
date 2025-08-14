@@ -31,7 +31,8 @@
 #                      V
 #                  dlstreamer
 # ==============================================================================
-FROM fedora:41 AS builder
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}fedora:41 AS builder
 
 ARG BUILD_ARG=Release
 
@@ -62,7 +63,7 @@ RUN \
     "https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm" && \
     dnf install -y libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
     flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
-    python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
+    python3-gobject-devel python3-devel tbb gnupg2 unzip gflags-devel openssl-devel openssl-devel-engine \
     gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
     cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel which \
     libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
@@ -348,7 +349,7 @@ ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/bin
 ENV PATH=${GSTREAMER_DIR}/bin:${BINDIR}:${PATH}
 ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib64/pkgconfig:${GSTREAMER_DIR}/lib/pkgconfig:/usr/local/lib/pkgconfig:${PKG_CONFIG_PATH}
 ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:/usr/local/lib64/:${LD_LIBRARY_PATH}
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C
@@ -383,7 +384,7 @@ RUN \
 WORKDIR /home/dlstreamer
 USER dlstreamer
 
-
+# ==============================================================================
 FROM dlstreamer-dev AS rpm-builder
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -411,7 +412,6 @@ RUN \
     cp -r "${DLSTREAMER_DIR}/include/" /${RPM_PKG_NAME}/opt/intel/dlstreamer/ && \
     cp "${DLSTREAMER_DIR}/README.md" /${RPM_PKG_NAME}/opt/intel/dlstreamer && \
     cp -rT "${GSTREAMER_DIR}" /${RPM_PKG_NAME}/opt/intel/dlstreamer/gstreamer && \
-    cp -a /usr/lib64/libopencv* /${RPM_PKG_NAME}/opt/opencv/ && \
     cp -a /usr/local/lib64/libopencv* /${RPM_PKG_NAME}/opt/opencv/ && \
     cp -a /usr/local/lib/librdkafka* /${RPM_PKG_NAME}/opt/rdkafka/ && \
     find /usr/local/lib -regextype grep -regex ".*libav.*so\.[0-9]*$" -exec cp {} /${RPM_PKG_NAME}/opt/ffmpeg \; && \
@@ -429,9 +429,12 @@ RUN \
     find /${RPM_PKG_NAME}/opt/intel -name "*.a" -delete && \
     rpmbuild -bb ~/rpmbuild/SPECS/intel-dlstreamer.spec
 
-RUN cp ~/rpmbuild/RPMS/x86_64/${RPM_PKG_NAME}* "/${RPM_PKG_NAME}.${DLSTREAMER_BUILD_NUMBER}-1.fc41.x86_64.rpm"
+RUN mkdir /rpms && \
+    cp ~/rpmbuild/RPMS/x86_64/${RPM_PKG_NAME}* "/rpms/${RPM_PKG_NAME}.${DLSTREAMER_BUILD_NUMBER}-1.fc41.x86_64.rpm"
 
-FROM fedora:41 AS dlstreamer
+# ==============================================================================
+ARG DOCKER_REGISTRY
+FROM ${DOCKER_REGISTRY}fedora:41 AS dlstreamer
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
@@ -453,7 +456,7 @@ gpgkey=https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.
 
 RUN mkdir -p /rpms
 
-COPY --from=rpm-builder /*.rpm /rpms/
+COPY --from=rpm-builder /rpms/*.rpm /rpms/
 
 # Download and install DLS rpm package
 RUN \
@@ -465,8 +468,7 @@ RUN \
 
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/openh264:/opt/rdkafka:/opt/ffmpeg:/usr/local/lib/gstreamer-1.0:/usr/local/lib
-ENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/opt/opencv:/opt/rdkafka:/opt/ffmpeg:/usr/local/libENV LIBVA_DRIVERS_PATH=/usr/lib64/dri-nonfree
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
 ENV PATH=/python3venv/bin:/opt/intel/dlstreamer/gstreamer/bin:/opt/intel/dlstreamer/bin:$PATH
