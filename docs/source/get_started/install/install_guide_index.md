@@ -1,6 +1,6 @@
 # Install Guide
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 2
 
 install_guide_ubuntu

@@ -29,7 +29,7 @@ gst-inspect-1.0 utility
 | [gvawatermark](./gvawatermark.md)     | Overlays the metadata on the video frame to visualize the inference results.<br>[eg syntax] gst-launch-1.0 … ! decodebin3 ! gvadetect … ! gvawatermark ! … |
 
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 1
 :hidden:
 

@@ -1,6 +1,6 @@
 # Advanced Installation Guide
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 2
 
 advanced_install_guide_prerequisites
