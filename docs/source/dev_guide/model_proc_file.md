@@ -302,7 +302,7 @@ the code snippet below.
 ...
 ```
 
-:::{.toctree}
+:::{toctree}
 :maxdepth: 2
 
 how_to_create_model_proc_file

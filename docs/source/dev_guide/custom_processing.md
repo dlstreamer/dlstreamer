@@ -75,7 +75,8 @@ gvaclassify.
 The advantage of this option is applicability for any application type
 including gst-launch utility.
 
-The [gvapython element](../elements/gvapython) takes reference to user provided Python script with function to be called on every frame processing.
+The [gvapython element](../elements/gvapython) takes reference to user provided Python
+script with function to be called on every frame processing.
 
 The callback function can attach/modify metadata as demonstrated in
 [sample](https://github.com/dlstreamer/dlstreamer/tree/master/samples/gstreamer/gst_launch/gvapython/face_detection_and_classification)

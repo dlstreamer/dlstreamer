@@ -19,7 +19,7 @@ RUN apt update && \
 
 # Install Sphinx and required extensions
 RUN pip3 install --upgrade pip \
-    && pip3 install sphinx==6.2.0 sphinx-book-theme m2r2 sphinxcontrib-mermaid sphinxcontrib-spelling sphinx-copybutton sphinx-tabs jsonschema
+    && pip3 install sphinx==6.2.0 sphinx-book-theme sphinxcontrib-mermaid sphinxcontrib-spelling sphinx-copybutton sphinx-tabs myst-parser jsonschema
 
 # Copy source
 COPY . ${DOCS_DIR}

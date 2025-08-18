@@ -9,7 +9,7 @@ Element description can be found in
 
 Before using `pytorch_tensor_inference`, make sure that all of the
 following requirements are met. Visit
-[Install Guide](../get_started/install/install_guide_ubuntu) for more information about installing DLStreamer.
+[Install Guide](../get_started/install/install_guide_ubuntu.md) for more information about installing DLStreamer.
 
 1. `intel-dlstreamer-gst-python3-plugin-loader` and
    `intel-dlstreamer-gst-python3` packages are installed. If not, add

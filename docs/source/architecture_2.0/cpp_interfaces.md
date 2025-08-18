@@ -66,16 +66,16 @@ between media frameworks and OpenCL/SYCL
 
 Intel® DL Streamer hides complexity of dealing with low-level interfaces
 and greatly simplifies memory interop by defining abstract interfaces
-[Tensor](./api_ref/class_dlstreamer_Tensor) and [MemoryMapper](./api_ref/class_dlstreamer_MemoryMapper),
+[Tensor](./api_ref/class_dlstreamer_Tensor.md) and [MemoryMapper](./api_ref/class_dlstreamer_MemoryMapper.md),
 and providing header-only implementation of the `Tensor` interface for various frameworks and
 `MemoryMapper` implementation for all technically feasible zero-copy mappings on CPU and GPU and mappings between CPU and GPU:
 
 ![memory_interop](../_images/memory-interop.svg)
 
 All memory mappers implemented under unified interface
-[MemoryMapper](./api_ref/class_dlstreamer_MemoryMapper) with
-[TensorPtr](./api_ref/class_dlstreamer_TensorPtr) or
-[FramePtr](./api_ref/class_dlstreamer_FramePtr) as input parameter, but each mapper from framework `AAA` to
+[MemoryMapper](./api_ref/class_dlstreamer_MemoryMapper.md) with
+[TensorPtr](./api_ref/class_dlstreamer_TensorPtr.md) or
+[FramePtr](./api_ref/class_dlstreamer_FramePtr.md) as input parameter, but each mapper from framework `AAA` to
 framework `BBB` internally casts input pointer to specific class `AAA`
 Tensor / `AAA` Frame and creates output as specific class `BBB` Tensor /
 `BBB` Frame, see table below for each supported framework/library:
