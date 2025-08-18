@@ -8,7 +8,7 @@ reducing the need to run object detection on each frame. Imageless
 tracking forms object associations based on the movement and shape of
 objects, and it does not use image data.
 
-Please refer to [Object Tracking](../dev_guide/object_tracking)
+Please refer to [Object Tracking](../dev_guide/object_tracking.md)
 for more information on the element properties.
 
 ``` none

@@ -10,14 +10,14 @@ The C++ elements implementation typically inherit one of base classes
 which partially implement some functions in corresponding abstract
 interfaces:
 
-- [BaseSource](./api_ref/class_dlstreamer_BaseSource) partially implements
-  [Source](./api_ref/class_dlstreamer_Source)
-- [BaseTransform](./api_ref/class_dlstreamer_BaseTransform) partially implements
-  [Transform](./api_ref/class_dlstreamer_Transform)
-- [BaseTransformInplace](./api_ref/class_dlstreamer_BaseTransformInplace) partially implements
-  [Transform](./api_ref/class_dlstreamer_Transform)
-- [BaseSink](./api_ref/class_dlstreamer_BaseSink) partially implements
-  [Sink](./api_ref/class_dlstreamer_Sink) so that C++ element implements only remaining virtual functions (mostly `read`, `process` and `write` functions) as shown in diagram below
+- [BaseSource](./api_ref/class_dlstreamer_BaseSource.html) partially implements
+  [Source](./api_ref/class_dlstreamer_Source.html)
+- [BaseTransform](./api_ref/class_dlstreamer_BaseTransform.html) partially implements
+  [Transform](./api_ref/class_dlstreamer_Transform.html)
+- [BaseTransformInplace](./api_ref/class_dlstreamer_BaseTransformInplace.html) partially implements
+  [Transform](./api_ref/class_dlstreamer_Transform.html)
+- [BaseSink](./api_ref/class_dlstreamer_BaseSink.html) partially implements
+  [Sink](./api_ref/class_dlstreamer_Sink.html) so that C++ element implements only remaining virtual functions (mostly `read`, `process` and `write` functions) as shown in diagram below
 
 ⠀
 *C++ interfaces and base classes*
@@ -32,7 +32,7 @@ and sub-folders.
 ## Element description
 
 The
-[ElementDesc](api_ref/struct_dlstreamer_ElementDesc) structure is used to describe an element input/output
+`struct_dlstreamer_ElementDesc` structure is used to describe an element input/output
 capabilities and supported parameters, and provide instance creation
 function. The most important are the following fields:
 
@@ -50,7 +50,7 @@ function. The most important are the following fields:
   element.
 
 Here's example of
-[ElementDesc](api_ref/struct_dlstreamer_ElementDesc) structure for simple post-processing element:
+`struct_dlstreamer_ElementDesc` structure for simple post-processing element:
 
 ```cpp
 // Element parameters
@@ -79,7 +79,7 @@ Instance of C++ element can be created using functions `create_source`,
 `create_transform`, `create_sink`. These functions take pointer to
 `ElementDesc`, initialization parameters (as `std::map`) and optional
 context pointer as
-[parameters](./api_ref/namespace_dlstreamer)
+[parameters](./api_ref/namespace_dlstreamer.md)
 
 ```cpp
 auto ffmpeg_source = create_source(ffmpeg_multi_source, {{"inputs", inputs}}, ffmpeg_ctx);

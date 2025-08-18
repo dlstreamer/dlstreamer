@@ -14,7 +14,7 @@ For detailed description of installation process, including the option
 with building Intel® DL Streamer Pipeline Framework from the source code
 provided in
 [Open Edge Platform repository](https://github.com/open-edge-platform/edge-ai-libraries.git),
-please follow the [instructions](../../dev_guide/advanced_install/advanced_install_guide_index)
+please follow the [instructions](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
 
 ## Prerequisites
 
@@ -278,7 +278,7 @@ setfacl -m user:1000:r ~/.Xauthority
 ```
 
 > **NOTE**: If you want to build Docker image from DLStreamer Dockerfiles, please
-> follow [the instructions](../../dev_guide/advanced_install/advanced_build_docker_image).
+> follow [the instructions](../../dev_guide/advanced_install/advanced_build_docker_image.md).
 
 ### Step 4: Pull the Intel® DL Streamer Docker image from Docker Hub
 
