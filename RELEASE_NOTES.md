@@ -298,7 +298,7 @@ For more detailed instructions please refer to [Intel® DL Streamer Pipeline Fra
 
 ## Samples
 
-The [samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples) folder in Intel® DL Streamer Pipeline Framework repository contains command line, C++ and Python examples.
+The [samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples) folder in Intel® DL Streamer Pipeline Framework repository contains command line, C++ and Python examples.
 
 ## Legal Information
 

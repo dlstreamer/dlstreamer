@@ -24,13 +24,13 @@ All Dockerfiles are in
 ### Ubuntu24 debian/dev Dockerfile
 
 ```bash
-wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile
+wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/release-1.2.0/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile
 ```
 
 ### Ubuntu22 debian/dev Dockerfile
 
 ```bash
-wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/docker/ubuntu/ubuntu22.Dockerfile
+wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/release-1.2.0/libraries/dl-streamer/docker/ubuntu/ubuntu22.Dockerfile
 ```
 
 ## Step 3: Build Docker image

@@ -39,14 +39,14 @@ The accuracy of license plate detection depends on whether the applied model has
 
 The sample takes three command-line *optional* parameters:
 
-1. [INPUT] to specify the input source.  
+1. [INPUT] to specify the input source.
 The input could be:
     * local video file
     * web camera device (e.g., `/dev/video0`)
-    * RTSP camera (URL starting with `rtsp://`) or other streaming source (e.g., URL starting with `http://`)  
+    * RTSP camera (URL starting with `rtsp://`) or other streaming source (e.g., URL starting with `http://`)
 If the parameter is not specified, the sample by default streams a video example from an HTTPS link (utilizing the `urisourcebin` element), so it requires an internet connection.
 
-2. [DEVICE] to specify the device for inference.  
+2. [DEVICE] to specify the device for inference.
    You can choose either `CPU`, `GPU` or `AUTO`.
 3. [OUTPUT] to choose between several output modes:
     * display - screen rendering
@@ -54,7 +54,7 @@ If the parameter is not specified, the sample by default streams a video example
     * file - output to an mp4 video file
     * display-and-json
     * fps - FPS only
-    
+
 
 ## Sample Output
 
