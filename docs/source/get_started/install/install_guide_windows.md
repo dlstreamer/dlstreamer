@@ -26,8 +26,6 @@ cd C:\\dlstreamer_dlls
 .\setup_dls_env.ps1
 ```
 
-## Next Steps
-
 You are ready to use Intel DL Streamer. For further instructions to run
 sample pipeline(s), please go to the [tutorial](../tutorial.md)
 There is need to manually download models.

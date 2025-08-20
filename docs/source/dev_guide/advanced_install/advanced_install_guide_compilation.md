@@ -159,7 +159,7 @@ cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
 sudo ninja uninstall
 ```
 
-### Ubuntu 24
+### For Ubuntu 24
 
 After uninstalling OpenCV, reinstall it with the following command:
 
@@ -167,8 +167,7 @@ After uninstalling OpenCV, reinstall it with the following command:
 sudo apt-get install --reinstall libopencv-dev
 ```
 
-
-### Ubuntu 22
+### For Ubuntu 22
 
 NOTE: If you have installed different version of OpenCV using apt-get,
 you can uninstall it with the command below instead:
@@ -195,7 +194,7 @@ ninja -j "$(nproc)"
 sudo env PATH=~/python3venv/bin:$PATH ninja install
 ```
 
-### Fedora 41
+### For Fedora 41
 
 NOTE: If you have installed different version of OpenCV using dnf, it is
 recommended to uninstall it first. You can uninstall it with the command
@@ -262,58 +261,58 @@ source /opt/intel/openvino_2025/setupvars.sh
 
 ## Step 9: Build Intel DLStreamer
 
-### Ubuntu 24
+- **Ubuntu 24**
 
-```bash
-cd ~/edge-ai-libraries/libraries/dl-streamer
+  ```bash
+  cd ~/edge-ai-libraries/libraries/dl-streamer
 
-mkdir build
-cd build
+  mkdir build
+  cd build
 
-export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
-source /opt/intel/openvino_2025/setupvars.sh
+  export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
+  source /opt/intel/openvino_2025/setupvars.sh
 
-cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
-make -j "$(nproc)"
-```
+  cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
+  make -j "$(nproc)"
+  ```
 
-### Ubuntu 22
+- **Ubuntu 22**
 
-```bash
-cd ~/edge-ai-libraries/libraries/dl-streamer
+  ```bash
+  cd ~/edge-ai-libraries/libraries/dl-streamer
 
-curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
-cd /librdkafka-2.3.0
-./configure && make && make install
+  curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
+  cd /librdkafka-2.3.0
+  ./configure && make && make install
 
-mkdir build
-cd build
+  mkdir build
+  cd build
 
-export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
-source /opt/intel/openvino_2025/setupvars.sh
+  export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
+  source /opt/intel/openvino_2025/setupvars.sh
 
-cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
-make -j "$(nproc)"
-```
+  cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
+  make -j "$(nproc)"
+  ```
 
-### Fedora
+- **Fedora**
 
-```bash
-cd ~/edge-ai-libraries/libraries/dl-streamer
+  ```bash
+  cd ~/edge-ai-libraries/libraries/dl-streamer
 
-curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
-cd ./librdkafka-2.3.0
-./configure && make && make INSTALL=install install
+  curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
+  cd ./librdkafka-2.3.0
+  ./configure && make && make INSTALL=install install
 
-mkdir build
-cd build
+  mkdir build
+  cd build
 
-export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
-source /opt/intel/openvino_2025/setupvars.sh
+  export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
+  source /opt/intel/openvino_2025/setupvars.sh
 
-cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
-make -j "$(nproc)"
-```
+  cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
+  make -j "$(nproc)"
+  ```
 
 ## Step 10: Set up environment
 
