@@ -42,7 +42,7 @@ using flags.
 GST_DEBUG="GST_TRACER:7" GST_TRACERS="latency_tracer(flags=pipeline)" gst-launch-1.0 videotestsrc num-buffers=500 ! videoconvert  ! avenc_h263p ! fakesink
 ```
 
-## Sample Output
+Sample Output:
 
 ```bash
 0:00:03.015115274 79459 0x55736c57a060 TRACE             GST_TRACER :0:: latency_tracer_pipeline, frame_latency=(double)0.249380, avg=(double)0.255765, min=(double)0.205778, max=(double)0.588363, latency=(double)0.340871, fps=(double)2933.658362, frame_num=(uint)8802;
@@ -55,7 +55,7 @@ GST_DEBUG="GST_TRACER:7" GST_TRACERS="latency_tracer(flags=pipeline)" gst-launch
 GST_DEBUG="GST_TRACER:7" GST_TRACERS="latency_tracer(flags=element)" gst-launch-1.0 videotestsrc num-buffers=500 ! videoconvert  ! avenc_h263p ! fakesink
 ```
 
-## Sample Output
+Sample Output:
 
 ```bash
 0:00:03.014774818 79459 0x55736c57a060 TRACE             GST_TRACER :0:: latency_tracer_element_interval, name=(string)avenc_h263p0, interval=(double)1000.015783, avg=(double)0.259879, min=(double)0.206307, max=(double)0.587317;
@@ -75,7 +75,7 @@ default=1000
 GST_DEBUG="GST_TRACER:7" GST_TRACERS="latency_tracer(flags=pipeline,interval=100)" gst-launch-1.0 videotestsrc num-buffers=500 ! videoconvert  ! avenc_h263p ! fakesink
 ```
 
-## Sample Output
+Sample Output:
 
 ```bash
 0:00:00.116094526 79468 0x556002934460 TRACE             GST_TRACER :0:: latency_tracer_pipeline_interval, interval=(double)100.219905, avg=(double)0.256772, min=(double)0.236046, max=(double)0.386057, latency=(double)0.345586, fps=(double)2893.636748;
