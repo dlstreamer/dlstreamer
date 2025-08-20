@@ -34,7 +34,7 @@ the GStreamer command line tool gst-launch-1.0. For more information and
 examples please refer to the online documentation for
 [gst-launch-1.0](https://gstreamer.freedesktop.org/documentation/tools/gst-launch.html?gi-language=c).
 
-### Pipelines
+### GStreamer Library Pipelines
 
 The command line tool **gst-launch-1.0** enables developers to describe
 a media analytics pipeline as a series of connected elements. The list
@@ -52,7 +52,7 @@ Example with test video input:
 gst-launch-1.0 videotestsrc ! ximagesink
 ```
 
-### Elements
+### GStreamer Library Elements
 
 An
 [element](https://gstreamer.freedesktop.org/documentation/application-development/basics/elements.html?gi-language=c)
@@ -450,7 +450,7 @@ This exercise uses the following Pipeline Framework elements:
 - gvaclassify
 - gvawatermark
 
-### Pipeline
+### Exercise 2.1: Create a Pipeline
 
 We will create a pipeline to detect people and vehicles in a video and
 classify the detected people and vehicle to provide additional
@@ -499,7 +499,7 @@ This exercise uses the following Pipeline Framework elements:
 - `gvatrack`
 - `gvawatermark`
 
-### Pipeline
+### Exercise 3.1: Create a Pipeline
 
 We will use the same pipeline as in exercise 2, for detecting and
 classifying vehicle and people. We will add `gvatrack` element after
@@ -567,7 +567,7 @@ output file path:
 export OUTFILE=~/pipeline_output.json
 ```
 
-### Pipeline
+### Exercise 4.1: Create a Pipeline
 
 We will use the same pipeline as in exercise 2 for detecting and
 classifying vehicle and people. However, instead of overlaying the
@@ -605,7 +605,7 @@ samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.
 You have completed this tutorial. Now, start creating your video
 analytics pipeline with Intel® DL Streamer Pipeline Framework!
 
-## Next Steps
+## Additional Resources
 
 - [Samples overview](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/README.md)
 - [Elements](../elements/elements.md)

@@ -11,7 +11,7 @@ integration with the Intel® DL Streamer pipeline.
 >
 > See [download_public_models](./download_public_models.md) for more information.
 
-## 1. Setup
+## 1. Set up the framework
 
 The instructions assume Intel® DL Streamer framework is installed on the
 local system along with Intel® OpenVINO™ model downloader and converter

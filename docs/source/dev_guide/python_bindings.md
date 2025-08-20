@@ -1,4 +1,4 @@
-# Python Bindings
+# GStreamer Python Bindings
 
 ## 1. GStreamer Python bindings
 

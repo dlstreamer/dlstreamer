@@ -8,7 +8,7 @@ please see [the installation guide](../../get_started/install/install_guide_ubun
 The instruction below focuses on installation steps with pre-built
 Debian packages performed manually.
 
-## Step 1: Install prerequisites
+## Step 1: Setup Prerequisites
 
 Please go through prerequisites 1 & 2 described in
 [the installation guide](../../get_started/install/install_guide_ubuntu).
