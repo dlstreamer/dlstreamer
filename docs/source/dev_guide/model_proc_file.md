@@ -9,7 +9,7 @@
 > in [Model Info
 > Section](https://dlstreamer.github.io/dev_guide/model_info_xml.html)
 
-## Contents
+## Table of Contents
 
 - [Overview](#overview)
 - [Pre-processing description](#pre-processing-description)
@@ -19,7 +19,7 @@
   - [Post-processing configuration](#post-processing-configuration)
   - [Example](#example-of-output-post-processing)
 
-## Overview
+## Summary
 
 A model-proc file is a regular JSON file with pre- and post-processing
 configuration.
