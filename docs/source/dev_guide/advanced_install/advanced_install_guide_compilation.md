@@ -16,51 +16,57 @@ Please go through prerequisites 1 & 2 described in
 
 ## Step 2: Install build dependencies
 
-### Ubuntu 24
+- **Ubuntu 24**
 
-```bash
-sudo apt-get update && \
-sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
-    flex bison autoconf automake libtool libogg-dev make g++ libva-dev yasm libglx-dev libdrm-dev \
-    python-gi-dev python3-dev unzip libgflags-dev libcurl4-openssl-dev \
-    libgirepository1.0-dev libx265-dev libx264-dev libde265-dev gudev-1.0 libusb-1.0 nasm python3-venv \
-    libcairo2-dev libxt-dev libgirepository1.0-dev libgles2-mesa-dev wayland-protocols \
-    libssh2-1-dev cmake git valgrind numactl libvpx-dev libopus-dev libsrtp2-dev libxv-dev \
-    linux-libc-dev libpmix2t64 libhwloc15 libhwloc-plugins libxcb1-dev libx11-xcb-dev \
-    ffmpeg librdkafka-dev libpaho-mqtt-dev libopencv-dev libpostproc-dev libavfilter-dev libavdevice-dev \
-    libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev
-```
+  ```bash
+  sudo apt-get update && \
+  sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
+      flex bison autoconf automake libtool libogg-dev make g++ libva-dev yasm libglx-dev libdrm-dev \
+      python-gi-dev python3-dev unzip libgflags-dev libcurl4-openssl-dev \
+      libgirepository1.0-dev libx265-dev libx264-dev libde265-dev gudev-1.0 libusb-1.0 nasm python3-venv \
+      libcairo2-dev libxt-dev libgirepository1.0-dev libgles2-mesa-dev wayland-protocols \
+      libssh2-1-dev cmake git valgrind numactl libvpx-dev libopus-dev libsrtp2-dev libxv-dev \
+      linux-libc-dev libpmix2t64 libhwloc15 libhwloc-plugins libxcb1-dev libx11-xcb-dev \
+      ffmpeg librdkafka-dev libpaho-mqtt-dev libopencv-dev libpostproc-dev libavfilter-dev libavdevice-dev \
+      libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev
+  ```
 
-### Ubuntu 22
+- **Ubuntu 22**
 
-```bash
-sudo apt-get update && \
-sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
-    flex bison autoconf automake libtool libogg-dev make g++ libva-dev yasm libglx-dev libdrm-dev \
-    python-gi-dev python3-dev unzip libgflags-dev \
-    libgirepository1.0-dev libx265-dev libx264-dev libde265-dev gudev-1.0 libusb-1.0 nasm python3-venv \
-    libcairo2-dev libxt-dev libgirepository1.0-dev libgles2-mesa-dev wayland-protocols libcurl4-openssl-dev \
-    libssh2-1-dev cmake git valgrind numactl libvpx-dev libopus-dev libsrtp2-dev libxv-dev \
-    linux-libc-dev libpmix2 libhwloc15 libhwloc-plugins libxcb1-dev libx11-xcb-dev \
-    ffmpeg libpaho-mqtt-dev libpostproc-dev libavfilter-dev libavdevice-dev \
-    libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
-```
+  ```bash
+  sudo apt-get update && \
+  sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
+      flex bison autoconf automake libtool libogg-dev make g++ libva-dev yasm libglx-dev libdrm-dev \
+      python-gi-dev python3-dev unzip libgflags-dev \
+      libgirepository1.0-dev libx265-dev libx264-dev libde265-dev gudev-1.0 libusb-1.0 nasm python3-venv \
+      libcairo2-dev libxt-dev libgirepository1.0-dev libgles2-mesa-dev wayland-protocols libcurl4-openssl-dev \
+      libssh2-1-dev cmake git valgrind numactl libvpx-dev libopus-dev libsrtp2-dev libxv-dev \
+      linux-libc-dev libpmix2 libhwloc15 libhwloc-plugins libxcb1-dev libx11-xcb-dev \
+      ffmpeg libpaho-mqtt-dev libpostproc-dev libavfilter-dev libavdevice-dev \
+      libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
+  ```
 
-### Fedora 41
+- **Fedora 41**
 
-```bash
-sudo dnf install -y \
-    https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-    https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
+  ```bash
+    sudo dnf install -y \
+        https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+        https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
 
-sudo dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
-    flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
-    python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
-    gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
-    cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel which \
-    libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
-    kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
-```
+  sudo dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
+      flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
+      python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
+      gobject-introspection-devel x265-devel x264-devel libde265-devel libgudev-devel libusb1 libusb1-devel nasm python3-virtualenv \
+      cairo-devel cairo-gobject-devel libXt-devel mesa-libGLES-devel wayland-protocols-devel libcurl-devel which \
+      libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
+      kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
+  ```
+
+- **EMT 3.x**
+
+  ```bash
+  sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip   glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel   libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
+  ```
 
 ### EMT 3.x
 
@@ -88,47 +94,47 @@ locally, it can cause build errors. It is recommended to uninstall it
 first. You can uninstall it with the following command (if installed
 from source):
 
-### Ubuntu
+- **Ubuntu**
 
-You can uninstall it with the following command (if installed from
-source):
+  You can uninstall it with the following command (if installed from
+  source):
 
-```bash
-cd ${HOME}/ffmpeg # Change to the directory where ffmpeg was built
-sudo make uninstall
-```
+  ```bash
+  cd ${HOME}/ffmpeg # Change to the directory where ffmpeg was built
+  sudo make uninstall
+  ```
 
-Then reinstall ffmpeg libs:
+  Then reinstall ffmpeg libs:
 
-```bash
-sudo apt-get install --reinstall ffmpeg libpostproc-dev libavfilter-dev libavdevice-dev \
-            libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev
-```
+  ```bash
+  sudo apt-get install --reinstall ffmpeg libpostproc-dev libavfilter-dev libavdevice-dev \
+              libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev
+  ```
 
-### Fedora/EMT
+- **Fedora/EMT**
 
-You can uninstall it with the following command (if installed from
-source):
+  You can uninstall it with the following command (if installed from
+  source):
 
-```bash
-cd ${HOME}/ffmpeg # Change to the directory where ffmpeg was built
-sudo make uninstall
-```
+  ```bash
+  cd ${HOME}/ffmpeg # Change to the directory where ffmpeg was built
+  sudo make uninstall
+  ```
 
-Download and build FFmpeg:
+  Download and build FFmpeg:
 
-```bash
-mkdir ~/ffmpeg
-wget --no-check-certificate https://ffmpeg.org/releases/ffmpeg-6.1.1.tar.gz -O ~/ffmpeg/ffmpeg-6.1.1.tar.gz
-tar -xf ~/ffmpeg/ffmpeg-6.1.1.tar.gz -C ~/ffmpeg
-rm ~/ffmpeg/ffmpeg-6.1.1.tar.gz
+  ```bash
+  mkdir ~/ffmpeg
+  wget --no-check-certificate https://ffmpeg.org/releases/ffmpeg-6.1.1.tar.gz -O ~/ffmpeg/ffmpeg-6.1.1.tar.gz
+  tar -xf ~/ffmpeg/ffmpeg-6.1.1.tar.gz -C ~/ffmpeg
+  rm ~/ffmpeg/ffmpeg-6.1.1.tar.gz
 
-cd ~/ffmpeg/ffmpeg-6.1.1
-./configure --enable-pic --enable-shared --enable-static --enable-avfilter --enable-vaapi \
-    --extra-cflags="-I/include" --extra-ldflags="-L/lib" --extra-libs=-lpthread --extra-libs=-lm --bindir="/bin"
-make -j "$(nproc)"
-sudo make install
-```
+  cd ~/ffmpeg/ffmpeg-6.1.1
+  ./configure --enable-pic --enable-shared --enable-static --enable-avfilter --enable-vaapi \
+      --extra-cflags="-I/include" --extra-ldflags="-L/lib" --extra-libs=-lpthread --extra-libs=-lm --bindir="/bin"
+  make -j "$(nproc)"
+  sudo make install
+  ```
 
 ## Step 5: Build GStreamer
 
@@ -165,68 +171,68 @@ cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
 sudo ninja uninstall
 ```
 
-### For Ubuntu 24
+- **Ubuntu 24**
 
-After uninstalling OpenCV, reinstall it with the following command:
+  After uninstalling OpenCV, reinstall it with the following command:
 
-```bash
-sudo apt-get install --reinstall libopencv-dev
-```
+  ```bash
+  sudo apt-get install --reinstall libopencv-dev
+  ```
 
-### For Ubuntu 22
+- **Ubuntu 22**
 
-NOTE: If you have installed different version of OpenCV using apt-get,
-you can uninstall it with the command below instead:
+  NOTE: If you have installed different version of OpenCV using apt-get,
+  you can uninstall it with the command below instead:
 
-```bash
-sudo apt-get remove --purge libopencv*
-```
+  ```bash
+  sudo apt-get remove --purge libopencv*
+  ```
 
-Download and build OpenCV:
+  Download and build OpenCV:
 
-```bash
-wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
-wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
-unzip opencv.zip && \
-unzip opencv_contrib.zip && \
-rm opencv.zip opencv_contrib.zip && \
-mv opencv-4.6.0 opencv && \
-mv opencv_contrib-4.6.0 opencv_contrib && \
-mkdir -p opencv/build
+  ```bash
+  wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
+  wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
+  unzip opencv.zip && \
+  unzip opencv_contrib.zip && \
+  rm opencv.zip opencv_contrib.zip && \
+  mv opencv-4.6.0 opencv && \
+  mv opencv_contrib-4.6.0 opencv_contrib && \
+  mkdir -p opencv/build
 
-cd ~/opencv/build
-cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
-ninja -j "$(nproc)"
-sudo env PATH=~/python3venv/bin:$PATH ninja install
-```
+  cd ~/opencv/build
+  cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF   -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+  ninja -j "$(nproc)"
+  sudo env PATH=~/python3venv/bin:$PATH ninja install
+  ```
 
-### For Fedora 41
+- **Fedora 41**
 
-NOTE: If you have installed different version of OpenCV using dnf, it is
-recommended to uninstall it first. You can uninstall it with the command
-below:
+  NOTE: If you have installed different version of OpenCV using dnf, it is
+  recommended to uninstall it first. You can uninstall it with the command
+  below:
 
-```bash
-sudo dnf remove --allmatches opencv*
-```
+  ```bash
+  sudo dnf remove --allmatches opencv*
+  ```
 
-Download and build OpenCV:
+  Download and build OpenCV:
 
-```bash
-wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip
-wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip
-unzip opencv.zip && \
-unzip opencv_contrib.zip && \
-rm opencv.zip opencv_contrib.zip && \
-mv opencv-4.10.0 opencv && \
-mv opencv_contrib-4.10.0 opencv_contrib && \
-mkdir -p opencv/build
+  ```bash
+  wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip
+  wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip
+  unzip opencv.zip && \
+  unzip opencv_contrib.zip && \
+  rm opencv.zip opencv_contrib.zip && \
+  mv opencv-4.10.0 opencv && \
+  mv opencv_contrib-4.10.0 opencv_contrib && \
+  mkdir -p opencv/build
 
-cd ~/opencv/build
-cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
-ninja -j "$(nproc)"
-sudo env PATH=~/python3venv/bin:$PATH ninja install
-```
+  cd ~/opencv/build
+  cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF   -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+  ninja -j "$(nproc)"
+  sudo env PATH=~/python3venv/bin:$PATH ninja install
+  ```
 
 ## Step 7: Clone Intel® DL Streamer repository
 
@@ -267,17 +273,17 @@ sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependenc
 source /opt/intel/openvino_2025/setupvars.sh
 ```
 
-### EMT
+- **EMT**
 
-```bash
-wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
-tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
-sudo mv openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64 /opt/intel/openvino_2025.2.0
-cd /opt/intel/openvino_2025.2.0/
-sudo -E python3 -m pip install -r ./python/requirements.txt
-cd /opt/intel
-sudo ln -s openvino_2025.2.0 openvino_2025
-```
+  ```bash
+  wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.  tgz
+  tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
+  sudo mv openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64 /opt/intel/openvino_2025.2.0
+  cd /opt/intel/openvino_2025.2.0/
+  sudo -E python3 -m pip install -r ./python/requirements.txt
+  cd /opt/intel
+  sudo ln -s openvino_2025.2.0 openvino_2025
+  ```
 
 ## Step 9: Build Intel DLStreamer
 
@@ -326,6 +332,7 @@ sudo ln -s openvino_2025.2.0 openvino_2025
   cd ./librdkafka-2.3.0
   ./configure && make && make INSTALL=install install
 
+
   mkdir build
   cd build
 
@@ -340,32 +347,56 @@ sudo ln -s openvino_2025.2.0 openvino_2025
 
 Set up the required environment variables:
 
-### Ubuntu
+- **Ubuntu**
 
-```bash
-export LIBVA_DRIVER_NAME=iHD
-export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
-export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
-export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
-export GST_VA_ALL_DRIVERS="1"
-export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
-export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
-```
+  ```bash
+  export LIBVA_DRIVER_NAME=iHD
+  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/  dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
+  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/  intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+  export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
+  export GST_VA_ALL_DRIVERS="1"
+  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+  export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+  export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.  0gi
+  ```
 
-### Fedora
+- **Fedora**
 
-```bash
-export LIBVA_DRIVER_NAME=iHD
-export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
-export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
-export LIBVA_DRIVERS_PATH="/usr/lib64/dri-nonfree"
-export GST_VA_ALL_DRIVERS="1"
-export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
-export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-```
+  ```bash
+  export LIBVA_DRIVER_NAME=iHD
+  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/  dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
+  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/  intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+  export LIBVA_DRIVERS_PATH="/usr/lib64/dri-nonfree"
+  export GST_VA_ALL_DRIVERS="1"
+  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+  export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+  ```
+
+- **EMT**
+
+  Follow the steps below to enable `i915` graphics driver in the system.
+
+  ```bash
+  sudo vim /etc/default/grub
+  ### Extend the GRUB_CMDLINE_LINUX with i915.force_probe=* ###
+  sudo grub2-mkconfig -o /boot/grub2/grub.cfg "$@"
+  sudo reboot
+  ```
+
+  After reboot set the following environment variables before trying the DL Streamer pipelines from the terminal.
+
+  ```bash
+  export LIBVA_DRIVER_NAME=iHD
+  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.  0:/usr/lib64/gstreamer-1.0"
+  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/  usr/local/lib:$LD_LIBRARY_PATH"
+  export LIBVA_DRIVERS_PATH="/usr/lib/dri"
+  export GST_VA_ALL_DRIVERS="1"
+  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/  python3venv/bin:$PATH"
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/  pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+  export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+  ```
 
 ### EMT
 
