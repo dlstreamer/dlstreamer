@@ -389,6 +389,10 @@ gvadetect model=${DETECTION_MODEL} model_proc=${DETECTION_MODEL_PROC} device=CPU
 gvawatermark ! videoconvert ! autovideosink sync=false
 ```
 
+> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the 
+> the video for the above pipeline, replace the last gstreamer element `autovideosink sync=false`
+> with `kmssink sync=false`. The system on which the pipeline is running must be working on the KVM setup.
+
 **Expected output**: You will see your video overlaid by bounding boxes
 around persons, vehicles, and bikes.
 
@@ -466,6 +470,10 @@ gvaclassify model=${VEHICLE_CLASSIFICATION_MODEL} model-proc=${VEHICLE_CLASSIFIC
 gvawatermark ! videoconvert ! autovideosink sync=false
 ```
 
+> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the 
+> the video for the above pipeline, replace the last gstreamer element `autovideosink sync=false`
+> with `kmssink sync=false`. The system on which the pipeline is running must be working on the KVM setup.
+
 **Expected output**: Persons, vehicles, and bikes are bound by colored
 boxes, and detection results as well as classification attributes such
 as vehicle type and color are displayed as video overlays.
@@ -518,6 +526,10 @@ gvatrack tracking-type=short-term-imageless ! queue ! \
 gvaclassify model=${VEHICLE_CLASSIFICATION_MODEL} model-proc=${VEHICLE_CLASSIFICATION_MODEL_PROC} device=CPU object-class=vehicle reclassify-interval=10 ! queue ! \
 gvawatermark ! videoconvert ! autovideosink sync=false
 ```
+
+> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the 
+> the video for the above pipeline, replace the last gstreamer element `autovideosink sync=false`
+> with `kmssink sync=false`. The system on which the pipeline is running must be working on the KVM setup.
 
 **Expected output**: Persons, vehicles, and bikes are bound by colored
 boxes, and detection results as well as classification attributes such
