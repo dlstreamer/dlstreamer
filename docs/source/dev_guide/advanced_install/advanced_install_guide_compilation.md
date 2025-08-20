@@ -62,6 +62,12 @@ sudo dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ 
     kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
 ```
 
+### EMT 3.x
+
+```bash
+sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
+```
+
 ## Step 3: Set up a Python environment
 
 Create a Python virtual environment and install required Python
@@ -99,7 +105,7 @@ sudo apt-get install --reinstall ffmpeg libpostproc-dev libavfilter-dev libavdev
             libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev
 ```
 
-### Fedora
+### Fedora/EMT
 
 You can uninstall it with the following command (if installed from
 source):
@@ -140,7 +146,7 @@ git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 
 cd ~/gstreamer
 git switch -c "1.26.4" "tags/1.26.4"
-export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig/:/usr/local/lib/pkgconfig:$PKG_CONFIG_PATH
+export PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig/:/usr/local/lib/pkgconfig:/usr/lib/pkgconfig:$PKG_CONFIG_PATH
 sudo ldconfig
 meson setup -Dexamples=disabled -Dtests=disabled -Dvaapi=enabled -Dgst-examples=disabled --buildtype=release --prefix=/opt/intel/dlstreamer/gstreamer --libdir=lib/ --libexecdir=bin/ build/
 ninja -C build
@@ -226,12 +232,14 @@ sudo env PATH=~/python3venv/bin:$PATH ninja install
 
 ```bash
 cd ~
-git clone https://github.com/open-edge-platform/edge-ai-libraries.git
+git clone https://github.com/open-edge-platform/edge-ai-libraries.git -b release-1.2.0
 cd edge-ai-libraries
 git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 ```
 
 ## Step 8: Install OpenVINO™ Toolkit
+
+### Ubuntu/Fedora
 
 Download and install OpenVINO™ Toolkit:
 
@@ -257,6 +265,18 @@ OpenVINO™ Toolkit development environment:
 ```bash
 sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
 source /opt/intel/openvino_2025/setupvars.sh
+```
+
+### EMT
+
+```bash
+wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
+tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
+sudo mv openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64 /opt/intel/openvino_2025.2.0
+cd /opt/intel/openvino_2025.2.0/
+sudo -E python3 -m pip install -r ./python/requirements.txt
+cd /opt/intel
+sudo ln -s openvino_2025.2.0 openvino_2025
 ```
 
 ## Step 9: Build Intel DLStreamer
@@ -295,11 +315,13 @@ source /opt/intel/openvino_2025/setupvars.sh
   make -j "$(nproc)"
   ```
 
-- **Fedora**
+- **Fedora/EMT**
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
 
+  # Download, compile and install `librdkafka`. This step is not required on EMT, because `librdkafka`
+  # is installed as part of build dependencies, in the steps above.
   curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
   cd ./librdkafka-2.3.0
   ./configure && make && make INSTALL=install install
@@ -339,6 +361,29 @@ export LIBVA_DRIVER_NAME=iHD
 export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
 export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
 export LIBVA_DRIVERS_PATH="/usr/lib64/dri-nonfree"
+export GST_VA_ALL_DRIVERS="1"
+export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+```
+
+### EMT
+
+Follow the steps below to enable `i915` graphics driver in the system.
+
+```bash
+sudo vim /etc/default/grub
+### Extend the GRUB_CMDLINE_LINUX with i915.force_probe=* ###
+sudo grub2-mkconfig -o /boot/grub2/grub.cfg "$@"
+sudo reboot
+```
+
+After reboot set the following environment variables before trying the DL Streamer pipelines from the terminal.
+```bash
+export LIBVA_DRIVER_NAME=iHD
+export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
+export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+export LIBVA_DRIVERS_PATH="/usr/lib/dri"
 export GST_VA_ALL_DRIVERS="1"
 export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
 export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
