@@ -373,7 +373,7 @@ elements:
 - gvadetect
 - gvawatermark
 
-### Pipeline
+### Exercise 1.1 Create a Pipeline
 
 We will create a pipeline to detect people and vehicles in a video. The
 pipeline will accept a video file input, decode it and run vehicle
@@ -389,7 +389,7 @@ gvadetect model=${DETECTION_MODEL} model_proc=${DETECTION_MODEL_PROC} device=CPU
 gvawatermark ! videoconvert ! autovideosink sync=false
 ```
 
-> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the 
+> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the
 > the video for the above pipeline, replace the last gstreamer element `autovideosink sync=false`
 > with `kmssink sync=false`. The system on which the pipeline is running must be working on the KVM setup.
 
@@ -470,7 +470,7 @@ gvaclassify model=${VEHICLE_CLASSIFICATION_MODEL} model-proc=${VEHICLE_CLASSIFIC
 gvawatermark ! videoconvert ! autovideosink sync=false
 ```
 
-> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the 
+> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the
 > the video for the above pipeline, replace the last gstreamer element `autovideosink sync=false`
 > with `kmssink sync=false`. The system on which the pipeline is running must be working on the KVM setup.
 
@@ -527,7 +527,7 @@ gvaclassify model=${VEHICLE_CLASSIFICATION_MODEL} model-proc=${VEHICLE_CLASSIFIC
 gvawatermark ! videoconvert ! autovideosink sync=false
 ```
 
-> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the 
+> **Note**: On EMT OS the `X11/wayland` display server is by default disabled. To see the
 > the video for the above pipeline, replace the last gstreamer element `autovideosink sync=false`
 > with `kmssink sync=false`. The system on which the pipeline is running must be working on the KVM setup.
 
