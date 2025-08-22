@@ -1,31 +1,28 @@
 # Install Guide Ubuntu
 
-The easiest way to install Intel® Deep Learning Streamer (Intel® DL
-Streamer) Pipeline Framework is installation
+The easiest way to install Deep Learning Streamer Pipeline Framework is installation
 [from Debian packages using APT repository](#option-1-install-intel-dl-streamer-pipeline-framework-from-debian-packages-using-apt-repository).
-If you prefer containerized environment based on Docker,
-the Intel® DL Streamer Pipeline Framework
-[Docker image](#option-2-install-docker-image-from-docker-hub-and-run-it) is available as
-well as Dockerfile to build runtime Docker image. Regardless of chosen
-installations process, please follow
-[prerequisites](#prerequisites).
+If you prefer containerized environment based on Docker, use the
+[Docker image](#option-2-install-docker-image-from-docker-hub-and-run-it) as
+well as the Dockerfile to build runtime Docker image. Regardless of a chosen
+installation path, make sure to set up [the prerequisites](#prerequisites) first.
 
-For detailed description of installation process, including the option
-with building Intel® DL Streamer Pipeline Framework from the source code
+For a detailed description of installation process, including the option
+with building Deep Learning Streamer Pipeline Framework from the source code
 provided in
 [Open Edge Platform repository](https://github.com/open-edge-platform/edge-ai-libraries.git),
-please follow the [instructions](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
+follow the [instructions](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
 
 ## Prerequisites
 
-To use GPU and/or NPU as an inference devices or to use graphics
-hardware encoding/decoding capabilities, it is required to install
-appropriate drivers. Please use the script below to detect available
-device(s) and install these drivers. Please also pay attention to
-displayed information while the script has references to other Intel®
+To use GPU and/or NPU as an inference device or to use graphics
+hardware encoding/decoding capabilities, you need to install
+appropriate drivers. Use the script below to detect available
+device(s) and install the drivers. Also, pay attention to the
+displayed information, as the script uses multiple references to other Intel®
 resources when additional configuration is required.
 
-### Step 1: Download the prerequisites installation script
+### Step 1: Download the installation script
 
 ```bash
 mkdir -p ~/intel/dlstreamer_gst
@@ -39,8 +36,7 @@ wget -O DLS_install_prerequisites.sh https://raw.githubusercontent.com/open-edge
 ./DLS_install_prerequisites.sh
 ```
 
-The script installs all the essential packages needed for most Intel®
-Client GPU users, including the following packages:
+The essential packages needed for most Intel® Client GPU users are installed:
 
 ```bash
 GPU:
@@ -58,14 +54,14 @@ NPU:
    level-zero
 ```
 
-More details about the packages can be found in the following driver
-links respectively:
-[Intel® Client GPU](https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages),
-[Media](https://github.com/intel/media-driver/releases),
-[NPU](https://github.com/intel/linux-npu-driver/releases/tag/v1.13.0).
+More details about the packages can be found in:
 
-Running DL Streamer on Intel® Data Center GPU (Flex) requires specific
-drivers. In such case, please follow drivers installing instruction on
+- [Intel® Client GPU](https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages),
+- [Media](https://github.com/intel/media-driver/releases),
+- [NPU](https://github.com/intel/linux-npu-driver/releases/tag/v1.13.0).
+
+Running Deep Learning Streamer on Intel® Data Center GPU (Flex) requires specific
+drivers, and you need to follow the instructions on
 [Intel® Data Center GPU website](https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases).
 
 ## Option #1: Install Intel® DL Streamer Pipeline Framework from Debian packages using APT repository

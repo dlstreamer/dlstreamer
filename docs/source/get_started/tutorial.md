@@ -304,7 +304,7 @@ It is suitable if you chose Option #2 (Docker) in Install Guide Ubuntu.
     --group-add $(stat -c "%g" /dev/dri/render*) \
     --device /dev/accel \
     --group-add $(stat -c "%g" /dev/accel/accel*) \
-    --env ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so \
+    --env ZE_ENABLE_ALT_DRIVERS=libze_intel_npu.so \
     --env MODELS_PATH=/home/dlstreamer/models \
     intel/dlstreamer:latest
     ```
@@ -323,7 +323,7 @@ It is suitable if you chose Option #2 (Docker) in Install Guide Ubuntu.
     4.  `--group-add $(stat -c "%g" /dev/accel/accel*)` - non-root
         access to NPU devices, required in the same scenarios as
         `--device /dev/accel` above
-    5.  `--env ZE_ENABLE_ALT_DRIVERS=libze_intel_vpu.so` - exporting
+    5.  `--env ZE_ENABLE_ALT_DRIVERS=libze_intel_npu.so` - exporting
         environmental variable needed to run inference successfully on
         NPU devices
 
