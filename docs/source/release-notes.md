@@ -16,12 +16,14 @@ The complete solution leverages:
   | [gvainference](./elements/gvainference.md) | Runs deep learning inference on a full-frame or ROI using any model   with an RGB or BGR input. |
   | [gvatrack](./elements/gvatrack.md) | Performs object tracking using zero-term, or imageless tracking algorithms.   Assigns unique object IDs to the tracked objects. |
   | [gvaaudiodetect](./elements/gvaaudiodetect.md) | Performs audio event detection using AclNet model. |
+  | [gvagenai](./elements/gvagenai.md) | Performs inference with Vision Language Models using OpenVINO™ GenAI, accepts video and text prompt as an input, and outputs text description. It can be used to generate text summarization from video. |
   | [gvaattachroi](./elements/gvaattachroi.md) | Adds user-defined regions of interest to perform inference on,   instead of full frame. |
   | [gvafpscounter](./elements/gvafpscounter.md) | Measures frames per second across multiple streams in a single   process. |
   | [gvametaaggregate](./elements/gvametaaggregate.md) | Aggregates inference results from multiple pipeline   branches |
   | [gvametaconvert](./elements/gvametaconvert.md) | Converts the metadata structure to the JSON format. |
   | [gvametapublish](./elements/gvametapublish.md) | Publishes the JSON metadata to MQTT or Kafka message brokers or   files. |
   | [gvapython](./elements/gvapython.md) | Provides a callback to execute user-defined Python functions on every   frame. Can be used for metadata conversion, inference post-processing, and other tasks. |
+  | [gvarealsense](./elements/gvarealsense.md) | Provides integration with Intel RealSense cameras, enabling video and depth stream capture for use in GStreamer pipelines. |
   | [gvawatermark](./elements/gvawatermark.md) | Overlays the metadata on the video frame to visualize the inference   results. |
 
 For the details on supported platforms, please refer to [System Requirements](./get_started/system_requirements.md).
@@ -41,10 +43,12 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 | New Linux distribution (Azure Linux derivative) | New distribution added, DL Streamer can be now installed on Edge Microvisor Toolkit. |
 | License plate recognition use case support | Added support for models that allow to recognize license plates; [sample](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/license_plate_recognition) added as reference.  |
 | Deep Scenario model support | Commercial 3D model support |
+| Anomaly model support | Added support for anomaly model, [sample](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/geti_deployment) added as reference, sample added as reference. |
+| RealSense element support | New [gvarealsense](./elements/gvarealsense.md) element implementation providing basic integration with Intel RealSense cameras, enabling video and depth stream capture for use in GStreamer pipelines. |
 | OpenVINO 2025.2 version support | Support of recent OpenVINO version added. |
 | GStreamer 1.26.4 version support | Support of recent GStreamer version added. |
 | NPU 1.19 version driver support | Support of recent NPU driver version added. |
-| Docker image size reduction | Reduction for all images, dev versions >500MB |
+| Docker image size reduction | Reduction for all images, e.g., Ubuntu 24 Release image size reduced to 1.6GB from 2.6GB |
 
 ## Known Issues
 
