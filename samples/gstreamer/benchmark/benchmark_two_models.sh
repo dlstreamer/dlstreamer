@@ -8,9 +8,9 @@
 set -e
 
 if [ -z "${MODELS_PATH:-}" ]; then
-  echo "Error: MODELS_PATH is not set." >&2 
+  echo "Error: MODELS_PATH is not set." >&2
   exit 1
-else 
+else
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
@@ -29,7 +29,7 @@ SINK_ELEMENT=${11:-"fakesink async=false"}
 # check if model exists in local directory
 if [ ! -f $MODEL1_PATH ]; then
   echo "Model not found: ${MODEL1_PATH}"
-  exit 
+  exit
 fi
 
 # check if model exists in local directory
@@ -40,7 +40,7 @@ fi
 
 if [ -z "${1}" ]; then
   echo "ERROR set path to video"
-  echo "Usage : ./benchmark_two_models.sh VIDEO_FILE [MODEL1_PATH] [MODEL2_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [SINK_ELEMENT]"
+  echo "Usage : ./benchmark_two_models.sh VIDEO_FILE [MODEL1_PATH] [MODEL2_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [INFERENCE1_ELEMENT] [INFERENCE2_ELEMENT] [SINK_ELEMENT]"
   echo "You can download video with"
   echo "\"curl https://raw.githubusercontent.com/intel-iot-devkit/sample-videos/master/head-pose-face-detection-female-and-male.mp4 --output /path/to/your/video/head-pose-face-detection-female-and-male.mp4\""
   echo "and run sample ./benchmark.sh /path/to/your/video/head-pose-face-detection-female-and-male.mp4"
