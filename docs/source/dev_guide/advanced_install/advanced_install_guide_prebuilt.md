@@ -1,17 +1,16 @@
-# Ubuntu advanced installation - pre-built packages
+# Advanced Installation On Ubuntu - Using Pre-built Packages
 
-The easiest way to install Intel® Deep Learning Streamer (Intel® DL
-Streamer) Pipeline Framework is installing it from pre-built Debian
-packages with one-click script. If you would like to follow this way,
-please see [the installation guide](../../get_started/install/install_guide_ubuntu).
+> **NOTE:** Installation of Deep Learning Streamer Pipeline Framework
+> [from pre-built Debian packages using one-click script](../../get_started/install/install_guide_ubuntu.md)
+> is the easiest approach.
 
-The instruction below focuses on installation steps with pre-built
-Debian packages performed manually.
+The instructions below focus on manual installation of pre-built
+Debian packages.
 
 ## Step 1: Setup Prerequisites
 
-Please go through prerequisites 1 & 2 described in
-[the installation guide](../../get_started/install/install_guide_ubuntu).
+Follow the instructions in
+[the prerequisites](../../get_started/install/install_guide_ubuntu#prerequisites) section.
 
 ## Step 2: Prepare the installation environment
 
@@ -28,30 +27,28 @@ cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_open
 && ninja -j "$(nproc)" && sudo ninja install
 ```
 
-A. For **Ubuntu 24.04**:
+Download pre-built Debian packages:
 
-    Download pre-built Debian packages:
+- **Ubuntu 24.04**
 
-    ```bash
-    mkdir -p ~/intel/dlstreamer_gst
-    cd ~/intel/dlstreamer_gst
-    wget $(wget -q -O - https://api.github.com/repos/dlstreamer/dlstreamer/releases/latest | \
-      jq -r '.assets[] | select(.name | contains ("ubuntu_24.04_amd64.deb")) | .browser_download_url')
-    ```
+  ```bash
+  mkdir -p ~/intel/dlstreamer_gst
+  cd ~/intel/dlstreamer_gst
+  wget $(wget -q -O - https://api.github.com/repos/dlstreamer/dlstreamer/releases/latest | \
+    jq -r '.assets[] | select(.name | contains ("ubuntu_24.04_amd64.deb")) | .browser_download_url')
+  ```
 
-B. For **Ubuntu 22.04**:
+- **Ubuntu 22.04**
 
-    Download pre-built Debian packages:
+  ```bash
+  cd ~/intel/dlstreamer_gst
+  wget $(wget -q -O - https://api.github.com/repos/dlstreamer/dlstreamer/releases/latest | \
+    jq -r '.assets[] | select(.name | contains ("ubuntu_22.04_amd64.deb")) | .browser_download_url')
+  ```
 
-    ```bash
-    cd ~/intel/dlstreamer_gst
-    wget $(wget -q -O - https://api.github.com/repos/dlstreamer/dlstreamer/releases/latest | \
-      jq -r '.assets[] | select(.name | contains ("ubuntu_22.04_amd64.deb")) | .browser_download_url')
-    ```
+## Step 3: Install Deep Learning Streamer
 
-## Step 3: Install Intel® DL Streamer
-
-Install Intel® DL Streamer from pre-built Debian packages:
+Install Deep Learning Streamer from pre-built Debian packages:
 
 ```bash
 sudo apt install ./*.deb
@@ -59,16 +56,15 @@ sudo apt install ./*.deb
 
 ## Step 4: Install OpenVINO™ toolkit
 
-Install Intel® OpenVINO™ via script `install_openvino.sh`.
+Install Intel® OpenVINO™, using the `install_openvino.sh` script.
 
 ```bash
 sudo -E /opt/intel/dlstreamer/install_dependencies/install_openvino.sh
 ```
 
-## Step 5: Install MQTT and Kafka clients for element `gvametapublish`
+## Step 5: (Optional) Install MQTT and Kafka clients for element `gvametapublish`
 
-> **NOTE:**  Optional step: In order to enable all `gvametapublish` backends install
-> required dependencies with scripts:
+To enable all `gvametapublish` backends install required dependencies:
 
 ```bash
 sudo -E /opt/intel/dlstreamer/install_dependencies/install_mqtt_client.sh
@@ -77,7 +73,7 @@ sudo -E /opt/intel/dlstreamer/install_dependencies/install_kafka_client.sh
 
 ## Step 6: Add user to groups
 
-When using Media, GPU or NPU devices as non-root user, please add your
+When using Media, GPU or NPU devices as non-root user, add your
 user to `video` and `render` groups:
 
 ```bash
@@ -85,43 +81,43 @@ sudo usermod -a -G video <username>
 sudo usermod -a -G render <username>
 ```
 
-## Step 7: Set up the environment for Intel® DL Streamer
+## Step 7: Set up the environment for Deep Learning Streamer
 
-Source required environment variables to run GStreamer and Intel® DL
+Source the required environment variables to run GStreamer and Deep Learning
 Streamer:
 
 ```bash
 # Setup OpenVINO™ Toolkit environment
 source /opt/intel/openvino_2024/setupvars.sh
-# Setup GStreamer and Intel® DL Streamer Pipeline Framework environments
+# Setup GStreamer and Deep Learning Streamer Pipeline Framework environments
 source /opt/intel/dlstreamer/setupvars.sh
 ```
 
 > **NOTE:**
 > The environment variables are removed when you close the shell. Before
-> each run of Intel® DL Streamer you need to setup the environment with
-> the 2 scripts listed in this step. As an option, you can set the
-> environment variables in file `~/.bashrc` for automatic enabling.
+> each run of Deep Learning Streamer you need to setup the environment with
+> the two scripts listed in this step. Optionally, to automate the process, you
+> can add the variables to the `~/.bashrc` file for every shell session.
 
-## Step 8: Verify Intel® DL Streamer installation
+## Step 8: Verify Deep Learning Streamer installation
 
-Intel® DL Streamer has been installed. You can run the
-`gst-inspect-1.0 gvadetect` to confirm that GStreamer and Intel® DL
+Deep Learning Streamer has been installed. You can run the
+`gst-inspect-1.0 gvadetect` to confirm that GStreamer and Deep Learning
 Streamer are running:
 
 ```bash
 gst-inspect-1.0 gvadetect
 ```
 
-If your can see the documentation of `gvadetect` element, the
-installation process is completed.
+When the installation completes, help information for `gvadetect` element
+is displayed:
 
 ![image](../../get_started/install/gvadetect_sample_help.png)
 
-## Step 9: Next steps - running sample Intel® DL Streamer pipelines
+## Step 9: Next steps - running sample Deep Learning Streamer pipelines
 
-You are ready to use Intel® DL Streamer. For further instructions to run
-sample pipeline(s), please see
+You are ready to use Deep Learning Streamer. For further instructions on how to run
+sample pipeline(s), see
 [the installation guide](../../get_started/install/install_guide_ubuntu).
 
 ------------------------------------------------------------------------
