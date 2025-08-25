@@ -1,18 +1,17 @@
-# Advanced installation - compilation from source files
+# Advanced Installation - Compilation From Source
 
-The easiest way to install Intel® Deep Learning Streamer (Intel® DL
-Streamer) Pipeline Framework is installing it from pre-built Debian
-packages. If you would like to follow this way, please see
-[the installation guide](../../get_started/install/install_guide_ubuntu).
+> **NOTE:** Installation of Deep Learning Streamer Pipeline Framework
+> [from pre-built Debian packages using one-click script](../../get_started/install/install_guide_ubuntu.md)
+> is the easiest approach.
 
-The instruction below focuses on installation steps with building Intel®
-DL Streamer Pipeline Framework from the source code provided in
+The instructions below are intended for building Deep Learning Streamer Pipeline Framework
+from the source code provided in
 [Open Edge Platform repository](https://github.com/open-edge-platform/edge-ai-libraries.git).
 
 ## Step 1: Install prerequisites (only for Ubuntu)
 
-Please go through prerequisites 1 & 2 described in
-[the installation guide](../../get_started/install/install_guide_ubuntu).
+Follow the instructions in
+[the prerequisites](../../get_started/install/install_guide_ubuntu#prerequisites) section.
 
 ## Step 2: Install build dependencies
 
@@ -49,10 +48,9 @@ Please go through prerequisites 1 & 2 described in
 - **Fedora 41**
 
   ```bash
-    sudo dnf install -y \
-        https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
-        https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
-
+  sudo dnf install -y \
+      https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
+      https://download1.rpmfusion.org/nonfree/fedora/rpmfusion-nonfree-release-$(rpm -E %fedora).noarch.rpm
   sudo dnf install -y wget libva-utils xz python3-pip python3-gobject gcc gcc-c++ glibc-devel glib2-devel \
       flex bison autoconf automake libtool libogg-devel make libva-devel yasm mesa-libGL-devel libdrm-devel \
       python3-gobject-devel python3-devel tbb gnupg2 unzip opencv-devel gflags-devel openssl-devel openssl-devel-engine \
@@ -65,7 +63,7 @@ Please go through prerequisites 1 & 2 described in
 - **EMT 3.x**
 
   ```bash
-  sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip   glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel   libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
+  sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
 
 ### EMT 3.x
@@ -89,8 +87,8 @@ pip install meson==1.4.1 ninja==1.11.1.1
 
 ## Step 4: Build/Install FFmpeg
 
-NOTE: If you have built and installed a different version of ffmpeg
-locally, it can cause build errors. It is recommended to uninstall it
+**If you have built and installed a different version of ffmpeg
+locally, it can cause build errors.** It is recommended to uninstall it
 first. You can uninstall it with the following command (if installed
 from source):
 
@@ -161,56 +159,56 @@ sudo env PATH=~/python3venv/bin:$PATH meson install -C build/
 
 ## Step 6: Build OpenCV
 
-NOTE: If you have built and installed a different version of OpenCV
+If you have built and installed a different version of OpenCV
 locally, it can cause build errors. It is recommended to uninstall it
-first. You can uninstall it with the following command (if installed
-from source):
+first.
 
-```bash
-cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
-sudo ninja uninstall
-```
+- **Ubuntu**
 
-- **Ubuntu 24**
-
-  After uninstalling OpenCV, reinstall it with the following command:
+  If you have built and installed it from source, you can uninstall it with:
 
   ```bash
-  sudo apt-get install --reinstall libopencv-dev
+  cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
+  sudo ninja uninstall
   ```
 
-- **Ubuntu 22**
-
-  NOTE: If you have installed different version of OpenCV using apt-get,
-  you can uninstall it with the command below instead:
+  If you have installed it using apt-get, you can uninstall it with:
 
   ```bash
   sudo apt-get remove --purge libopencv*
   ```
 
-  Download and build OpenCV:
+  After uninstalling OpenCV, reinstall it with the following commands:
 
-  ```bash
-  wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
-  wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
-  unzip opencv.zip && \
-  unzip opencv_contrib.zip && \
-  rm opencv.zip opencv_contrib.zip && \
-  mv opencv-4.6.0 opencv && \
-  mv opencv_contrib-4.6.0 opencv_contrib && \
-  mkdir -p opencv/build
+  - **Ubuntu 24**
 
-  cd ~/opencv/build
-  cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF   -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
-  ninja -j "$(nproc)"
-  sudo env PATH=~/python3venv/bin:$PATH ninja install
-  ```
+    ```bash
+    sudo apt-get install --reinstall libopencv-dev
+    ```
+
+  - **Ubuntu 22**
+
+    Download and build OpenCV:
+
+    ```bash
+    wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
+    wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
+    unzip opencv.zip && \
+    unzip opencv_contrib.zip && \
+    rm opencv.zip opencv_contrib.zip && \
+    mv opencv-4.6.0 opencv && \
+    mv opencv_contrib-4.6.0 opencv_contrib && \
+    mkdir -p opencv/build
+
+    cd ~/opencv/build
+    cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+    ninja -j "$(nproc)"
+    sudo env PATH=~/python3venv/bin:$PATH ninja install
+    ```
 
 - **Fedora 41**
 
-  NOTE: If you have installed different version of OpenCV using dnf, it is
-  recommended to uninstall it first. You can uninstall it with the command
-  below:
+  If you have installed it using dnf, you can uninstall it with:
 
   ```bash
   sudo dnf remove --allmatches opencv*
@@ -229,12 +227,12 @@ sudo ninja uninstall
   mkdir -p opencv/build
 
   cd ~/opencv/build
-  cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF   -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+  cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
   ninja -j "$(nproc)"
   sudo env PATH=~/python3venv/bin:$PATH ninja install
   ```
 
-## Step 7: Clone Intel® DL Streamer repository
+## Step 7: Clone Deep Learning Streamer repository
 
 ```bash
 cd ~
@@ -245,38 +243,38 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 ## Step 8: Install OpenVINO™ Toolkit
 
-### Ubuntu/Fedora
+- **Ubuntu/Fedora**
 
-Download and install OpenVINO™ Toolkit:
+  Download and install OpenVINO™ Toolkit:
 
-```bash
-cd ~/edge-ai-libraries/libraries/dl-streamer
-sudo ./scripts/install_dependencies/install_openvino.sh
-```
+  ```bash
+  cd ~/edge-ai-libraries/libraries/dl-streamer
+  sudo ./scripts/install_dependencies/install_openvino.sh
+  ```
 
-In case of any problems with the installation scripts, [Follow OpenVINO™
-Toolkit instruction guide
-here](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-archive-linux.html)
-to install OpenVINO™ on Linux.
+  In case of any problems with the installation scripts, [Follow OpenVINO™
+  Toolkit instruction guide
+  here](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-archive-linux.html)
+  to install OpenVINO™ on Linux.
 
-- Environment: **Runtime**
-- Operating System: **Linux**
-- Version: **Latest**
-- Distribution: **OpenVINO™ Archives**
+  - Environment: **Runtime**
+  - Operating System: **Linux**
+  - Version: **Latest**
+  - Distribution: **OpenVINO™ Archives**
 
-After successful OpenVINO™ Toolkit package installation, run the
-following commands to install OpenVINO™ Toolkit dependencies and enable
-OpenVINO™ Toolkit development environment:
+  After successful OpenVINO™ Toolkit package installation, run the
+  following commands to install OpenVINO™ Toolkit dependencies and enable
+  OpenVINO™ Toolkit development environment:
 
-```bash
-sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
-source /opt/intel/openvino_2025/setupvars.sh
-```
+  ```bash
+  sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
+  source /opt/intel/openvino_2025/setupvars.sh
+  ```
 
 - **EMT**
 
   ```bash
-  wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.  tgz
+  wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140 c01cd93e24d_x86_64.tgz
   tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
   sudo mv openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64 /opt/intel/openvino_2025.2.0
   cd /opt/intel/openvino_2025.2.0/
@@ -351,32 +349,32 @@ Set up the required environment variables:
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
-  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/  dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
-  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/  intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
+  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
   export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
   export GST_VA_ALL_DRIVERS="1"
-  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-  export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.  0gi
+  export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
   ```
 
 - **Fedora**
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
-  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/  dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
-  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/  intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
+  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
   export LIBVA_DRIVERS_PATH="/usr/lib64/dri-nonfree"
   export GST_VA_ALL_DRIVERS="1"
-  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/  lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
 
 - **EMT**
 
-  Follow the steps below to enable `i915` graphics driver in the system.
+  Enable `i915` graphics driver in the system:
 
   ```bash
   sudo vim /etc/default/grub
@@ -385,44 +383,22 @@ Set up the required environment variables:
   sudo reboot
   ```
 
-  After reboot set the following environment variables before trying the DL Streamer pipelines from the terminal.
+  After a reboot, before trying the Deep Learning Streamer pipelines, you can `export` the
+  following environment variables for the current terminal session (temporary solution):
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
-  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.  0:/usr/lib64/gstreamer-1.0"
-  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/  usr/local/lib:$LD_LIBRARY_PATH"
+  export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
+  export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
   export LIBVA_DRIVERS_PATH="/usr/lib/dri"
   export GST_VA_ALL_DRIVERS="1"
-  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/  python3venv/bin:$PATH"
-  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/  pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+  export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+  export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
 
-### EMT
-
-Follow the steps below to enable `i915` graphics driver in the system.
-
-```bash
-sudo vim /etc/default/grub
-### Extend the GRUB_CMDLINE_LINUX with i915.force_probe=* ###
-sudo grub2-mkconfig -o /boot/grub2/grub.cfg "$@"
-sudo reboot
-```
-
-After reboot set the following environment variables before trying the DL Streamer pipelines from the terminal.
-```bash
-export LIBVA_DRIVER_NAME=iHD
-export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib64/gstreamer-1.0"
-export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
-export LIBVA_DRIVERS_PATH="/usr/lib/dri"
-export GST_VA_ALL_DRIVERS="1"
-export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib64/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
-export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
-```
-
-> **NOTE:** To set up Linux with the relevant environment variables every time a new
-> terminal is opened, open \~/.bashrc and add the above lines
+> **NOTE:**  For a permament solution, open `\~/.bashrc` and add the variables above
+> to set up Linux to use them for every terminal session.
 
 ## Step 11: Install Python dependencies (optional)
 
