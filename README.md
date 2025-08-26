@@ -41,33 +41,57 @@ Or you can start from over 70 pre-trained models in [OpenVINO™ Open Model Zoo]
 These models include object detection, object classification, human pose detection, sound classification, semantic segmentation, and other use cases on SSD, MobileNet, YOLO, Tiny YOLO, EfficientDet, ResNet, FasterRCNN and other backbones.
 
 ## Compilation
-You can build DLStreamer using the provided Makefile. Reference `make help` for a list of all available targets.
+You can build DL Streamer using the provided Makefile. Reference `make help` for a list of all available targets.
 Currently building is supported for Ubuntu 24.04 and Ubuntu 22.04 systems.
 
-#### Compile DLStreamer and it's dependencies with
+#### Compile Deep Learning Streamer and it's dependencies with
 ```bash
-make build # build22 for Ubuntu 22.04 systems
+make build
 ```
 
-#### Install DLStreamer onto your system with
-> Note: DLStreamer will be installed in the `/opt/intel/dlstreamer` directory during this process.
+Assuming that you cloned this repository to `$HOME/edge-ai-libraries`, you can run the compiled DL Streamer by configuring your environment with these values:
+```bash
+export LIBVA_DRIVER_NAME=iHD
+export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0"
+export LD_LIBRARY_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/opencv-bin/lib:$LD_LIBRARY_PATH"
+export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
+export GST_VA_ALL_DRIVERS="1"
+export PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/opencv-bin/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:$PKG_CONFIG_PATH"
+export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+```
+
+#### Install Deep Learning Streamer onto your system with
+> Note: DL Streamer will be installed in the `/opt/intel/dlstreamer` directory during this process.
 ```bash
 make install
 ```
 
-#### Build the DLStreamer DEB package with
+You can run the installed DL Streamer by configuring your environment with these values:
+```bash
+export LIBVA_DRIVER_NAME=iHD
+export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
+export LD_LIBRARY_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/opencv/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
+export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
+export GST_VA_ALL_DRIVERS="1"
+export PATH="/opt/intel/dlstreamer/bin:/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/opencv/lib:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
+export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:/opt/intel/dlstreamer/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
+export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
+```
+
+#### Build the Deep Learning Streamer DEB package with
 > Note: the DEB package build process requires that docker be present on the system.
 ```bash
 make deb # deb22 for the Ubuntu 22.04 package
 ```
 
-#### Build the DLStreamer RPM package with
+#### Build the Deep Learning Streamer RPM package with
 > Note: the RPM package build process requires that docker be present on the system.
 ```bash
 make rpm
 ```
 
-#### Build the DLStreamer docker image with
+#### Build the Deep Learning Streamer docker image with
 ```bash
 make image # image22 for the Ubuntu 22.04 image
 ```
@@ -75,19 +99,6 @@ make image # image22 for the Ubuntu 22.04 image
 #### Clean the build artifacts with
 ```bash
 make clean
-```
-#### Configure environment
-When building manually, to use DLStreamer you will need to configure your environment so that DLStreamer can find all necessary elements. Assuming that you cloned this repository to `$HOME/edge-ai-libraries`, here's an example set of variables:
-
-```bash
-export LIBVA_DRIVER_NAME=iHD
-export GST_PLUGIN_PATH="$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0"
-export LD_LIBRARY_PATH="/opt/intel/dlstreamer/gstreamer/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:/usr/lib:/usr/local/lib:$LD_LIBRARY_PATH"
-export LIBVA_DRIVERS_PATH="/usr/lib/x86_64-linux-gnu/dri"
-export GST_VA_ALL_DRIVERS="1"
-export PATH="/opt/intel/dlstreamer/gstreamer/bin:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/bin:$HOME/.local/bin:$HOME/python3venv/bin:$PATH"
-export PKG_CONFIG_PATH="/usr/local/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:$PKG_CONFIG_PATH"
-export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 ```
 
 ## Other Useful Links
