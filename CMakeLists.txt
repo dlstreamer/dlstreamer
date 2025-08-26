@@ -8,6 +8,8 @@ cmake_minimum_required(VERSION 3.20)
 
 project(DL_Streamer C CXX)
 
+include_directories("${CMAKE_BINARY_DIR}/deps/install/include;${CMAKE_BINARY_DIR}/deps/gstreamer-bin/include;${CMAKE_BINARY_DIR}/deps/opencv-bin/include")
+
 if (WIN32)
     add_compile_options("$<$<C_COMPILER_ID:MSVC>:/utf-8>")
     add_compile_options("$<$<CXX_COMPILER_ID:MSVC>:/utf-8>")
