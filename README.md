@@ -1,14 +1,14 @@
-# Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+# Deep Learning Streamer (DL Streamer) Pipeline Framework
 
 ## Overview
 <div align="center"><img src="intro.gif" width=900/></div>
 
-[Intel® Deep Learning Streamer](./docs/source/index.md) (**Intel® DL Streamer**) Pipeline Framework is an open-source streaming media analytics framework, based on [GStreamer*](https://gstreamer.freedesktop.org) multimedia framework, for creating complex media analytics pipelines for the Cloud or at the Edge.
+[Deep Learning Streamer](./docs/source/index.md) (**DL Streamer**) Pipeline Framework is an open-source streaming media analytics framework, based on [GStreamer*](https://gstreamer.freedesktop.org) multimedia framework, for creating complex media analytics pipelines for the Cloud or at the Edge.
 
 **Media analytics** is the analysis of audio & video streams to detect, classify, track, identify and count objects, events and people. The analyzed results can be used to take actions, coordinate events, identify patterns and gain insights across multiple domains: retail store and events facilities analytics, warehouse and parking management, industrial inspection, safety and regulatory compliance, security monitoring, and many other.
 
 ## Backend libraries
-Intel® DL Streamer Pipeline Framework is optimized for performance and functional interoperability between GStreamer* plugins built on various backend libraries
+DL Streamer Pipeline Framework is optimized for performance and functional interoperability between GStreamer* plugins built on various backend libraries
 * Inference plugins use [OpenVINO™ inference engine](https://docs.openvino.ai) optimized for Intel CPU, GPU and VPU platforms
 * Video decode and encode plugins utilize [GPU-acceleration based on VA-API](https://github.com/GStreamer/gstreamer-vaapi)
 * Image processing plugins based on [OpenCV](https://opencv.org/) and [DPC++](https://www.intel.com/content/www/us/en/develop/documentation/oneapi-programming-guide/top/oneapi-programming-model/data-parallel-c-dpc.html)
@@ -32,7 +32,7 @@ To see the full list of installed components check the [dockerfile content for U
 [Samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples) available for C/C++ and Python programming, and as gst-launch command lines and scripts.
 
 ## NN models
-Intel® DL Streamer supports NN models in OpenVINO™ IR and ONNX* formats.
+DL Streamer supports NN models in OpenVINO™ IR and ONNX* formats.
 List of [supported models](./docs/source/supported_models.md) which include LVM, object detection, object classification, human pose detection, sound classification, semantic segmentation, and other use cases on SSD, MobileNet, YOLO, Tiny YOLO, EfficientDet, ResNet, FasterRCNN and other backbones also pre-trained with [Intel® Geti™ Software](<https://www.intel.com/content/www/us/en/developer/tools/tiber/edge-platform/model-builder.html>)
 
 ## Reporting Bugs and Feature Requests

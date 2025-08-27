@@ -4,7 +4,7 @@ The OpenVINO™ Intermediate Representation (IR) includes an XML file with
 description of network topology as well as conversion and runtime
 metadata.
 
-If "model_proc" file is not present, Intel® Deep Learning Streamer
+If "model_proc" file is not present, Deep Learning Streamer
 parses "model_info" section located at the end of the XML model file. An
 example section looks as in the code snippet below:
 
@@ -23,7 +23,7 @@ example section looks as in the code snippet below:
 </rt_info>
 ```
 
-Intel® Deep Learning Streamer supports the following fields in the model
+Deep Learning Streamer supports the following fields in the model
 info section:
 
 | Field | Type | Possible values or example | Description | Corresponding 'model-proc' key |

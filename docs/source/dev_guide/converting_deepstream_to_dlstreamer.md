@@ -1,7 +1,7 @@
-# Converting NVIDIA DeepStream Pipelines to Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+# Converting NVIDIA DeepStream Pipelines to Deep Learning Streamer Pipeline Framework
 
 This document describes the steps to convert a pipeline from NVIDIA
-DeepStream to Intel® DL Streamer Pipeline Framework. We also have a
+DeepStream to Deep Learning Streamer Pipeline Framework. We also have a
 running example through the document that will be updated at each step
 to help show the modifications being described.
 
@@ -12,7 +12,7 @@ section.
 ## Contents
 
 - [Preparing Your Model](#preparing-your-model)
-- [Configuring Model for Intel® DL Streamer](#configuring-model-for-intel-dl-streamer)
+- [Configuring Model for Deep Learning Streamer](#configuring-model-for-intel-dl-streamer)
 - [GStreamer Pipeline Adjustments](#gstreamer-pipeline-adjustments)
 - [Mux and Demux Elements](#mux-and-demux-elements)
 - [Inferencing Elements](#inferencing-elements)
@@ -23,12 +23,12 @@ section.
 
 ## Preparing Your Model
 
-> **Note:** To use Intel® DL Streamer Pipeline Framework and OpenVINO™ Toolkit the
+> **Note:** To use Deep Learning Streamer Pipeline Framework and OpenVINO™ Toolkit the
 model needs to be in Intermediate Representation (IR) format. To convert
 your model to this format, please follow [model preparation](model_preparation.md)
 steps.
 
-## Configuring Model for Intel® DL Streamer
+## Configuring Model for Deep Learning Streamer
 
 NVIDIA DeepStream uses a combination of model configuration files and
 DeepStream element properties to specify interference actions as well as
@@ -36,22 +36,22 @@ pre- and post-processing steps before/after running inference as
 documented here:
 [here](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_plugin_gst-nvinfer.html).
 
-Similarly, Intel® DL Streamer Pipeline Framework uses GStreamer element
+Similarly, Deep Learning Streamer Pipeline Framework uses GStreamer element
 properties for inference settings and
 [model proc](model_proc_file.md) files for pre- and post-processing steps.
 
 The following table shows how to map commonly used NVIDIA DeepStream
-configuration properties to Intel® DL Streamer settings.
+configuration properties to Deep Learning Streamer settings.
 
-| NVIDIA DeepStream config file | NVIDIA DeepStream element property | Intel® DL Streamer model proc file | Intel® DL Streamer element property | Description |
+| NVIDIA DeepStream config file | NVIDIA DeepStream element property | Deep Learning Streamer model proc file | Deep Learning Streamer element property | Description |
 |---|---|---|---|---|
 | model-engine-file <path> | model-engine-file <path> | &nbsp; | model <path> | Path to inference model network file. |
 | labelfile-path <path> | &nbsp; | &nbsp; | labels-file <path> | Path to .txt file containing object classes. |
 | network-type <0..3> | &nbsp; | &nbsp; | <br>gvadetect for detection, instance segmentation<br>gvaclassify for classification, semantic segmentation<br><br> | Type of inference operation. |
 | batch-size <N> | batch-size <N> | &nbsp; | batch-size <N> | Number of frames batched together for a single inference. |
 | maintain-aspect-ratio | &nbsp; | resize: aspect-ratio | &nbsp; | Number of frames batched together for a single inference. |
-| num-detected-classes | &nbsp; | &nbsp; | &nbsp; | Number of classes detected by the model, inferred from label file by Intel® DL Streamer. |
-| interval <N> | interval <N> | &nbsp; | inference-interval <N+1> | Inference action executed every Nth frame, please note Intel® DL Streamer value is greater by 1. |
+| num-detected-classes | &nbsp; | &nbsp; | &nbsp; | Number of classes detected by the model, inferred from label file by Deep Learning Streamer. |
+| interval <N> | interval <N> | &nbsp; | inference-interval <N+1> | Inference action executed every Nth frame, please note Deep Learning Streamer value is greater by 1. |
 | &nbsp; | threshold | &nbsp; | threshold | Threshold for detection results. |
 
 ## GStreamer Pipeline Adjustments
@@ -74,7 +74,7 @@ nvvideoconvert ! "video/x-raw, format=I420" ! videoconvert ! avenc_mpeg4 bitrate
 ```
 
 The below mapping represents the typical changes that need to be made to
-the pipeline to convert it to Intel® DL Streamer Pipeline Framework. The
+the pipeline to convert it to Deep Learning Streamer Pipeline Framework. The
 pipeline is broken down into sections based on the elements used in the
 pipeline.
 
@@ -86,7 +86,7 @@ The next chapters give more details on how to replace each element.
 
 - Remove `nvstreammux` and `nvstreamdemux` and all their properties.
   - These elements combine multiple input streams into a single
-    batched video stream (NVIDIA-specific). Intel® DL Streamer takes
+    batched video stream (NVIDIA-specific). Deep Learning Streamer takes
     a different approach: it employs generic GStreamer syntax to
     define parallel streams. The cross-stream batching happens at
     the inferencing elements by setting the same `model-instance-id`
@@ -138,8 +138,8 @@ In this example we will use `gvadetect` to infer on the full frame and
 output region of interests. `batch-size` was also added for consistency
 with what was removed above (the default value is 1 so it is not
 needed). We replaced `config-file-path` property with `model` and
-`model-proc` properties as described in "Configuring Model for Intel® DL
-Streamer" above.
+`model-proc` properties as described in "Configuring Model for Deep
+Learning Streamer" above.
 
 ```shell
 filesrc location=input_file.mp4 ! decodebin3 ! \
@@ -254,7 +254,7 @@ filesrc ! decode ! gvadetect model-instance-id=model1 ! encode ! filesink
 ## DeepStream to DLStreamer Elements Mapping Cheetsheet
 
 Below table lists quick reference for mapping typical DeepStream
-elements to Intel® DL Streamer elements or GStreamer.
+elements to Deep Learning Streamer elements or GStreamer.
 
 | DeepStream Element | DLStreamer Element |
 |---|---|

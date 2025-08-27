@@ -26,7 +26,7 @@ if doxyrest_sphinx_dir:
 
 # -- Project information -----------------------------------------------------
 
-project = 'Intel® Deep Learning Streamer (Intel® DL Streamer)'
+project = 'Deep Learning Streamer (DL Streamer)'
 copyright = '2025, Intel Corporation'
 author = 'Intel Corporation'
 

@@ -43,10 +43,10 @@ set(PLUGIN_VERSION ${PRODUCT_VERSION})
 
 add_definitions(-DPLUGIN_VERSION="${PLUGIN_VERSION}")
 add_definitions(-DPACKAGE="dlstreamer")
-add_definitions(-DPACKAGE_NAME="Intel® DL Streamer elements")
+add_definitions(-DPACKAGE_NAME="Deep Learning Streamer elements")
 add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
-add_definitions(-DPRODUCT_FULL_NAME="Intel® DL Streamer")
+add_definitions(-DPRODUCT_FULL_NAME="Deep Learning Streamer")
 
 # Helper macros and functions
 

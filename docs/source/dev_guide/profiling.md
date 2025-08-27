@@ -1,12 +1,12 @@
 # Profiling with Intel VTune™
 
 This page describes how to enable ITT tracing and analyze performance of
-Intel® Deep Learning Streamer (Intel® DL Streamer) and GStreamer
+Deep Learning Streamer and GStreamer
 elements using Intel VTune™ tool.
 
 > **NOTE:**  Intel VTune™ uses ITT interface to capture custom tasks and visualize
 > them on Profile tab. ITT instrumentation is enabled in default builds of
-> Intel® DL Streamer, oneTBB, OpenCL intercept-layer, and some other
+> Deep Learning Streamer, oneTBB, OpenCL intercept-layer, and some other
 > libraries, but disabled by default in binary releases of OpenVINO™
 > toolkit. Please refer to
 > [wiki page](https://github.com/openvinotoolkit/openvino/wiki/BuildingCode) for
@@ -48,7 +48,7 @@ Choose the Online Installer option.
    # OpenVINO™ Toolkit environment
    source /opt/intel/openvino_2024/setupvars.sh
 
-   # Intel® DL Streamer environment
+   # Deep Learning Streamer environment
    source /opt/intel/dlstreamer/gstreamer/setupvars.sh
    source /opt/intel/dlstreamer/setupvars.sh
 

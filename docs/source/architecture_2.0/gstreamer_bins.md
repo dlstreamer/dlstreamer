@@ -1,11 +1,11 @@
 # ③ GStreamer Bin Elements
 
-Intel® DL Streamer uses GStreamer bin elements to simplify creation of a
+Deep Learning Streamer uses GStreamer bin elements to simplify creation of a
 media analytics pipeline by providing most known scenarios in the form
 of built single elements, such as inference, detection, classification,
 tracking, etc. Internally such elements builds sub-pipeline using
 *low-level elements*. The diagram below shows high-level sub-pipeline
-inside Intel® DL Streamer bin elements.
+inside Deep Learning Streamer bin elements.
 
 *High-level bin elements architecture:*
 
@@ -64,7 +64,7 @@ Pre-processing operations inserted into pipeline between decode and
 inference operations. By performance and data locality considerations,
 pre-processing designed to support different backend libraries and can
 run on CPU or GPU device depending on CPU or GPU device of inference and
-decode. Intel® Deep Learning Streamer (Intel® DL Streamer) has following
+decode. Deep Learning Streamer has following
 pre-processing backends:
 
 - `gst-opencv`
@@ -79,7 +79,7 @@ where *PRIMARY* is used for as many operations as possible, and
 
 - `gst`: GStreamer standard elements
 - `opencv`: *low-level elements* based on OpenCV library
-- `vaapi`: GStreamer standard and Intel® DL Streamer **low-level
+- `vaapi`: GStreamer standard and Deep Learning Streamer **low-level
   elements** based on media GPU-acceleration interface VA-API
 - `opencl`: *low-level elements* based on OpenCL library
 
@@ -206,8 +206,8 @@ element that work with tensors starts with `tensor_postproc_` prefix.
 
 ## Bin elements
 
-Intel® DL Streamer provides variety of bin elements to simplify creation
-of media analytics pipeline. Most of Intel® DL Streamer bin elements
+Deep Learning Streamer provides variety of bin elements to simplify creation
+of media analytics pipeline. Most of Deep Learning Streamer bin elements
 internally use auxiliary element `processbin` to create a processing
 sub-pipeline.
 

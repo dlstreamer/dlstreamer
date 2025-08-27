@@ -177,8 +177,8 @@ echo "GST_VAAPI_DRM_DEVICE: ${GST_VAAPI_DRM_DEVICE}"
 echo "GST_VAAPI_ALL_DRIVERS: ${GST_VAAPI_ALL_DRIVERS}"
 
 if gst-inspect-1.0 gvadetect &> /dev/null; then
-    echo_color " Intel® DL Streamer verification successful" "green"
+    echo_color " DL Streamer verification successful" "green"
 else
-    handle_error " Intel® DL Streamer verification failed"
+    handle_error " DL Streamer verification failed"
     exit 1
 fi

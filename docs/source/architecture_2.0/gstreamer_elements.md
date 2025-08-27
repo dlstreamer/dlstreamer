@@ -3,7 +3,7 @@
 The `GstDlsTransform` class serves as shim between C++ interface and
 GStreamer and used to automatically register any C++ element as
 GStreamer element. This shim is responsible for all interactions with
-GStreamer, GLib type registrations, and wrapping Intel® DL Streamer C++
+GStreamer, GLib type registrations, and wrapping Deep Learning Streamer C++
 objects into GStreamer/GLib objects.
 
 The following class diagram shows how `GstDlsTransform` connected to C++

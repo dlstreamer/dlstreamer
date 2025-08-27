@@ -1,7 +1,7 @@
 # GStreamer Elements
 
 This page contains examples of some GStreamer elements/plugins in
-combination with the Intel® Deep Learning Streamer (Intel® DL Streamer)
+combination with the Deep Learning Streamer
 elements.
 
 | Element | Description |
