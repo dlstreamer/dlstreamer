@@ -1,7 +1,7 @@
 # Large Vision Models
 
 This page illustrates how to prepare the Vision Transformer from the
-CLIP models for integration with the Intel® DL Streamer pipeline.
+CLIP models for integration with the Deep Learning Streamer pipeline.
 
 > **NOTE:** The instructions provided below are comprehensive, but for convenience,
 > it is recommended to use the
@@ -11,7 +11,7 @@ CLIP models for integration with the Intel® DL Streamer pipeline.
 
 ## 1. Setup
 
-The instructions assume Intel® DL Streamer framework is installed on the
+The instructions assume Deep Learning Streamer framework is installed on the
 local system along with Intel® OpenVINO™ model downloader and converter
 tools, as described here:
 [Tutorial](https://dlstreamer.github.io/get_started/tutorial.html#tutorial-setup).
@@ -152,4 +152,4 @@ ov.save_model(ov_model, MODEL + ".xml")
 ## 3. Model usage
 
 See the [generate_frame_embeddings.sh](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/lvm/generate_frame_embeddings.sh) sample for detailed
-examples of Intel® DL Streamer pipelines using the model.
+examples of Deep Learning Streamer pipelines using the model.

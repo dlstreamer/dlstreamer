@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2024 Intel Corporation
+# Copyright (C) 2024-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -14,7 +14,7 @@ from jsonschema import validate
 
 dldt_str = 'dl' + 'dt'
 openvino_str = 'open' + 'vino'
-dlstreamer_name = 'Intel® ' + 'DL' + ' Streamer'
+dlstreamer_name = 'Deep ' + 'Learning' + ' Streamer'
 
 parser = ArgumentParser(add_help=False)
 _args = parser.add_argument_group('Options')
@@ -36,7 +36,7 @@ with open(args.output, 'w') as f:
     f.write('Supported Models\n')
     f.write('================\n')
     f.write('\n')
-    f.write('This page contains the table of models supported by Intel® DL Streamer.')
+    f.write('This page contains the table of models supported by Deep Learning Streamer.')
     f.write('\n')
     f.write('Each model has a link (under the model name) to the original documentation with download instructions.\n')
     f.write('\n')

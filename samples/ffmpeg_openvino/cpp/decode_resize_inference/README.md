@@ -9,7 +9,7 @@ with the following performance optimizations for GPU
 2. async inference (multiple inference requests)
 3. batched inference
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) C++ element `ffmpeg_multi_source` is used for first 3 stages of pipeline, the inference
+Deep Learning Streamer (DL Streamer) C++ element `ffmpeg_multi_source` is used for first 3 stages of pipeline, the inference
 stage implemented by directly calling OpenVINO™ API 2.0.  
 
 ## Build and Run

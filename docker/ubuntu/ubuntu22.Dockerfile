@@ -36,7 +36,7 @@ FROM ${DOCKER_REGISTRY}ubuntu:22.04 AS builder
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_ARG=Release
 
-LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
+LABEL description="This is the development image of Deep Learning Streamer (DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
 
 ARG GST_VERSION=1.26.4

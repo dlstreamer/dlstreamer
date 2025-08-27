@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,7 @@
 #include <memory>
 #include <thread>
 
-// Intel® Deep Learning Streamer
+// Deep Learning Streamer
 #include "dlstreamer/base/blocking_queue.h"
 #include "dlstreamer/ffmpeg/context.h"
 #include "dlstreamer/ffmpeg/elements/ffmpeg_multi_source.h"

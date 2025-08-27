@@ -1,11 +1,11 @@
 # Tutorial
 
 In this tutorial, you will learn how to build video analytics pipelines
-using Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline
+using Deep Learning Streamer Pipeline
 Framework.
 
 - [About GStreamer](#about-gstreamer)
-- [Introduction to Intel® Deep Learning Streamer (Intel® DL Streamer)
+- [Introduction to Deep Learning Streamer
   Pipeline
   Framework](#introduction-to-intel-deep-learning-streamer-intel-dl-streamer-pipeline-framework)
 - [Non-Docker tutorial setup](#non-docker-tutorial-setup)
@@ -23,7 +23,7 @@ Framework.
 In this section we introduce basic GStreamer\* concepts that you will
 use in the rest of the tutorial. If you are already familiar with
 GStreamer feel free to skip ahead to the next section - [Introduction to
-Intel® DL Streamer Pipeline
+Deep Learning Streamer Pipeline
 Framework](#introduction-to-intel-deep-learning-streamer-intel-dl-streamer-pipeline-framework).
 
 [GStreamer](https://gstreamer.freedesktop.org/) is a flexible, fast and
@@ -102,16 +102,16 @@ The documentation for each element, which can be viewed using the
 command line tool **gst-inspect-1.0**, describes its properties as well
 as the valid range of values for each property.
 
-## Introduction to Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+## Introduction to Deep Learning Streamer Pipeline Framework
 
-Intel® DL Streamer Pipeline Framework is an easy way to construct media
+Deep Learning Streamer Pipeline Framework is an easy way to construct media
 analytics pipelines using Intel® Distribution of OpenVINO™ toolkit. It
 leverages the open source media framework GStreamer to provide optimized
 media operations and [Deep Learning Inference
 Engine](https://docs.openvino.ai/2025/index.html) from OpenVINO™ Toolkit
 to provide optimized inference.
 
-The elements packaged in the Intel® DL Streamer Pipeline Framework
+The elements packaged in the Deep Learning Streamer Pipeline Framework
 binary release can be divided into three categories:
 
 -   Elements for optimized streaming media operations (usb and ip camera
@@ -131,7 +131,7 @@ The elements in the last two categories above are part of Pipeline
 Framework's GVA plugin and start with the prefix 'gva'. We will describe
 the 'gva' elements used in this tutorial with some important properties
 here. Refer to
-[Intel® DL Streamer elements](../elements/elements.md) page for more details.
+[Deep Learning Streamer elements](../elements/elements.md) page for more details.
 
 - [gvadetect](../elements/gvadetect.md)
 
@@ -181,7 +181,7 @@ for running inference with any CNN model not supported by gvadetect or
 gvaclassify. `queue` element must be put directly after `gvainference`
 element in pipeline. Also, instead of visualizing the inference results,
 as shown in this tutorial, you can publish them to MQTT, Kafka or a file
-using `gvametaconvert` and `gvametapublish` of Intel® DL Streamer.
+using `gvametaconvert` and `gvametapublish` of Deep Learning Streamer.
 
 ## Non-Docker tutorial setup
 
@@ -269,7 +269,7 @@ It is suitable if you chose Option #2 (Docker) in Install Guide Ubuntu.
     > **NOTE:** Make sure your environment variable `$PATH` includes
     > `$HOME/.local/bin` - use `echo $PATH`.
 
-4.  Run Intel® DL Streamer container.
+4.  Run Deep Learning Streamer container.
 
     Run Docker container with the models directory mounted into the
     container using `-v` or `--volume` parameter in `docker run`
@@ -288,9 +288,9 @@ It is suitable if you chose Option #2 (Docker) in Install Guide Ubuntu.
     docker run -it --rm -v ${MODELS_PATH}:/home/dlstreamer/models --env MODELS_PATH=/home/dlstreamer/models intel/dlstreamer:latest
     ```
 
-    Running Intel® DL Streamer in the Docker container with an inference
+    Running Deep Learning Streamer in the Docker container with an inference
     on GPU or NPU devices requires the access as a non-root user to
-    these devices in the container. Intel® DL Streamer Pipeline
+    these devices in the container. Deep Learning Streamer Pipeline
     Framework Docker images do not contain a `render` group for
     `dlstreamer` non-root user because the `render` group does not have
     a strict group ID, unlike the `video` group. To run container as
@@ -615,7 +615,7 @@ For publishing the results to MQTT or Kafka, please refer to the
 samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/metapublish).
 
 You have completed this tutorial. Now, start creating your video
-analytics pipeline with Intel® DL Streamer Pipeline Framework!
+analytics pipeline with Deep Learning Streamer Pipeline Framework!
 
 ## Additional Resources
 

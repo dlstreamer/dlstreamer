@@ -1,10 +1,10 @@
 # Architecture 2.0
 
 > **Note:** The Architecture 2.0 approach is being deprecated in favor of aligning
-Intel® DL Streamer with [GStreamer analytics
+Deep Learning Streamer with [GStreamer analytics
 library](https://gstreamer.freedesktop.org/documentation/analytics/index.html).
 
-Intel® DL Streamer Pipeline Framework release 2022.2 introduces new
+Deep Learning Streamer Pipeline Framework release 2022.2 introduces new
 architecture 2.0, aiming for the following goals:
 
 1. **Memory interop on CPU and GPU.** Provide independent sub-component
@@ -18,7 +18,7 @@ architecture 2.0, aiming for the following goals:
    [Sink](./api_ref/class_dlstreamer_Sink) for C++ elements implemented in next sub-component. See
    [Memory Interop and C++ abstract interfaces](./cpp_interfaces) for details.
 2. **\"non-GStreamer\" backend support via C++/Python programming.**
-   Expose Intel® DL Streamer functional blocks (elements) as both
+   Expose Deep Learning Streamer functional blocks (elements) as both
    GStreamer elements and C++/Python interfaces accessible by any
    C++/Python application (not using GStreamer). These out-of-box
    elements support typical media analytics operations such as
@@ -40,7 +40,7 @@ architecture 2.0, aiming for the following goals:
    [GStreamer Elements](gstreamer_elements) and [GStreamer Bin Elements](gstreamer_bins) for details.
 
 The following diagram visualizes Architecture 2.0 sub-components ①, ②
-and ③ inside block **Intel® DL Streamer Pipeline Framework**
+and ③ inside block **Deep Learning Streamer Pipeline Framework**
 
 ![image](dlstreamer-arch-2.0.png)
 

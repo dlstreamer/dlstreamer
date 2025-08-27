@@ -36,7 +36,7 @@ FROM ${DOCKER_REGISTRY}fedora:41 AS builder
 
 ARG BUILD_ARG=Release
 
-LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
+LABEL description="This is the development image of Deep Learning Streamer (DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
 
 ARG GST_VERSION=1.26.4
@@ -336,7 +336,7 @@ RUN dnf install -y "openvino-${OPENVINO_VERSION}" && \
     dnf clean all
 
 
-# Intel® DL Streamer
+# Deep Learning Streamer
 WORKDIR "$DLSTREAMER_DIR"
 
 COPY . "${DLSTREAMER_DIR}"

@@ -18,7 +18,7 @@ This sample builds GStreamer pipeline of the following elements
 ## Models
 
 The samples use YOLO models from different repositories as listed in a table below. The model preparation and conversion method depends on the model source.
-The instructions assume Intel® DL Streamer framework is installed on the local system along with Intel® OpenVINO™ model downloader and converter tools,
+The instructions assume DL Streamer framework is installed on the local system along with Intel® OpenVINO™ model downloader and converter tools,
 as described here: [Tutorial](https://dlstreamer.github.io/get_started/tutorial.html#tutorial-setup).
 
 For yolov5su, yolov8s (8n-obb,8n-seg), yolov9c, yolov10s and yolo11s (yolo11s-seg, yolo11s-obb) models it is also necessary to install the ultralytics python package:
@@ -26,7 +26,7 @@ For yolov5su, yolov8s (8n-obb,8n-seg), yolov9c, yolov10s and yolo11s (yolo11s-se
 ```sh
 pip install ultralytics
 ```
-The samples demonstrate deployment and inference with GStreamer command line tool `gst-launch-1.0` and Intel® DL Streamer components for the following set of models:
+The samples demonstrate deployment and inference with GStreamer command line tool `gst-launch-1.0` and DL Streamer components for the following set of models:
 
 | Model        | Model Preparation                                                                                         | Model pipeline (model-proc)       |
 | ------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------------|

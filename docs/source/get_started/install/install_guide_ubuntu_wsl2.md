@@ -1,6 +1,6 @@
 # Install Guide Ubuntu 24.04 on WSL2
 
-Page describes steps required to install Intel® DL Streamer Pipeline
+Page describes steps required to install Deep Learning Streamer Pipeline
 Framework on host Windows machine and Ubuntu on WSL2
 
 ## On Windows Host System
@@ -98,7 +98,7 @@ sudo apt update
 sudo apt-get install -y  libze-dev intel-opencl-icd  intel-media-va-driver-non-free libmfx1  libvpl2   libegl-mesa0 libegl1-mesa-dev libgbm1 libgl1-mesa-dev libgl1-mesa-dri   libglapi-mesa libgles2-mesa-dev libglx-mesa0 libigdgmm12 libxatracker2 mesa-va-drivers   mesa-vdpau-drivers mesa-vulkan-drivers va-driver-all
 ```
 
-### Step 4: Add OpenVINO™ Toolkit and Intel® DL Streamer repositories
+### Step 4: Add OpenVINO™ Toolkit and Deep Learning Streamer repositories
 
 ```bash
 sudo -E wget -O- https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | gpg --dearmor | sudo tee /usr/share/keyrings/oneapi-archive-keyring.gpg > /dev/null
@@ -108,7 +108,7 @@ sudo bash -c 'echo -e "Package: *\nPin: origin eci.intel.com\nPin-Priority: 1000
 sudo bash -c 'echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list'
 ```
 
-### Step 5: Install Intel® DL Streamer Pipeline Framework
+### Step 5: Install Deep Learning Streamer Pipeline Framework
 
 ```bash
 sudo apt update

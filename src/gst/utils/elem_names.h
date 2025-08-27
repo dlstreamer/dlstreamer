@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,7 @@
 
 namespace dlstreamer::elem {
 
-// Intel® Deep Learning Streamer (Intel® DL Streamer) elements
+// Deep Learning Streamer (DL Streamer) elements
 constexpr const char *roi_split = "roi_split";
 constexpr const char *rate_adjust = "rate_adjust";
 constexpr const char *vaapi_batch_proc = "vaapi_batch_proc";

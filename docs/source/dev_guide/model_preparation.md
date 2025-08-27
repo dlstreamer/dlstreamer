@@ -1,6 +1,6 @@
 # Model Preparation
 
-When getting started with Intel® DL Streamer, the best way to obtain a
+When getting started with Deep Learning Streamer, the best way to obtain a
 collection of models ready for use in video analytics pipelines is to
 run
 [download_omz_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/download_omz_models.sh)
@@ -13,13 +13,13 @@ directory specified by the MODELS_PATH environment variable.
 
 This way, you will be able to easily perform the most popular tasks,
 such as object detection and classification, instance segmentation, face
-localization and many others. For examples of how to set up Intel® DL
-Streamer pipelines that carry out these functions, please refer to the
+localization and many others. For examples of how to set up Deep
+Learning Streamer pipelines that carry out these functions, please refer to the
 [sample directory](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch).
 
 If you're interested in designing custom pipelines, make sure to review the
 [Supported Models](https://dlstreamer.github.io/supported_models.html) table for
-guidance on whether Intel® DL Streamer elements require specific
+guidance on whether Deep Learning Streamer elements require specific
 configurations (defined by the model-proc or labels files) for your
 selected model.
 
@@ -60,7 +60,7 @@ including the CPU, with only a minor accuracy drop.
 
 ## 2. Model pre- and post-processing
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) plugins are capable
+Deep Learning Streamer plugins are capable
 of optionally performing certain pre- and post-processing operations
 before/after inference.
 

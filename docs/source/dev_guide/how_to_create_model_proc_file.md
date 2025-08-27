@@ -1,8 +1,8 @@
 # How to Create Model-proc File
 
 In this tutorial you will learn how to create model-proc file for your
-own CNN model that can be processed by Intel® Deep Learning Streamer
-(Intel® DL Streamer) Pipeline Framework.
+own CNN model that can be processed by Deep Learning Streamer
+Pipeline Framework.
 
 Please refer to the [model-proc documentation](./model_proc_file.md)
 before going through this tutorial.
