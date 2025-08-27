@@ -1,6 +1,6 @@
 # System Requirements
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) releases are
+Deep Learning Streamer releases are
 validated on the following target systems with inference performed on
 all available processing units:
 
@@ -12,7 +12,7 @@ all available processing units:
 [Lunar Lake](https://www.intel.com/content/www/us/en/ark/products/codename/213792/products-formerly-lunar-lake.html)  | Intel® Core™ Ultra Processors - series 2   | Integrated Intel® Arc™ B-Series Graphics | Integrated Intel® AI Boost | Ubuntu 24.04 with kernel version &gt;= 6.12
  [Arrow Lake](https://www.intel.com/content/www/us/en/ark/products/codename/225837/products-formerly-arrow-lake.html)  | Intel® Core™ Ultra Processors - series 2   | Integrated Intel® Arc™ Graphics          | Integrated Intel® AI Boost | Ubuntu 24.04 with kernel version &gt;= 6.12
 
-Additionally, Intel® DL Streamer releases are validated on the following
+Additionally, Deep Learning Streamer releases are validated on the following
 discrete GPUs:
 
  Codename   | GPU                                | Operating system

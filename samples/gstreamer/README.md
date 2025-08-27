@@ -1,4 +1,4 @@
-# Intel® Deep Learning Streamer (Intel® DL Streamer) Samples
+# Deep Learning Streamer (DL Streamer) Samples
 
 Samples are simple applications that demonstrate how to use the Intel® DL Streamer. The samples are available in the `/opt/intel/dlstreamer/samples` directory.
 
@@ -14,7 +14,7 @@ Samples separated into several categories
     * [Instance Segmentation Sample](./gst_launch/instance_segmentation/README.md) - demonstrates Instance Segmentation via object_detect and object_classify bin elements
     * [Detection with Yolo](./gst_launch/detection_with_yolo/README.md) - demonstrates how to use publicly available Yolo models for object detection and classification
     * [Deployment of Geti™ models](./gst_launch/geti_deployment/README.md) - demonstrates how to deploy models trained with Intel® Geti™ Platform for object detection, anomaly detection and classification tasks
-    * [Multi-camera deployments](./gst_launch/multi_stream/README.md) - demonstrates how to handle video streams from multiple cameras with one instance of Intel® DL Streamer application
+    * [Multi-camera deployments](./gst_launch/multi_stream/README.md) - demonstrates how to handle video streams from multiple cameras with one instance of DL Streamer application
     * [gvaattachroi](./gst_launch/gvaattachroi/README.md) - demonstrates how to use gvaattachroi to define the regions on which the inference should be performed
     * [LVM embeddings](./gst_launch/lvm/README.md) - demonstrates generation of image embeddings using the Large Vision CLIP model
     * [License Plate Recognition Sample](./gst_launch/license_plate_recognition/README.md) - demonstrates the use of the Yolo detector together with the optical character recognition model
@@ -36,7 +36,7 @@ Other samples (without C/C++ code) provide .sh script for constructing and execu
 
 ## DL Models
 
-Intel® DL Streamer samples use pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
+DL Streamer samples use pre-trained models from OpenVINO™ Toolkit [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
 
 Before running samples, run script `download_omz_models.sh` once to download all models required for samples. The script located in `samples` top folder.
 > **NOTE**: To install all necessary requirements for `download_omz_models.sh` script run this command:
@@ -51,7 +51,7 @@ python3 -m pip install openvino-dev[caffe,onnx,tensorflow2,pytorch,mxnet]
 
 ## Input video
 
-First command-line parameter in Intel® DL Streamer samples specifies input video and supports
+First command-line parameter in DL Streamer samples specifies input video and supports
 * local video file
 * web camera device (ex. `/dev/video0`)
 * RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)

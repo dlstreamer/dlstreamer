@@ -40,7 +40,7 @@ This sample assumes a user has already trained models using Intel® Geti™ Plat
    |-openvino.bin                   # model weights
 ```
 
-The set of samples demonstrates how to deploy above models to run inference with GStreamer command line tool `gst-launch-1.0` and Intel® DL StreamerDL Streamer framework components.
+The set of samples demonstrates how to deploy above models to run inference with GStreamer command line tool `gst-launch-1.0` and DL Streamer framework components.
 
 ## Samples
 

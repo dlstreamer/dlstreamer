@@ -5,7 +5,7 @@ The sample implements pipeline
 FFmpeg input -> FFmpeg VAAPI decode -> VAAPI resize -> SYCL kernel
 ```
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) C++ element `ffmpeg_multi_source` is used for first 3 stages of pipeline.
+Deep Learning Streamer (DL Streamer) C++ element `ffmpeg_multi_source` is used for first 3 stages of pipeline.
 
 The SYCL kernel is simple kernel converting RGB into Grayscale. It requires Intel® oneAPI Level Zero support to work.
 

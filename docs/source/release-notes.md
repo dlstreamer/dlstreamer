@@ -1,6 +1,6 @@
-# Intel® Deep Learning Streamer Pipeline Framework Release 2025.1.2
+# Deep Learning Streamer Pipeline Framework Release 2025.1.2
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework is a streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines. It ensures pipeline interoperability and provides optimized media, and inference operations using Intel® Distribution of OpenVINO™ Toolkit Inference Engine backend, across Intel® architecture, CPU, discrete GPU, integrated GPU and NPU.
+Deep Learning Streamer Pipeline Framework is a streaming media analytics framework, based on GStreamer* multimedia framework, for creating complex media analytics pipelines. It ensures pipeline interoperability and provides optimized media, and inference operations using Intel® Distribution of OpenVINO™ Toolkit Inference Engine backend, across Intel® architecture, CPU, discrete GPU, integrated GPU and NPU.
 The complete solution leverages:
 
 - Open source GStreamer\* framework for pipeline management
@@ -27,7 +27,7 @@ The complete solution leverages:
   | [gvawatermark](./elements/gvawatermark.md) | Overlays the metadata on the video frame to visualize the inference   results. |
 
 For the details on supported platforms, please refer to [System Requirements](./get_started/system_requirements.md).
-For installing Pipeline Framework with the prebuilt binaries or Docker\* or to build the binaries from the open source, refer to [Intel® DL Streamer Pipeline Framework installation guide](./get_started/install/install_guide_index.md).
+For installing Pipeline Framework with the prebuilt binaries or Docker\* or to build the binaries from the open source, refer to [Deep Learning Streamer Pipeline Framework installation guide](./get_started/install/install_guide_index.md).
 
 ## New in this Release
 

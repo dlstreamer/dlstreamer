@@ -590,7 +590,7 @@ if [ "$on_host_or_docker" == "host" ]; then
             echo_color " Kernel 6.12 or higher detected." "green"
         else
             echo_color "\n WARNING!" "red"
-            echo_color "\n Intel® Deep Learning Streamer on Lunar Lake family processors has only been tested with the 6.12 kernel. We strongly recommend updating the kernel version before proceeding." "red"
+            echo_color "\n Deep Learning Streamer on Lunar Lake family processors has only been tested with the 6.12 kernel. We strongly recommend updating the kernel version before proceeding." "red"
             read -p " Quit installation? [y/n] " -n 1 -r
             echo
             if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -867,7 +867,7 @@ if [ "$need_to_reboot" -eq 1 ]; then
   fi
 else
     echo_color "\n Environment setup completed successfully. " "bgreen"
-    echo_color " You may now proceed with the installation of Intel® DL Streamer." "green"
+    echo_color " You may now proceed with the installation of DL Streamer." "green"
 
     echo " ---------------------------------------------------"
     echo  " The following hardware will be enabled: "

@@ -2,15 +2,15 @@
 orphan: true
 ---
 
-# Intel® Deep Learning Streamer (Intel® DL Streamer) API reference
+# Deep Learning Streamer (DL Streamer) API reference
 
 ## Overview
 
-This documentation describes Intel® DL Streamer metadata API (Application Programming Interface) that allows you to access and to control inference results obtained from Intel® DL Streamer plugin elements, such as **gvainference**, **gvadetect**, **gvaclassify**. In Intel® DL Streamer, all inference results (both raw and interpreted) are passing through GStreamer pipeline being attached to GstBuffer objects as GStreamer metadata.
+This documentation describes Deep Learning Streamer metadata API (Application Programming Interface) that allows you to access and to control inference results obtained from Deep Learning Streamer plugin elements, such as **gvainference**, **gvadetect**, **gvaclassify**. In Deep Learning Streamer, all inference results (both raw and interpreted) are passing through GStreamer pipeline being attached to GstBuffer objects as GStreamer metadata.
 
-For better developer experience we provide Intel® DL Streamer API (C++ and Python versions) which simplifies any job you want to perform on inference results, like consuming and further reusing, additional custom post-processing, and more. Also, most of the times, Intel® DL Streamer API allows you to abstract from internal inference results as GStreamer metadata.
+For better developer experience we provide Deep Learning Streamer API (C++ and Python versions) which simplifies any job you want to perform on inference results, like consuming and further reusing, additional custom post-processing, and more. Also, most of the times, Deep Learning Streamer API allows you to abstract from internal inference results as GStreamer metadata.
 
-In Intel® DL Streamer API, most of the job is done by these classes: `GVA::VideoFrame`, `GVA::RegionOfInterest` and `GVA::Tensor` (C++ version is referenced here, but Python version is available as well). Take a look at schematic picture below, which represents how these classes relate.
+In DL Streamer API, most of the job is done by these classes: `GVA::VideoFrame`, `GVA::RegionOfInterest` and `GVA::Tensor` (C++ version is referenced here, but Python version is available as well). Take a look at schematic picture below, which represents how these classes relate.
 
 ![Intel® Deep Learning Streamer metadata API classes](GVA_API.png "Metadata API classes")
 
@@ -20,11 +20,11 @@ Similar, one `GVA::VideoFrame` can contain from 0 to many `GVA::Tensor objects`,
 
 `GVA::RegionOfInterest` can also contain multiple `GVA::Tensor` objects, which are products of running classification (by **gvaclassify** element in a pipeline) on `GVA::RegionOfInterest` they belong to. Such `GVA::Tensor` can contain `GVA::Tensor::label` which is string containing interpreted classification result (examples are person's age, car's color, etc.). `GVA::Tensor` also stores raw data (model output blob), which can be obtained with `GVA::Tensor::data`. Normally, one `GVA::Tensor` contains some additional detection information, which can be obtained with `GVA::RegionOfInterest::detection`. You can check if `GVA::Tensor` is detection tensor with `GVA::Tensor::is_detection`. Detection `GVA::Tensor` extends detection information contained in `GVA::RegionOfInterest`.
 
-Any modification you perform using Intel® DL Streamer API will affect underlying metadata as though you modified it directly. For example, you can add `GVA::RegionOfInterest` or `GVA::Tensor` objects to `GVA::VideoFrame`, and real GStreamer metadata instances will be added to GstBuffer of current `GVA::VideoFrame`. It means, the objects you added will behave as if they were produced by GVA elements mentioned above. You will be able to reach these objects further by pipeline using both internal metadata representation and Intel® DL Streamer API. Also, any Intel® DL Streamer elements that rely on inference results will employ objects you added. For example, **gvawatermark** will render on screen these objects (for example, it will draw bounding box for added `GVA::RegionOfInterest`).
+Any modification you perform using DL Streamer API will affect underlying metadata as though you modified it directly. For example, you can add `GVA::RegionOfInterest` or `GVA::Tensor` objects to `GVA::VideoFrame`, and real GStreamer metadata instances will be added to GstBuffer of current `GVA::VideoFrame`. It means, the objects you added will behave as if they were produced by GVA elements mentioned above. You will be able to reach these objects further by pipeline using both internal metadata representation and Intel® DL Streamer API. Also, any Intel® DL Streamer elements that rely on inference results will employ objects you added. For example, **gvawatermark** will render on screen these objects (for example, it will draw bounding box for added `GVA::RegionOfInterest`).
 
 ## Inference results flow
 
-Video analytics pipeline is a GStreamer pipeline with one or several Intel® DL Streamer elements for inference and additional actions (publishing, rendering, etc.) if needed. Take a look at this pipeline:
+Video analytics pipeline is a GStreamer pipeline with one or several Deep Learning Streamer elements for inference and additional actions (publishing, rendering, etc.) if needed. Take a look at this pipeline:
 
 ```sh
 INPUT=video.mp4
@@ -40,7 +40,7 @@ gst-launch-1.0 \
     gvawatermark ! videoconvert ! fpsdisplaysink video-sink=xvimagesink sync=false
 ```
 
-Note: following explanation is based on C++ Intel® DL Streamer API, but Python Intel® DL Streamer API can be used in the same way
+Note: following explanation is based on C++ Deep Learning Streamer API, but Python Deep Learning Streamer API can be used in the same way
 
 Here, **gvadetect** runs face detection on each frame (`GVA::VideoFrame`) of provided video file. Let's say it detected 3 faces on particular frame. It means that 3 instances of `GVA::RegionOfInterest` will be added to this frame. Also, each `GVA::RegionOfInterest` will get its own detection `GVA::Tensor` attached. Such `GVA::Tensor` contains additional detection information.
 
@@ -50,14 +50,14 @@ After first classification frame goes into second **gvaclassify** element, which
 
 Thus, after detection & classification part of pipeline we have `GVA::VideoFrame` with 3 instances of `GVA::RegionOfInterest` added, and 4 instances of `GVA::Tensor` added to each of 3 instances of `GVA::RegionOfInterest`. On image level, it means that we've got 3 persons detected, and age, gender & emotion of each of them is classified.
 
-Last Intel® DL Streamer element in the pipeline is **gvawatermark** and its job is to display inference results on top of frame currently rendered on screen. To do this, it creates `GVA::VideoFrame` instance for current frame and iterates by attached `GVA::RegionOfInterest` instances, and by `GVA::Tensor` instances, attached to each of `GVA::RegionOfInterest`. This way, you will see bounding boxes drawn around persons faces, and these boxes will also be labeled with age, gender & emotion.
+Last DL Streamer element in the pipeline is **gvawatermark** and its job is to display inference results on top of frame currently rendered on screen. To do this, it creates `GVA::VideoFrame` instance for current frame and iterates by attached `GVA::RegionOfInterest` instances, and by `GVA::Tensor` instances, attached to each of `GVA::RegionOfInterest`. This way, you will see bounding boxes drawn around persons faces, and these boxes will also be labeled with age, gender & emotion.
 
-The whole point of Intel® DL Streamer API is to allow you to access any object we described above in any point of pipeline. You can read it, modify it, add your own tensors and regions of interest, and so on. Thus, you can add custom post-processing for any deep learning model in case Intel® DL Streamer inference elements don't support it. There is a handy **gvainference** element, which adds raw inference result (output layer blob) in `GVA::Tensor`, so you can do custom post-processing on it.
+The whole point of DL Streamer API is to allow you to access any object we described above in any point of pipeline. You can read it, modify it, add your own tensors and regions of interest, and so on. Thus, you can add custom post-processing for any deep learning model in case Intel® DL Streamer inference elements don't support it. There is a handy **gvainference** element, which adds raw inference result (output layer blob) in `GVA::Tensor`, so you can do custom post-processing on it.
 
 ## Print inference results example
 
 Here we provide a few code snippets, which print some of inference results obtained from video analytics pipeline. They are different ways to achieve the same thing.
-To get thorough understanding of how to create an application which takes advantage of Intel® DL Streamer API, make sure to check out the rest of this document.
+To get thorough understanding of how to create an application which takes advantage of Deep Learning Streamer API, make sure to check out the rest of this document.
 
 ### 1. Access inference results with low-level C code
 
@@ -144,13 +144,13 @@ def PrintMeta(buffer: Gst.Buffer, caps: Gst.Caps):  # simple function to display
 
 ## Custom post-processing tutorial
 
-There are several ways how you can access inference results provided by Intel® DL Streamer elements in GStreamer pipeline using Intel® DL Streamer API:
+There are several ways how you can access inference results provided by Deep Learning Streamer elements in GStreamer pipeline using Deep Learning Streamer API:
 
-1. Create **C++/Python** application, which sets up callback on buffer passing through any Intel® DL Streamer element and runs video analytics pipeline. In the body of this callback GstBuffer and, hence, Intel® DL Streamer API will be available
+1. Create **C++/Python** application, which sets up callback on buffer passing through any Deep Learning Streamer element and runs video analytics pipeline. In the body of this callback GstBuffer and, hence, Deep Learning Streamer API will be available
 2. Create **C++/Python** application, which runs video analytics pipeline with standard appsink element added as sink. You will then be able to register callback on GstBuffer incoming to appsink
-3. Write your own GStreamer plugin which has access to GstBuffers coming through and insert it to pipeline after Intel® DL Streamer inference elements
+3. Write your own GStreamer plugin which has access to GstBuffers coming through and insert it to pipeline after Deep Learning Streamer inference elements
 
-We've got plenty examples of following ways 1 & 2 in our samples and most existing Intel® DL Streamer elements relying on existing inference result are basically based on 3rd way (e.g. **gvaclassify**, **gvatrack**, and more). Let's focus on one specific task: let's say, you have very specific deep learning model, which requires custom post-processing (**gvadetect** is not able to correctly interpret inference results of some models you can train or find on Web). You know how post processing should be implemented, but you don't know how to get and make any use of inference results produced by video analytics pipeline. To solve this task, you will need **gvainference** element, which runs deep learning model inference on passing video frame and stores raw inference result in a form of `GVA::Tensor`, attached to `GVA::VideoFrame`. So we use **gvainference** to get tensors, but how do we access these produced tensors?
+We've got plenty examples of following ways 1 & 2 in our samples and most existing DL Streamer elements relying on existing inference result are basically based on 3rd way (e.g. **gvaclassify**, **gvatrack**, and more). Let's focus on one specific task: let's say, you have very specific deep learning model, which requires custom post-processing (**gvadetect** is not able to correctly interpret inference results of some models you can train or find on Web). You know how post processing should be implemented, but you don't know how to get and make any use of inference results produced by video analytics pipeline. To solve this task, you will need **gvainference** element, which runs deep learning model inference on passing video frame and stores raw inference result in a form of `GVA::Tensor`, attached to `GVA::VideoFrame`. So we use **gvainference** to get tensors, but how do we access these produced tensors?
 
 Any of 3 approaches above will suffice. For the clarity of explanation, let's choose 1st one and focus on it. Also, for our tutorial we will add "custom" post-processing for SSD-like models. **gvadetect** already implements this type of post-processing, but here we will use **gvainference** and set up post-processing as callback. In your case, you will need to only put your post-processing code instead of ours.
 
@@ -165,7 +165,7 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GObject', '2.0')
 from gi.repository import Gst, GstVideo, GObject
 
-# Intel® DL Streamer API modules
+# Deep Learning Streamer API modules
 from gstgva import VideoFrame, util
 
 parser = ArgumentParser(add_help=False)
@@ -253,7 +253,7 @@ gi.require_version('Gst', '1.0')
 gi.require_version('GObject', '2.0')
 from gi.repository import Gst, GstVideo, GObject
 
-# Intel® DL Streamer API modules
+# Deep Learning Streamer API modules
 from gstgva import VideoFrame, util
 ```
 
@@ -268,7 +268,7 @@ _args.add_argument("-d", "--detection_model", help="Required. Path to an .xml fi
                    required=True, type=str)
 ```
 
-Next, function `process_frame` defines post-processing. As we said above, this code is for SSD-like models, so please feel free to replace it with your own post-processing implementation that suffices your custom model. Meanwhile, let's take a look at usage of Intel® DL Streamer API in this piece.
+Next, function `process_frame` defines post-processing. As we said above, this code is for SSD-like models, so please feel free to replace it with your own post-processing implementation that suffices your custom model. Meanwhile, let's take a look at usage of Deep Learning Streamer API in this piece.
 
 Tons of image information regarding current video frame can be obtain with gstgva.video_frame.VideoFrame.video_info. You can get image width, height, channels format and much more:
 

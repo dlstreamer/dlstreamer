@@ -23,7 +23,7 @@ second is tiny .so file with GStreamer wrappers and registered as
 GStreamer plug-in.
 
 The following Debian packages are currently distributed in scope of
-Intel® DL Streamer Architecture 2.0.
+Deep Learning Streamer Architecture 2.0.
 
 | Debian package | Dependencies |
 |---|---|

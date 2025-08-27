@@ -6,6 +6,7 @@
 
 The instructions below are intended for building Deep Learning Streamer Pipeline Framework
 from the source code provided in
+
 [Open Edge Platform repository](https://github.com/open-edge-platform/edge-ai-libraries.git).
 
 ## Step 1: Install prerequisites (only for Ubuntu)

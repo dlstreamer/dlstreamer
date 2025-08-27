@@ -1,15 +1,15 @@
-# Intel® Deep Learning Streamer
+# Deep Learning Streamer
 
-**Intel® Deep Learning Streamer (Intel® DL Streamer)** is an open-source
+**Deep Learning Streamer (DL Streamer)** is an open-source
 streaming media analytics framework. It is based on GStreamer\* multimedia
 framework, and it is used for creating complex media analytics pipelines for the Cloud
 or at the Edge. DL Streamer consists of:
 
-- [Intel® DL Streamer Pipeline
+- [Deep Learning Streamer Pipeline
   Framework](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer)
   for designing, creating, building, and running media analytics
   pipelines. It includes C++ and Python APIs.
-- [Intel® DL Streamer Pipeline
+- [Deep Learning Streamer Pipeline
   Server](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/microservices/dlstreamer-pipeline-server)
   for deploying and scaling media analytics pipelines as
   micro-services on one or many compute nodes. It includes REST APIs
@@ -48,7 +48,7 @@ deploy, and benchmark. They require:
   and their interactions with CPUs and the rest of the host system (e.g.,
   CPUs, integrated GPUs, discrete GPUs and VPUs)
 
-**Intel® DL Streamer** makes **Media Analytics** easy:
+**Deep Learning Streamer** makes **Media Analytics** easy:
 
 - Get better performance, using less code
 - Quickly develop, optimize, benchmark, and deploy video & audio
@@ -64,11 +64,11 @@ deploy, and benchmark. They require:
 - Leverage NNStreamer\* selected AI inferencing elements via pipeline
   inter-operability
 - Customize and extend your solution by reviewing, analyzing, and
-  modifying Intel® DL Streamer open-sourced code.
+  modifying DL Streamer open-sourced code.
 
-![Intel® DL Streamer SW Stack](_images/overview_sw_stack.png)
+![Deep Learning Streamer SW Stack](_images/overview_sw_stack.png)
 
-**Intel® DL Streamer** uses OpenVINO™ Runtime inference back-end,
+**DL Streamer** uses OpenVINO™ Runtime inference back-end,
 optimized for Intel hardware platforms and supports over
 [70 NN Intel and open-source community pre-trained models](https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/docs/scripts/supported_models.json), and models converted
 [from other training frameworks](https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-to-ir.html).
@@ -77,11 +77,11 @@ detection, sound classification, semantic segmentation, and other use
 cases: SSD, MobileNet, YOLO, Tiny YOLO, EfficientDet, ResNet,
 FasterRCNN, and other models.
 
-**Intel® DL Streamer** provides over two dozen samples, demos and
+**DL Streamer** provides over two dozen samples, demos and
 reference apps for the most common media analytics use cases. They are
 included in
-[Intel® Deep Learning Streamer Pipeline Framework](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer),
-[Intel® DL Streamer Pipeline Server](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/microservices/dlstreamer-pipeline-server),
+[Deep Learning Streamer Pipeline Framework](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer),
+[Deep Learning Streamer Pipeline Server](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/microservices/dlstreamer-pipeline-server),
 [Open Visual Cloud](https://github.com/OpenVisualCloud), and
 [Intel® Edge Software Hub](https://www.intel.com/content/www/us/en/edge-computing/edge-software-hub.html)
 The samples demonstrate C++ and/or Python based: Action Recognition, Face Detection and
@@ -90,14 +90,14 @@ Pedestrian Tracking, Human Pose Estimation, Metadata Publishing, Smart
 City Traffic and Stadium Management, Intelligent Ad insertion, single- &
 multi- channel video analytics pipelines benchmark, and other use cases.
 
-**Intel® DL Streamer** offers a long list of models and samples
+**DL Streamer** offers a long list of models and samples
 optimized for Intel hardware platforms, which can be used as a
 reference or a starting point for a wide range of applications and
 system configurations. These models and samples are a quick & easy way
 to reach high performance, then benchmark and optimize your application
 on your system.
 
-**Intel® DL Streamer** is already used by many partners and customers
+**Deep Learning Streamer** is already used by many partners and customers
 leading solutions, including [Open Visual
 Cloud](https://github.com/OpenVisualCloud) Media Analytics services,
 [NTT Software Innovation
@@ -107,9 +107,9 @@ AIVID TECHVISION and others.
 
 # Testimonials
 
-| ![NTT_Logo](./_images/NTT_Logo.png) | “Intel® DL Streamer (OpenVINO™) is an easy-to-use and extensible application framework, which provides a well-organized set of classes and methods. In particular, Intel® DL Streamer allows us to add user-defined post processing with gvapython elements. This feature will help us develop AI-based video analytics applications for NTT's businesses, addressing various customer demands responsively.”<br>— Takeharu Eda, Senior Research Engineer, NTT Software Innovation Center<br> |
+| ![NTT_Logo](./_images/NTT_Logo.png) | “Deep Learning Streamer (OpenVINO™) is an easy-to-use and extensible application framework, which provides a well-organized set of classes and methods. In particular, Deep Learning Streamer allows us to add user-defined post processing with gvapython elements. This feature will help us develop AI-based video analytics applications for NTT's businesses, addressing various customer demands responsively.”<br>— Takeharu Eda, Senior Research Engineer, NTT Software Innovation Center<br> |
 |---|---|
-| <br> | "Intel® DL Streamer Pipeline Server has helped TIBCO Software to develop and optimize Project AIR solution with less effort and shorter TTM, and to deliver better user experience that includes no-code data pipelines. Project AIR was able to easier deploy and expose optimized video analytics pipelines as microservices accessible for consumption via REST APIs."<br>— Miguel Torres, Director of the Americas - Office of the CTO at TIBCO Software<br> |
+| <br> | "Deep Learning Streamer Pipeline Server has helped TIBCO Software to develop and optimize Project AIR solution with less effort and shorter TTM, and to deliver better user experience that includes no-code data pipelines. Project AIR was able to easier deploy and expose optimized video analytics pipelines as microservices accessible for consumption via REST APIs."<br>— Miguel Torres, Director of the Americas - Office of the CTO at TIBCO Software<br> |
 
 ------------------------------------------------------------------------
 

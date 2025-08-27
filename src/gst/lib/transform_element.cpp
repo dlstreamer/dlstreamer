@@ -667,11 +667,11 @@ static const GTypeInfo gst_dls_transform_type_info = {.class_size = sizeof(GstDl
 ///////////////////////////////////////////////////////////////////////////////////////
 
 gboolean register_element_gst_plugin(const dlstreamer::ElementDesc *element, GstPlugin *plugin) {
-    // make sure Intel® Deep Learning Streamer (Intel® DL Streamer) metadata registered
+    // make sure Deep Learning Streamer (DL Streamer) metadata registered
     gst_gva_tensor_meta_get_info();
     gst_gva_tensor_meta_api_get_type();
 
-    // register Intel® DL Streamer element as GStreamer element
+    // register DL Streamer element as GStreamer element
     GTypeInfo type_info = dlstreamer::gst_dls_transform_type_info;
     type_info.class_data = element;
     GType gtype = g_type_register_static(GST_TYPE_BASE_TRANSFORM, element->name.data(), &type_info, (GTypeFlags)0);

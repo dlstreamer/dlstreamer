@@ -47,7 +47,7 @@ you need to install Intel® NPU driver:
 > version](https://github.com/intel/linux-npu-driver/releases). Please
 > pay attention to **access to the device as a non-root user**.
 
-Note that the following error can occur when running Intel® DL Streamer on
+Note that the following error can occur when running DL Streamer on
 NPU device:
 
 ```bash
