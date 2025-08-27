@@ -42,6 +42,11 @@ Report bugs and requests [on the issues page](https://github.com/open-edge-platf
 You can build DL Streamer using the provided Makefile. Reference `make help` for a list of all available targets.
 Currently building is supported for Ubuntu 24.04 and Ubuntu 22.04 systems.
 
+Make sure that you have the OpenVINO environment initialized in your shell:
+```
+source /opt/intel/openvino_2025/setupvars.sh
+```
+
 #### Compile Deep Learning Streamer and it's dependencies with
 ```bash
 make build
@@ -62,7 +67,7 @@ export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
 #### Install Deep Learning Streamer onto your system with
 > Note: DL Streamer will be installed in the `/opt/intel/dlstreamer` directory during this process.
 ```bash
-make install
+sudo -E make install
 ```
 
 You can run the installed DL Streamer by configuring your environment with these values:
