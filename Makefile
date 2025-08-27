@@ -38,7 +38,6 @@ dependencies:
 
 .PHONY: build
 build: dependencies ## Compile Deep Learning Streamer
-	source ${OPENVINO_DIR}/setupvars.sh
 	cmake \
 		-B build \
 		-DCMAKE_PREFIX_PATH:PATH="${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/install;${PROJECT_DIRECTORY}/${DEPENDENCY_DIR}/opencv-bin" \
