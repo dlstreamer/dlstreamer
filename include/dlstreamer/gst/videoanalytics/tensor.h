@@ -695,7 +695,7 @@ class Tensor {
             }
 
             // find or create skeleton metadata
-            GstAnalyticsKeypointSkeletonMtd skeleton_mtd;
+            GstAnalyticsKeypointSkeletonMtd skeleton_mtd = {0, nullptr};
             if (skeletons.size() > 0) {
                 bool found = false;
                 gpointer state = NULL;
