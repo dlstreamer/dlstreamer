@@ -135,7 +135,7 @@ static void draw_3d_box(cv::Mat &img, const std::vector<float> &translation, con
 
     // Draw all box edges in green
     int box_idxs[] = {0, 1, 2, 3, 7, 6, 5, 4, 7, 3, 0, 4, 5, 1, 2, 6};
-    for (int i = 0; i < 16; ++i) {
+    for (int i = 0; i < 15; ++i) {
         if (box_idxs[i] < 0 || box_idxs[i] >= 8 || box_idxs[i + 1] < 0 || box_idxs[i + 1] >= 8)
             continue;
         cv::line(img, corners2d[box_idxs[i]], corners2d[box_idxs[i + 1]], color_box, 2, cv::LINE_AA);
