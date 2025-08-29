@@ -1,13 +1,13 @@
 # gvametapublish
 
 Publishes the JSON metadata to MQTT or Kafka message brokers or files.
-MQTT and Kafka methods offer reconnection in case a connection to the
-broker is not established or is lost. During this reconnection time, any
+MQTT and Kafka methods offer reconnection in case the connection to the
+broker is lost, or cannot be established. During this reconnection time, any
 metadata that passes through the element will not be cached or
 published. It will simply pass through to the next element in the
 pipeline.
 
-``` none
+```sh
 Pad Templates:
   SRC template: 'src'
     Availability: Always
@@ -72,7 +72,7 @@ Element Properties:
                         String. Default: null
 ```
 
-The MQTT configuration file used with the mqtt-config property should
+The MQTT configuration file used with the `mqtt-config` property should
 conform to the following JSON schema. Values specified in the
 configuration file override values assigned to the individual properties
 listed above.
@@ -139,23 +139,23 @@ This element leverages TLS to ensure secure communication while sending
 MQTT messages. The paths to the necessary certificates and keys,
 included in the configuration file, are passed to the Paho Asynchronous
 MQTT C Client Library for establishing TLS connections. However, it is
-important to note that the storage, management, and protection of these
+important to note that storage, management, and protection of these
 certificates and keys are beyond the scope of this component.
 
 **Key Points:**
 
 - **Certificate and Key Handling:** The plugin passes the
-paths to the certificates and keys to the Paho library but does not
+paths to the certificates and keys to the Paho library, but does not
 handle their storage or protection.
 - **Responsibility:** The
 responsibility for securely storing and protecting the certificates and
 keys (ensuring confidentiality and integrity for private keys and
 integrity for public keys) lies with the external application or system
 that uses this element. Additionally, the external application is
-responsible for the generation, provisioning, and removal of keys,
+responsible for generation, provisioning, and removal of keys,
 ensuring that these processes are conducted securely and in accordance
 with best practices.
 - **Security Measures:** It is recommended that
 the external application implements appropriate security measures to
-ensure the confidentiality, integrity, and availability of the
+ensure confidentiality, integrity, and availability of
 cryptographic credentials.

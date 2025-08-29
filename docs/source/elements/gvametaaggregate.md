@@ -2,9 +2,9 @@
 
 Aggregates inference results from multiple pipeline branches. Data that
 is transferred further along the pipeline is taken from the first sink
-pad of the gvametaaggregate element.
+pad of the `gvametaaggregate` element.
 
-``` none
+```sh
 Pad Templates:
   SRC template: 'src'
     Availability: Always

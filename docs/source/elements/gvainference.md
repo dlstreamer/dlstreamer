@@ -1,8 +1,8 @@
 # gvainference
 
-Runs deep learning inference using any model with an RGB or BGR input.
+Runs deep learning inference using any model with RGB or BGR input.
 
-``` none
+```sh
 Pad Templates:
   SRC template: 'src'
     Availability: Always

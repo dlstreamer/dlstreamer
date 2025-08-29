@@ -1,10 +1,10 @@
 # gvarealsense
 
-Plugin reads depth and RGB data from the Real Sense camera and provides
+Reads depth and RGB data from Real Sense camera and provides
 it in a PCD format suitable for further processing in DL Streamer
 pipelines.
 
-``` none
+```sh
 Pad Templates:
   SRC template: 'src'
     Availability: Always
