@@ -4,7 +4,7 @@ Performs object detection using SSD-like (including MobileNet-V1/V2 and
 ResNet), YOLOv5 - YOLO11, YOLOX and FasterRCNN-like object detection
 models.
 
-```sh
+```none
 Pad Templates:
   SINK template: 'sink'
     Availability: Always
