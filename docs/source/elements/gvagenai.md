@@ -1,15 +1,15 @@
 # gvagenai
 
-Performs inference with Vision Language Models using OpenVINO™ GenAI,
-accepts video and text prompt as an input, and outputs text description.
-It can be used to generate text summarization from video.
+Performs inference with Vision Language Models using OpenVINO™ GenAI.
+Accepts video and text prompts as input, and outputs text description.
+It can be used to generate text summarizations from video.
 
 ## Configuration
 
 ### Generation Config
 
 The `generation-config` property accepts config parameters in
-`KEY=VALUE,KEY=VALUE` format. For detailed information about these
+the `KEY=VALUE,KEY=VALUE` format. For detailed information about these
 parameters, refer to the [OpenVINO™ GenAI GenerationConfig
 documentation](https://docs.openvino.ai/2025/api/genai_api/_autosummary/openvino_genai.GenerationConfig.html).
 
@@ -55,7 +55,7 @@ generation-config="max_new_tokens=100,temperature=0.7,do_sample=true"
 
 ### Scheduler Config
 
-The `scheduler-config` property accepts config parameters in
+The `scheduler-config` property accepts config parameters in the
 `KEY=VALUE,KEY=VALUE` format. For detailed information about these
 parameters, refer to the [OpenVINO™ GenAI SchedulerConfig
 documentation](https://docs.openvino.ai/2025/api/genai_api/_autosummary/openvino_genai.SchedulerConfig.html).
@@ -82,11 +82,11 @@ Scheduler Config Parameters
 
 Example:
 
-``` none
+```sh
 scheduler-config="max_num_batched_tokens=256,cache_size=10,use_cache_eviction=true"
 ```
 
-``` none
+```sh
 Pad Templates:
   SINK template: 'sink'
     Availability: Always
