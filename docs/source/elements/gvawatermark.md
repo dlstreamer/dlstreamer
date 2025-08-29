@@ -3,7 +3,7 @@
 Overlays the metadata on the video frame to visualize the inference
 results.
 
-``` none
+```sh
 Pad Templates:
   SINK template: 'sink'
     Availability: Always

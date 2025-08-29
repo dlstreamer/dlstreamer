@@ -1,8 +1,8 @@
 # gvametaconvert
 
-Converts the metadata structure to the JSON format.
+Converts the metadata structure into JSON format.
 
-``` none
+```sh
 Pad Templates:
   SRC template: 'src'
     Availability: Always
