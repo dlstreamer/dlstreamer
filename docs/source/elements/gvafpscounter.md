@@ -2,7 +2,7 @@
 
 Measures frames per second across multiple streams in a single process.
 
-``` none
+```sh
 Pad Templates:
   SINK template: 'sink'
     Availability: Always

@@ -1,22 +1,22 @@
-# compositor
+# Compositor
 
-## Using GStreamer framework compositor element for merging many video displays into single view
+## Using the GStreamer framework *Compositor* element for merging many video displays into a single view
 
 The GStreamer framework
 [compositor](https://gstreamer.freedesktop.org/documentation/compositor/index.html?gi-language=c#compositor-page)
-element allows to merge multiple displays into one.
+element allows for merging multiple displays into one.
 
-Add **compositor** element along with its name e.g. **name=comp** and
-the sink pad x,y coordinates position e.g. **sink_0::xpos=0
-sink_0::ypos=0** to GStreamer framework pipeline. Each output display
+Add the **compositor** element along with its name e.g. `name=comp` and
+the **sink pad x,y coordinates**, e.g. `sink_0::xpos=0
+sink_0::ypos=0` to GStreamer framework pipeline. Each output display
 requires a separate sink pad definition. The last component is
-**autovideosink sync=false**.
+`autovideosink sync=false`.
 
 ```bash
 compositor name=comp sink_0::xpos=0 sink_0::ypos=0 sink_1::xpos=720 sink_1::ypos=0 ... ! autovideosink sync=false
 ```
 
-The below example presents usage of the GStreamer framework
+The example below presents usage of the GStreamer framework
 **compositor** element for merging 4 output videos into a single
 display.
 

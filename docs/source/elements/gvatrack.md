@@ -3,15 +3,15 @@
 Performs object tracking using zero-term, zero-term-imageless, or
 short-term-imageless tracking algorithms. Zero-term tracking assigns
 unique object IDs and requires object detection to run on every frame.
-Short-term tracking allows to track objects between frames, thereby
+Short-term tracking allows for tracking objects between frames,
 reducing the need to run object detection on each frame. Imageless
 tracking forms object associations based on the movement and shape of
-objects, and it does not use image data.
+objects, and does not use image data.
 
 Please refer to [Object Tracking](../dev_guide/object_tracking.md)
 for more information on the element properties.
 
-``` none
+```sh
 Pad Templates:
  SINK template: 'sink'
    Availability: Always

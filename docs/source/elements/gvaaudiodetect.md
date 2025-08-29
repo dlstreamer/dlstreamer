@@ -2,7 +2,7 @@
 
 Performs audio event detection using AclNet model.
 
-``` none
+```sh
 Pad Templates:
   SRC template: 'src'
     Availability: Always

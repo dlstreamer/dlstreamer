@@ -1,9 +1,9 @@
 # gvaclassify
 
-Performs object classification. Accepts the ROI or full frame as an
+Performs object classification. Accepts the ROIs or full frame as
 input and outputs classification results with metadata.
 
-``` none
+```sh
 Pad Templates:
 SINK template: 'sink'
    Availability: Always
