@@ -3,7 +3,7 @@
 Performs object classification. Accepts the ROIs or full frame as
 input and outputs classification results with metadata.
 
-```sh
+```none
 Pad Templates:
 SINK template: 'sink'
    Availability: Always
