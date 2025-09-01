@@ -14,8 +14,8 @@ This sample builds four GStreamer pipeline of the following elements
 * `filesrc`
 * `decodebin3` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) uses for full-frame object detection and marking objects with labels
-* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
+* [gvadetect](../../../../docs/source/elements/gvadetect.md) uses for full-frame object detection and marking objects with labels
+* [gvawatermark](../../../../docs/source/elements/gvawatermark.md) for points and theirs connections visualization
 * `autovideosink` for rendering output video into screen
 > **NOTE**: Each of the two pipelines can run on CPU or GPU or NPU.
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
@@ -40,12 +40,12 @@ Next example uses CPU device and YOLOv8 model for the first two streams and GPU 
 ```
 
 ## Multi-stream Pipeline Templates
-This section lists example command line templates to constructs multi-stream pipelines. 
+This section lists example command line templates to constructs multi-stream pipelines.
 
-Please note multi-stream examples include 'queue' element after gvadetect or gvaclassify. 
-This is required to achieve optimal performance in multi-stream / multi-threaded deployments. 
+Please note multi-stream examples include 'queue' element after gvadetect or gvaclassify.
+This is required to achieve optimal performance in multi-stream / multi-threaded deployments.
 
-The first pipeline takes 4 input streams and maps them to AI model instances. 
+The first pipeline takes 4 input streams and maps them to AI model instances.
 The first two streams use inference instance running on the NPU device ('model-instance-id=inf0') and two other streams run on GPU ('model-instance-id=inf1').
 Please note this example uses exact same AI model for both NPU and GPU, yet one can construct pipelines with different models.
 
@@ -57,10 +57,10 @@ gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink loca
 filesrc location=${INPUT_VIDEO_FILE_2} ! decodebin3 ! vaapipostproc ! video/x-raw(memory:VASurface) ! \
 gvadetect model=${DETECTION_MODEL} device=NPU pre-process-backend=ie nireq=4 model-instance-id=inf0 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_2} \
-filesrc location=${INPUT_VIDEO_FILE} ! decodebin3 vaapipostproc ! video/x-raw(memory:VASurface) ! 
+filesrc location=${INPUT_VIDEO_FILE} ! decodebin3 vaapipostproc ! video/x-raw(memory:VASurface) !
 gvadetect model={$DETECTION_MODEL_3} device=GPU pre-process-backend=vaapi-surface-sharing nireq=4 model-instance-id=inf1 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_3} \
-filesrc location=${INPUT_VIDEO_FILE_4} ! decodebin3 vaapipostproc ! video/x-raw(memory:VASurface) ! 
+filesrc location=${INPUT_VIDEO_FILE_4} ! decodebin3 vaapipostproc ! video/x-raw(memory:VASurface) !
 gvadetect model=${DETECTION_MODEL} device=GPU pre-process-backend=vaapi-surface-sharing nireq=4 model-instance-id=inf1 ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_4}
 ```
@@ -86,12 +86,12 @@ gst-launch-1.0 \
 filesrc location=${INPUT_VIDEO_FILE_1} ! video/x-h265 ! h265parse ! video/x-h265 ! vaapih265dec ! video/x-raw(memory:VASurface) ! \
 gvadetect model=${DETECTION_MODEL} device=GPU model-instance-id=inf0 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \
 gvaclassify model=${CLASSIFICATION_MODEL_1} device=GPU model-instance-id=inf1 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \
-gvaclassify model=${CLASSIFICATION_MODEL_2} device=GPU model-instance-id=inf2 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \ 
+gvaclassify model=${CLASSIFICATION_MODEL_2} device=GPU model-instance-id=inf2 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_1} \
 filesrc location=${INPUT_VIDEO_FILE_2} ! video/x-h265 ! h265parse ! video/x-h265 ! vaapih265dec ! video/x-raw(memory:VASurface) ! \
 gvadetect model=${DETECTION_MODEL} device=GPU model-instance-id=inf0 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \
 gvaclassify model=${CLASSIFICATION_MODEL_1} device=GPU model-instance-id=inf1 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \
-gvaclassify model=${CLASSIFICATION_MODEL_2} device=GPU model-instance-id=inf2 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \ 
+gvaclassify model=${CLASSIFICATION_MODEL_2} device=GPU model-instance-id=inf2 nireq=4 batch-size=8 ie-config=PERFORMANCE_HINT=THROUGHPUT pre-process-backend=vaapi-surface-sharing ! queue ! \
 gvawatermark ! gvafpscounter ! vaapih264enc ! h264parse ! mp4mux ! filesink location=${OUTPUT_VIDEO_FILE_2}
 ```
 

@@ -128,7 +128,7 @@ To see the full list of installed components check the
 The Python packages required to run Deep Learning Streamer python elements
 or samples are not installed by default. You can install them using
 commands from
-[Advanced Install Guide Compilation / Install Python dependencies](../../dev_guide/advanced_install/advanced_install_guide_compilation.html#step-6-install-python-dependencies)
+[Advanced Install Guide Compilation / Install Python dependencies](../../dev_guide/advanced_install/advanced_install_guide_compilation.md#step-9-install-python-dependencies-optional).
 
 ### [Optional] Step 5: Post installation steps
 

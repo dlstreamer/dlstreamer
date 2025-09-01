@@ -136,7 +136,7 @@ gvaclassify model=${MODEL_FILE_2} device=NPU pre-process-backend=va model-instan
 ## 5. Multi-stream pipelines with meta-aggregation element
 
 The multi-stage and multi-stream scenarios can use the
-[gvametaaggregate](https://dlstreamer.github.io/elements/gvametaaggregate.html)
+[gvametaaggregate](../elements/gvametaaggregate.md)
 element to aggregate the results from multiple branches of the pipeline.
 The aggregated results are published as a single JSON metadata output.
 The following example shows how to use the gvametaaggregate element to

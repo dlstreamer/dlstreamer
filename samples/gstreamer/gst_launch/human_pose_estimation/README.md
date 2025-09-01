@@ -10,8 +10,8 @@ This sample builds GStreamer pipeline of the following elements
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin3` for video decoding
 * `videoconvert` for converting video frame into different color formats
-* [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) uses for full-frame inference and post-processing of OpenPose's output
-* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
+* [gvaclassify](../../../../docs/source/elements/gvaclassify.md) uses for full-frame inference and post-processing of OpenPose's output
+* [gvawatermark](../../../../docs/source/elements/gvawatermark.md) for points and theirs connections visualization
 * `autovideosink` for rendering output video into screen
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
@@ -30,16 +30,16 @@ The sample contains `model_proc` subfolder with .json files for each model with 
 ./human_pose_estimation.sh [INPUT_VIDEO] [DEVICE] [SINK_ELEMENT]
 ```
 The sample takes three command-line *optional* parameters:
-1. [INPUT_VIDEO] to specify input video file.  
+1. [INPUT_VIDEO] to specify input video file.
 The input could be
 * local video file
 * web camera device (ex. `/dev/video0`)
-* RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)  
+* RTSP camera (URL starting with `rtsp://`) or other streaming source (ex URL starting with `http://`)
 If parameter is not specified, the sample by default streams video example from HTTPS link (utilizing `urisourcebin` element) so requires internet conection.
-2. [DEVICE] to specify device for detection and classification.  
-        Please refer to OpenVINO™ toolkit documentation for supported devices.  
-        https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_Supported_Devices.html  
-        You can find what devices are supported on your system by running following OpenVINO™ toolkit sample:  
+2. [DEVICE] to specify device for detection and classification.
+        Please refer to OpenVINO™ toolkit documentation for supported devices.
+        https://docs.openvinotoolkit.org/latest/openvino_docs_IE_DG_supported_plugins_Supported_Devices.html
+        You can find what devices are supported on your system by running following OpenVINO™ toolkit sample:
         https://docs.openvinotoolkit.org/latest/openvino_inference_engine_ie_bridges_python_sample_hello_query_device_README.html
 3. [SINK_ELEMENT] to choose between render mode and fps throughput mode:
     * display - render (default)
@@ -49,7 +49,7 @@ If parameter is not specified, the sample by default streams video example from 
 
 The sample
 * prints gst-launch-1.0 full command line into console
-* starts the command and either visualizes video with people's skeleton 
+* starts the command and either visualizes video with people's skeleton
 or prints out fps if you set SINK_ELEMENT = fps
 
 ## See also

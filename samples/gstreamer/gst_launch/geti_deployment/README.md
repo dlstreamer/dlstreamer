@@ -3,10 +3,10 @@
 This set of samples demonstrates how to deploy models trained with [Intel® Geti™ Platform](https://geti.intel.com/).
 
 ## How It Works
-The Intel® Geti™ Platform defines a set of media analytics pipelines corresponding to common usage scenarios: classification, detection, segmentation, etc. 
+The Intel® Geti™ Platform defines a set of media analytics pipelines corresponding to common usage scenarios: classification, detection, segmentation, etc.
 In all cases, the platform outputs AI models in Intel® OpenVINO™ format: 'openvino.xml' and 'openvino.bin'.
 
-This sample assumes a user has already trained models using Intel® Geti™ Platform and stored the output models in the followign folder structure: 
+This sample assumes a user has already trained models using Intel® Geti™ Platform and stored the output models in the followign folder structure:
 
 ```sh
 -intel
@@ -16,7 +16,7 @@ This sample assumes a user has already trained models using Intel® Geti™ Plat
      |-openvino.bin                 # model weights
    |-stfpm/FP16                     # STFPM model
      |-openvino.xml                 # model metadata
-     |-openvino.bin                 # model weights     
+     |-openvino.bin                 # model weights
    |-uflow/FP32                     # UFlow model
      |-openvino.xml                 # model metadata
      |-openvino.bin                 # model weights
@@ -47,21 +47,21 @@ The set of samples demonstrates how to deploy above models to run inference with
 The 'geti_sample.sh' script sample builds GStreamer pipeline composed of the following elements:
 * `filesrc` or `urisourcebin` or `v4l2src` for input from file/URL/web-camera
 * `decodebin3` for video decoding
-* [gvadetect](https://dlstreamer.github.io/elements/gvadetect.html) uses for full-frame object detection and marking objects with labels
-* [gvaclassify](https://dlstreamer.github.io/elements/gvaclassify.html) uses for full-frame object classficiation
-* [gvawatermark](https://dlstreamer.github.io/elements/gvawatermark.html) for points and theirs connections visualization
+* [gvadetect](../../../../docs/source/elements/gvadetect.md) uses for full-frame object detection and marking objects with labels
+* [gvaclassify](../../../../docs/source/elements/gvaclassify.md) uses for full-frame object classficiation
+* [gvawatermark](../../../../docs/source/elements/gvawatermark.md) for points and theirs connections visualization
 * `autovideosink` for rendering output video into screen
 * `vah264enc` or `vah264lpenc` and `filesink` for encoding video stream and storing in a local file
 > **NOTE**: `sync=false` property in `autovideosink` element disables real-time synchronization so pipeline runs as fast as possible
 
-Before running **geti_deployment** samples 
+Before running **geti_deployment** samples
 
 ```sh
     export MODELS_PATH="$HOME"/models
     cd /opt/intel/dlstreamer/samples/gstreamer/gst_launch/geti_deployment/
 ```
 
-Example deployment of Geti™ anomaly detection UFlow model using CPU device, saving results into a file on local disk. 
+Example deployment of Geti™ anomaly detection UFlow model using CPU device, saving results into a file on local disk.
 > **NOTE**: User must provide a relevant input video file.
 
 ```sh
@@ -71,17 +71,17 @@ Example deployment of Geti™ anomaly detection UFlow model using CPU device, sa
 ![example](./pcb_normal_vs_anomaly.jpg)
 
 
-Example deployment of Geti™ bounding-box detection model using GPU device, saving results into a file on local disk. 
+Example deployment of Geti™ bounding-box detection model using GPU device, saving results into a file on local disk.
 ```sh
 ./geti_sample.sh detection GPU
 ```
 
-Example deployment of Geti™ single-label classification model using NPU device, saving results into a file on local disk. 
+Example deployment of Geti™ single-label classification model using NPU device, saving results into a file on local disk.
 ```sh
 ./geti_sample.sh classification_single NPU
 ```
 
-Example deployment of Geti™ multi-label classification model using CPU device, saving results into a file on local disk. 
+Example deployment of Geti™ multi-label classification model using CPU device, saving results into a file on local disk.
 ```sh
 ./geti_sample.sh classification_multi CPU
 ```
