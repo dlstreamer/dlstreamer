@@ -18,8 +18,8 @@ Learning Streamer pipelines that carry out these functions, please refer to the
 [sample directory](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch).
 
 If you're interested in designing custom pipelines, make sure to review the
-[Supported Models](https://dlstreamer.github.io/supported_models.html) table for
-guidance on whether Deep Learning Streamer elements require specific
+[Supported Models](../supported_models.md) table for
+guidance on whether Intel® DL Streamer elements require specific
 configurations (defined by the model-proc or labels files) for your
 selected model.
 

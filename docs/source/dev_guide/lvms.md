@@ -14,7 +14,7 @@ CLIP models for integration with the Deep Learning Streamer pipeline.
 The instructions assume Deep Learning Streamer framework is installed on the
 local system along with Intel® OpenVINO™ model downloader and converter
 tools, as described here:
-[Tutorial](https://dlstreamer.github.io/get_started/tutorial.html#tutorial-setup).
+[Tutorial](../get_started/tutorial.md#setup).
 
 It is also necessary to install the Transformers and Pillow packages:
 
