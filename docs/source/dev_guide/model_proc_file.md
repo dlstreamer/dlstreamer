@@ -6,8 +6,7 @@
 > to prevent dealing with a legacy solution. It will be maintained for
 > some time to ensure backwards compatibility, but you should not use it
 > in modern applications. The new method of model preparation is described
-> in [Model Info
-> Section](https://dlstreamer.github.io/dev_guide/model_info_xml.html)
+> in [Model Info Section](../dev_guide/model_info_xml.md)
 
 ## Table of Contents
 
