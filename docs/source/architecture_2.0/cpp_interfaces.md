@@ -80,17 +80,17 @@ framework `BBB` internally casts input pointer to specific class `AAA`
 Tensor / `AAA` Frame and creates output as specific class `BBB` Tensor /
 `BBB` Frame, see table below for each supported framework/library:
 
-  Framework / Library   Native memory object   Class implementing [Tensor](./api_ref/class_dlstreamer_Tensor)    Class implementing [Frame](./api_ref/class_dlstreamer_Frame)
-  --------------------- ---------------------- ---------------------------------------------------------------------------------------------- -------------------------------------------------------------------------------------------
-  CPU (no framework)    void\*                 [CPUTensor](./api_ref/class_dlstreamer_CPUTensor)                 [BaseFrame](./api_ref/class_dlstreamer_BaseFrame)
-  FFmpeg                AVFrame                                                                                                               [FFmpegFrame](./api_ref/class_dlstreamer_FFmpegFrame)
-  GStreamer             GstMemory, GstBuffer   [GSTTensor](./api_ref/class_dlstreamer_GSTTensor)                 [GSTFrame](./api_ref/class_dlstreamer_GSTFrame)
-  Level-zero            void\*                 [USMTensor](./api_ref/class_dlstreamer_USMTensor)                 [BaseFrame](./api_ref/class_dlstreamer_BaseFrame)
-  OpenCL                cl_mem                 [OpenCLTensor](./api_ref/class_dlstreamer_OpenCLTensor)           [BaseFrame](./api_ref/class_dlstreamer_BaseFrame)
-  OpenCV                cv::Mat                [OpenCVTensor](./api_ref/class_dlstreamer_OpenCVTensor)           [BaseFrame](./api_ref/class_dlstreamer_BaseFrame)
-  OpenCV                cv::UMat               [OpenCVUMatTensor](./api_ref/class_dlstreamer_OpenCVUMatTensor)   [BaseFrame](./api_ref/class_dlstreamer_BaseFrame)
-  OpenVINO™             ov::Tensor             [OpenVINOTensor](./api_ref/class_dlstreamer_OpenVINOTensor)       [OpenVINOFrame](./api_ref/class_dlstreamer_OpenVINOFrame)
-  SYCL                  void\*                 [SYCLUSMTensor](./api_ref/class_dlstreamer_SYCLUSMTensor)         [BaseFrame](./api_ref/class_dlstreamer_BaseFrame)
+  | Framework / Library | Native memory object | Class implementing [Tensor](./api_ref/class_dlstreamer_Tensor) |  Class implementing [Frame](./api_ref/class_dlstreamer_Frame) |
+  | --- | --- | --- | --- |
+  |CPU (no framework)|void\*|[CPUTensor](./api_ref/class_dlstreamer_CPUTensor)|[BaseFrame](./api_ref/class_dlstreamer_BaseFrame)|
+  |FFmpeg|AVFrame| |[FFmpegFrame](./api_ref/class_dlstreamer_FFmpegFrame)|
+  |GStreamer|GstMemory, GstBuffer|[GSTTensor](./api_ref/class_dlstreamer_GSTTensor)|[GSTFrame](./api_ref/class_dlstreamer_GSTFrame)|
+  |Level-zero|void\*|[USMTensor](./api_ref/class_dlstreamer_USMTensor)|[BaseFrame](./api_ref/class_dlstreamer_BaseFrame)|
+  |OpenCL|cl_mem|[OpenCLTensor](./api_ref/class_dlstreamer_OpenCLTensor)|[BaseFrame](./api_ref/class_dlstreamer_BaseFrame)|
+  |OpenCV|cv::Mat|[OpenCVTensor](./api_ref/class_dlstreamer_OpenCVTensor)|[BaseFrame](./api_ref/class_dlstreamer_BaseFrame)|
+  |OpenCV|cv::UMat|[OpenCVUMatTensor](./api_ref/class_dlstreamer_OpenCVUMatTensor)|[BaseFrame](./api_ref/class_dlstreamer_BaseFrame)|
+  |OpenVINO™|ov::Tensor|[OpenVINOTensor](./api_ref/class_dlstreamer_OpenVINOTensor)|[OpenVINOFrame](./api_ref/class_dlstreamer_OpenVINOFrame)|
+  |SYCL|void\*|[SYCLUSMTensor](./api_ref/class_dlstreamer_SYCLUSMTensor)|[BaseFrame](./api_ref/class_dlstreamer_BaseFrame)|
 
 Application can create `Tensor` and `Frame` objects by either passing
 pre-allocated native memory object to C++ constructor (wrap already
