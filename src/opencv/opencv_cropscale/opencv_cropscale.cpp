@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,7 +34,7 @@ class OpencvCropscale : public BaseTransform {
 
     FrameInfoVector get_input_info() override {
         if (_output_info.tensors.empty()) {
-            return opencv_cropscale.input_info;
+            return opencv_cropscale.input_info();
         } else {
             FrameInfo info(static_cast<ImageFormat>(_output_info.format), _output_info.memory_type); // any image size
             return {_output_info, info};
@@ -43,7 +43,7 @@ class OpencvCropscale : public BaseTransform {
 
     FrameInfoVector get_output_info() override {
         if (_input_info.tensors.empty()) {
-            return opencv_cropscale.output_info;
+            return opencv_cropscale.output_info();
         } else {
             FrameInfo info(static_cast<ImageFormat>(_input_info.format), _input_info.memory_type); // any image size
             return {_input_info, info};
@@ -105,28 +105,26 @@ ElementDesc opencv_cropscale = {.name = "opencv_cropscale",
                                                "Crop operation supports GstVideoCropMeta if attached to input buffer",
                                 .author = "Intel Corporation",
                                 .params = &params_desc,
-                                .input_info =
-                                    {
-                                        //{ImageFormat::I420},
-                                        //{ImageFormat::NV12},
-                                        {ImageFormat::RGB},
-                                        {ImageFormat::BGR},
-                                        {ImageFormat::RGBX},
-                                        {ImageFormat::BGRX},
-                                        //{ImageFormat::RGBP},
-                                        //{ImageFormat::BGRP},
-                                    },
-                                .output_info =
-                                    {
-                                        //{ImageFormat::I420},
-                                        //{ImageFormat::NV12},
-                                        {ImageFormat::RGB},
-                                        {ImageFormat::BGR},
-                                        {ImageFormat::RGBX},
-                                        {ImageFormat::BGRX},
-                                        //{ImageFormat::RGBP},
-                                        //{ImageFormat::BGRP}
-                                    },
+                                .input_info = MAKE_FRAME_INFO_VECTOR({
+                                    //{ImageFormat::I420},
+                                    //{ImageFormat::NV12},
+                                    {ImageFormat::RGB},
+                                    {ImageFormat::BGR},
+                                    {ImageFormat::RGBX},
+                                    {ImageFormat::BGRX},
+                                    //{ImageFormat::RGBP},
+                                    //{ImageFormat::BGRP},
+                                }),
+                                .output_info = MAKE_FRAME_INFO_VECTOR({
+                                    //{ImageFormat::I420},
+                                    //{ImageFormat::NV12},
+                                    {ImageFormat::RGB},
+                                    {ImageFormat::BGR},
+                                    {ImageFormat::RGBX},
+                                    {ImageFormat::BGRX},
+                                    //{ImageFormat::RGBP},
+                                    //{ImageFormat::BGRP}
+                                }),
                                 .create = create_element<OpencvCropscale>,
                                 .flags = ELEMENT_FLAG_EXTERNAL_MEMORY};
 }

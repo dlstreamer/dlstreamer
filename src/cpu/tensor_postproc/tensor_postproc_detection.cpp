@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -337,8 +337,8 @@ ElementDesc tensor_postproc_detection = {
         "Post-processing of object detection inference to extract bounding box coordinates, confidence, label, mask",
     .author = "Intel Corporation",
     .params = &params_desc,
-    .input_info = {MediaType::Tensors},
-    .output_info = {MediaType::Tensors},
+    .input_info = MAKE_FRAME_INFO_VECTOR({MediaType::Tensors}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({MediaType::Tensors}),
     .create = create_element<TensorPostProcDetection>,
     .flags = 0};
 }

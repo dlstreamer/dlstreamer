@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -134,12 +134,14 @@ ElementDesc opencv_meta_overlay = {
     .description = "Visualize inference results using OpenCV",
     .author = "Intel Corporation",
     .params = &OpencvMetaOverlay::params_desc,
-    .input_info = {FrameInfo(ImageFormat::BGRX, MemoryType::VA), FrameInfo(ImageFormat::RGBX, MemoryType::VA),
-                   FrameInfo(ImageFormat::BGRX, MemoryType::VAAPI), FrameInfo(ImageFormat::RGBX, MemoryType::VAAPI),
-                   FrameInfo(ImageFormat::BGRX, MemoryType::CPU), FrameInfo(ImageFormat::RGBX, MemoryType::CPU)},
-    .output_info = {FrameInfo(ImageFormat::BGRX, MemoryType::VA), FrameInfo(ImageFormat::RGBX, MemoryType::VA),
-                    FrameInfo(ImageFormat::BGRX, MemoryType::VAAPI), FrameInfo(ImageFormat::RGBX, MemoryType::VAAPI),
-                    FrameInfo(ImageFormat::BGRX, MemoryType::CPU), FrameInfo(ImageFormat::RGBX, MemoryType::CPU)},
+    .input_info = MAKE_FRAME_INFO_VECTOR(
+        {FrameInfo(ImageFormat::BGRX, MemoryType::VA), FrameInfo(ImageFormat::RGBX, MemoryType::VA),
+         FrameInfo(ImageFormat::BGRX, MemoryType::VAAPI), FrameInfo(ImageFormat::RGBX, MemoryType::VAAPI),
+         FrameInfo(ImageFormat::BGRX, MemoryType::CPU), FrameInfo(ImageFormat::RGBX, MemoryType::CPU)}),
+    .output_info = MAKE_FRAME_INFO_VECTOR(
+        {FrameInfo(ImageFormat::BGRX, MemoryType::VA), FrameInfo(ImageFormat::RGBX, MemoryType::VA),
+         FrameInfo(ImageFormat::BGRX, MemoryType::VAAPI), FrameInfo(ImageFormat::RGBX, MemoryType::VAAPI),
+         FrameInfo(ImageFormat::BGRX, MemoryType::CPU), FrameInfo(ImageFormat::RGBX, MemoryType::CPU)}),
     .create = create_element<OpencvMetaOverlay>,
     .flags = 0};
 }

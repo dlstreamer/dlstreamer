@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -175,8 +175,8 @@ ElementDesc opencv_object_association = {.name = "opencv_object_association",
                                                         "and (optionally) feature vector obtained from ROI metadata",
                                          .author = "Intel Corporation",
                                          .params = &params_desc,
-                                         .input_info = {},
-                                         .output_info = {},
+                                         .input_info = MAKE_FRAME_INFO_VECTOR({}),
+                                         .output_info = MAKE_FRAME_INFO_VECTOR({}),
                                          .create = create_element<ObjectAssociationOpenCV>,
                                          .flags = 0};
 }

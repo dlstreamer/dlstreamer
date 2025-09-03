@@ -53,7 +53,7 @@ class OpenclTensorNormalize : public BaseTransform {
 
     FrameInfoVector get_input_info() override {
         if (_output_info.tensors.empty()) {
-            return opencl_tensor_normalize.input_info;
+            return opencl_tensor_normalize.input_info();
         } else {
             FrameInfo input_info = _output_info;
             // Move C dimension to last dimension
@@ -71,7 +71,7 @@ class OpenclTensorNormalize : public BaseTransform {
 
     FrameInfoVector get_output_info() override {
         if (_input_info.tensors.empty()) {
-            return opencl_tensor_normalize.output_info;
+            return opencl_tensor_normalize.output_info();
         } else {
             FrameInfo output_info = _input_info;
             // Move C dimension before HW
@@ -208,15 +208,15 @@ class OpenclTensorNormalize : public BaseTransform {
 
 extern "C" {
 
-DLS_EXPORT ElementDesc opencl_tensor_normalize = {.name = "opencl_tensor_normalize",
-                                                  .description =
-                                                      "Convert U8 tensor to U8 or F32 tensor with normalization",
-                                                  .author = "Intel Corporation",
-                                                  .params = nullptr,
-                                                  .input_info = {{MediaType::Tensors, MemoryType::OpenCL}},
-                                                  .output_info = {{MediaType::Tensors, MemoryType::OpenCL}},
-                                                  .create = create_element<OpenclTensorNormalize>,
-                                                  .flags = ELEMENT_FLAG_SHARABLE};
+DLS_EXPORT ElementDesc opencl_tensor_normalize = {
+    .name = "opencl_tensor_normalize",
+    .description = "Convert U8 tensor to U8 or F32 tensor with normalization",
+    .author = "Intel Corporation",
+    .params = nullptr,
+    .input_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::OpenCL}}),
+    .create = create_element<OpenclTensorNormalize>,
+    .flags = ELEMENT_FLAG_SHARABLE};
 }
 
 } // namespace dlstreamer

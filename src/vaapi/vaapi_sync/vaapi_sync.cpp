@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -70,8 +70,8 @@ ElementDesc vaapi_sync = {.name = "vaapi_sync",
                           .description = "Synchronize VAAPI surfaces (call vaSyncSurface)",
                           .author = "Intel Corporation",
                           .params = &params_desc,
-                          .input_info = {{MediaType::Image, MemoryType::VAAPI}},
-                          .output_info = {{MediaType::Image, MemoryType::VAAPI}},
+                          .input_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Image, MemoryType::VAAPI}}),
+                          .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Image, MemoryType::VAAPI}}),
                           .create = create_element<VAAPISync>,
                           .flags = 0};
 }
