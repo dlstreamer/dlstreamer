@@ -600,12 +600,12 @@ void GstDlsTransformClass::init(gpointer g_class, gpointer class_data) {
     GstElementClass *element_class = GST_ELEMENT_CLASS(g_class);
 
     // input caps
-    GstCaps *input_caps = frame_info_vector_to_gst_caps(desc->input_info);
+    GstCaps *input_caps = frame_info_vector_to_gst_caps(desc->input_info());
     GstPadTemplate *sink_template = gst_pad_template_new("sink", GST_PAD_SINK, GST_PAD_ALWAYS, input_caps);
     gst_element_class_add_pad_template(element_class, sink_template);
 
     // output caps
-    GstCaps *output_caps = frame_info_vector_to_gst_caps(desc->output_info);
+    GstCaps *output_caps = frame_info_vector_to_gst_caps(desc->output_info());
     GstPadTemplate *src_template = gst_pad_template_new("src", GST_PAD_SRC, GST_PAD_ALWAYS, output_caps);
     gst_element_class_add_pad_template(element_class, src_template);
 

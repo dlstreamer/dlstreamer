@@ -94,8 +94,8 @@ ElementDesc tensor_histogram = {
     .description = "Calculates histogram on tensors of UInt8 data type and NHWC layout",
     .author = "Intel Corporation",
     .params = &TensorHistogramCPU::params_desc,
-    .input_info = {FrameInfo(MediaType::Tensors, MemoryType::Any, {{{}, DataType::UInt8}})},
-    .output_info = {FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::Float32}})},
+    .input_info = MAKE_FRAME_INFO_VECTOR({FrameInfo(MediaType::Tensors, MemoryType::Any, {{{}, DataType::UInt8}})}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::Float32}})}),
     .create = create_element<TensorHistogramCPU>,
     .flags = 0};
 }

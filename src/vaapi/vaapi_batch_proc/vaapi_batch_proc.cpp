@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -169,8 +169,8 @@ ElementDesc vaapi_batch_proc = {.name = "vaapi_batch_proc",
                                 .description = "Batched pre-processing with VAAPI memory as input and output",
                                 .author = "Intel Corporation",
                                 .params = &params_desc,
-                                .input_info = {{MediaType::Image, MemoryType::VAAPI}},
-                                .output_info = {{MediaType::Tensors, MemoryType::VAAPI}},
+                                .input_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Image, MemoryType::VAAPI}}),
+                                .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Tensors, MemoryType::VAAPI}}),
                                 .create = create_element<VaapiBatchProc>,
                                 .flags = ELEMENT_FLAG_SHARABLE};
 }

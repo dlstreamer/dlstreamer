@@ -91,8 +91,8 @@ ElementDesc opencv_find_contours = {.name = "opencv_find_contours",
                                     .description = "Find contour points of given mask using opencv",
                                     .author = "Intel Corporation",
                                     .params = &params_desc,
-                                    .input_info = {MediaType::Any},
-                                    .output_info = {MediaType::Any},
+                                    .input_info = MAKE_FRAME_INFO_VECTOR({MediaType::Any}),
+                                    .output_info = MAKE_FRAME_INFO_VECTOR({MediaType::Any}),
                                     .create = create_element<OpencvFindContours>,
                                     .flags = 0};
 }

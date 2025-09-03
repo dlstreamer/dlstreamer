@@ -84,6 +84,12 @@ enum ElementFlags {
 
 static constexpr int32_t ElementDescMagic = 0x34495239;
 
+#define MAKE_FRAME_INFO_VECTOR(...)                                                                                    \
+    []() -> const FrameInfoVector & {                                                                                  \
+        static const FrameInfoVector info{__VA_ARGS__};                                                                \
+        return info;                                                                                                   \
+    }
+
 /**
  * @brief The structure used to register element and create element instance.
  */
@@ -93,8 +99,8 @@ struct ElementDesc {
     std::string_view description;
     std::string_view author;
     ParamDescVector *params;
-    FrameInfoVector input_info;
-    FrameInfoVector output_info;
+    std::function<const FrameInfoVector &()> input_info;
+    std::function<const FrameInfoVector &()> output_info;
     const std::function<Element *(DictionaryCPtr params, const ContextPtr &app_context)> create;
     int flags = 0;
 };

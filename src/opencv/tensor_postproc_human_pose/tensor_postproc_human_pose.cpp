@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -169,8 +169,8 @@ ElementDesc tensor_postproc_human_pose = {
     .description = "Post-processing to extract key points from human pose estimation model output",
     .author = "Intel Corporation",
     .params = &params_desc,
-    .input_info = {MediaType::Tensors},
-    .output_info = {MediaType::Tensors},
+    .input_info = MAKE_FRAME_INFO_VECTOR({MediaType::Tensors}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({MediaType::Tensors}),
     .create = create_element<TensorPostProcHumanPose>,
     .flags = 0};
 }

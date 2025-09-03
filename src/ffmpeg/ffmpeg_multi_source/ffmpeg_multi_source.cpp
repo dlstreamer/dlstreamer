@@ -164,8 +164,8 @@ DLS_EXPORT ElementDesc ffmpeg_multi_source = {.name = "ffmpeg_multi_source",
                                               .description = "Multi video-stream source element based on FFmpeg",
                                               .author = "Intel Corporation",
                                               .params = nullptr,
-                                              .input_info = {},
-                                              .output_info = {{MediaType::Image}},
+                                              .input_info = MAKE_FRAME_INFO_VECTOR({}),
+                                              .output_info = MAKE_FRAME_INFO_VECTOR({{MediaType::Image}}),
                                               .create = create_element<MultiSourceFFMPEG>,
                                               .flags = 0};
 }
