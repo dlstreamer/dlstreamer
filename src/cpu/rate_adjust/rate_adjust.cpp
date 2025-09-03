@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -71,8 +71,8 @@ ElementDesc rate_adjust = {
     .description = "Adjust frame rate. Output frame rate is input rate multiplied by (numerator/denominator)",
     .author = "Intel Corporation",
     .params = &params_desc,
-    .input_info = {},
-    .output_info = {},
+    .input_info = MAKE_FRAME_INFO_VECTOR({}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({}),
     .create = create_element<RateAdjust>,
     .flags = 0};
 }

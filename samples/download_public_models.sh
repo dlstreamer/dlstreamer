@@ -8,6 +8,8 @@
 MODEL=${1:-"all"} # Supported values listed in SUPPORTED_MODELS below.
 QUANTIZE=${2:-""} # Supported values listed in SUPPORTED_MODELS below.
 
+. /etc/os-release
+
 # Changing the config dir for the duration of the script to prevent potential conflics with
 # previous installations of ultralytics' tools. Quantization datasets could install
 # incorrectly without this.
@@ -163,13 +165,20 @@ fi
 
 set -u  # Re-enable nounset option: treat any attempt to use an unset variable as an error
 
+if [ "$ID" == "fedora" ]; then
+  export PYTHON_CREATE_VENV=/usr/bin/python3.10
+  $PYTHON_CREATE_VENV -m ensurepip --upgrade || handle_error $LINENO
+else
+  export PYTHON_CREATE_VENV=python3
+fi
+
 # Set the name of the virtual environment directory
 VENV_DIR_QUANT="$HOME/.virtualenvs/dlstreamer-quantization"
 
 # Create a Python virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR_QUANT" ]; then
   echo "Creating virtual environment in $VENV_DIR_QUANT..."
-  python3 -m venv "$VENV_DIR_QUANT" || handle_error $VENV_DIR_QUANT
+  $PYTHON_CREATE_VENV -m venv "$VENV_DIR_QUANT" || handle_error $VENV_DIR_QUANT
 fi
 
 # Activate the virtual environment
@@ -179,7 +188,8 @@ source "$VENV_DIR_QUANT/bin/activate"
 # Upgrade pip in the virtual environment
 pip install --no-cache-dir --upgrade pip
 
-# Install OpenVINO module
+# Install OpenVINO module with compatible numpy version
+pip install --no-cache-dir "numpy<2.5.0,>=1.16.6" || handle_error $LINENO
 pip install --no-cache-dir openvino==2025.2.0 || handle_error $LINENO
 
 pip install --no-cache-dir onnx || handle_error $LINENO
@@ -189,7 +199,7 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
+  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu "ultralytics==8.3.153" "numpy<2.5.0" || handle_error $LINENO
 fi
 
 # Set the name of the virtual environment directory
@@ -198,7 +208,7 @@ VENV_DIR="$HOME/.virtualenvs/dlstreamer"
 # Create a Python virtual environment if it doesn't exist
 if [ ! -d "$VENV_DIR" ]; then
   echo "Creating virtual environment in $VENV_DIR..."
-  python3 -m venv "$VENV_DIR" || handle_error $LINENO
+  $PYTHON_CREATE_VENV -m venv "$VENV_DIR" || handle_error $LINENO
 fi
 
 # Activate the virtual environment
@@ -208,7 +218,8 @@ source "$VENV_DIR/bin/activate"
 # Upgrade pip in the virtual environment
 pip install --no-cache-dir --upgrade pip
 
-# Install OpenVINO module
+# Install OpenVINO module with compatible numpy version
+pip install --no-cache-dir "numpy<2.0.0,>=1.16.6" || handle_error $LINENO
 pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
 pip install --no-cache-dir openvino-dev==2024.6.0 || handle_error $LINENO
 
@@ -219,7 +230,7 @@ pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
+  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu "ultralytics==8.3.153" "numpy<2.0.0" || handle_error $LINENO
 fi
 
 # Install dependencies for CLIP models
@@ -355,6 +366,7 @@ if [ "$MODEL" == "yolox-tiny" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     cd "$MODELS_PATH"
     echo "Downloading and converting: ${MODEL_DIR}"
+    source "$VENV_DIR/bin/activate"
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
     cd "$MODEL_DIR"
@@ -378,6 +390,7 @@ if [ "$MODEL" == "yolox_s" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all
     mkdir -p "$MODEL_DIR/FP32"
     cd "$MODEL_DIR"
     curl -O -L https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
+    source "$VENV_DIR/bin/activate"
     ovc yolox_s.onnx --compress_to_fp16=True
     mv yolox_s.xml "$MODEL_DIR/FP16"
     mv yolox_s.bin "$MODEL_DIR/FP16"
@@ -402,6 +415,7 @@ export_yolov5_model() {
     echo "Downloading and converting: ${model_path}"
     mkdir -p "$model_path"
     cd "$model_path"
+    source "$VENV_DIR/bin/activate"
 
     python3 - <<EOF
 import os
@@ -489,6 +503,7 @@ for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
       cp -r "$REPO_DIR" yolov5
       cd yolov5
       curl -L -O "https://github.com/ultralytics/yolov5/releases/download/v7.0/${MODEL_NAME}.pt"
+      source "$VENV_DIR/bin/activate"
 
       python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic
       python3 - <<EOF "${MODEL_NAME}"
@@ -548,6 +563,7 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
 
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
+    source "$VENV_DIR/bin/activate"
     pip install --no-cache-dir onnx
     pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1  || handle_error $LINENO
     mkdir -p "$MODEL_DIR"
@@ -585,6 +601,7 @@ export_yolo_model() {
     echo "Downloading and converting: ${MODEL_DIR}"
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
+    source "$VENV_DIR/bin/activate"
 
     python3 - <<EOF "$MODEL_NAME" "$MODEL_TYPE"
 from ultralytics import YOLO
@@ -729,6 +746,7 @@ if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
     cd "$MODEL_DIR"
     git clone https://github.com/Star-Clouds/CenterFace.git
     cd CenterFace/models/onnx
+    source "$VENV_DIR/bin/activate"
     ovc centerface.onnx --input "[1,3,768,1280]"
     mv centerface.xml "$MODEL_DIR"
     mv centerface.bin "$MODEL_DIR"
@@ -774,6 +792,7 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
     cd "$MODEL_DIR"
     git clone https://github.com/av-savchenko/face-emotion-recognition.git
     cd face-emotion-recognition/models/affectnet_emotions/onnx
+    source "$VENV_DIR/bin/activate"
 
     ovc enet_b0_8_va_mtl.onnx --input "[16,3,224,224]"
     mkdir "$MODEL_DIR/FP16/"
@@ -819,6 +838,7 @@ for MODEL_NAME in "${CLIP_MODELS[@]}"; do
       IMAGE_PATH=car.png
       curl -L -o $IMAGE_PATH $IMAGE_URL
       echo "Image downloaded to $IMAGE_PATH"
+      source "$VENV_DIR/bin/activate"
       python3 - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
@@ -875,6 +895,7 @@ if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     cd "$MODELS_PATH"
     echo "Downloading and converting: ${MODEL_DIR}"
+    source "$VENV_DIR/bin/activate"
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
     cd "$MODEL_DIR"

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,7 +34,7 @@ class OpencvTensorNormalize : public BaseTransform {
 
     FrameInfoVector get_input_info() override {
         if (_output_info.tensors.empty()) {
-            return opencv_tensor_normalize.input_info;
+            return opencv_tensor_normalize.input_info();
         } else {
             FrameInfo info = _output_info;
             info.tensors[0].dtype = DataType::UInt8;
@@ -46,7 +46,7 @@ class OpencvTensorNormalize : public BaseTransform {
 
     FrameInfoVector get_output_info() override {
         if (_input_info.tensors.empty()) {
-            return opencv_tensor_normalize.output_info;
+            return opencv_tensor_normalize.output_info();
         } else {
             FrameInfo info = _input_info;
             info.tensors[0].dtype = DataType::Float32;
@@ -114,8 +114,8 @@ ElementDesc opencv_tensor_normalize = {
     .description = "Convert U8 tensor to F32 tensor with normalization",
     .author = "Intel Corporation",
     .params = &params_desc,
-    .input_info = {FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::UInt8}})},
-    .output_info = {FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::Float32}})},
+    .input_info = MAKE_FRAME_INFO_VECTOR({FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::UInt8}})}),
+    .output_info = MAKE_FRAME_INFO_VECTOR({FrameInfo(MediaType::Tensors, MemoryType::CPU, {{{}, DataType::Float32}})}),
     .create = create_element<OpencvTensorNormalize>,
     .flags = 0};
 }
