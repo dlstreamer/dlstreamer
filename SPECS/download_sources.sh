@@ -68,7 +68,7 @@ main() {
     done
 
     # Download the DL Streamer src code
-    cd ../..
+    cd ../../..
     git submodule update --init libraries/dl-streamer/thirdparty/spdlog
     cd libraries
     rm -rf ~/intel-dlstreamer-${DLSTREAMER_VERSION}*
@@ -77,7 +77,7 @@ main() {
     cd ~
     tar czf intel-dlstreamer-${DLSTREAMER_VERSION}.tar.gz intel-dlstreamer-${DLSTREAMER_VERSION}
     cd -
-    mv ~/intel-dlstreamer-${DLSTREAMER_VERSION}.tar.gz SPECS/
+    mv ~/intel-dlstreamer-${DLSTREAMER_VERSION}.tar.gz dl-streamer/SPECS/
     log_info ""
 }
 

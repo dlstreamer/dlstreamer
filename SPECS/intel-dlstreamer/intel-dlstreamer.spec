@@ -1,6 +1,6 @@
 %define debug_package %{nil}
 Name:           intel-dlstreamer
-Version:        2025.2.0
+Version:        2025.1.2
 Release:        1%{?dist}
 Summary:        Intel Deep Learning Streamer framework
 
@@ -93,8 +93,8 @@ make install DESTDIR=%{buildroot}
 
 # Explicitly copying the .so and .a files
 cp -r intel64/Release/* %{buildroot}/opt/intel/dlstreamer
-rm -rf %{buildroot}/opt/intel/dlstreamer/gst-video-analytics
-rm -rf %{buildroot}/opt/intel/dlstreamer/gstreamer-1.0
+rm -rf %{buildroot}/opt/intel/dlstreamer/lib/gst-video-analytics
+rm -rf %{buildroot}/opt/intel/dlstreamer/lib/gstreamer-1.0
 
 # Remove RPATH for all binaries/libs
 find %{buildroot} -type f \( -name "*.so*" -o -perm -111 \) | while read -r file; do
@@ -138,7 +138,7 @@ rm -rf %{buildroot}
 /opt/intel/dlstreamer/lib/pkgconfig/*
 
 %changelog
-* Thu Aug 07 2025 DL Streamer Team <dlstreamer@intel.com> - 2025.2.0-1
+* Thu Aug 07 2025 DL Streamer Team <dlstreamer@intel.com> - 2025.1.2-1
 - Split into modular package architecture
 - Use Intel optimized dependencies
 - Added development and samples subpackages
