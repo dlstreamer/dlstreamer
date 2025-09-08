@@ -5,7 +5,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
-npu_driver_version='1.19.0'
+npu_driver_version='1.23.0'
 reinstall_npu_driver='no'  # Default value for reinstalling the NPU driver
 on_host_or_docker='host'
 
@@ -531,15 +531,21 @@ setup_npu() {
 install_npu() {
     local ubuntu_version="${1:-$(lsb_release -rs)}"
     $SUDO_PREFIX rm -rf ./npu_debs
-    mkdir -p ./npu_debs
+    mkdir -p ./npu_debs && cd npu_debs
     dpkg --purge --force-remove-reinstreq intel-driver-compiler-npu intel-fw-npu intel-level-zero-npu
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-driver-compiler-npu_1.19.0.20250707-16111289554_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-fw-npu_1.19.0.20250707-16111289554_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
-    wget https://github.com/intel/linux-npu-driver/releases/download/v1.19.0/intel-level-zero-npu_1.19.0.20250707-16111289554_ubuntu${ubuntu_version}_amd64.deb -P ./npu_debs
-    wget https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u${ubuntu_version}_amd64.deb -P ./npu_debs
+    if [ "$ubuntu_version" == "22.04" ]; then
+        wget https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u22.04_amd64.deb
+        wget https://github.com/intel/linux-npu-driver/releases/download/v1.23.0/linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2204.tar.gz
+        tar -xf linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2204.tar.gz
+    elif [ "$ubuntu_version" == "24.04" ]; then
+        wget https://github.com/oneapi-src/level-zero/releases/download/v1.22.4/level-zero_1.22.4+u24.04_amd64.deb
+        wget https://github.com/intel/linux-npu-driver/releases/download/v1.23.0/linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz
+        tar -xf linux-npu-driver-v1.23.0.20250827-17270089246-ubuntu2404.tar.gz
+    fi
     $SUDO_PREFIX apt update
     $SUDO_PREFIX apt install libtbb12
-    $SUDO_PREFIX  dpkg -i ./npu_debs/*.deb
+    $SUDO_PREFIX  $SUDO_PREFIX dpkg -i *.deb
+    cd ..
     rm -rf ./npu_debs
     $SUDO_PREFIX apt-get clean
     $SUDO_PREFIX rm -rf /var/lib/apt/lists/*
