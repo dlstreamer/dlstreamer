@@ -16,17 +16,20 @@ Follow the instructions in
 All Dockerfiles are in
 [DLStreamer GitHub repository](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/docker).
 
-- **Ubuntu24 debian/dev Dockerfile**
-
+::::{tab-set}
+:::{tab-item} Ubuntu24 debian/dev Dockerfile
+:sync: tab1
   ```bash
   wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile
   ```
-
-- **Ubuntu22 debian/dev Dockerfile**
-
+:::
+:::{tab-item} Ubuntu22 debian/dev Dockerfile
+:sync: tab2
   ```bash
   wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/docker/ubuntu/ubuntu22.Dockerfile
   ```
+:::
+::::
 
 ## Step 3: Build Docker image
 
