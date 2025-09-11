@@ -46,6 +46,7 @@ source_suffix = ['.rst', '.md']
 
 myst_enable_extensions = ["colon_fence"]
 myst_heading_anchors = 4
+suppress_warnings = ["myst.xref_missing"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
