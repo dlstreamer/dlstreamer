@@ -16,8 +16,9 @@ Follow the instructions in
 
 ## Step 2: Install build dependencies
 
-- **Ubuntu 24**
-
+::::{tab-set}
+:::{tab-item} Ubuntu 24
+:sync: tab1
   ```bash
   sudo apt-get update && \
   sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
@@ -30,9 +31,9 @@ Follow the instructions in
       ffmpeg librdkafka-dev libpaho-mqtt-dev libopencv-dev libpostproc-dev libavfilter-dev libavdevice-dev \
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev libopencv-dev
   ```
-
-- **Ubuntu 22**
-
+:::
+:::{tab-item} Ubuntu 22
+:sync: tab2
   ```bash
   sudo apt-get update && \
   sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
@@ -45,9 +46,9 @@ Follow the instructions in
       ffmpeg libpaho-mqtt-dev libpostproc-dev libavfilter-dev libavdevice-dev \
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
   ```
-
-- **Fedora 41**
-
+:::
+:::{tab-item} Fedora 41
+:sync: tab3
   ```bash
   sudo dnf install -y \
       https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
@@ -60,12 +61,14 @@ Follow the instructions in
       libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
       kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
   ```
-
-- **EMT 3.x**
-
+:::
+:::{tab-item} EMT 3.x
+:sync: tab3
   ```bash
   sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
+:::
+::::
 
 ### EMT 3.x
 
@@ -97,10 +100,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 ## Step 5: Install OpenVINO™ Toolkit
 
-- **Ubuntu/Fedora**
-
-  Download and install OpenVINO™ Toolkit:
-
+::::{tab-set}
+:::{tab-item} Ubuntu/Fedora
+:sync: tab1
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
   sudo ./scripts/install_dependencies/install_openvino.sh
@@ -124,9 +126,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
   source /opt/intel/openvino_2025/setupvars.sh
   ```
-
-- **EMT**
-
+:::
+:::{tab-item} EMT
+:sync: tab2
   ```bash
   wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140 c01cd93e24d_x86_64.tgz
   tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
@@ -136,6 +138,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   cd /opt/intel
   sudo ln -s openvino_2025.2.0 openvino_2025
   ```
+:::
+::::
+
 ## Step 6: Build Deep Learning Streamer
 
 To build DL Streamer is it recommended to use the provided makefile for ease of use:
@@ -155,8 +160,9 @@ sudo -E make install
 
 Set up the required environment variables:
 
-- **Ubuntu**
-
+::::{tab-set}
+:::{tab-item} Ubuntu
+:sync: tab1
   ```bash
   export LIBVA_DRIVER_NAME=iHD
   export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0:$GST_PLUGIN_PATH"
@@ -168,9 +174,9 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
   ```
-
-- **Fedora**
-
+:::
+:::{tab-item} Fedora
+:sync: tab2
   ```bash
   export LIBVA_DRIVER_NAME=iHD
   export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0:$GST_PLUGIN_PATH"
@@ -181,9 +187,9 @@ Set up the required environment variables:
   export PKG_CONFIG_PATH="/opt/intel/dlstreamer/lib/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig::$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
-
-- **EMT**
-
+:::
+:::{tab-item} EMT
+:sync: tab2
   Enable `i915` graphics driver in the system:
 
   ```bash
@@ -206,6 +212,8 @@ Set up the required environment variables:
   export PKG_CONFIG_PATH="/opt/intel/dlstreamer/lib/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig::$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
+:::
+::::
 
 > **NOTE:**  For a permament solution, open `\~/.bashrc` and add the variables above
 > to set up Linux to use them for every terminal session.
