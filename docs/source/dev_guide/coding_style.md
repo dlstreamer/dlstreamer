@@ -3,20 +3,21 @@
 The Clang formatter is part of the CI setup. You need to ensure proper
 code formatting before your commits are merged to `master`.
 You can install the checker locally and configure your IDE to check
-your code with it. You can also use a configuration file for ``clang-format-7``  
+your code with it. You can also use a configuration file for ``clang-format-7``
 from the root of this project (`.clang-format`).
 
 ## Install clang formatter
 
-- **Ubuntu**:
-
+::::{tab-set}
+:::{tab-item} Ubuntu
+:sync: tab1
   ```bash
   sudo apt install -y clang-format-12
   sudo ln -s /usr/bin/clang-format-12 /usr/bin/clang-format
   ```
-
-- **Other distros**
-
+:::
+:::{tab-item} Other distros
+:sync: tab2
   You can find an appropriate repository at <https://apt.llvm.org/>.
   And install the newest version:
 
@@ -24,6 +25,8 @@ from the root of this project (`.clang-format`).
   sudo apt install -y clang-format-9
   sudo ln -s /usr/bin/clang-format-9 /usr/bin/clang-format
   ```
+:::
+::::
 
 ## Configure IDE
 
