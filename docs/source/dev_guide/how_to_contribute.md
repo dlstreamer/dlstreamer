@@ -1,7 +1,6 @@
 # How to Contribute
 
-Here you will find some basic practices we follow in our development
-process:
+Learn more about some basic practices in the development process of DL Streamer:
 
 :::{toctree}
 :maxdepth: 2

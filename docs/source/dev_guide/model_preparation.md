@@ -9,17 +9,17 @@ and
 These scripts will download models from
 [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) and other
 sources, handle the necessary conversions and put model files in a
-directory specified by the MODELS_PATH environment variable.
+directory specified by the `MODELS_PATH` environment variable.
 
 This way, you will be able to easily perform the most popular tasks,
 such as object detection and classification, instance segmentation, face
 localization and many others. For examples of how to set up Deep
-Learning Streamer pipelines that carry out these functions, please refer to the
+Learning Streamer pipelines that carry out these functions, refer to the
 [sample directory](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch).
 
-If you're interested in designing custom pipelines, make sure to review the
+If you are interested in designing custom pipelines, make sure to review the
 [Supported Models](../supported_models.md) table for
-guidance on whether Intel® DL Streamer elements require specific
+guidance on whether Deep Learning Streamer elements require specific
 configurations (defined by the model-proc or labels files) for your
 selected model.
 
@@ -34,26 +34,27 @@ optimized for inference on the target device. The model format used by
 OpenVINO™ Toolkit is called Intermediate Representation (IR) and
 consists of two files:
 
-- xml: XML file with a description of the network topology
-- bin: Binary file (potentially big) with model weights
+- xml - a file with the description of network topology
+- bin: - a binary file (potentially big) with model weights
 
 You can either:
 
 1. Choose model(s) from the extensive set of pre-trained models available in
    [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
-   (already in IR format).
+   (already in the IR format).
 2. Use
    [OpenVINO™ Toolkit Model Conversion](https://docs.openvino.ai/2024/openvino-workflow/model-preparation/convert-model-to-ir.html)
-   method for converting your model from training framework format (e.g., TensorFlow) into IR format.
+   method for converting your model from the training framework format
+   (e.g., TensorFlow) to the IR format.
 
 When using a pre-trained model from Open Model Zoo, consider using the
 [Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/model_tools/README.md)
 tool to facilitate the model downloading process.
 
-In the case of converting a custom model, you can optionally utilize the
+When converting a custom model, you can optionally utilize the
 [Post-Training Model Optimization and Compression](https://docs.openvino.ai/2024/openvino-workflow/model-optimization.html)
 for converting the model into a performance efficient, and more
-hardware-friendly representation, for example quantize from 32-bit
+hardware-friendly representation. For example you can quantize it from 32-bit
 floating point-precision into 8-bit integer precision. This gives a
 significant performance boost (up to 4x) on some hardware platforms
 including the CPU, with only a minor accuracy drop.
@@ -66,15 +67,15 @@ before/after inference.
 
 Pre- and post-processing can be configured using:
 
-- The "model-proc" file (mostly applicable to models from OpenModel
-  zoo).Its format and all possible pre- and post-processing
-  configuration parameters are described on the
+- The `model-proc` file (mostly applicable to models from Open Model
+  Zoo). Its format and all possible pre- and post-processing
+  configuration parameters are described in the
   [model-proc description](./model_proc_file.md) page.
-- The "model_info" inside OpenVINO™ model.xml file with network
-  topology, described on the on the
+- The "model_info" section inside the .xml file of OpenVINO™ Intermediate Representation
+  with network topology, is described on the
   [model_info description](./model_info_xml.md) page.
 
-Both methods yield same results, but the "model_info" is recommended as
+Both methods yield the same results, but the "model_info" is recommended as
 it simplifies dynamic deployments (like re-training models with Intel®
 Geti™) as certain model pre- and post-processing parameters are tightly
 coupled with model training results.
@@ -88,7 +89,7 @@ pre-processing back-ends depending on your use case.
 inference element to one from the table below.**
 
 **Default behavior**: If the property is not set, Pipeline Framework
-will pick `ie` if system memory is used in pipeline, `va` - for GPU
+will pick `ie` if the system memory is used in the pipeline, `va` - for GPU
 memory (VAMemory and DMABuf).
 
 | pre-process-backend | Description | Memory type in pipeline | Configurable with model-proc? |
@@ -98,29 +99,31 @@ memory (VAMemory and DMABuf).
 | <br>va<br><br> | Should be used in pipelines with GPU memory. Performs mapping to the system memory and uses VA pre-processor. | <br>VAMemory<br>and<br>DMABuf<br><br> | Yes |
 | <br>va-surface-sharing<br><br> | Should be used in pipelines with GPU memory and GPU inference device. Doesn’t perform mapping to the system memory. As a pre-processor, it performs image resize, crop, and sets color format to NV12. | <br>VAMemory<br><br> | Partially |
 
-**Post-processing** is a raw inference results processing using so
-called converters. Converters just transform the results from raw output
-tensors to GStreamer representation attached to a frame as meta data.
+**Post-processing** uses so called converters to process raw inference results.
+The converters transform the results from raw output
+tensors to a GStreamer representation attached to a frame as metadata.
 
-If there's no suitable pre- and/or post-processing implementation in DL
-Streamer, [Custom Processing](./custom_processing.md) can be used.
+If there is no suitable pre- and/or post-processing implementation in the Deep Learning Streamer,
+[Custom Processing](./custom_processing.md) can be used.
 
 ## 3. Specify model files in GStreamer elements
 
-The .xml model file path must be specified by the mandatory `model`
+The path to the .xml model file must be specified by the mandatory `model`
 property of GStreamer inference elements -
-gvainference/gvadetect/gvaclassify. For example, this is a pipeline with
-object detection (gvadetect) and classification (gvaclassify)
+`gvainference`/`gvadetect`/`gvaclassify`.
+Below is an example of a pipeline with
+object detection ([gvadetect](../elements/gvadetect.md)) and
+classification ([gvaclassify](../elements/gvaclassify.md))
 
 ```bash
 gvadetect model=MODEL1_FILE_PATH.xml ! gvaclassify model=MODEL1_FILE_PATH.xml
 ```
 
-The .bin file is expected to be located in the same folder as .xml file,
-and to have the same filename (with different extension).
+The .bin file is expected to be located in the same folder as the .xml file,
+and to have the same filename (with a different extension).
 
-An example pipeline including gvadetect and gvaclassify with
-pre-processing/post-processing rules may look like
+Below is the example of a pipeline including `gvadetect` and `gvaclassify` with
+pre-processing/post-processing rules:
 
 ```bash
 gvadetect model=MODEL1_FILE_PATH.xml model-proc=MODEL1_FILE_PATH.json ! gvaclassify model=MODEL2_FILE_PATH.xml model-proc=MODEL2_FILE_PATH.json

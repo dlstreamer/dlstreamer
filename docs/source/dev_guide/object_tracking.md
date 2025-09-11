@@ -2,11 +2,10 @@
 
 ## Object tracking types
 
-Object tracking element is [gvatrack](../elements/gvatrack) typically inserted into a
-video analytics pipeline right after object
-detection element [gvadetect](../elements/gvadetect)
-and can work in the following modes as specified by property
-*tracking-type*:
+[gvatrack](../elements/gvatrack.md) is an object tracking element, typically inserted into a
+video analytics pipeline right after the object
+detection element [gvadetect](../elements/gvadetect.md)
+and can work in the following modes as specified by the *tracking-type* property:
 
 | tracking-type        | Max detection interval (inference-interval property in gvadetect) | Algorithm uses detected coordinates and trajectory extrapolation | Algorithm uses image data | Notes                                                                                                                                                                                                                     |
 |----------------------|-------------------------------------------------------------------|------------------------------------------------------------------|---------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -16,8 +15,8 @@ and can work in the following modes as specified by property
 
 ## Additional configuration
 
-Additional configuration parameters for object tracker can be passed via
-`config` property of [gvatrack](../elements/gvatrack).
+Additional configuration parameters for object tracker can be passed via the
+`config` property of [gvatrack](../elements/gvatrack.md).
 The `config` property accepts a comma separated list of
 `KEY=VALUE` parameters. The supported parameters are described below:
 
@@ -27,7 +26,7 @@ Configurable via `tracking_per_class` parameter. It specifies whether
 the class label is considered for updating the `object_id` of an object
 or not. When set to `true`, a new tracking ID will be assigned to an
 object when the class label changes. When set to `false`, the tracking
-ID will be retained based on the position of the bounding box, even if
+ID will be retained, based on the position of the bounding box, even if
 the class label of the object changes due to model inaccuracy. The
 default value is `true`.
 
@@ -52,18 +51,17 @@ Example:
 
 ## Sample
 
-Please refer to sample
-[vehicle_pedestrian_tracking](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/vehicle_pedestrian_tracking)
-for pipeline example with `gvadetect`, `gvatrack`, `gvaclassify`
-elements
+Refer to the
+[vehicle_pedestrian_tracking](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/vehicle_pedestrian_tracking) sample
+for a pipeline with `gvadetect`, `gvatrack`, and `gvaclassify` elements.
 
 ## How to read object unique id
 
 The following code example iterates all objects detected or tracked on
 the current frame and prints object unique id and bounding box
-coordinates
+coordinates.
 
-``` cpp
+```cpp
 #include "video_frame.h"
 
 void PrintObjects(GstBuffer *buffer) {
@@ -80,18 +78,18 @@ void PrintObjects(GstBuffer *buffer) {
 ## Performance considerations
 
 Object tracking can help improve performance of both object detection
-(gvadetect) and object classification (gvaclassify) elements
+`(`gvadetect`) and object classification (`gvaclassify`) elements
 
-- Object detection: *short-term-imageless* tracking types allow to
-  reduce object detection frequency by setting property
-  `inference-interval` in gvadetect element.
-- Object classification: if object was classified by `gvaclassify`
-  on frame N, we can skip classification of the same object for
+- Object detection: *short-term-imageless* tracking types enable
+  reducing object detection frequency by setting the
+  `inference-interval` property in the `gvadetect` element.
+- Object classification: if an object was classified by `gvaclassify`
+  on frame N, you can skip classification of the same object for
   several next frames N+1,N+2,... and reuse last classification result
-  from frame N. Reclassification interval is controlled by property
-  `reclassify-interval` in `gvaclassify` element.
+  from frame N. Reclassification interval is controlled by the
+  `reclassify-interval` property in the `gvaclassify` element.
 
-For example the following pipeline
+See the sample pipeline below:
 
 ```bash
 gst-launch-1.0 \
@@ -105,7 +103,7 @@ gvaclassify model=$LANDMARKS_MODEL ! \
 ...
 ```
 
-detects faces every 10th frame and tracks faces position next 9 frames,
-age and gender classification updated once a second, emotion
-classification updated twice a second, landmark points updated every
+It detects faces every 10th frame and tracks faces position for the next 9 frames.
+The age and gender classification is updated every second, the emotion
+classification is updated twice a second, and the landmark points are updated every
 frame.

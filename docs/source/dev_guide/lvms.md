@@ -1,6 +1,6 @@
 # Large Vision Models
 
-This page illustrates how to prepare the Vision Transformer from the
+This article explains how to prepare the Vision Transformer from the
 CLIP models for integration with the Deep Learning Streamer pipeline.
 
 > **NOTE:** The instructions provided below are comprehensive, but for convenience,
@@ -13,8 +13,7 @@ CLIP models for integration with the Deep Learning Streamer pipeline.
 
 The instructions assume Deep Learning Streamer framework is installed on the
 local system along with Intel® OpenVINO™ model downloader and converter
-tools, as described here:
-[Tutorial](../get_started/tutorial.md#setup).
+tools, as described in the [Tutorial](../get_started/tutorial.md#setup).
 
 It is also necessary to install the Transformers and Pillow packages:
 
@@ -29,11 +28,11 @@ Below is a Python script for converting the Vision Transformer from the
 **clip-vit-large-patch14**/**clip-vit-base-patch16**/**clip-vit-base-patch32**
 model to the Intel® OpenVINO™ format. Since using a sample input is
 recommended during the conversion, prepare a sample image in one of the
-common formats and replace *IMG_PATH* with the relevant value:
+common formats and replace `IMG_PATH` with the relevant value:
 
 ### clip-vit-large-patch14
 
-``` python
+```python
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
 import openvino as ov
@@ -70,10 +69,9 @@ ov_model.set_rt_info("crop", ['model_info', 'resize_type'])
 ov.save_model(ov_model, MODEL + ".xml")
 ```
 
-
 ### clip-vit-base-patch16
 
-``` python
+```python
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
 import openvino as ov
@@ -112,7 +110,7 @@ ov.save_model(ov_model, MODEL + ".xml")
 
 ### clip-vit-base-patch32
 
-``` python
+```python
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
 import openvino as ov
