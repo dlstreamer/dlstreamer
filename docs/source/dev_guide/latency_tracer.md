@@ -1,15 +1,15 @@
 # Latency Tracer
 
-In this tutorial you will learn how to use latency_tracer to find
+In this tutorial, you will learn how to use `latency_tracer` to find
 element and pipeline frame latency. The time displayed in the logs has
 precision in the order of milliseconds.
 
-- element latency: Time that a
-  buffer takes to travel from source pad of the previous element to source
+- element latency - time that a
+  buffer takes to travel from the source pad of the previous element to the source
   pad of the current element.
-- pipeline latency: Time that a buffer takes
-  to travel from source pad of the source element to source pad of the
-  element before sink element. This also provides latency and fps of full
+- pipeline latency - time that a buffer takes
+  to travel from the source pad of the source element to the source pad of the
+  element before the sink element. This also provides latency and fps of full
   pipeline.
 
 ## Pipeline
@@ -30,8 +30,8 @@ GST_DEBUG="GST_TRACER:7" GST_TRACERS="latency_tracer" gst-launch-1.0 videotestsr
 0:00:03.015119796 79459 0x55736c57a060 TRACE             GST_TRACER :0:: latency_tracer_pipeline_interval, interval=(double)1000.020829, avg=(double)0.260457, min=(double)0.206755, max=(double)0.588363, latency=(double)0.347350, fps=(double)2878.940035;
 ```
 
-By default latency_tracer calculates latency for both pipeline and
-elements, you have option to select only pipeline or elements latency
+By default, `latency_tracer` calculates latency for both pipeline and
+elements. You have an option to select only pipeline or elements latency
 using flags.
 
 ### Settings Flags
@@ -66,8 +66,8 @@ Sample Output:
 
 ### Settings interval
 
-Interval value can be set, the value must be set in milliseconds,
-default=1000
+The interval value can be configured. The value must be set in milliseconds,
+the default equals `1000`.
 
 ## Setting interval example
 
