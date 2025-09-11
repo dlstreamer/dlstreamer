@@ -1,14 +1,15 @@
 # Model Info Section
 
-The OpenVINO™ Intermediate Representation (IR) includes an XML file with
-description of network topology as well as conversion and runtime
+OpenVINO™ Intermediate Representation (IR) includes an XML file with
+the description of network topology as well as conversion and runtime
 metadata.
 
-If "model_proc" file is not present, Deep Learning Streamer
-parses "model_info" section located at the end of the XML model file. An
-example section looks as in the code snippet below:
+If a `model_proc` file is not present, Deep Learning Streamer
+parses the "model_info" section located at the end of the XML model file.
 
-``` xml
+An example is shown in the code snippet below:
+
+```xml
 <rt_info>
     ...
     <model_info>
@@ -28,16 +29,16 @@ info section:
 
 | Field | Type | Possible values or example | Description | Corresponding 'model-proc' key |
 |---|---|---|---|---|
-| model_type | string | <br>label<br>detection_output<br>yolo_v8<br><br> | The converter to parse output tensors and map to GStreamer meta data. | converter |
-| confidence_threshold | float | [0.0, 1.0] | The confidence level to report inference results, typically depends on training accuracy. | threshold (command line param) |
-| iou_threshold | float | [ 0.0, 1.0 ] | Threshold for non-maximum suppression (NMS) intersection over union (IOU) filtering. | iou_threshold |
-| multilabel | boolean | <br>True<br>False<br><br> | Classification model predicts a set of labels per input image. | method=multi |
-| output_raw_scores | boolean | <br>True<br>False<br><br> | Classification model outputs all non-normalized scores for all detected labels. | method=softmax |
-| labels | string list | person bicycle … | List of labels for predicted object classes. | labels |
-| resize_type | string | <br>crop<br>standard<br>fit_to_window<br>fit_to_window_letterbox<br><br> | Resize method to map input video images to model input tensor. | resize |
-| reverse_input_channels | boolean | <br>True<br>False<br><br> | Convert input video image to RGB format (model trained with RGB images) | color_space=”RGB” |
-| scale | float | 255.0 | Divide input image values by ‘scale’ before mapping to model input tensor<br>(typically used when model was trained with input data normalized in &lt;0,1&gt; range). | range: [0.0, 1.0] |
+| `model_type` | string | <br>label<br>detection_output<br>yolo_v8<br><br> | The converter to parse output tensors and map to GStreamer meta data. | converter |
+| `confidence_threshold` | float | [0.0, 1.0] | The confidence level to report inference results, typically depends on training accuracy. | threshold (command line param) |
+| `iou_threshold` | float | [ 0.0, 1.0 ] | Threshold for non-maximum suppression (NMS) intersection over union (IOU) filtering. | iou_threshold |
+| `multilabel` | boolean | <br>True<br>False<br><br> | Classification model predicts a set of labels per input image. | method=multi |
+| `output_raw_scores` | boolean | <br>True<br>False<br><br> | Classification model outputs all non-normalized scores for all detected labels. | method=softmax |
+| `labels` | string list | person bicycle … | List of labels for predicted object classes. | labels |
+| `resize_type` | string | <br>crop<br>standard<br>fit_to_window<br>fit_to_window_letterbox<br><br> | Resize method to map input video images to model input tensor. | resize |
+| `reverse_input_channels` | boolean | <br>True<br>False<br><br> | Convert input video image to RGB format (model trained with RGB images) | color_space=”RGB” |
+| `scale` | float | 255.0 | Divide input image values by ‘scale’ before mapping to model input tensor<br>(typically used when model was trained with input data normalized in &lt;0,1&gt; range). | range: [0.0, 1.0] |
 
-Please also refer to
+You can also refer to
 [OpenVINO™ Model API](https://github.com/openvinotoolkit/model_api/blob/master/docs/source/guides/model-configuration.md)
 for more information on the "model_info" section.

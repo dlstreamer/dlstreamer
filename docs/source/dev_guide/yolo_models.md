@@ -1,6 +1,6 @@
 # YOLO Models
 
-This page illustrates how to prepare models from the **YOLO** family for
+This article describes how to prepare models from the **YOLO** family for
 integration with the Deep Learning Streamer pipeline.
 
 > **NOTE:** The instructions provided below are comprehensive, but for convenience,
@@ -14,12 +14,11 @@ integration with the Deep Learning Streamer pipeline.
 ## 1. Set up the framework
 
 The instructions assume Deep Learning Streamer framework is installed on the
-local system along with Intel® OpenVINO™ model downloader and converter
-tools, as described here:
-[Tutorial](../get_started/tutorial.md#setup).
+local system, along with Intel® OpenVINO™ model downloader and converter
+tools, as described in the [Tutorial](../get_started/tutorial.md#setup).
 
-For YOLOv5, YOLOv8, YOLOv9, YOLOv10, YOLO11 models it is also necessary
-to install the Ultralytics Python package:
+For YOLOv5, YOLOv8, YOLOv9, YOLOv10, YOLO11 models you need to
+install the Ultralytics Python package:
 
 ```bash
 pip install ultralytics
@@ -27,13 +26,13 @@ pip install ultralytics
 
 ## 2. YOLOv8, YOLOv9, YOLOv10, YOLO11
 
-Python script converting the recent Ultralytics models to Intel®
-OpenVINO™ format (replace *model_name* and *model_type* with the
-relevant models and types values):
+Below is a Python script that you can use to convert the recent Ultralytics
+models to the Intel® OpenVINO™ format. Make sure to replace `model_name` and
+`model_type` with the relevant models and types values.
 
 Example for YOLO11 model:
 
-``` python
+```python
 from ultralytics import YOLO
 import openvino, sys, shutil, os
 
@@ -95,26 +94,27 @@ save_model(model, "yolov5su.xml")
 ## 5. YOLOv5 older versions
 
 Model preparation of YOLOv5 7.0 from Ultralytics involves two steps.
-First, convert the PyTorch model to Intel® OpenVINO™ format :
 
-```bash
-git clone https://github.com/ultralytics/yolov5
-cd yolov5
-wget https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5s.pt
-python3 export.py --weights yolov5s.pt --include openvino --dynamic
-```
+1. Convert the PyTorch model to Intel® OpenVINO™ format :
 
-Then, reshape the model to enable the dynamic batch size and keep other
-dimensions fixed:
+   ```bash
+   git clone https://github.com/ultralytics/yolov5
+   cd yolov5
+   wget https://github.com/ultralytics/yolov5/releases/download/v7.0/yolov5s.pt
+   python3 export.py --weights yolov5s.pt --include openvino --dynamic
+   ```
 
-``` python
-from openvino.runtime import Core
-from openvino.runtime import save_model
-core = Core()
-model = core.read_model("yolov5s_openvino_model/yolov5s.xml")
-model.reshape([-1, 3, 640, 640])
-save_model(model, "yolov5s.xml")
-```
+2. Then, reshape the model to enable the dynamic batch size and keep other
+   dimensions fixed:
+
+   ```python
+   from openvino.runtime import Core
+   from openvino.runtime import save_model
+   core = Core()
+   model = core.read_model("yolov5s_openvino_model/yolov5s.xml")
+   model.reshape([-1, 3, 640, 640])
+   save_model(model, "yolov5s.xml")
+   ```
 
 ## 6. YOLOX
 
