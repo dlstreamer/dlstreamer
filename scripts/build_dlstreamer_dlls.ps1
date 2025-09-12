@@ -4,11 +4,23 @@
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
+param(
+	[switch]$useInternalProxy
+)
 
-$env:HTTP_PROXY="http://proxy-dmz.intel.com:911"
-$env:HTTPS_PROXY="http://proxy-dmz.intel.com:912"
-$env:NO_PROXY=""
 $DLSTREAMER_TMP = "C:\\dlstreamer_tmp"
+
+if ($useInternalProxy) {
+	$env:HTTP_PROXY="http://proxy-dmz.intel.com:911"
+	$env:HTTPS_PROXY="http://proxy-dmz.intel.com:912"
+	$env:NO_PROXY=""
+	Write-Host "Proxy set:"
+	Write-Host "- HTTP_PROXY = $env:HTTP_PROXY"
+	Write-Host "- HTTPS_PROXY = $env:HTTPS_PROXY"
+	Write-Host "- NO_PROXY = $env:NO_PROXY"
+} else {
+	Write-Host "No proxy set"
+}
 
 if (-Not (Test-Path $DLSTREAMER_TMP)) {
 	mkdir $DLSTREAMER_TMP
@@ -16,21 +28,21 @@ if (-Not (Test-Path $DLSTREAMER_TMP)) {
 
 if (-Not (Get-Command winget -errorAction SilentlyContinue)) {
 	$progressPreference = 'silentlyContinue'
-	Write-Host "######################### Installing WinGet PowerShell module from PSGallery ###########################"
+	Write-Host "######################## Installing WinGet PowerShell module from PSGallery ###########################"
 	Install-PackageProvider -Name NuGet -Force | Out-Null
 	Install-Module -Name Microsoft.WinGet.Client -Force -Repository PSGallery | Out-Null
 	Write-Host "Using Repair-WinGetPackageManager cmdlet to bootstrap WinGet..."
 	Repair-WinGetPackageManager -AllUsers
-	Write-Host "############################################ Done ######################################################"
+	Write-Host "########################################### Done ######################################################"
 } else {
-	Write-Host "############################ WinGet PowerShell module already installed ################################"
+	Write-Host "########################### WinGet PowerShell module already installed ################################"
 }
 
 if (-Not (Test-Path "C:\\BuildTools")) {
-	Write-Host "####################################### Installing VS BuildTools #######################################"
+	Write-Host "###################################### Installing VS BuildTools #######################################"
 	Invoke-WebRequest -OutFile $DLSTREAMER_TMP\\vs_buildtools.exe -Uri https://aka.ms/vs/17/release/vs_buildtools.exe
 	Start-Process -Wait -FilePath $DLSTREAMER_TMP\vs_buildtools.exe -ArgumentList "--quiet", "--wait", "--norestart", "--nocache", "--installPath", "C:\\BuildTools", "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "--add", "Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Core"
-	rite-Host "####################################### Installing VS BuildTools #######################################"
+	Write-Host "############################################### Done ##################################################"
 } else {
 	Write-Host "################################# VS BuildTools already installed #####################################"
 }
@@ -46,7 +58,7 @@ if (-Not (Test-Path "${env:ProgramFiles(x86)}\\Windows Kits")) {
 $GSTREAMER_VERSION = "1.26.1"
 
 if (-Not (Test-Path "${DLSTREAMER_TMP}\\gstreamer-1.0-msvc-x86_64_${GSTREAMER_VERSION}.msi")) {
-	Write-Host "####################################### Installing GStreamer ${GSTREAMER_VERSION} #######################################"
+	Write-Host "##################################### Installing GStreamer ${GSTREAMER_VERSION} #######################################"
 	Invoke-WebRequest -OutFile ${DLSTREAMER_TMP}\\gstreamer-1.0-msvc-x86_64_${GSTREAMER_VERSION}.msi -Uri https://gstreamer.freedesktop.org/data/pkg/windows/${GSTREAMER_VERSION}/msvc/gstreamer-1.0-msvc-x86_64-${GSTREAMER_VERSION}.msi
 	Start-Process -Wait -FilePath "msiexec" -ArgumentList "/passive", "INSTALLDIR=C:\gstreamer", "/i", "${DLSTREAMER_TMP}\\gstreamer-1.0-msvc-x86_64_${GSTREAMER_VERSION}.msi", "/qn"
 	Invoke-WebRequest -OutFile ${DLSTREAMER_TMP}\\gstreamer-1.0-devel-msvc-x86_64_${GSTREAMER_VERSION}.msi -Uri https://gstreamer.freedesktop.org/data/pkg/windows/${GSTREAMER_VERSION}/msvc/gstreamer-1.0-devel-msvc-x86_64-${GSTREAMER_VERSION}.msi
@@ -122,9 +134,11 @@ if (-Not (Get-Command py -errorAction SilentlyContinue)) {
 	py --version
 }
 
-if (-Not (Test-Path "C:\\libva")) {
+if (-Not (Get-ChildItem -Path "C:\libva" -Filter "Microsoft.Direct3D.VideoAccelerationCompatibilityPack*" -ErrorAction SilentlyContinue)) {
 	Write-Host "####################################### Installing LIBVA #######################################"
-	mkdir C:\libva
+	if (-Not (Test-Path "C:\\libva")) {
+		mkdir C:\libva
+	}
 	Set-Location -Path "C:\libva"
 	Invoke-WebRequest -OutFile "nuget.exe" -Uri https://dist.nuget.org/win-x86-commandline/latest/nuget.exe
 	Start-Process -Wait -FilePath ".\nuget.exe" -ArgumentList "install", "Microsoft.Direct3D.VideoAccelerationCompatibilityPack" -NoNewWindow
