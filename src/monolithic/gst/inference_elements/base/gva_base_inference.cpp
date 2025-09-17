@@ -158,6 +158,33 @@ static bool is_roi_inference_needed(GvaBaseInference *gva_base_inference, guint6
     return true;
 }
 
+static GstCaps *gva_base_inference_transform_caps(GstBaseTransform *trans, GstPadDirection direction, GstCaps *caps,
+                                                  GstCaps *filter) {
+    GvaBaseInference *base_inference = GVA_BASE_INFERENCE(trans);
+
+    // Get the default transformed caps from the parent class
+    GstCaps *result =
+        GST_BASE_TRANSFORM_CLASS(gva_base_inference_parent_class)->transform_caps(trans, direction, caps, filter);
+
+    // If device is CPU, filter out memory:VASurface, memory:VAMemory, memory:DMABuf
+    if (base_inference->device && g_strcmp0(base_inference->device, "CPU") == 0) {
+        GstCaps *filtered = gst_caps_copy(result);
+        for (gint i = gst_caps_get_size(filtered) - 1; i >= 0; --i) {
+            GstCapsFeatures *features = gst_caps_get_features(filtered, i);
+            if ((gst_caps_features_contains(features, "memory:VASurface")) ||
+                (gst_caps_features_contains(features, "memory:VAMemory")) ||
+                (gst_caps_features_contains(features, "memory:DMABuf"))) {
+                gst_caps_remove_structure(filtered, i);
+                GST_WARNING("Filtered out structure %d from caps, it contains unsupported memory type", i);
+            }
+        }
+        gst_caps_unref(result);
+        result = filtered;
+    }
+
+    return result;
+}
+
 void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
     GstBaseTransformClass *base_transform_class = GST_BASE_TRANSFORM_CLASS(klass);
@@ -170,6 +197,7 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
     gobject_class->get_property = gva_base_inference_get_property;
     gobject_class->dispose = gva_base_inference_dispose;
     gobject_class->finalize = gva_base_inference_finalize;
+    base_transform_class->transform_caps = GST_DEBUG_FUNCPTR(gva_base_inference_transform_caps);
     base_transform_class->set_caps = GST_DEBUG_FUNCPTR(gva_base_inference_set_caps);
     base_transform_class->start = GST_DEBUG_FUNCPTR(gva_base_inference_start);
     base_transform_class->stop = GST_DEBUG_FUNCPTR(gva_base_inference_stop);
@@ -785,6 +813,36 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
             return FALSE;
     }
 
+    // Check if the caps are compatible with the device
+    if ((base_inference->device && g_strcmp0(base_inference->device, "CPU") == 0 &&
+         ((gst_caps_features_contains(gst_caps_get_features(incaps, 0), "memory:VASurface")) ||
+          (gst_caps_features_contains(gst_caps_get_features(incaps, 0), "memory:VAMemory")) ||
+          (gst_caps_features_contains(gst_caps_get_features(incaps, 0), "memory:DMABuf"))))) {
+        GST_ELEMENT_WARNING(base_inference, RESOURCE, SETTINGS,
+                            ("Refusing caps other than SYSTEM_MEMORY_CAPS because device is set to CPU"),
+                            ("Set device property to a hardware accelerator (e.g., GPU) to enable VA memory types."));
+        return FALSE;
+    }
+
+    auto element_name = GST_ELEMENT_NAME(GST_ELEMENT(base_inference));
+    // convert element_name to std::string and remove trailing numbers from element name
+    std::string element_name_str = std::string(element_name);
+    auto pos = element_name_str.find_last_of("0123456789");
+    if (pos != std::string::npos)
+        element_name_str = element_name_str.substr(0, pos);
+
+    if (base_inference->device && g_strcmp0(base_inference->device, "CPU") != 0 &&
+        (gst_caps_features_contains(gst_caps_get_features(incaps, 0), "memory:SystemMemory"))) {
+        GST_ELEMENT_WARNING(
+            base_inference, RESOURCE, SETTINGS,
+            ("\n\nSystem memory is being used for inference on device '%s'. For optimal performance, use "
+             "VA memory in the pipeline:\n\nvapostproc ! \"video/x-raw(memory:VAMemory)\" ! %s device=%s model=%s.\n",
+             base_inference->device, element_name_str.c_str(), base_inference->device, base_inference->model),
+            ("System memory transfers are less efficient than VA memory for device '%s'. Consider "
+             "using memory:VAMemory for better performance. \n",
+             base_inference->device));
+    }
+
     if (base_inference->inference && base_inference->info &&
         gst_video_info_is_equal(base_inference->info, &video_info) && base_inference->caps_feature == caps_feature) {
         // We alredy have an inference model instance.
@@ -805,13 +863,6 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
     base_inference->caps_feature = caps_feature;
 
     base_inference->priv->buffer_mapper.reset();
-
-    // If pre-process-backend property not set and SYSTEM_MEMORY_CAPS, set preproc to "ie".
-    // Added due to VAAPI media driver stability issues, this emulates behaviour of 2021.x releases
-    if (!base_inference->pre_proc_type || !*base_inference->pre_proc_type) {
-        if (caps_feature == SYSTEM_MEMORY_CAPS_FEATURE)
-            base_inference->pre_proc_type = g_strdup("ie");
-    }
 
     // Need to acquire inference model instance
     try {

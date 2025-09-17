@@ -26,7 +26,7 @@ appsrc name=mysrc
 D_VAAPI_PIPELINE_STR = f"""
 appsrc name=mysrc
 ! jpegparse ! vaapijpegdec ! video/x-raw(memory:VASurface)
-! gvadetect pre-process-backend=vaapi device=CPU model={D_MODEL_PATH} threshold=0.9
+! gvadetect pre-process-backend=vaapi device=GPU model={D_MODEL_PATH} threshold=0.9
 ! appsink name=mysink emit-signals=true sync=false
 """
 
@@ -57,7 +57,7 @@ appsrc name=mysrc
 C_VAAPI_PIPELINE_STR = f"""
 appsrc name=mysrc
 ! jpegparse ! vaapijpegdec ! video/x-raw(memory:VASurface)
-! gvaclassify inference-region=full-frame pre-process-backend=vaapi device=CPU model={C_MODEL_PATH} model-proc={C_MODEL_PROC_PATH}
+! gvaclassify inference-region=full-frame pre-process-backend=vaapi device=GPU model={C_MODEL_PATH} model-proc={C_MODEL_PROC_PATH}
 ! appsink name=mysink emit-signals=true sync=false
 """
 
