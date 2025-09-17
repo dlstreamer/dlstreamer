@@ -15,6 +15,7 @@ DEFAULT_SOURCE="https://videos.pexels.com/video-files/1192116/1192116-sd_640_360
 DEFAULT_DEVICE="CPU"
 DEFAULT_OUTPUT="json"
 DEFAULT_MODEL="clip-vit-large-patch14"
+DEFAULT_PPBKEND="opencv"
 
 # Check if MODELS_PATH is set
 if [ -z "$MODELS_PATH" ]; then
@@ -33,6 +34,7 @@ SOURCE_FILE=${1:-$DEFAULT_SOURCE}
 DEVICE=${2:-$DEFAULT_DEVICE}
 OUTPUT=${3:-$DEFAULT_OUTPUT}
 MODEL=${4:-$DEFAULT_MODEL}
+PPBKEND=${5:-$DEFAULT_PPBKEND}
 
 if ! [[ " ${SUPPORTED_MODELS[*]} " =~ [[:space:]]${MODEL}[[:space:]] ]]; then
   echo "Unsupported model: $MODEL" >&2
@@ -72,9 +74,9 @@ if [ "$DEVICE" == "CPU" ]; then
     fi
 elif [ "$DEVICE" == "GPU" ]; then
     if [ "$OUTPUT" == "json" ]; then
-        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=opencv ! gvametaconvert format=json add-tensor-data=true ! gvametapublish method=file file-path=output.json ! fakesink"
+        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=$PPBKEND ! gvametaconvert format=json add-tensor-data=true ! gvametapublish method=file file-path=output.json ! fakesink"
     elif [ "$OUTPUT" == "fps" ]; then
-        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=opencv ! gvafpscounter ! fakesink"
+        PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT ! decodebin3 ! videoconvert ! videoscale ! vapostproc ! \"video/x-raw(memory:VAMemory)\" ! gvainference model=\"$MODEL_PATH\" ie-config=INFERENCE_PRECISION_HINT=f32 device=GPU pre-process-backend=$PPBKEND ! gvafpscounter ! fakesink"
     else
         echo "Invalid output specified. Use json or fps."
         exit 1
