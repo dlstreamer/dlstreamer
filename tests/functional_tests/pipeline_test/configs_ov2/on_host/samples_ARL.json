@@ -318,30 +318,45 @@
             "dataset.groundtruth": "lvm_clip_vit_large_patch14_dog_sign_cpu.json",
             "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,CPU,json,clip-vit-large-patch14"
         },
-        "lvm_clip_vit_large_patch14_GPU": {
-            "name": "lvm_clip_vit_large_patch14_GPU",
+        "lvm_clip_vit_large_patch14_GPU_opencv": {
+            "name": "lvm_clip_vit_large_patch14_GPU_opencv",
             "dataset.groundtruth": "lvm_clip_vit_large_patch14_dog_sign_gpu.json",
             "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,GPU,json,clip-vit-large-patch14"
+        },
+        "lvm_clip_vit_large_patch14_GPU_va_surface_sharing": {
+            "name": "lvm_clip_vit_large_patch14_GPU_va_surface_sharing",
+            "dataset.groundtruth": "lvm_clip_vit_large_patch14_dog_sign_gpu.json",
+            "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,GPU,json,clip-vit-large-patch14,va-surface-sharing"
         },
         "lvm_clip_vit_base_patch16_CPU": {
             "name": "lvm_clip_vit_base_patch16_CPU",
             "dataset.groundtruth": "lvm_clip_vit_base_patch16_dog_sign_cpu.json",
             "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,CPU,json,clip-vit-base-patch16"
         },
-        "lvm_clip_vit_base_patch16_GPU": {
-            "name": "lvm_clip_vit_base_patch16_GPU",
+        "lvm_clip_vit_base_patch16_GPU_opencv": {
+            "name": "lvm_clip_vit_base_patch16_GPU_opencv",
             "dataset.groundtruth": "lvm_clip_vit_base_patch16_dog_sign_gpu.json",
             "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,GPU,json,clip-vit-base-patch16"
+        },
+        "lvm_clip_vit_base_patch16_GPU_va_surface_sharing": {
+            "name": "lvm_clip_vit_base_patch16_GPU_va_surface_sharing",
+            "dataset.groundtruth": "lvm_clip_vit_base_patch16_dog_sign_gpu.json",
+            "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,GPU,json,clip-vit-base-patch16,va-surface-sharing"
         },
         "lvm_clip_vit_base_patch32_CPU": {
             "name": "lvm_clip_vit_base_patch32_CPU",
             "dataset.groundtruth": "lvm_clip_vit_base_patch32_dog_sign_cpu.json",
             "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,CPU,json,clip-vit-base-patch32"
         },
-        "lvm_clip_vit_base_patch32_GPU": {
-            "name": "lvm_clip_vit_base_patch32_GPU",
+        "lvm_clip_vit_base_patch32_GPU_opencv": {
+            "name": "lvm_clip_vit_base_patch32_GPU_opencv",
             "dataset.groundtruth": "lvm_clip_vit_base_patch32_dog_sign_gpu.json",
             "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,GPU,json,clip-vit-base-patch32"
+        },
+        "lvm_clip_vit_base_patch32_GPU_va_surface_sharing": {
+            "name": "lvm_clip_vit_base_patch32_GPU_va_surface_sharing",
+            "dataset.groundtruth": "lvm_clip_vit_base_patch32_dog_sign_gpu.json",
+            "sample.command": "{sample.dir}/gst_launch/lvm/generate_frame_embeddings.sh,{dataset.video}/dog_sign.mp4,GPU,json,clip-vit-base-patch32,va-surface-sharing"
         },
 
 
