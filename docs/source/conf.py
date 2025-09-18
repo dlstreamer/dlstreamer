@@ -26,9 +26,9 @@ if doxyrest_sphinx_dir:
 
 # -- Project information -----------------------------------------------------
 
-project = 'Intel® Deep Learning Streamer (Intel® DL Streamer)'
-copyright = '2025, Intel Corporation'
-author = 'Intel Corporation'
+project = "Intel® Deep Learning Streamer (Intel® DL Streamer)"
+copyright = "2025, Intel Corporation"
+author = "Intel Corporation"
 
 
 # -- General configuration ---------------------------------------------------
@@ -36,11 +36,18 @@ author = 'Intel Corporation'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.graphviz', 'sphinxcontrib.mermaid', 'sphinxcontrib.spelling', 'sphinx_copybutton', 'sphinx_tabs.tabs', 'myst_parser']
+extensions = [
+    "sphinx.ext.graphviz",
+    "sphinxcontrib.mermaid",
+    "sphinxcontrib.spelling",
+    "sphinx_copybutton",
+    "sphinx_tabs.tabs",
+    "myst_parser",
+]
 if doxyrest_sphinx_dir:
-    extensions.extend(['doxyrest', 'cpplexer'])
+    extensions.extend(["doxyrest", "cpplexer"])
 
-source_suffix = ['.rst', '.md']
+source_suffix = [".rst", ".md"]
 
 # Add any options for myst-parser extension.
 
@@ -49,7 +56,7 @@ myst_heading_anchors = 4
 suppress_warnings = ["myst.xref_missing"]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -62,31 +69,28 @@ exclude_patterns = []
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_book_theme'
+html_theme = "sphinx_book_theme"
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
 
 # -- Options for SPELLING check ---------------------------------------------------
 
 # Dictionary selected
-spelling_lang='en_US'
+spelling_lang = "en_US"
 
 # Path of file containing a list of words known to be spelled correctly but that
 # do not appear in the language dictionary selected
-spelling_word_list_filename='spelling_wordlist.txt'
+spelling_word_list_filename = "spelling_wordlist.txt"
 
 # Enable suggestions for misspelled words
-spelling_show_suggestions=True
+spelling_show_suggestions = True
 
 # -- Options for LINK check ---------------------------------------------------
 
 # Enable anchors check
-linkcheck_anchors=False
-linkcheck_ignore = [
-    r'https://www.intel.com/.*',
-    r'https://*.intel.com/.*'
-]
+linkcheck_anchors = False
+linkcheck_ignore = [r"https://www.intel.com/.*", r"https://*.intel.com/.*"]
