@@ -27,6 +27,7 @@ target_include_directories(${TARGET_NAME} PUBLIC
     ${GSTREAMER_BASE_INCLUDE_DIRS}
     ${GSTREAMER_VIDEO_INCLUDE_DIRS}
     ${OpenVINO_INCLUDE_DIRS}
+    ${DLSTREAMER_BASE_DIR}/include/dlstreamer/gst/metadata
 )
 
 # Link libraries

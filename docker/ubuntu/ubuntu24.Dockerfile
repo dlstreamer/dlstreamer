@@ -297,6 +297,12 @@ RUN \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# OpenVINO Gen AI
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_VERSION}.0_x86_64
+ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/${OPENVINO_GENAI_VER}.tar.gz
+
+RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
+    mv ${OPENVINO_GENAI_VER} /opt/intel/openvino_genai
 
 WORKDIR "$DLSTREAMER_DIR"
 
@@ -325,6 +331,7 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 
 # Build DLStreamer
 RUN \
+    source /opt/intel/openvino_genai/setupvars.sh && \
     cmake \
        -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
        -DENABLE_PAHO_INSTALLATION=ON \
@@ -332,6 +339,7 @@ RUN \
        -DENABLE_VAAPI=ON \
        -DENABLE_SAMPLES=ON \
        -DENABLE_REALSENSE=ON \
+       -DENABLE_GENAI=ON \
        .. && \
        make -j "$(nproc)" && \
        usermod -a -G video dlstreamer && \
@@ -357,7 +365,9 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN \
+    mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
+    find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
