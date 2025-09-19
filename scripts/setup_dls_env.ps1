@@ -51,6 +51,7 @@ if (-Not [System.IO.File]::Exists('C:\openvino\setupvars.ps1')) {
 
 echo 'Setting variables:, OpenVINO_DIR, OPENVINO_LIB_PATHS, Path (for OpenVINO)'
 [Environment]::SetEnvironmentVariable('OpenVINO_DIR', "C:\openvino\runtime\cmake", [System.EnvironmentVariableTarget]::User)
+[Environment]::SetEnvironmentVariable('OpenVINOGenAI_DIR', "C:\openvino\runtime\cmake", [System.EnvironmentVariableTarget]::User)
 [Environment]::SetEnvironmentVariable('OPENVINO_LIB_PATHS', "C:\openvino\runtime\3rdparty\tbb\bin;C:\openvino\runtime\bin\intel64\Release", [System.EnvironmentVariableTarget]::User)
 if (-Not [Environment]::GetEnvironmentVariable('Path', 'User').Contains('openvino')) {
 	$USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')

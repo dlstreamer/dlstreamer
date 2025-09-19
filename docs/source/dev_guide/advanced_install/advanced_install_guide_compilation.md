@@ -138,10 +138,30 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   cd /opt/intel
   sudo ln -s openvino_2025.2.0 openvino_2025
   ```
-:::
-::::
 
-## Step 6: Build Deep Learning Streamer
+### [Optional] Step 6: Install OpenVINO™ GenAI (only for Ubuntu)
+
+To use [gvagenai element](https://docs.openedgeplatform.intel.com/oep/edge-ai-libraries/dl-streamer/elements/gvagenai.html) 
+there is need to install [OpenVINO GenAI archive](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) package.
+
+
+- **Ubuntu 22**
+
+```bash
+curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/openvino_genai_ubuntu22_2025.2.0.0_x86_64.tar.gz | tar -xz &&
+mv openvino_genai_ubuntu24_2025.2.0.0_x86_64 /opt/intel/openvino_genai
+source /opt/intel/openvino_genai/setupvars.sh
+```
+
+- **Ubuntu 24**
+
+```bash
+curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/openvino_genai_ubuntu24_2025.2.0.0_x86_64.tar.gz | tar -xz &&
+mv openvino_genai_ubuntu24_2025.2.0.0_x86_64 /opt/intel/openvino_genai
+source /opt/intel/openvino_genai/setupvars.sh
+```
+
+## Step 7: Build Deep Learning Streamer
 
 To build DL Streamer is it recommended to use the provided makefile for ease of use:
 ```bash
@@ -149,14 +169,14 @@ make build
 ```
 Running this command will build any major missing dependencies and then compile DL Streamer itself.
 
-## Step 7: Install Deep Learning Streamer (optional)
+## Step 8: Install Deep Learning Streamer (optional)
 
 After building DL Streamer you can install it on your local system by running:
 ```bash
 sudo -E make install
 ```
 
-## Step 8: Set up environment
+## Step 9: Set up environment
 
 Set up the required environment variables:
 
@@ -218,7 +238,7 @@ Set up the required environment variables:
 > **NOTE:**  For a permament solution, open `\~/.bashrc` and add the variables above
 > to set up Linux to use them for every terminal session.
 
-## Step 9: Install Python dependencies (optional)
+## Step 10: Install Python dependencies (optional)
 
 If you intend to use Python elements or samples, you need to install the
 necessary dependencies using the following commands:

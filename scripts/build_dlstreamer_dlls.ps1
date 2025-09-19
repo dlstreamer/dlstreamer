@@ -69,21 +69,20 @@ if (-Not (Test-Path "${DLSTREAMER_TMP}\\gstreamer-1.0-msvc-x86_64_${GSTREAMER_VE
 	Write-Host "################################### GStreamer ${GSTREAMER_VERSION} already installed ###################################"
 }
 
-$OPENVINO_FULL_VERSION = "2025.2.0.19140.c01cd93e24d"
 $OPENVINO_VERSION = "2025.2"
 $OPENVINO_DEST_FOLDER = "C:\\openvino"
 
-if (-Not (Test-Path "${DLSTREAMER_TMP}\\openvino_toolkit_windows_${OPENVINO_FULL_VERSION}_x86_64.zip")) {
-	Write-Host "####################################### Installing OpenVINO ${OPENVINO_VERSION} #######################################"
-	Invoke-WebRequest -OutFile ${DLSTREAMER_TMP}\\openvino_toolkit_windows_${OPENVINO_FULL_VERSION}_x86_64.zip -Uri "https://storage.openvinotoolkit.org/repositories/openvino/packages/${OPENVINO_VERSION}/windows/openvino_toolkit_windows_${OPENVINO_FULL_VERSION}_x86_64.zip"
-	Expand-Archive -Path "${DLSTREAMER_TMP}\\openvino_toolkit_windows_${OPENVINO_FULL_VERSION}_x86_64.zip" -DestinationPath "C:\"
+if (-Not (Test-Path "${DLSTREAMER_TMP}\\openvino_genai_windows_${OPENVINO_VERSION}.0.0_x86_64.zip")) {
+	Write-Host "####################################### Installing OpenVINO GenAI ${OPENVINO_VERSION} #######################################"
+	Invoke-WebRequest -OutFile ${DLSTREAMER_TMP}\\openvino_genai_windows_${OPENVINO_VERSION}.0.0_x86_64.zip -Uri "https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/${OPENVINO_VERSION}/windows/openvino_genai_windows_${OPENVINO_VERSION}.0.0_x86_64.zip"
+	Expand-Archive -Path "${DLSTREAMER_TMP}\\openvino_genai_windows_${OPENVINO_VERSION}.0.0_x86_64.zip" -DestinationPath "C:\"
 	if (Test-Path "${OPENVINO_DEST_FOLDER}") {
 		Remove-Item -LiteralPath "${OPENVINO_DEST_FOLDER}" -Recurse
 	}
-	Move-Item -Path "C:\\openvino_toolkit_windows_${OPENVINO_FULL_VERSION}_x86_64" -Destination "${OPENVINO_DEST_FOLDER}"
+	Move-Item -Path "C:\\openvino_genai_windows_${OPENVINO_VERSION}.0.0_x86_64" -Destination "${OPENVINO_DEST_FOLDER}"
 	Write-Host "############################################ Done ########################################################"
 } else {
-	Write-Host "################################# OpenVINO ${OPENVINO_VERSION} already installed ##################################"
+	Write-Host "################################# OpenVINO GenAI ${OPENVINO_VERSION} already installed ##################################"
 }
 
 if (-Not (Test-Path "C:\\Program Files\\Git")) {
