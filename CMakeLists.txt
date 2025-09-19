@@ -131,6 +131,12 @@ option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)
+# Enable GenAI by default on Windows. 
+# It can be enabled on Ubuntu but there is no support for Fedora.
+if(WIN32)
+    set(ENABLE_GENAI ON)
+endif()
+
 message("ENABLE_PAHO_INSTALLATION=${ENABLE_PAHO_INSTALLATION}")
 message("ENABLE_RDKAFKA_INSTALLATION=${ENABLE_RDKAFKA_INSTALLATION}")
 message("ENABLE_REALSENSE=${ENABLE_REALSENSE}")
