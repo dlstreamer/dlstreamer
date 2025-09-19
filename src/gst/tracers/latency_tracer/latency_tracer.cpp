@@ -324,7 +324,8 @@ static void do_push_buffer_pre(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBu
     }
     if (lt->flags & LATENCY_TRACER_FLAG_ELEMENT) {
         ElementStats *stats = ElementStats::from_element(elem);
-        if (stats != nullptr) {
+        // log latency only if ts is greater than last logged ts to avoid duplicate logging for the same buffer
+        if (stats != nullptr && ts > meta->last_pad_push_ts) {
             stats->cal_log_element_latency(ts, meta->last_pad_push_ts, lt->interval);
             meta->last_pad_push_ts = ts;
         }
@@ -372,7 +373,10 @@ static void on_element_change_state_post(LatencyTracer *lt, guint64 ts, GstEleme
             if (GST_OBJECT_FLAG_IS_SET(element, GST_ELEMENT_FLAG_SINK))
                 lt->sink_element = element;
             else if (!GST_OBJECT_FLAG_IS_SET(element, GST_ELEMENT_FLAG_SOURCE)) {
-                ElementStats::create(element, ts);
+                // create ElementStats only once per each element
+                if (!ElementStats::from_element(element)) {
+                    ElementStats::create(element, ts);
+                }
             }
         }
         GstTracer *tracer = GST_TRACER(lt);
