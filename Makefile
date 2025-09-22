@@ -6,7 +6,6 @@
 
 .DEFAULT_GOAL := help
 SHELL := /bin/bash
-nproc ?= 1
 
 PROJECT_DIRECTORY 			:= ${CURDIR}
 DLSTREAMER_INSTALL_PREFIX 	?= /opt/intel/dlstreamer
@@ -43,7 +42,7 @@ dependencies:
 		-B build/deps \
 		-DCMAKE_BUILD_TYPE=${BUILD_TYPE} \
 		./dependencies
-	cmake --build build/deps
+	cmake --build build/deps -j$(shell nproc)
 
 .PHONY: build
 build: dependencies ## Compile Deep Learning Streamer
@@ -59,7 +58,7 @@ build: dependencies ## Compile Deep Learning Streamer
 		-DENABLE_SAMPLES=ON \
 		-DENABLE_GENAI=${ENABLE_GENAI} \
 		-DENABLE_TESTS=OFF; \
-	cmake --build build
+	cmake --build build -j$(shell nproc)
 
 .PHONY: install
 install: build ## Build and install Deep Learning Streamer
