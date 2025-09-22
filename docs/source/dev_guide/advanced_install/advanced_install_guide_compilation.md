@@ -93,7 +93,7 @@ pip install meson==1.4.1 ninja==1.11.1.1
 
 ```bash
 cd ~
-git clone https://github.com/open-edge-platform/edge-ai-libraries.git -b release-1.2.0
+git clone https://github.com/open-edge-platform/edge-ai-libraries.git
 cd edge-ai-libraries
 git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 ```
@@ -130,13 +130,13 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 :::{tab-item} EMT
 :sync: tab2
   ```bash
-  wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140 c01cd93e24d_x86_64.tgz
-  tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
-  sudo mv openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64 /opt/intel/openvino_2025.2.0
-  cd /opt/intel/openvino_2025.2.0/
+  wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
+  tar -xvzf openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
+  sudo mv openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64 /opt/intel/openvino_2025.3.0
+  cd /opt/intel/openvino_2025.3.0/
   sudo -E python3 -m pip install -r ./python/requirements.txt
   cd /opt/intel
-  sudo ln -s openvino_2025.2.0 openvino_2025
+  sudo ln -s openvino_2025.3.0 openvino_2025
   ```
 
 ### [Optional] Step 6: Install OpenVINO™ GenAI (only for Ubuntu)
@@ -148,16 +148,16 @@ there is need to install [OpenVINO GenAI archive](https://docs.openvino.ai/2025/
 - **Ubuntu 22**
 
 ```bash
-curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/openvino_genai_ubuntu22_2025.2.0.0_x86_64.tar.gz | tar -xz &&
-mv openvino_genai_ubuntu24_2025.2.0.0_x86_64 /opt/intel/openvino_genai
+curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu22_2025.3.0.0_x86_64.tar.gz | tar -xz &&
+mv openvino_genai_ubuntu22_2025.3.0.0_x86_64 /opt/intel/openvino_genai
 source /opt/intel/openvino_genai/setupvars.sh
 ```
 
 - **Ubuntu 24**
 
 ```bash
-curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.2/linux/openvino_genai_ubuntu24_2025.2.0.0_x86_64.tar.gz | tar -xz &&
-mv openvino_genai_ubuntu24_2025.2.0.0_x86_64 /opt/intel/openvino_genai
+curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz | tar -xz &&
+mv openvino_genai_ubuntu24_2025.3.0.0_x86_64 /opt/intel/openvino_genai
 source /opt/intel/openvino_genai/setupvars.sh
 ```
 
