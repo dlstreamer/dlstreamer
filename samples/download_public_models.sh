@@ -190,7 +190,7 @@ pip install --no-cache-dir --upgrade pip
 
 # Install OpenVINO module with compatible numpy version
 pip install --no-cache-dir "numpy<2.5.0,>=1.16.6" || handle_error $LINENO
-pip install --no-cache-dir openvino==2025.2.0 || handle_error $LINENO
+pip install --no-cache-dir openvino==2025.3.0 || handle_error $LINENO
 
 pip install --no-cache-dir onnx || handle_error $LINENO
 pip install --no-cache-dir seaborn || handle_error $LINENO

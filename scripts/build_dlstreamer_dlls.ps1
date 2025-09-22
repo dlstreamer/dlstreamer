@@ -69,7 +69,7 @@ if (-Not (Test-Path "${DLSTREAMER_TMP}\\gstreamer-1.0-msvc-x86_64_${GSTREAMER_VE
 	Write-Host "################################### GStreamer ${GSTREAMER_VERSION} already installed ###################################"
 }
 
-$OPENVINO_VERSION = "2025.2"
+$OPENVINO_VERSION = "2025.3"
 $OPENVINO_DEST_FOLDER = "C:\\openvino"
 
 if (-Not (Test-Path "${DLSTREAMER_TMP}\\openvino_genai_windows_${OPENVINO_VERSION}.0.0_x86_64.zip")) {
