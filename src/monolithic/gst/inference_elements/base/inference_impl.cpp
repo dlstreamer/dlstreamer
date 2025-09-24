@@ -1240,7 +1240,8 @@ GstFlowReturn InferenceImpl::TransformFrameIp(GvaBaseInference *gva_base_inferen
             // pause if total number of buffered frames exceeds max number of frames in flight,
             // and frame presentation time is later than ones already queued
             while ((buffer->pts > latest_pts) &&
-                   (output_frames.size() > model.inference->GetNireq() * model.inference->GetBatchSize())) {
+                   (output_frames.size() > model.inference->GetNireq() * model.inference->GetBatchSize() *
+                                               gva_base_inference->inference_interval)) {
                 output_lock.unlock();
                 lock.unlock();
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
