@@ -282,15 +282,17 @@ bool IsModelProcSupportedForVaapiSurfaceSharing(
 
 bool IsPreprocSupported(ImagePreprocessorType preproc,
                         const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
-                        GstVideoInfo *input_video_info, const std::string device) {
-    bool isNpu = (device.find("NPU") != std::string::npos);
+                        GstVideoInfo *input_video_info, const std::map<std::string, std::string> base_config) {
+    bool isNpu = (base_config.at(KEY_DEVICE).find("NPU") != std::string::npos);
+    bool isCustomLib = !base_config.at(KEY_CUSTOM_PREPROC_LIB).empty();
     switch (preproc) {
     case ImagePreprocessorType::IE:
-        return !isNpu && IsModelProcSupportedForIE(model_input_processor_info, input_video_info);
+        return !isNpu && !isCustomLib && IsModelProcSupportedForIE(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::VAAPI_SYSTEM:
-        return IsModelProcSupportedForVaapi(model_input_processor_info, input_video_info);
+        return !isCustomLib && IsModelProcSupportedForVaapi(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
-        return !isNpu && IsModelProcSupportedForVaapiSurfaceSharing(model_input_processor_info, input_video_info);
+        return !isNpu && !isCustomLib &&
+               IsModelProcSupportedForVaapiSurfaceSharing(model_input_processor_info, input_video_info);
     case ImagePreprocessorType::OPENCV:
         return true;
     case ImagePreprocessorType::AUTO:
@@ -302,8 +304,10 @@ bool IsPreprocSupported(ImagePreprocessorType preproc,
 // Returns default suitable preprocessor according to caps and custom preprocessing options
 ImagePreprocessorType
 GetPreferredImagePreproc(CapsFeature caps, const std::vector<ModelInputProcessorInfo::Ptr> &model_input_processor_info,
-                         GstVideoInfo *input_video_info, const std::string device) {
+                         GstVideoInfo *input_video_info, const std::map<std::string, std::string> base_config) {
     ImagePreprocessorType result = ImagePreprocessorType::OPENCV;
+    std::string device = base_config.at(KEY_DEVICE);
+
     switch (caps) {
     case SYSTEM_MEMORY_CAPS_FEATURE:
         result = ImagePreprocessorType::IE;
@@ -324,7 +328,7 @@ GetPreferredImagePreproc(CapsFeature caps, const std::vector<ModelInputProcessor
     }
 
     // Fallback to OPENCV
-    if (!IsPreprocSupported(result, model_input_processor_info, input_video_info, device)) {
+    if (!IsPreprocSupported(result, model_input_processor_info, input_video_info, base_config)) {
         result = ImagePreprocessorType::OPENCV;
     }
 
@@ -345,24 +349,30 @@ void setPreprocessorType(InferenceConfig &config,
     if (current == ImagePreprocessorType::AUTO) {
         // Automatically select the preferred preprocessor type based on capabilities and input info
         selected_preprocessor =
-            GetPreferredImagePreproc(caps, model_input_processor_info, input_video_info, config[KEY_BASE][KEY_DEVICE]);
-    } else if (!IsPreprocSupported(current, model_input_processor_info, input_video_info,
-                                   config[KEY_BASE][KEY_DEVICE])) {
+            GetPreferredImagePreproc(caps, model_input_processor_info, input_video_info, config[KEY_BASE]);
+    } else if (!IsPreprocSupported(current, model_input_processor_info, input_video_info, config[KEY_BASE])) {
         // Handle unsupported preprocessor types by attempting fallback options
         if (current == ImagePreprocessorType::IE &&
             IsPreprocSupported(ImagePreprocessorType::OPENCV, model_input_processor_info, input_video_info,
-                               config[KEY_BASE][KEY_DEVICE])) {
+                               config[KEY_BASE])) {
             // Fallback to OpenCV if IE is unsupported
             selected_preprocessor = ImagePreprocessorType::OPENCV;
             GVA_WARNING("'pre-process-backend=ie' not supported with current settings, falling back to "
                         "'pre-process-backend=opencv'");
+        } else if (current == ImagePreprocessorType::VAAPI_SYSTEM &&
+                   IsPreprocSupported(ImagePreprocessorType::OPENCV, model_input_processor_info, input_video_info,
+                                      config[KEY_BASE])) {
+            // Fallback to OpenCV if VAAPI_SYSTEM is unsupported
+            selected_preprocessor = ImagePreprocessorType::OPENCV;
+            GVA_WARNING("'pre-process-backend=va' not supported with current settings, falling back "
+                        "to 'pre-process-backend=opencv'");
         } else if (current == ImagePreprocessorType::VAAPI_SURFACE_SHARING &&
                    IsPreprocSupported(ImagePreprocessorType::VAAPI_SYSTEM, model_input_processor_info, input_video_info,
-                                      config[KEY_BASE][KEY_DEVICE])) {
+                                      config[KEY_BASE])) {
             // Fallback to VAAPI_SYSTEM if VAAPI_SURFACE_SHARING is unsupported
             selected_preprocessor = ImagePreprocessorType::VAAPI_SYSTEM;
-            GVA_WARNING("'pre-process-backend=vaapi-surface-sharing' not supported with current settings, falling back "
-                        "to 'pre-process-backend=vaapi'");
+            GVA_WARNING("'pre-process-backend=va-surface-sharing' not supported with current settings, falling back "
+                        "to 'pre-process-backend=va'");
         } else {
             // Throw an error if no suitable fallback is available
             throw std::runtime_error(

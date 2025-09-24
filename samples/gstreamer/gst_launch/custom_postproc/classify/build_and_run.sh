@@ -74,11 +74,6 @@ else
 fi
 
 DECODE_ELEMENT="! decodebin3 !"
-BACKEND="opencv"
-if [[ "$DEVICE" == "GPU" ]]; then
-	DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"
-	BACKEND="va"
-fi
 
 if [[ "$OUTPUT" == "file" ]]; then
 	FILE=$(basename "${INPUT%.*}")
@@ -118,8 +113,8 @@ else
 fi
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \
-gvadetect model=$DETECT_MODEL_PATH device=$DEVICE pre-process-backend=$BACKEND ! queue ! \
-gvaclassify custom-postproc-lib=$CUSTOM_POSTPROC_LIB model=$CLASSIFY_MODEL_PATH device=$DEVICE pre-process-backend=$BACKEND ! queue ! \
+gvadetect model=$DETECT_MODEL_PATH device=$DEVICE pre-process-backend=opencv ! queue ! \
+gvaclassify custom-postproc-lib=$CUSTOM_POSTPROC_LIB model=$CLASSIFY_MODEL_PATH device=$DEVICE pre-process-backend=opencv ! queue ! \
 $SINK_ELEMENT"
 
 echo "${PIPELINE}"
