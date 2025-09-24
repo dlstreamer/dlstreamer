@@ -828,7 +828,10 @@ class OpenVinoNewApiImpl {
 
         switch (_memory_type) {
         case MemoryType::SYSTEM:
-            format = FourCC::FOURCC_RGBP;
+            if (_model_format == "BGR")
+                format = FourCC::FOURCC_BGRP;
+            else
+                format = FourCC::FOURCC_RGBP;
             break;
         case MemoryType::VAAPI:
             format = FourCC::FOURCC_NV12;
@@ -848,11 +851,16 @@ class OpenVinoNewApiImpl {
 
     static bool image_has_roi(const Image &image) {
         const auto r = image.rect;
-        return r.x || r.y || r.width != image.width || r.height != image.height;
+        return r.x || r.y || ((r.width > 0) && (r.width != image.width)) ||
+               ((r.height > 0) && (r.height != image.height));
     }
 
     std::vector<ov::Tensor> image_to_tensors(const Image &image) {
         switch (image.format) {
+        case FourCC::FOURCC_RGBP:
+        case FourCC::FOURCC_BGRP:
+            return {image_rgbp_to_tensor(image)};
+
         case FourCC::FOURCC_BGRA:
         case FourCC::FOURCC_BGRX:
         case FourCC::FOURCC_RGBA:
@@ -871,6 +879,40 @@ class OpenVinoNewApiImpl {
         default:
             throw std::logic_error("Unsupported image type");
         }
+    }
+
+    ov::Tensor image_rgbp_to_tensor(const Image &image) {
+        // Input image has 3 planes, separately for RBG (or BGR)
+        // This function converts 3 planes to ov::Tensor with NCHW layout
+        // planes must be equally spaced in memory, and have same stride
+        assert(image.planes[0] && image.planes[1] && image.planes[2]);
+        assert((image.planes[1] - image.planes[0]) == (image.planes[2] - image.planes[1]));
+        assert((image.stride[0] == image.stride[1]) && (image.stride[1] == image.stride[2]));
+
+        auto channels_num = get_channels_num(image.format);
+        const ov::Shape shape{1, channels_num, size_t(image.height), size_t(image.width)};
+        unsigned long plane_stride = image.planes[1] - image.planes[0];
+        ov::Strides stride{channels_num * plane_stride, plane_stride, image.stride[0], 1};
+        ov::Tensor tensor{ov::element::u8, shape, image.planes[0], stride};
+
+        // ROI
+        if (image_has_roi(image)) {
+            const auto &r = image.rect;
+            const ov::Coordinate begin{0, 0, r.y, r.x};
+            const ov::Coordinate end{shape[0], shape[1], r.y + r.height, r.x + r.width};
+            tensor = ov::Tensor(tensor, begin, end);
+        }
+
+        // Allocate new tensor in host memory and COPY data if the original tensor is not contigous
+        // - NPU device plugin requires contigous tensors (explicit assert)
+        // - GPU plugin fails in certain cases with non-contigous tensors
+        if (!tensor.is_continuous()) {
+            ov::Tensor sparse_tensor(tensor);
+            tensor = ov::Tensor(ov::element::u8, sparse_tensor.get_shape());
+            sparse_tensor.copy_to(tensor);
+        }
+
+        return tensor;
     }
 
     ov::Tensor image_bgrx_to_tensor(const Image &image) {
@@ -970,6 +1012,8 @@ class OpenVinoNewApiImpl {
         case FourCC::FOURCC_RGBX:
             return 4;
         case FourCC::FOURCC_BGR:
+        case FourCC::FOURCC_RGBP:
+        case FourCC::FOURCC_BGRP:
             return 3;
         }
         return 0;
@@ -983,6 +1027,7 @@ class OpenVinoNewApiImpl {
 
   protected:
     std::shared_ptr<ov::Model> _model;
+    std::string _model_format;
     std::string _device;
     std::string _image_input_name;
     dlstreamer::ContextPtr _app_context;
@@ -1008,6 +1053,7 @@ class OpenVinoNewApiImpl {
         auto ppp = ov::preprocess::PrePostProcessor(_model);
         configure_model_inputs(config, ppp);
         _model = ppp.build();
+        _model_format = config.model_format();
 
         // dynamic shapes may have height=0 and width=0 after IE preprocessing
         // set lower and upper bound of dynamic shapes to match original frame dimensions
@@ -1379,13 +1425,11 @@ OpenVINOImageInference::OpenVINOImageInference(const InferenceBackend::Inference
         }
 
         const auto pp_type = cfg_helper.pp_type();
-        const std::string custom_preproc_lib = cfg_helper.custom_preproc_lib();
 
-        // FIXME: why VAAPI ?
-        if (pp_type == InferenceBackend::ImagePreprocessorType::OPENCV ||
-            pp_type == InferenceBackend::ImagePreprocessorType::VAAPI_SYSTEM) {
+        if (pp_type == InferenceBackend::ImagePreprocessorType::OPENCV) {
             std::string pp_type_string = fmt::format("creating pre-processor, type: {}", pp_type);
             GVA_INFO("%s", pp_type_string.c_str());
+            const std::string custom_preproc_lib = cfg_helper.custom_preproc_lib();
             pre_processor.reset(InferenceBackend::ImagePreprocessor::Create(pp_type, custom_preproc_lib));
         }
 
