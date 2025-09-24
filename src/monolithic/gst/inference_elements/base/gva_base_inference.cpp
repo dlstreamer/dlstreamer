@@ -239,11 +239,12 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_SCHEDULING_POLICY,
-        g_param_spec_string(
-            "scheduling-policy", "Scheduling Policy",
-            "Scheduling policy across streams sharing same model instance: "
-            "throughput (select first incoming frame), latency (select frames with earliest presentation time)",
-            DEFAULT_SCHEDULING_POLICY, (GParamFlags)(param_flags)));
+        g_param_spec_string("scheduling-policy", "Scheduling Policy",
+                            "Scheduling policy across streams sharing same model instance: "
+                            "throughput (select first incoming frame), "
+                            "latency (select frames with earliest presentation time out of the streams sharing same "
+                            "model-instance-id; recommended batch-size less than or equal to the number of streams) ",
+                            DEFAULT_SCHEDULING_POLICY, (GParamFlags)(param_flags)));
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_PROC_BACKEND,
