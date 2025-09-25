@@ -298,8 +298,10 @@ Below is an example of `output_postproc` and its parameters:
 ...
 ```
 
+<!--hide_directive
 :::{toctree}
 :maxdepth: 2
 
 how_to_create_model_proc_file
 :::
+hide_directive-->

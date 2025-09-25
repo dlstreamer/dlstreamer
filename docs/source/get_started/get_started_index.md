@@ -18,6 +18,7 @@
 - [Samples](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/README.md)
 
 
+<!--hide_directive
 :::{toctree}
 :maxdepth: 2
 :hidden:
@@ -27,3 +28,4 @@ install/install_guide_index
 tutorial
 Samples <https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/gstreamer/README.md>
 :::
+hide_directive-->
