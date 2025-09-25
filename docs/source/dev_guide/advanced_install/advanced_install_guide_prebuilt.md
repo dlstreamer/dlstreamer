@@ -29,25 +29,29 @@ cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_open
 
 Download pre-built Debian packages:
 
-::::{tab-set}
-:::{tab-item} Ubuntu 24.04
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu 24.04
+<!--hide_directive:sync: tab1hide_directive-->
+
   ```bash
   mkdir -p ~/intel/dlstreamer_gst
   cd ~/intel/dlstreamer_gst
   wget $(wget -q -O - https://api.github.com/repos/dlstreamer/dlstreamer/releases/latest | \
     jq -r '.assets[] | select(.name | contains ("ubuntu_24.04_amd64.deb")) | .browser_download_url')
   ```
-:::
-:::{tab-item} Ubuntu 22.04
-:sync: tab2
+
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu 22.04
+<!--hide_directive:sync: tab2hide_directive-->
+
   ```bash
   cd ~/intel/dlstreamer_gst
   wget $(wget -q -O - https://api.github.com/repos/dlstreamer/dlstreamer/releases/latest | \
     jq -r '.assets[] | select(.name | contains ("ubuntu_22.04_amd64.deb")) | .browser_download_url')
   ```
-:::
-::::
+
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 3: Install Deep Learning Streamer
 
