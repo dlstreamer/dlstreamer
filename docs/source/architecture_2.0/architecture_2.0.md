@@ -16,7 +16,7 @@ architecture 2.0, aiming for the following goals:
    [Source](./api_ref/class_dlstreamer_Source),
    [Transform](./api_ref/class_dlstreamer_Transform) and
    [Sink](./api_ref/class_dlstreamer_Sink) for C++ elements implemented in next sub-component. See
-   [Memory Interop and C++ abstract interfaces](./cpp_interfaces) for details.
+   [Memory Interop and C++ abstract interfaces](./cpp_interfaces.md) for details.
 2. **\"non-GStreamer\" backend support via C++/Python programming.**
    Expose Deep Learning Streamer functional blocks (elements) as both
    GStreamer elements and C++/Python interfaces accessible by any
@@ -27,8 +27,8 @@ architecture 2.0, aiming for the following goals:
    use mix of out-of-box elements, custom/additional elements, memory
    interop library and pipeline management logic on top to build
    complete performance-optimized media analytics pipeline. See
-   [C++ elements](cpp_elements) and [Elements list](elements_list) and
-   [Samples 2.0](samples_2.0) for details.
+   [C++ elements](./cpp_elements.md) and [Elements list](./elements_list.md) and
+   [Samples 2.0](./samples_2.0.md) for details.
 3. **GStreamer bin elements.** Reimplement most gva\* elements as
    GStreamer bin elements which internally build sub-pipeline of other
    (low-level) GStreamer elements. Most low-level elements are C++
@@ -37,7 +37,7 @@ architecture 2.0, aiming for the following goals:
    operation (no multi-stage processing inside element and no
    intermediate memory allocation) with all pipelining done on either
    bin-elements or application level. See pages
-   [GStreamer Elements](gstreamer_elements) and [GStreamer Bin Elements](gstreamer_bins) for details.
+   [GStreamer Elements](./gstreamer_elements.md) and [GStreamer Bin Elements](./gstreamer_bins.md) for details.
 
 The following diagram visualizes Architecture 2.0 sub-components ①, ②
 and ③ inside block **Deep Learning Streamer Pipeline Framework**
