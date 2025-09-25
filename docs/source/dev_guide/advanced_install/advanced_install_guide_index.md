@@ -33,6 +33,7 @@
   - [Option #2: Intel® DL Streamer Pipeline Framework Docker image](./advanced_uninstall_guide.md#option-2-docker)
   - [Option #3: Compiled version](./advanced_uninstall_guide.md#option-3-compiled-version)
 
+<!--hide_directive
 :::{toctree}
 :maxdepth: 2
 :hidden:
@@ -43,3 +44,4 @@ advanced_install_guide_compilation
 advanced_build_docker_image
 advanced_uninstall_guide
 :::
+hide_directive-->
