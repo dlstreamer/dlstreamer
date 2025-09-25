@@ -18,6 +18,7 @@ Follow the instructions in
 ::::{tab-set}
 :::{tab-item} Ubuntu 24
 :sync: tab1
+
   ```bash
   sudo apt-get update && \
   sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
@@ -30,9 +31,11 @@ Follow the instructions in
       ffmpeg librdkafka-dev libpaho-mqtt-dev libopencv-dev libpostproc-dev libavfilter-dev libavdevice-dev \
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev libopencv-dev
   ```
+
 :::
 :::{tab-item} Ubuntu 22
 :sync: tab2
+
   ```bash
   sudo apt-get update && \
   sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
@@ -45,9 +48,11 @@ Follow the instructions in
       ffmpeg libpaho-mqtt-dev libpostproc-dev libavfilter-dev libavdevice-dev \
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
   ```
+
 :::
 :::{tab-item} Fedora 41
 :sync: tab3
+
   ```bash
   sudo dnf install -y \
       https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
@@ -60,12 +65,15 @@ Follow the instructions in
       libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
       kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
   ```
+
 :::
 :::{tab-item} EMT 3.x
 :sync: tab3
+
   ```bash
   sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
+
 :::
 ::::
 
@@ -89,7 +97,9 @@ locally, it can cause build errors.** It is recommended to uninstall it
 first. You can uninstall it with the following command (if installed
 from source):
 
-- **Ubuntu**
+::::{tab-set}
+:::{tab-item} Ubuntu
+:sync: tab1
 
   You can uninstall it with the following command (if installed from
   source):
@@ -106,7 +116,9 @@ from source):
               libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev
   ```
 
-- **Fedora/EMT**
+:::
+:::{tab-item} Fedora/EMT
+:sync: tab2
 
   You can uninstall it with the following command (if installed from
   source):
@@ -130,6 +142,9 @@ from source):
   make -j "$(nproc)"
   sudo make install
   ```
+
+:::
+::::
 
 ## Step 5: Build GStreamer
 
@@ -160,14 +175,24 @@ If you have built and installed a different version of OpenCV
 locally, it can cause build errors. It is recommended to uninstall it
 first.
 
-- **Ubuntu**
+If you have built and installed it from source, you can uninstall it with:
 
-  If you have built and installed it from source, you can uninstall it with:
+```bash
+cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
+sudo ninja uninstall
+```
+
+::::{tab-set}
+:::{tab-item} Ubuntu 24
+:sync: tab1
 
   ```bash
-  cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
-  sudo ninja uninstall
+  sudo apt-get install --reinstall libopencv-dev
   ```
+
+:::
+:::{tab-item} Ubuntu 22
+:sync: tab2
 
   If you have installed it using apt-get, you can uninstall it with:
 
@@ -177,33 +202,27 @@ first.
 
   After uninstalling OpenCV, reinstall it with the following commands:
 
-  - **Ubuntu 24**
+  Download and build OpenCV:
 
-    ```bash
-    sudo apt-get install --reinstall libopencv-dev
-    ```
+  ```bash
+  wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
+  wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
+  unzip opencv.zip && \
+  unzip opencv_contrib.zip && \
+  rm opencv.zip opencv_contrib.zip && \
+  mv opencv-4.6.0 opencv && \
+  mv opencv_contrib-4.6.0 opencv_contrib && \
+  mkdir -p opencv/build
 
-  - **Ubuntu 22**
+  cd ~/opencv/build
+  cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
+  ninja -j "$(nproc)"
+  sudo env PATH=~/python3venv/bin:$PATH ninja install
+  ```
 
-    Download and build OpenCV:
-
-    ```bash
-    wget --no-check-certificate -O ~/opencv.zip https://github.com/opencv/opencv/archive/4.6.0.zip
-    wget --no-check-certificate -O ~/opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.6.0.zip
-    unzip opencv.zip && \
-    unzip opencv_contrib.zip && \
-    rm opencv.zip opencv_contrib.zip && \
-    mv opencv-4.6.0 opencv && \
-    mv opencv_contrib-4.6.0 opencv_contrib && \
-    mkdir -p opencv/build
-
-    cd ~/opencv/build
-    cmake -DBUILD_TESTS=OFF -DBUILD_PERF_TESTS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_opencv_apps=OFF -DOPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules -GNinja ..
-    ninja -j "$(nproc)"
-    sudo env PATH=~/python3venv/bin:$PATH ninja install
-    ```
-
-- **Fedora 41**
+:::
+:::{tab-item} Fedora 41
+:sync: tab3
 
   If you have installed it using dnf, you can uninstall it with:
 
@@ -229,6 +248,9 @@ first.
   sudo env PATH=~/python3venv/bin:$PATH ninja install
   ```
 
+:::
+::::
+
 ## Step 7: Clone Deep Learning Streamer repository
 
 ```bash
@@ -243,6 +265,7 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 ::::{tab-set}
 :::{tab-item} Ubuntu/Fedora
 :sync: tab1
+
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
   sudo ./scripts/install_dependencies/install_openvino.sh
@@ -266,9 +289,11 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
   source /opt/intel/openvino_2025/setupvars.sh
   ```
+
 :::
 :::{tab-item} EMT
 :sync: tab2
+
   ```bash
   wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140 c01cd93e24d_x86_64.tgz
   tar -xvzf openvino_toolkit_ubuntu24_2025.2.0.19140.c01cd93e24d_x86_64.tgz
@@ -278,14 +303,15 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   cd /opt/intel
   sudo ln -s openvino_2025.2.0 openvino_2025
   ```
+
 :::
 ::::
 
-## Step 6: Build Deep Learning Streamer
-
 ## Step 9: Build Intel DLStreamer
 
-- **Ubuntu 24**
+::::{tab-set}
+:::{tab-item} Ubuntu 24
+:sync: tab1
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -300,7 +326,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   make -j "$(nproc)"
   ```
 
-- **Ubuntu 22**
+:::
+:::{tab-item} Ubuntu 22
+:sync: tab2
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -319,7 +347,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   make -j "$(nproc)"
   ```
 
-- **Fedora/EMT**
+:::
+:::{tab-item} Fedora/EMT
+:sync: tab2
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -342,6 +372,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   make -j "$(nproc)"
   ```
 
+:::
+::::
+
 ## Step 10: Set up environment
 
 Set up the required environment variables:
@@ -349,6 +382,7 @@ Set up the required environment variables:
 ::::{tab-set}
 :::{tab-item} Ubuntu
 :sync: tab1
+
   ```bash
   export LIBVA_DRIVER_NAME=iHD
   export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0:$GST_PLUGIN_PATH"
@@ -360,9 +394,11 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
   ```
+
 :::
 :::{tab-item} Fedora
 :sync: tab2
+
   ```bash
   export LIBVA_DRIVER_NAME=iHD
   export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0:$GST_PLUGIN_PATH"
@@ -373,6 +409,7 @@ Set up the required environment variables:
   export PKG_CONFIG_PATH="/opt/intel/dlstreamer/lib/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig::$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
+
 :::
 :::{tab-item} EMT
 :sync: tab2
@@ -398,6 +435,7 @@ Set up the required environment variables:
   export PKG_CONFIG_PATH="/opt/intel/dlstreamer/lib/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig::$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
+
 :::
 ::::
 
