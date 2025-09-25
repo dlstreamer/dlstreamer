@@ -19,6 +19,7 @@ Follow the instructions in
 ::::{tab-set}
 :::{tab-item} Ubuntu 24
 :sync: tab1
+
   ```bash
   sudo apt-get update && \
   sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
@@ -31,9 +32,11 @@ Follow the instructions in
       ffmpeg librdkafka-dev libpaho-mqtt-dev libopencv-dev libpostproc-dev libavfilter-dev libavdevice-dev \
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev libopencv-dev
   ```
+
 :::
 :::{tab-item} Ubuntu 22
 :sync: tab2
+
   ```bash
   sudo apt-get update && \
   sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
@@ -46,9 +49,11 @@ Follow the instructions in
       ffmpeg libpaho-mqtt-dev libpostproc-dev libavfilter-dev libavdevice-dev \
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
   ```
+
 :::
 :::{tab-item} Fedora 41
 :sync: tab3
+
   ```bash
   sudo dnf install -y \
       https://download1.rpmfusion.org/free/fedora/rpmfusion-free-release-$(rpm -E %fedora).noarch.rpm \
@@ -61,20 +66,17 @@ Follow the instructions in
       libssh2-devel cmake git valgrind numactl libvpx-devel opus-devel libsrtp-devel libXv-devel paho-c-devel \
       kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
   ```
+
 :::
 :::{tab-item} EMT 3.x
 :sync: tab3
+
   ```bash
   sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
+
 :::
 ::::
-
-### EMT 3.x
-
-```bash
-sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
-```
 
 ## Step 3: Set up a Python environment
 
@@ -103,6 +105,7 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 ::::{tab-set}
 :::{tab-item} Ubuntu/Fedora
 :sync: tab1
+
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
   sudo ./scripts/install_dependencies/install_openvino.sh
@@ -126,9 +129,11 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   sudo -E /opt/intel/openvino_2025/install_dependencies/install_openvino_dependencies.sh
   source /opt/intel/openvino_2025/setupvars.sh
   ```
+
 :::
 :::{tab-item} EMT
 :sync: tab2
+
   ```bash
   wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
   tar -xvzf openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
@@ -139,13 +144,27 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   sudo ln -s openvino_2025.3.0 openvino_2025
   ```
 
+:::
+::::
+
 ### [Optional] Step 6: Install OpenVINO™ GenAI (only for Ubuntu)
 
-To use [gvagenai element](https://docs.openedgeplatform.intel.com/oep/edge-ai-libraries/dl-streamer/elements/gvagenai.html) 
+To use [gvagenai element](https://docs.openedgeplatform.intel.com/oep/edge-ai-libraries/dl-streamer/elements/gvagenai.html)
 there is need to install [OpenVINO GenAI archive](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) package.
 
+::::{tab-set}
+:::{tab-item} Ubuntu 24
+:sync: tab1
 
-- **Ubuntu 22**
+  ```bash
+  curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz | tar -xz &&
+  mv openvino_genai_ubuntu24_2025.3.0.0_x86_64 /opt/intel/openvino_genai
+  source /opt/intel/openvino_genai/setupvars.sh
+  ```
+
+:::
+:::{tab-item} Ubuntu 22
+:sync: tab2
 
 ```bash
 curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu22_2025.3.0.0_x86_64.tar.gz | tar -xz &&
@@ -153,25 +172,23 @@ mv openvino_genai_ubuntu22_2025.3.0.0_x86_64 /opt/intel/openvino_genai
 source /opt/intel/openvino_genai/setupvars.sh
 ```
 
-- **Ubuntu 24**
-
-```bash
-curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz | tar -xz &&
-mv openvino_genai_ubuntu24_2025.3.0.0_x86_64 /opt/intel/openvino_genai
-source /opt/intel/openvino_genai/setupvars.sh
-```
+:::
+::::
 
 ## Step 7: Build Deep Learning Streamer
 
 To build DL Streamer is it recommended to use the provided makefile for ease of use:
+
 ```bash
 make build
 ```
+
 Running this command will build any major missing dependencies and then compile DL Streamer itself.
 
 ## Step 8: Install Deep Learning Streamer (optional)
 
 After building DL Streamer you can install it on your local system by running:
+
 ```bash
 sudo -E make install
 ```
@@ -183,6 +200,7 @@ Set up the required environment variables:
 ::::{tab-set}
 :::{tab-item} Ubuntu
 :sync: tab1
+
   ```bash
   export LIBVA_DRIVER_NAME=iHD
   export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0:$GST_PLUGIN_PATH"
@@ -194,9 +212,11 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
   ```
+
 :::
 :::{tab-item} Fedora
 :sync: tab2
+
   ```bash
   export LIBVA_DRIVER_NAME=iHD
   export GST_PLUGIN_PATH="/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/gstreamer-1.0:$GST_PLUGIN_PATH"
@@ -207,9 +227,11 @@ Set up the required environment variables:
   export PKG_CONFIG_PATH="/opt/intel/dlstreamer/lib/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig::$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
+
 :::
 :::{tab-item} EMT
-:sync: tab2
+:sync: tab3
+
   Enable `i915` graphics driver in the system:
 
   ```bash
@@ -232,6 +254,7 @@ Set up the required environment variables:
   export PKG_CONFIG_PATH="/opt/intel/dlstreamer/lib/pkgconfig:/opt/intel/dlstreamer/gstreamer/lib/pkgconfig::$HOME/edge-ai-libraries/libraries/dl-streamer/build/intel64/Release/lib/pkgconfig:$HOME/edge-ai-libraries/libraries/dl-streamer/build/deps/gstreamer-bin/lib/pkgconfig:$PKG_CONFIG_PATH"
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
+
 :::
 ::::
 
