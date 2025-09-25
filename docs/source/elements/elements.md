@@ -29,7 +29,7 @@ gst-inspect-1.0 utility.
 | [gvarealsense](./gvarealsense.md) | Provides integration with Intel RealSense cameras, enabling video and depth stream capture for use in GStreamer pipelines. |
 | [gvawatermark](./gvawatermark.md)     | Overlays the metadata on the video frame to visualize the inference results.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! gvadetect … ! gvawatermark ! … |
 
-
+<!--hide_directive
 :::{toctree}
 :maxdepth: 1
 :hidden:
@@ -50,3 +50,4 @@ gvarealsense
 gvawatermark
 gstelements
 :::
+hide_directive-->

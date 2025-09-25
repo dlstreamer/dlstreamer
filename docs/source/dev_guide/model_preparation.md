@@ -129,6 +129,7 @@ pre-processing/post-processing rules:
 gvadetect model=MODEL1_FILE_PATH.xml model-proc=MODEL1_FILE_PATH.json ! gvaclassify model=MODEL2_FILE_PATH.xml model-proc=MODEL2_FILE_PATH.json
 ```
 
+<!--hide_directive
 :::{toctree}
 :maxdepth: 2
 
@@ -136,3 +137,4 @@ yolo_models
 lvms
 download_public_models
 :::
+hide_directive-->
