@@ -16,9 +16,9 @@ Follow the instructions in
 
 ## Step 2: Install build dependencies
 
-::::{tab-set}
-:::{tab-item} Ubuntu 24
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu 24
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   sudo apt-get update && \
@@ -33,9 +33,9 @@ Follow the instructions in
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev libopencv-dev
   ```
 
-:::
-:::{tab-item} Ubuntu 22
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu 22
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   sudo apt-get update && \
@@ -50,9 +50,9 @@ Follow the instructions in
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
   ```
 
-:::
-:::{tab-item} Fedora 41
-:sync: tab3
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora 41
+<!--hide_directive:sync: tab3hide_directive-->
 
   ```bash
   sudo dnf install -y \
@@ -67,16 +67,16 @@ Follow the instructions in
       kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
   ```
 
-:::
-:::{tab-item} EMT 3.x
-:sync: tab3
+<!--hide_directive:::
+:::{tab-item}hide_directive--> EMT 3.x
+<!--hide_directive:sync: tab3hide_directive-->
 
   ```bash
   sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 3: Set up a Python environment
 
@@ -102,9 +102,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 ## Step 5: Install OpenVINO™ Toolkit
 
-::::{tab-set}
-:::{tab-item} Ubuntu/Fedora
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu/Fedora
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -130,9 +130,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   source /opt/intel/openvino_2025/setupvars.sh
   ```
 
-:::
-:::{tab-item} EMT
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> EMT
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.3/linux/openvino_toolkit_ubuntu24_2025.3.0.19807.44526285f24_x86_64.tgz
@@ -144,17 +144,17 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   sudo ln -s openvino_2025.3.0 openvino_2025
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ### [Optional] Step 6: Install OpenVINO™ GenAI (only for Ubuntu)
 
 To use [gvagenai element](https://docs.openedgeplatform.intel.com/oep/edge-ai-libraries/dl-streamer/elements/gvagenai.html)
 there is need to install [OpenVINO GenAI archive](https://docs.openvino.ai/2025/get-started/install-openvino/install-openvino-genai.html) package.
 
-::::{tab-set}
-:::{tab-item} Ubuntu 24
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu 24
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz | tar -xz &&
@@ -162,9 +162,9 @@ there is need to install [OpenVINO GenAI archive](https://docs.openvino.ai/2025/
   source /opt/intel/openvino_genai/setupvars.sh
   ```
 
-:::
-:::{tab-item} Ubuntu 22
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu 22
+<!--hide_directive:sync: tab2hide_directive-->
 
 ```bash
 curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu22_2025.3.0.0_x86_64.tar.gz | tar -xz &&
@@ -172,8 +172,8 @@ mv openvino_genai_ubuntu22_2025.3.0.0_x86_64 /opt/intel/openvino_genai
 source /opt/intel/openvino_genai/setupvars.sh
 ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 7: Build Deep Learning Streamer
 
@@ -197,9 +197,9 @@ sudo -E make install
 
 Set up the required environment variables:
 
-::::{tab-set}
-:::{tab-item} Ubuntu
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
@@ -213,9 +213,9 @@ Set up the required environment variables:
   export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
   ```
 
-:::
-:::{tab-item} Fedora
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
@@ -228,9 +228,9 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
 
-:::
-:::{tab-item} EMT
-:sync: tab3
+<!--hide_directive:::
+:::{tab-item}hide_directive--> EMT
+<!--hide_directive:sync: tab3hide_directive-->
 
   Enable `i915` graphics driver in the system:
 
@@ -255,8 +255,8 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 > **NOTE:**  For a permament solution, open `\~/.bashrc` and add the variables above
 > to set up Linux to use them for every terminal session.
