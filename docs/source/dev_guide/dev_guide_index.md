@@ -68,6 +68,7 @@
   - [Pre-processing description (`input_preproc`)](./model_proc_file.md#pre-processing-description)
   - [Post-processing description (`output_postproc`)](./model_proc_file.md#post-processing-description-output_postproc)
 
+<!--hide_directive
 :::{toctree}
 :maxdepth: 2
 :hidden:
@@ -88,3 +89,4 @@ how_to_contribute
 latency_tracer
 model_proc_file
 :::
+hide_directive-->

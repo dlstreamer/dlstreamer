@@ -13,6 +13,7 @@
   - [Option #1: Uninstall Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework from APT repository](./uninstall_guide_ubuntu.md#option-1-uninstall-deep-learning-streamer-pipeline-framework-from-apt-repository)
   - [Option #2: Intel® DL Streamer Pipeline Framework Docker image](./uninstall_guide_ubuntu.md#option-2-remove-deep-learning-streamer-pipeline-framework-docker-image)
 
+<!--hide_directive
 :::{toctree}
 :maxdepth: 2
 :hidden:
@@ -22,3 +23,4 @@ install_guide_ubuntu_wsl2
 uninstall_guide_ubuntu
 install_guide_windows
 :::
+hide_directive-->
