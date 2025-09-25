@@ -15,9 +15,9 @@ Follow the instructions in
 
 ## Step 2: Install build dependencies
 
-::::{tab-set}
-:::{tab-item} Ubuntu 24
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu 24
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   sudo apt-get update && \
@@ -32,9 +32,9 @@ Follow the instructions in
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12 libxml2-dev libopencv-dev
   ```
 
-:::
-:::{tab-item} Ubuntu 22
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu 22
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   sudo apt-get update && \
@@ -49,9 +49,9 @@ Follow the instructions in
       libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libxml2-dev
   ```
 
-:::
-:::{tab-item} Fedora 41
-:sync: tab3
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora 41
+<!--hide_directive:sync: tab3hide_directive-->
 
   ```bash
   sudo dnf install -y \
@@ -66,16 +66,16 @@ Follow the instructions in
       kernel-headers pmix pmix-devel hwloc hwloc-libs hwloc-devel libxcb-devel libX11-devel libatomic intel-media-driver
   ```
 
-:::
-:::{tab-item} EMT 3.x
-:sync: tab3
+<!--hide_directive:::
+:::{tab-item}hide_directive--> EMT 3.x
+<!--hide_directive:sync: tab3hide_directive-->
 
   ```bash
   sudo dnf install -y uuid libuuid-devel openssl-devel gcc gcc-c++ make curl ca-certificates librdkafka-devel libva-devel alsa-lib-devel unzip glibc libstdc++ libgcc cmake sudo pkgconf pkgconf-pkg-config ocl-icd-devel libva-intel-media-driver python3-devel libXaw-devel ncurses-devel libva2 intel-compute-runtime intel-opencl intel-level-zero-gpu intel-ocloc-devel nasm
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 3: Set up a Python environment
 
@@ -97,9 +97,9 @@ locally, it can cause build errors.** It is recommended to uninstall it
 first. You can uninstall it with the following command (if installed
 from source):
 
-::::{tab-set}
-:::{tab-item} Ubuntu
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu
+<!--hide_directive:sync: tab1hide_directive-->
 
   You can uninstall it with the following command (if installed from
   source):
@@ -116,9 +116,9 @@ from source):
               libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev
   ```
 
-:::
-:::{tab-item} Fedora/EMT
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora/EMT
+<!--hide_directive:sync: tab2hide_directive-->
 
   You can uninstall it with the following command (if installed from
   source):
@@ -143,8 +143,8 @@ from source):
   sudo make install
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 5: Build GStreamer
 
@@ -182,17 +182,17 @@ cd ${HOME}/opencv/build # Change to the directory where OpenCV was built
 sudo ninja uninstall
 ```
 
-::::{tab-set}
-:::{tab-item} Ubuntu 24
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu 24
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   sudo apt-get install --reinstall libopencv-dev
   ```
 
-:::
-:::{tab-item} Ubuntu 22
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu 22
+<!--hide_directive:sync: tab2hide_directive-->
 
   If you have installed it using apt-get, you can uninstall it with:
 
@@ -220,9 +220,9 @@ sudo ninja uninstall
   sudo env PATH=~/python3venv/bin:$PATH ninja install
   ```
 
-:::
-:::{tab-item} Fedora 41
-:sync: tab3
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora 41
+<!--hide_directive:sync: tab3hide_directive-->
 
   If you have installed it using dnf, you can uninstall it with:
 
@@ -248,8 +248,8 @@ sudo ninja uninstall
   sudo env PATH=~/python3venv/bin:$PATH ninja install
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 7: Clone Deep Learning Streamer repository
 
@@ -262,9 +262,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
 
 ## Step 8: Install OpenVINO™ Toolkit
 
-::::{tab-set}
-:::{tab-item} Ubuntu/Fedora
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu/Fedora
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -290,9 +290,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   source /opt/intel/openvino_2025/setupvars.sh
   ```
 
-:::
-:::{tab-item} EMT
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> EMT
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   wget https://storage.openvinotoolkit.org/repositories/openvino/packages/2025.2/linux/openvino_toolkit_ubuntu24_2025.2.0.19140 c01cd93e24d_x86_64.tgz
@@ -304,14 +304,14 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   sudo ln -s openvino_2025.2.0 openvino_2025
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 9: Build Intel DLStreamer
 
-::::{tab-set}
-:::{tab-item} Ubuntu 24
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu 24
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -326,9 +326,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   make -j "$(nproc)"
   ```
 
-:::
-:::{tab-item} Ubuntu 22
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu 22
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -347,9 +347,9 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   make -j "$(nproc)"
   ```
 
-:::
-:::{tab-item} Fedora/EMT
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora/EMT
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   cd ~/edge-ai-libraries/libraries/dl-streamer
@@ -372,16 +372,16 @@ git submodule update --init libraries/dl-streamer/thirdparty/spdlog
   make -j "$(nproc)"
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 10: Set up environment
 
 Set up the required environment variables:
 
-::::{tab-set}
-:::{tab-item} Ubuntu
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu
+<!--hide_directive:sync: tab1hide_directive-->
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
@@ -395,9 +395,9 @@ Set up the required environment variables:
   export GI_TYPELIB_PATH=/opt/intel/dlstreamer/gstreamer/lib/girepository-1.0:/usr/lib/x86_64-linux-gnu/girepository-1.0gi
   ```
 
-:::
-:::{tab-item} Fedora
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Fedora
+<!--hide_directive:sync: tab2hide_directive-->
 
   ```bash
   export LIBVA_DRIVER_NAME=iHD
@@ -410,9 +410,10 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
 
-:::
-:::{tab-item} EMT
-:sync: tab2
+<!--hide_directive:::
+:::{tab-item}hide_directive--> EMT
+<!--hide_directive:sync: tab2hide_directive-->
+
   Enable `i915` graphics driver in the system:
 
   ```bash
@@ -436,8 +437,8 @@ Set up the required environment variables:
   export GST_PLUGIN_FEATURE_RANK=${GST_PLUGIN_FEATURE_RANK},ximagesink:MAX
   ```
 
-:::
-::::
+<!--hide_directive:::
+::::hide_directive-->
 
 > **NOTE:**  For a permament solution, open `\~/.bashrc` and add the variables above
 > to set up Linux to use them for every terminal session.

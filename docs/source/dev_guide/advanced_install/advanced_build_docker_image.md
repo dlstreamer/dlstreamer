@@ -17,20 +17,24 @@ All Dockerfiles are in
 [DLStreamer GitHub repository](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/docker).
 You can download them using commands below:
 
-::::{tab-set}
-:::{tab-item} Ubuntu24 debian/dev Dockerfile
-:sync: tab1
+<!--hide_directive::::{tab-set}
+:::{tab-item}hide_directive--> Ubuntu24 debian/dev Dockerfile
+<!--hide_directive:sync: tab1hide_directive-->
+
   ```bash
   wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile
   ```
-:::
-:::{tab-item} Ubuntu22 debian/dev Dockerfile
-:sync: tab2
+
+<!--hide_directive:::
+:::{tab-item}hide_directive--> Ubuntu22 debian/dev Dockerfile
+<!--hide_directive:sync: tab2hide_directive-->
+
   ```bash
   wget https://raw.githubusercontent.com/open-edge-platform/edge-ai-libraries/main/libraries/dl-streamer/docker/ubuntu/ubuntu22.Dockerfile
   ```
-:::
-::::
+
+<!--hide_directive:::
+::::hide_directive-->
 
 ## Step 3: Build Docker image
 
