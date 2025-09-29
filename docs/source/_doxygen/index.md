@@ -1,6 +1,6 @@
----
-orphan: true
----
+<!--hide_directive```{eval-rst}
+:orphan:
+```hide_directive-->
 
 # Deep Learning Streamer (DL Streamer) API reference
 
