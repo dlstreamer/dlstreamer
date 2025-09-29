@@ -2,66 +2,71 @@
 
 ## 1. Media and AI processing (single stream)
 
-The Deep Learning Streamer Pipeline
-Framework combines media processing with AI inference capabilities. The
-simplest pipeline detects objects in a video stream stored as a disk
-file.
+The Deep Learning Streamer Pipeline Framework combines media processing and AI inference
+capabilities. The simplest pipeline detects objects in a video stream stored as a file.
 
-For Intel platforms with integrated GPU and/or NPU devices, use
-the recommended command line below:
+For Intel platforms with integrated GPU and/or NPU devices, use the recommended command line:
 
 ```bash
 gst-launch-1.0 filesrc location=${VIDEO_FILE} ! parsebin ! vah264dec ! "video/x-raw(memory:VAMemory)" ! gvadetect model=${MODEL_FILE} device=GPU pre-process-backend=va ! queue ! gvafpscounter ! fakesink
 gst-launch-1.0 filesrc location=${VIDEO_FILE} ! parsebin ! vah264dec ! "video/x-raw(memory:VAMemory)" ! gvadetect model=${MODEL_FILE} device=NPU pre-process-backend=va ! queue ! gvafpscounter ! fakesink
 ```
+- `vah264dec` uses the hardware video decoder to generate output images (VAMemory).
+- `gvadetect` consumes VAMemory images (zero-copy operation) and generates
+  inference results.
+- `pre-process-backend=va` uses the hardware image scaler to resize the VAMemory image into
+  input model tensor dimensions.
 
-where:
+When using discrete GPUs, it is recommended to set `pre-process-backend=va-surface-sharing`
+to enforce zero-copy operation between video decoder and AI inference engine. Note that 
+`va-surface-sharing` may be slightly slower than the `va` backend when integrated GPU is used.
 
-- the `vah264dec` element uses the hardware video decoder to generate output
-  images (VAMemory).
-- the `gvadetect` element consumes VAMemory images (zero-copy operation)
-  and generates inference results.
-- `pre-process-backend=va` uses the hardware image scaler to resize the
-  VAMemory image into input model tensor dimensions.
-
-When using discrete GPUs, it is recommended to set
-`pre-process-backend=va-surface-sharing` to enforce zero-copy
-operation between video decoder and AI inference engine.
-Note that `va-surface-sharing` may be slightly slower than `va`
-backend on platforms with integrated GPU device.
-
-The `va-surface-sharing` option compiles the image scaling layer into the
-AI model, hence it consumes GPU compute resources:
+The `va-surface-sharing` option compiles the image scaling layer into the AI model, consuming
+GPU compute resources:
 
 ```bash
 gst-launch-1.0 filesrc location=${VIDEO_FILE} ! parsebin ! vah264dec ! "video/x-raw(memory:VAMemory)" ! gvadetect model=${MODEL_FILE} device=GPU pre-process-backend=va-surface-sharing ! queue ! gvafpscounter ! fakesink
 ```
 
-While GPU device is preferred for hardware-accelerated media decoding,
-it is also possible to decode video streams using CPU device. The
-following table lists commands lines with recommended pipelines for various
+While GPU is preferred for hardware-accelerated media decoding, CPU may also be used to decode
+video streams. The following table lists command lines with recommended pipelines for various
 combinations of media decode and AI inference devices.
 
-| Media Decode device | Inference device             | Sample command line                                                                                                                                                                                           |
-|---------------------|------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Media Decode device | Inference device             | Sample command line                  |
+|---------------------|------------------------------|--------------------------------------|
 | GPU                 | <br>GPU<br>or<br>NPU<br><br> | gst-launch-1.0 filesrc location=${VIDEO_EXAMPLE} ! parsebin ! vah264dec ! “video/x-raw(memory:VAMemory)” ! gvadetect model=${MODEL_FILE} device=GPU pre-process-backend=va ! queue ! gvafpscounter ! fakesink |
 | GPU                 | CPU                          | gst-launch-1.0 filesrc location=${VIDEO_EXAMPLE} ! parsebin ! vah264dec ! “video/x-raw” ! gvadetect model=${MODEL_FILE} device=CPU pre-process-backend=opencv ! queue ! gvafpscounter ! fakesink              |
 | CPU                 | <br>GPU<br>or<br>NPU<br><br> | gst-launch-1.0 filesrc location=${VIDEO_EXAMPLE} ! parsebin ! avdec_h264 ! “video/x-raw” ! gvadetect model=${MODEL_FILE} device=GPU pre-process-backend=opencv ! queue ! gvafpscounter ! fakesink             |
 | CPU                 | CPU                          | gst-launch-1.0 filesrc location=${VIDEO_EXAMPLE} ! parsebin ! avdec_h264 ! “video/x-raw” ! gvadetect model=${MODEL_FILE} device=CPU pre-process-backend=opencv ! queue ! gvafpscounter ! fakesink             |
 
 
-GStreamer supports several memory types, but the most common formats found in DL Streamer pipelines are *video/x-raw*, which typically resolves to *video/x-raw(memory:SystemMemory)* — suitable for CPU processing — and *video/x-raw(memory:VAMemory)*, which is optimized for GPU acceleration.
+GStreamer supports several memory types, but the most common formats found in DL Streamer
+pipelines are:
+* *video/x-raw*, which typically resolves to *video/x-raw(memory:SystemMemory)* —
+suitable for CPU processing.
+* *video/x-raw(memory:VAMemory)*, which is optimized for GPU acceleration.
 
-DL Streamer inference elements (such as `gvadetect`, `gvaclassify`, and `gvainference`) can apply different preprocessing backends, including `ie` (Inference Engine), `opencv`, or `va-surface-sharing`. Users can set these explicitly using the pre-process-backend option or allow DL Streamer to make the decision internally. If the pipeline is defined correctly, GStreamer can negotiate the optimal memory type for a given device, allowing DL Streamer to automatically set the optimal preprocessing backend.
+DL Streamer inference elements, such as `gvadetect`, `gvaclassify`, and `gvainference`,
+can apply different preprocessing backends, including `ie` (Inference Engine), `opencv`, and
+`va-surface-sharing`. You can set these explicitly, using the pre-process-backend option,
+or allow DL Streamer to make the decision internally. If the pipeline is defined correctly,
+GStreamer can negotiate the optimal memory type for a given device, allowing DL Streamer to
+automatically set the optimal preprocessing backend.
 
 For example:  
-The `decodebin3` element recognizes the presence of a GPU in the system and attempts to introduce the optimal VAMemory setting. This automatically results in using the efficient `va-surface-sharing` backend in DL Streamer if the inference element device is set to GPU or NPU.
+The `decodebin3` element recognizes the presence of a GPU in the system and attempts to
+introduce the optimal VAMemory setting. This automatically results in using the efficient
+`va-surface-sharing` backend in DL Streamer if the inference element device is set to GPU or
+NPU.
 
-However, if the pipeline is suboptimal (e.g., using `decodebin` instead of `decodebin3`), DL Streamer will switch to a less efficient preprocessing backend (e.g., `opencv` for the GPU) to ensure the pipeline functions. In such cases, the user will receive a warning, and a pipeline correction will be suggested.
+However, if the pipeline is suboptimal (e.g., using `decodebin` instead of `decodebin3`),
+DL Streamer will switch to a less efficient preprocessing backend (e.g., `opencv` for the GPU)
+to ensure the pipeline functions. In such cases, you will get a warning and a suggestion for 
+correcting the pipeline.
 
-| Inference Device | Memory Type | Preprocessing Backend |
-|------------------|-------------|-----------------------|
-| CPU              | only `video/x-raw` available | `ie` or `opencv` |
+| Inference Device | Memory Type                   | Preprocessing Backend |
+|------------------|-------------------------------|-----------------------|
+| CPU              | only `video/x-raw` available  | `ie` or `opencv`      |
 | GPU / NPU        | use `video/x-raw(memory:VAMemory)` for optimal performance | use `va-surface-sharing` to avoid memory copying |
 
 
@@ -154,10 +159,10 @@ gvaclassify model=${MODEL_FILE_2} device=NPU pre-process-backend=va model-instan
 
 ## 5. Multi-stream pipelines with meta-aggregation element
 
-The multi-stage and multi-stream scenarios can use the
-[gvametaaggregate](../elements/gvametaaggregate.md)
-element to aggregate the results from multiple branches of the pipeline.
-The aggregated results are published as a single JSON metadata output.
+The multi-stage and multi-stream scenarios can use the 
+[gvametaaggregate](../elements/gvametaaggregate.md) element to aggregate the results from
+multiple branches of the pipeline. The aggregated results are published as a single JSON 
+metadata output.
 
 The following example shows how to use the `gvametaaggregate` element to
 aggregate the results from two stream pipelines:
