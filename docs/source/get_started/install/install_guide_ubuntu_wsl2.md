@@ -1,7 +1,7 @@
 # Install Guide Ubuntu 24.04 on WSL2
 
-Page describes steps required to install Deep Learning Streamer Pipeline
-Framework on host Windows machine and Ubuntu on WSL2
+This page describes steps required to install Deep Learning Streamer Pipeline
+Framework on Ubuntu, when hosted on a Windows machine using WSL2.
 
 ## On Windows Host System
 
@@ -54,13 +54,13 @@ export https_proxy=""
 sudo visudo
 ```
 
-After line:
+After the line:
 
 ```bash
 Defaults        env_reset
 ```
 
-Add line:
+Add this line:
 
 ```bash
 Defaults        env_keep = "http_proxy https_proxy"
