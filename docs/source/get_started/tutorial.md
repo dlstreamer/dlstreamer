@@ -1,7 +1,7 @@
 # Tutorial
 
 In this tutorial, you will learn how to build video analytics pipelines
-using Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline
+using Deep Learning Streamer (DL Streamer) Pipeline
 Framework.
 
 - [About GStreamer](#about-gstreamer)
@@ -96,7 +96,7 @@ The documentation for each element describes its properties as well
 as the valid range of values for each property. It can be viewed using the
 command line tool **gst-inspect-1.0**.
 
-## Introduction to Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+## Introduction to Deep Learning Streamer (DL Streamer) Pipeline Framework
 
 Deep Learning Streamer Pipeline Framework is an easy way to construct media
 analytics pipelines using OpenVINO™ toolkit. It
@@ -105,7 +105,7 @@ media operations and
 [Deep Learning Inference Engine](https://docs.openvino.ai/2025/index.html)
 from OpenVINO™ Toolkit to provide optimized inference.
 
-The elements packaged in the Intel® DL Streamer Pipeline Framework
+The elements packaged in the DL Streamer Pipeline Framework
 binary release can be divided into three categories:
 
 -   Elements for optimized streaming media operations (USB and IP camera
@@ -125,7 +125,7 @@ The elements in the last two categories above are part of Pipeline
 Framework's GVA plugin and start with the prefix `gva`. We will describe
 the `gva` elements used in this tutorial with some important properties
 here. Refer to
-[Intel® DL Streamer elements](../elements/elements.md) page for more details.
+[DL Streamer elements](../elements/elements.md) page for more details.
 
 - [gvadetect](../elements/gvadetect.md)
 
@@ -175,7 +175,7 @@ for running inference with any CNN model not supported by `gvadetect` or
 `gvaclassify`. `queue` element must be put directly after `gvainference`
 element in pipeline. Also, instead of visualizing the inference results,
 as shown in this tutorial, you can publish them to MQTT, Kafka or a file
-using `gvametaconvert` and `gvametapublish` of Intel® DL Streamer.
+using `gvametaconvert` and `gvametapublish` of DL Streamer.
 
 ## Non-Docker tutorial setup
 

@@ -130,5 +130,5 @@ ovc yolox_s.onnx --compress_to_fp16=False
 
 See
 [Samples](https://github.com/dlstreamer/dlstreamer/tree/master/samples/gstreamer/gst_launch/detection_with_yolo)
-for detailed examples of Intel® DL Streamer pipelines using different
+for detailed examples of DL Streamer pipelines using different
 Yolo models.

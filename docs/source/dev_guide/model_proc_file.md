@@ -65,7 +65,7 @@ models.
 This file has specific fields:
 
 - `json_schema_version`. Service information needed by Intel® Deep
-  Learning Streamer (Intel® DL Streamer) Pipeline Framework. **The
+  Learning Streamer (DL Streamer) Pipeline Framework. **The
   latest version should be used: 2.2.0**.
 - `input_preproc`. Describes how to process an input tensor before
   inference.

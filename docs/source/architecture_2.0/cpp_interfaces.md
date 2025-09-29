@@ -1,6 +1,6 @@
 # ① Memory Interop and C++ abstract interfaces
 
-Intel® DL Streamer provides independent sub-component for zero-copy
+DL Streamer provides independent sub-component for zero-copy
 buffer sharing and memory interop between various frameworks and memory
 handles on CPU and GPU
 
@@ -62,9 +62,9 @@ between media frameworks and OpenCL/SYCL
 3.  [OpenCL extension
     cl_khr_external_memory](https://registry.khronos.org/OpenCL/specs/3.0-unified/html/OpenCL_API.html#cl_khr_external_memory)
 
-## Memory interop in a few lines - using Intel® DL Streamer
+## Memory interop in a few lines - using DL Streamer
 
-Intel® DL Streamer hides complexity of dealing with low-level interfaces
+DL Streamer hides complexity of dealing with low-level interfaces
 and greatly simplifies memory interop by defining abstract interfaces
 [Tensor](./api_ref/class_dlstreamer_Tensor.md) and [MemoryMapper](./api_ref/class_dlstreamer_MemoryMapper.md),
 and providing header-only implementation of the `Tensor` interface for various frameworks and
@@ -120,7 +120,7 @@ and GStreamer to OpenCV UMat is chain of the following mappers:
 
 ## Abstract interfaces for C++ elements
 
-Additionally, this Intel® DL Streamer sub-component defines abstract
+Additionally, this DL Streamer sub-component defines abstract
 interfaces [Source](./api_ref/class_dlstreamer_Source) ,
 [Transform](./api_ref/class_dlstreamer_Transform) and [Sink](./api_ref/class_dlstreamer_Sink) used as base interfaces for all C++ and GStreamer elements.
 These interfaces take unified pointers to
@@ -131,7 +131,7 @@ and [Frame](./api_ref/class_dlstreamer_Frame) objects as input and output parame
 
 ## How to use in CMake build system
 
-If application uses Intel® DL Streamer memory interop library and
+If application uses DL Streamer memory interop library and
 application based on cmake build system, add `pkg_check_modules` and
 `include_directories` statements like below:
 

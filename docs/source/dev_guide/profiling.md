@@ -1,7 +1,7 @@
 # Profiling with Intel VTune™
 
 This page describes how to enable ITT tracing and analyze performance of
-Intel® Deep Learning Streamer (Intel® DL Streamer) and GStreamer
+Deep Learning Streamer (DL Streamer) and GStreamer
 elements using Intel VTune™ tool.
 
 > **NOTE:**  Intel VTune™ uses ITT interface to capture custom tasks and visualize
@@ -48,7 +48,7 @@ Choose the Online Installer option.
    # OpenVINO™ Toolkit environment
    source /opt/intel/openvino_2024/setupvars.sh
 
-   # Intel® DL Streamer environment
+   # DL Streamer environment
    source /opt/intel/dlstreamer/gstreamer/setupvars.sh
    source /opt/intel/dlstreamer/setupvars.sh
 

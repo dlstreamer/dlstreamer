@@ -11,7 +11,7 @@ CLIP models for integration with the Deep Learning Streamer pipeline.
 
 ## 1. Setup
 
-The instructions assume Intel® DL Streamer framework is installed on the
+The instructions assume DL Streamer framework is installed on the
 local system along with Intel® OpenVINO™ model downloader and converter
 tools, as described in the [Tutorial](../get_started/tutorial.md#setup).
 
@@ -150,4 +150,4 @@ ov.save_model(ov_model, MODEL + ".xml")
 ## 3. Model usage
 
 See the [generate_frame_embeddings.sh](https://github.com/open-edge-platform/edge-ai-libraries/blob/release-1.2.0/libraries/dl-streamer/samples/gstreamer/gst_launch/lvm/generate_frame_embeddings.sh) sample for detailed
-examples of Intel® DL Streamer pipelines using the model.
+examples of DL Streamer pipelines using the model.

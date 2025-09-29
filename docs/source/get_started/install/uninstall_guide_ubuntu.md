@@ -1,6 +1,6 @@
 # Uninstall Guide Ubuntu
 
-## Option #1: Uninstall Intel® DL Streamer Pipeline Framework from APT repository
+## Option #1: Uninstall DL Streamer Pipeline Framework from APT repository
 
 If you installed via APT, just use its uninstall command:
 
@@ -16,7 +16,7 @@ sudo apt remove -y openvino* libopenvino-* python3-openvino*
 sudo apt-get autoremove
 ```
 
-## Option #2: Remove Intel® DL Streamer Pipeline Framework Docker image
+## Option #2: Remove DL Streamer Pipeline Framework Docker image
 
 If you used docker, you only need to remove the appropriate container and dlstreamer docker
 image:

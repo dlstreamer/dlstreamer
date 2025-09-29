@@ -1,6 +1,6 @@
 # Supported Models
 
-This page contains the table of models supported by Intel® DL Streamer.
+This page contains the table of models supported by DL Streamer.
 Each model has a link (under the model name) to the original documentation with download instructions.
 
 Most models are from [OpenVINO™ Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo/)

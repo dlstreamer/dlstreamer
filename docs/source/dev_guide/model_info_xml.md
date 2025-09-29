@@ -24,7 +24,7 @@ An example is shown in the code snippet below:
 </rt_info>
 ```
 
-Intel® Deep Learning Streamer supports the following fields in the model
+Deep Learning Streamer supports the following fields in the model
 info section:
 
 | Field | Type | Possible values or example | Description | Corresponding 'model-proc' key |

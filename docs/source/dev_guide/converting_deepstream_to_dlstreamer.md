@@ -1,4 +1,4 @@
-# Converting NVIDIA DeepStream Pipelines to Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+# Converting NVIDIA DeepStream Pipelines to Deep Learning Streamer (DL Streamer) Pipeline Framework
 
 This article presents how to convert a pipeline from NVIDIA
 DeepStream to Deep Learning Streamer Pipeline Framework. For this purpose,
@@ -11,7 +11,7 @@ a working example is described at each step, to help understand the applied modi
 ## Contents
 
 - [Preparing Your Model](#preparing-your-model)
-- [Configuring Model for Intel® DL Streamer](#configuring-model-for-intel-dl-streamer)
+- [Configuring Model for DL Streamer](#configuring-model-for-intel-dl-streamer)
 - [GStreamer Pipeline Adjustments](#gstreamer-pipeline-adjustments)
 - [Mux and Demux Elements](#mux-and-demux-elements)
 - [Inferencing Elements](#inferencing-elements)
@@ -27,7 +27,7 @@ a working example is described at each step, to help understand the applied modi
 > your model to this format, follow the steps in [model preparation](./model_preparation.md).
 >
 
-## Configuring Model for Intel® DL Streamer
+## Configuring Model for DL Streamer
 
 NVIDIA DeepStream uses a combination of model configuration files and
 DeepStream element properties to specify inference actions, as well as
@@ -35,14 +35,14 @@ pre- and post-processing steps before/after running inference, as
 documented here:
 [here](https://docs.nvidia.com/metropolis/deepstream/dev-guide/text/DS_plugin_gst-nvinfer.html).
 
-Similarly, Intel® DL Streamer Pipeline Framework uses GStreamer element
+Similarly, DL Streamer Pipeline Framework uses GStreamer element
 properties for inference settings and
 [model proc](./model_proc_file.md) files for pre- and post-processing steps.
 
 The following table shows how to map commonly used NVIDIA DeepStream
-configuration properties to Intel® DL Streamer settings.
+configuration properties to DL Streamer settings.
 
-| NVIDIA DeepStream config file | NVIDIA DeepStream element property | Intel® DL Streamer model proc file | Intel® DL Streamer element property | Description |
+| NVIDIA DeepStream config file | NVIDIA DeepStream element property | DL Streamer model proc file | DL Streamer element property | Description |
 |---|---|---|---|---|
 | model-engine-file <path> | model-engine-file <path> | &nbsp; | model <path> | The path to an inference model network file. |
 | labelfile-path <path> | &nbsp; | &nbsp; | labels-file <path> | The path to .txt file containing object classes. |

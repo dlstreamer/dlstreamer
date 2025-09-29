@@ -63,7 +63,7 @@ To run Deep Learning Streamer on Intel® Data Center GPU (Flex) you need to use 
 drivers, and follow the instructions on the
 [Intel® Data Center GPU website](https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases).
 
-## Option #1: Install Intel® DL Streamer Pipeline Framework from Debian packages using APT repository
+## Option #1: Install DL Streamer Pipeline Framework from Debian packages using APT repository
 
 This option provides the simplest installation flow using the `apt-get`
 install command.
@@ -115,7 +115,7 @@ sudo apt update
 sudo apt-get install intel-dlstreamer
 ```
 
-**Congratulations! Intel® DL Streamer is now installed and ready for
+**Congratulations! DL Streamer is now installed and ready for
 use!**
 
 To see the full list of installed components check the
@@ -123,7 +123,7 @@ To see the full list of installed components check the
 
 ### [Optional] Step 4: Python dependencies
 
-The Python packages required to run Intel® DL Streamer python elements
+The Python packages required to run DL Streamer python elements
 or samples are not installed by default. You can install them using
 the commands from
 [Advanced Install Guide Compilation / Install Python dependencies](../../dev_guide/advanced_install/advanced_install_guide_compilation.md#step-6-install-python-dependencies).
@@ -273,7 +273,7 @@ setfacl -m user:1000:r ~/.Xauthority
 > **NOTE**: If you want to build Docker image from DLStreamer Dockerfiles, please
 > follow [the instructions](../../dev_guide/advanced_install/advanced_build_docker_image.md).
 
-### Step 4: Pull the Intel® DL Streamer Docker image from Docker Hub
+### Step 4: Pull the DL Streamer Docker image from Docker Hub
 
 Visit the [Deep Learning Streamer image docker hub](https://hub.docker.com/r/intel/dlstreamer) to
 select the most appropriate version. By default, the latest docker image points to Ubuntu
@@ -295,7 +295,7 @@ For **Ubuntu 24.04**, use the **latest** tag or specify the version, such as
   docker pull intel/dlstreamer:latest
   ```
 
-### Step 5: Run Intel® DL Streamer Pipeline Framework container
+### Step 5: Run DL Streamer Pipeline Framework container
 
 To confirm that your installation is completed successfully, please run
 a container
@@ -326,7 +326,7 @@ installation process is completed.
 
 ## Next Steps
 
-You are ready to use Intel® DL Streamer. For further instructions to run
+You are ready to use DL Streamer. For further instructions to run
 sample pipeline(s), please go to the [tutorial](../tutorial.md).
 
 ------------------------------------------------------------------------

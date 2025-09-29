@@ -1,6 +1,6 @@
 # Model Preparation
 
-When getting started with Intel® DL Streamer, the best way to obtain a
+When getting started with DL Streamer, the best way to obtain a
 collection of models ready for use in video analytics pipelines is to
 run
 [download_omz_models.sh](https://github.com/open-edge-platform/edge-ai-libraries/tree/release-1.2.0/libraries/dl-streamer/samples/download_omz_models.sh)
@@ -61,7 +61,7 @@ including the CPU, with only a minor accuracy drop.
 
 ## 2. Model pre- and post-processing
 
-Intel® Deep Learning Streamer (Intel® DL Streamer) plugins are capable
+Deep Learning Streamer (DL Streamer) plugins are capable
 of optionally performing certain pre- and post-processing operations
 before/after inference.
 

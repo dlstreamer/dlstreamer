@@ -7,7 +7,7 @@
   - [Uninstall Guide Ubuntu](./install/uninstall_guide_ubuntu.md)
 - [Tutorial](./tutorial.md)
   - [About GStreamer](./tutorial.md#about-gstreamer)
-  - [Introduction to Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework](./tutorial.md#introduction-to-deep-learning-streamer-pipeline-framework)
+  - [Introduction to Deep Learning Streamer (DL Streamer) Pipeline Framework](./tutorial.md#introduction-to-deep-learning-streamer-pipeline-framework)
   - [Non-Docker tutorial setup](./tutorial.md#non-docker-tutorial-setup)
   - [Docker tutorial setup](./tutorial.md#docker-tutorial-setup)
   - [Exercise 1 - Build object detection pipeline](./tutorial.md#exercise-1-build-object-detection-pipeline)

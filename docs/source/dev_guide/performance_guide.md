@@ -2,7 +2,7 @@
 
 ## 1. Media and AI processing (single stream)
 
-The Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline
+The Deep Learning Streamer (DL Streamer) Pipeline
 Framework combines media processing with AI inference capabilities. The
 simplest pipeline detects objects in a video stream stored as a disk
 file.
@@ -156,7 +156,7 @@ gst-launch-1.0 filesrc location=${VIDEO_FILE_1} ! decodebin3 ! videoconvert ! \
   gvadetect model=${MODEL_FILE_1} device=GPU ! a.
 ```
 
-## 6. The Intel® DL Streamer Pipeline Framework performance benchmark results
+## 6. The DL Streamer Pipeline Framework performance benchmark results
 
 The Deep Learning Streamer Pipeline Framework example performance benchmark
 results can be found as a part of the

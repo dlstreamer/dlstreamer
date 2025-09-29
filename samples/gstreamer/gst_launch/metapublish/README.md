@@ -1,8 +1,8 @@
 # Metadata Publishing Sample (gst-launch command line)
 
-This sample demonstrates how [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) and [gvametapublish](https://dlstreamer.github.io/elements/gvametapublish.html) elements are used in a typical pipeline constructed with Intel® Deep Learning Streamer (Intel® DL Streamer) and GStreamer elements. By placing these elements to the end of a pipeline that performs face detection and emotion classification, you will quickly see how these elements enable publishing of pipeline metadata to an output file, in-memory fifo, or a popular message bus.
+This sample demonstrates how [gvametaconvert](https://dlstreamer.github.io/elements/gvametaconvert.html) and [gvametapublish](https://dlstreamer.github.io/elements/gvametapublish.html) elements are used in a typical pipeline constructed with Deep Learning Streamer (DL Streamer) and GStreamer elements. By placing these elements to the end of a pipeline that performs face detection and emotion classification, you will quickly see how these elements enable publishing of pipeline metadata to an output file, in-memory fifo, or a popular message bus.
 
-These elements are useful for cases where you need to record outcomes (e.g., emitting inferences) of your Intel® DL Streamer pipeline to applications running locally or across distributed systems.
+These elements are useful for cases where you need to record outcomes (e.g., emitting inferences) of your DL Streamer pipeline to applications running locally or across distributed systems.
 
 ## How It Works
 The sample utilizes GStreamer command-line tool `gst-launch-1.0` which can build and run GStreamer pipeline described in a string format.
