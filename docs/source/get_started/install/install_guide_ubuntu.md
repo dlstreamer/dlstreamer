@@ -1,18 +1,16 @@
 # Install Guide Ubuntu
 
-The easiest way to install Deep Learning Streamer Pipeline Framework is installation
-[from Debian packages using APT repository](#option-1-install-intel-dl-streamer-pipeline-framework-from-debian-packages-using-apt-repository).
+The easiest way to install Deep Learning Streamer Pipeline Framework is
+[using Debian packages from APT repository](#option-1-install-deep-learning-streamer-pipeline-framework-from-debian-packages-using-apt-repository).
 
-If you prefer containerized environment based on Docker, use the
-[Docker image](#option-2-install-docker-image-from-docker-hub-and-run-it) as
-well as the Dockerfile to build runtime Docker image. Regardless of a chosen
-installation path, make sure to set up [the prerequisites](#prerequisites) first.
+If you prefer a containerized environment based on Docker, download a pre-made
+[Docker image](#option-2-install-docker-image-from-docker-hub-and-run-it) or
+build it with a Dockerfile. Regardless of the installation path,
+make sure to [set up the prerequisites](#prerequisites) first.
 
-For a detailed description of installation process, including the option
-with building Deep Learning Streamer Pipeline Framework from the source code
-provided in
-[Open Edge Platform repository](https://github.com/open-edge-platform/edge-ai-libraries.git),
-follow the [instructions](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
+For a detailed description of the installation process, including the option
+of building Deep Learning Streamer Pipeline Framework from source code,
+follow the [advanced installation guide](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
 
 ## Prerequisites
 
@@ -57,29 +55,29 @@ NPU:
 
 More details about the packages can be found in:
 
-- [Intel® Client GPU](https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages),
-- [Media](https://github.com/intel/media-driver/releases),
+- [Intel® Client GPU](https://dgpu-docs.intel.com/driver/client/overview.html#installing-gpu-packages).
+- [Media](https://github.com/intel/media-driver/releases).
 - [NPU](https://github.com/intel/linux-npu-driver/releases/tag/v1.13.0).
 
-Running Deep Learning Streamer on Intel® Data Center GPU (Flex) requires specific
-drivers, and you need to follow the instructions on
+To run Deep Learning Streamer on Intel® Data Center GPU (Flex) you need to use specific
+drivers, and follow the instructions on the
 [Intel® Data Center GPU website](https://dgpu-docs.intel.com/driver/installation.html#installing-data-center-gpu-lts-releases).
 
 ## Option #1: Install Deep Learning Streamer Pipeline Framework from Debian packages using APT repository
 
-This option provides the simplest installation flow using apt-get
+This option provides the simplest installation flow using the `apt-get`
 install command.
 
 ### Step 1: Installing prerequisites
 
-Run the script DLS_install_prerequisites.sh to install required GPU/NPU
+Run the script `DLS_install_prerequisites.sh` to install the required GPU/NPU
 drivers. For more details see [prerequisites](#prerequisites).
 
 ```bash
 ./DLS_install_prerequisites.sh
 ```
 
-### Step 2: Setup repositories
+### Step 2: Set up the repositories
 
 - **In Ubuntu 22**
 
@@ -99,7 +97,7 @@ drivers. For more details see [prerequisites](#prerequisites).
   sudo bash -c 'echo "deb [signed-by=/usr/share/keyrings/oneapi-archive-keyring.gpg] https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list'
   ```
 
-  > **NOTE:** If you have OpenVINO™ installed in a version different from 2025.3.0,
+  > **NOTE:** If you have OpenVINO™ installed in any version other than 2025.3.0,
   > please uninstall the OpenVINO™ packages using the following commands.
 
   ```bash
@@ -107,10 +105,10 @@ drivers. For more details see [prerequisites](#prerequisites).
   sudo apt-get autoremove
   ```
 
-### Step 3: Install Deep Learning Streamer Pipeline Framework
+### Step 3: Install the Deep Learning Streamer Pipeline Framework
 
-> **NOTE:** This step will also install the required dependencies, including
-> OpenVINO™ Toolkit and GStreamer.
+> **NOTE:** This step will also install the required dependencies, including the
+> OpenVINO™ toolkit and GStreamer.
 
 ```bash
 sudo apt update
@@ -127,12 +125,12 @@ To see the full list of installed components check the
 
 The Python packages required to run Deep Learning Streamer python elements
 or samples are not installed by default. You can install them using
-commands from
+the commands from
 [Advanced Install Guide Compilation / Install Python dependencies](../../dev_guide/advanced_install/advanced_install_guide_compilation.md#step-9-install-python-dependencies-optional).
 
 ### [Optional] Step 5: Post installation steps
 
-#### Download model and run hello_dlstreamer script
+#### Download the model and run hello_dlstreamer script
 
 Before executing any scripts, ensure you have set the MODELS_PATH
 environment variable to the directory where the model will be downloaded
@@ -146,7 +144,7 @@ using the following command:
 >   from the Ultralytics website along with other required components and
 >   convert it to the OpenVINO™ format.
 >
-> - If you add the **coco128** argument to the script, the downloaded model
+> - If you add the `coco128` argument to the script, the downloaded model
 >   will also be quantized to the INT8 precision.
 >
 > - If you already have the model, skip this step and simply export the
@@ -158,7 +156,7 @@ export MODELS_PATH=/home/${USER}/models
 /opt/intel/dlstreamer/samples/download_public_models.sh yolo11s coco128
 ```
 
-The `hello_dlstreamer.sh` will set up the required environment
+The `hello_dlstreamer.sh` script will set up the required environment
 variables and runs a sample pipeline to confirm that Deep Learning Streamer
 is installed correctly. To run the `hello_dlstreamer.sh` script, execute the
 following command:
@@ -258,8 +256,8 @@ For more details see [prerequisites](#prerequisites).
 ### Step 2: Installation of Docker
 
 [Get Docker](https://docs.docker.com/get-docker/) for your host OS.
-To prevent file permission issues please follow "Manage Docker as a non-root user" section
-steps described [here](https://docs.docker.com/engine/install/linux-postinstall/)
+To prevent file permission issues, check how to 
+[manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/).
 
 ### Step 3: Allowing connection to X server
 
@@ -277,12 +275,12 @@ setfacl -m user:1000:r ~/.Xauthority
 
 ### Step 4: Pull the Deep Learning Streamer Docker image from Docker Hub
 
-Visit [Deep Learning Streamer image docker hub](https://hub.docker.com/r/intel/dlstreamer) to
-select the most appropriate version. By default , the latest docker image points to Ubuntu
+Visit the [Deep Learning Streamer image docker hub](https://hub.docker.com/r/intel/dlstreamer) to
+select the most appropriate version. By default, the latest docker image points to Ubuntu
 24 version.
 
-For **Ubuntu 22.04** please specify tag e.g. **2025.1.2-ubuntu22**.
-For **Ubuntu 24.04** please use **latest** tag or specified version e.g.
+For **Ubuntu 22.04**, specify the tag e.g. **2025.1.2-ubuntu22**.
+For **Ubuntu 24.04**, use the **latest** tag or specify the version, such as
 **2025.1.2-ubuntu24**.
 
 - **Ubuntu 22**
@@ -314,7 +312,7 @@ a container
   docker run -it intel/dlstreamer:latest
   ```
 
-In the container, please run the `gst-inspect-1.0 gvadetect` to confirm
+In the container, please run the command `gst-inspect-1.0 gvadetect` to confirm
 that GStreamer and Deep Learning Streamer are running
 
 ```bash
