@@ -1,6 +1,6 @@
----
-orphan: true
----
+<!--hide_directive```{eval-rst}
+:orphan:
+```hide_directive-->
 
 # Intel® Deep Learning Streamer (Intel® DL Streamer) API reference
 
