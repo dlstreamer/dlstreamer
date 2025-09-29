@@ -2,7 +2,7 @@
 
 ## Option #1: Uninstall Intel® DL Streamer Pipeline Framework from APT repository
 
-If you installed via apt package just simple uninstall with apt:
+If you installed via APT, just use its uninstall command:
 
 ```bash
 sudo apt remove intel-dlstreamer
@@ -18,7 +18,7 @@ sudo apt-get autoremove
 
 ## Option #2: Remove Intel® DL Streamer Pipeline Framework Docker image
 
-If you used docker, you need just remove container and dlstreamer docker
+If you used docker, you only need to remove the appropriate container and dlstreamer docker
 image:
 
 ```bash
