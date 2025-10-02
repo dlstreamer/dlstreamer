@@ -115,7 +115,7 @@ fi
 
 if [[ "$OUTPUT" == "file" ]]; then
   FILE=$(basename "${INPUT%.*}")
-  rm -f "yolo_${FILE}_${MODEL}_${DEVICE}.mp4"
+  rm -f "yolo_${FILE}_${MODEL}_${PRECISION}_${DEVICE}.mp4"
   if [[ $(gst-inspect-1.0 va | grep vah264enc) ]]; then
     ENCODER="vah264enc"
   elif [[ $(gst-inspect-1.0 va | grep vah264lpenc) ]]; then
@@ -124,7 +124,7 @@ if [[ "$OUTPUT" == "file" ]]; then
     echo "Error - VA-API H.264 encoder not found."
     exit 1
   fi
-  SINK_ELEMENT="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=yolo_${FILE}_${MODEL}_${DEVICE}.mp4"
+  SINK_ELEMENT="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=yolo_${FILE}_${MODEL}_${PRECISION}_${DEVICE}.mp4"
 elif [[ "$OUTPUT" == "display" ]] || [[ -z $OUTPUT ]]; then
   SINK_ELEMENT="gvawatermark ! videoconvertscale ! gvafpscounter ! autovideosink sync=false"
 elif [[ "$OUTPUT" == "fps" ]]; then
