@@ -55,7 +55,7 @@ if (-Not (Test-Path "${env:ProgramFiles(x86)}\\Windows Kits")) {
 	Write-Host "################################ Windows SDK already installed #######################################"
 }
 
-$GSTREAMER_VERSION = "1.26.1"
+$GSTREAMER_VERSION = "1.26.6"
 
 if (-Not (Test-Path "${DLSTREAMER_TMP}\\gstreamer-1.0-msvc-x86_64_${GSTREAMER_VERSION}.msi")) {
 	Write-Host "##################################### Installing GStreamer ${GSTREAMER_VERSION} #######################################"
