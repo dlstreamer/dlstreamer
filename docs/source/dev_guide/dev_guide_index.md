@@ -2,7 +2,6 @@
 
 - [Advanced Installation Guide](./advanced_install/advanced_install_guide_index.md)
   - [Ubuntu advanced installation - prerequisites](./advanced_install/advanced_install_guide_prerequisites.md)
-  - [Ubuntu advanced installation - pre-built packages](./advanced_install/advanced_install_guide_prebuilt.md)
   - [Advanced installation - compilation from source files](./advanced_install/advanced_install_guide_compilation.md)
   - [Ubuntu advanced installation - build Docker image](./advanced_install/advanced_build_docker_image.md)
   - [Ubuntu advanced uninstall guide](./advanced_install/advanced_uninstall_guide.md)
