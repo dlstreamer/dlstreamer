@@ -3,16 +3,6 @@
 - [Ubuntu advanced installation - prerequisites](./advanced_install_guide_prerequisites.md)
   - [Prerequisite 1 - Intel® GPU drivers for computing and media runtimes](./advanced_install_guide_prerequisites.md#prerequisite-1---intel-gpu-drivers-for-computing-and-media-runtimes)
   - [Prerequisite 2 - Install Intel® NPU drivers](./advanced_install_guide_prerequisites.md#optional-prerequisite-2---install-intel-npu-drivers)
-- [Ubuntu advanced installation - pre-built packages](./advanced_install_guide_prebuilt.md)
-  - [Step 1: Install prerequisites](./advanced_install_guide_prebuilt.md#step-1-setup-prerequisites)
-  - [Step 2: Prepare the installation environment](./advanced_install_guide_prebuilt.md#step-2-prepare-the-installation-environment)
-  - [Step 3: Install Intel® DL Streamer](./advanced_install_guide_prebuilt.md#step-3-install-deep-learning-streamer)
-  - [Step 4: Install OpenVINO™ toolkit](./advanced_install_guide_prebuilt.md#step-4-install-openvino-toolkit)
-  - [Step 5: Install MQTT and Kafka clients for element gvametapublish](./advanced_install_guide_prebuilt.md#step-5-optional-install-mqtt-and-kafka-clients-for-element-gvametapublish)
-  - [Step 6: Add user to groups](./advanced_install_guide_prebuilt.md#step-6-add-user-to-groups)
-  - [Step 7: Set up the environment for Intel® DL Streamer](./advanced_install_guide_prebuilt.md#step-7-set-up-the-environment-for-deep-learning-streamer)
-  - [Step 8: Verify Intel® DL Streamer installation](./advanced_install_guide_prebuilt.md#step-8-verify-deep-learning-streamer-installation)
-  - [Step 9: Next steps - running sample Intel® DL Streamer pipelines](./advanced_install_guide_prebuilt.md#step-9-next-steps---running-sample-deep-learning-streamer-pipelines)
 - [Advanced installation - compilation from source files](./advanced_install_guide_compilation.md)
   - [Step 1: Install prerequisites (only for Ubuntu)](./advanced_install_guide_compilation.md#step-1-install-prerequisites-only-for-ubuntu)
   - [Step 2: Install build dependencies](./advanced_install_guide_compilation.md#step-2-install-build-dependencies)
@@ -39,7 +29,6 @@
 :hidden:
 
 advanced_install_guide_prerequisites
-advanced_install_guide_prebuilt
 advanced_install_guide_compilation
 advanced_build_docker_image
 advanced_uninstall_guide

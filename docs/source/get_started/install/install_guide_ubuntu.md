@@ -10,7 +10,7 @@ make sure to [set up the prerequisites](#prerequisites) first.
 
 For a detailed description of the installation process, including the option
 of building Deep Learning Streamer Pipeline Framework from source code,
-follow the [advanced installation guide](../../dev_guide/advanced_install/advanced_install_guide_prebuilt.md).
+follow the [advanced installation guide](../../dev_guide/advanced_install/advanced_install_guide_compilation.md).
 
 ## Prerequisites
 
@@ -256,7 +256,7 @@ For more details see [prerequisites](#prerequisites).
 ### Step 2: Installation of Docker
 
 [Get Docker](https://docs.docker.com/get-docker/) for your host OS.
-To prevent file permission issues, check how to 
+To prevent file permission issues, check how to
 [manage Docker as a non-root user](https://docs.docker.com/engine/install/linux-postinstall/).
 
 ### Step 3: Allowing connection to X server
