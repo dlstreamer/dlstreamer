@@ -126,13 +126,19 @@ to the
 
 **Current Support Limitations**
 
+
 At this time, only **detection** and **classification** tasks are supported:
 
 - **Object Detection** (`GstAnalyticsODMtd`) - works only with the
-   `gvadetect` element.
+   `gvadetect` element (see [*Detection* sample][detection_sample]).
+   
+   [detection_sample]: https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc/detect/README.md
+
 - **Classification** (`GstAnalyticsClsMtd`) - works with both the
   [gvadetect](../elements/gvadetect.md) and
-  [gvaclassify](../elements/gvaclassify.md) elements.
+  [gvaclassify](../elements/gvaclassify.md) elements (see [*Classification* sample][classify_sample]).
+
+  [classify_sample]: https://github.com/open-edge-platform/edge-ai-libraries/blob/main/libraries/dl-streamer/samples/gstreamer/gst_launch/custom_postproc/classify/README.md
 
 **Implementation Requirements**
 
@@ -140,7 +146,7 @@ Your custom library must export a `Convert` function with the following
 signature:
 
 ```c
-void Convert(GstTensorMeta *outputTensors,
+void Convert(GstTensorMeta *outputTensors,  
              const GstStructure *network,
              const GstStructure *params,
              GstAnalyticsRelationMeta *relationMeta);
