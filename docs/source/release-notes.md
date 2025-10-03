@@ -46,7 +46,7 @@ For installing Pipeline Framework with the prebuilt binaries or Docker\* or to b
 | Anomaly model support | Added support for anomaly model, [sample](https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer/samples/gstreamer/gst_launch/geti_deployment) added as reference, sample added as reference. |
 | RealSense element support | New [gvarealsense](./elements/gvarealsense.md) element implementation providing basic integration with Intel RealSense cameras, enabling video and depth stream capture for use in GStreamer pipelines. |
 | OpenVINO 2025.3 version support | Support of recent OpenVINO version added. |
-| GStreamer 1.26.4 version support | Support of recent GStreamer version added. |
+| GStreamer 1.26.6 version support | Support of recent GStreamer version added. |
 | NPU 1.19 version driver support | Support of recent NPU driver version added. |
 | Docker image size reduction | Reduction for all images, e.g., Ubuntu 24 Release image size reduced to 1.6GB from 2.6GB |
 
