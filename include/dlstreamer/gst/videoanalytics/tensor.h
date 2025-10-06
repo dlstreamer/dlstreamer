@@ -75,7 +75,7 @@ class Tensor {
      */
     enum class Layout {
         ANY = GVA_LAYOUT_ANY,   /**< unspecified layout */
-        NCHW = GVA_LAYOUT_NCHW, /**< NCWH layout */
+        NCHW = GVA_LAYOUT_NCHW, /**< NCHW layout */
         NHWC = GVA_LAYOUT_NHWC, /**< NHWC layout */
         NC = GVA_LAYOUT_NC      /**< NC layout */
     };
@@ -166,7 +166,7 @@ class Tensor {
     }
 
     /**
-     * @brief Set layout of output blob precision
+     * @brief Set layout of inference output blob
      * @param layout of inference data buffer
      */
     void set_layout(const Layout layout) {
@@ -214,7 +214,7 @@ class Tensor {
     }
 
     /**
-     * @brief Set inference output blob precision
+     * @brief Set data format
      * @param format of inference data buffer
      */
     void set_format(const std::string &format) {
@@ -544,7 +544,6 @@ class Tensor {
      * @brief Get label id
      * @return label id as an int, 0 if failed to get
      */
-
     int label_id() const {
         return get_int("label_id");
     }
@@ -592,7 +591,7 @@ class Tensor {
      * @brief Convert tensor to GST analytic metadata
      * @return if conversion succesfull, 'mtd' is a handle to created metadata
      */
-    bool convert_to_meta(GstAnalyticsMtd *mtd, GstAnalyticsODMtd *od_mtd, GstAnalyticsRelationMeta *meta) {
+    bool convert_to_meta(GstAnalyticsMtd *mtd, GstAnalyticsODMtd *od_mtd, GstAnalyticsRelationMeta *meta) const {
 
         if (name() == "keypoints") {
             GstAnalyticsKeypointGroupMtd *keypoint_group_mtd = mtd;
@@ -738,6 +737,11 @@ class Tensor {
         return false;
     }
 
+    /**
+     * @brief Convert GST analytic metadata to tensor structure
+     * @param mtd GST analytics metadata to convert
+     * @return pointer to GstStructure representing the tensor, nullptr if conversion failed
+     */
     static GstStructure *convert_to_tensor(GstAnalyticsMtd mtd) {
 
         if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_keypointgroup_mtd_get_mtd_type()) {

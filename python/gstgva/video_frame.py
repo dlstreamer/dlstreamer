@@ -16,11 +16,14 @@ from warnings import warn
 import json
 
 import gi
-gi.require_version('Gst', '1.0')
-gi.require_version("GstVideo", "1.0")
-gi.require_version('GObject', '2.0')
 
-from gi.repository import Gst, GstVideo
+gi.require_version("Gst", "1.0")
+gi.require_version("GstVideo", "1.0")
+gi.require_version("GObject", "2.0")
+gi.require_version("GstAnalytics", "1.0")
+gi.require_version("GLib", "2.0")
+
+from gi.repository import Gst, GstVideo, GstAnalytics, GLib
 from .util import VideoRegionOfInterestMeta
 from .util import GVATensorMeta
 from .util import GVAJSONMeta
@@ -41,7 +44,12 @@ class VideoFrame:
     #  @param buffer Gst.Buffer to which metadata is attached and retrieved
     #  @param video_info GstVideo.VideoInfo containing video information
     #  @param caps Gst.Caps from which video information is obtained
-    def __init__(self, buffer: Gst.Buffer, video_info: GstVideo.VideoInfo = None, caps: Gst.Caps = None):
+    def __init__(
+        self,
+        buffer: Gst.Buffer,
+        video_info: GstVideo.VideoInfo = None,
+        caps: Gst.Caps = None,
+    ):
         self.__buffer = buffer
         self.__video_info = None
 
@@ -51,7 +59,7 @@ class VideoFrame:
             self.__video_info = VideoInfoFromCaps(caps)
         elif self.video_meta():
             # Check for GST 1.20 API
-            if hasattr(GstVideo.VideoInfo, 'new'):
+            if hasattr(GstVideo.VideoInfo, "new"):
                 self.__video_info = GstVideo.VideoInfo.new()
             else:
                 self.__video_info = GstVideo.VideoInfo()
@@ -90,7 +98,17 @@ class VideoFrame:
     # If False, input coordinates are assumed to be expressed in pixels (this is behavior by default)
     #  @return new RegionOfInterest instance
 
-    def add_region(self, x, y, w, h, label: str = "", confidence: float = 0.0, normalized: bool = False, extra_params = None) -> RegionOfInterest:
+    def add_region(
+        self,
+        x,
+        y,
+        w,
+        h,
+        label: str = "",
+        confidence: float = 0.0,
+        normalized: bool = False,
+        extra_params=None,
+    ) -> RegionOfInterest:
         if normalized:
             x = int(x * self.video_info().width)
             y = int(y * self.video_info().height)
@@ -100,24 +118,53 @@ class VideoFrame:
         if not self.__is_bounded(x, y, w, h):
             x_init, y_init, w_init, h_init = x, y, w, h
             x, y, w, h = self.__clip(x, y, w, h)
-            warn("ROI coordinates [x, y, w, h] are out of image borders and will be clipped: [{}, {}, {}, {}] -> "
-                "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h), stacklevel=2)
+            warn(
+                "ROI coordinates [x, y, w, h] are out of image borders and will be clipped: [{}, {}, {}, {}] -> "
+                "[{}, {}, {}, {}]".format(x_init, y_init, w_init, h_init, x, y, w, h),
+                stacklevel=2,
+            )
 
-        video_roi_meta = GstVideo.buffer_add_video_region_of_interest_meta(self.__buffer, label, x, y, w, h)
-        video_roi_meta.id = libgst.gst_util_seqnum_next()
-        roi = RegionOfInterest(ctypes.cast(hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)).contents)
+        relation_meta = GstAnalytics.buffer_add_analytics_relation_meta(self.__buffer)
 
-        tensor = roi.add_tensor("detection")
-        tensor['confidence'] = float(confidence)
-        tensor['x_min'] = float(x / self.video_info().width)
-        tensor['x_max'] = float((x + w) / self.video_info().width)
-        tensor['y_min'] = float(y / self.video_info().height)
-        tensor['y_max'] = float((y + h) / self.video_info().height)
+        if not relation_meta:
+            raise RuntimeError(
+                "VideoFrame:add_region: Failed to add GstAnalyticsRelationMeta to buffer"
+            )
+
+        label_quark = GLib.quark_from_string(label) if label else 0
+        success, od_mtd = relation_meta.add_oriented_od_mtd(
+            label_quark, x, y, w, h, 0.0, float(confidence)
+        )
+
+        if not success:
+            raise RuntimeError(
+                "VideoFrame:add_region: Failed to add OrientedODMeta to GstAnalyticsRelationMeta"
+            )
+
+        video_roi_meta = GstVideo.buffer_add_video_region_of_interest_meta(
+            self.__buffer, label, x, y, w, h
+        )
+        video_roi_meta.id = od_mtd.id
+        roi = RegionOfInterest(
+            od_mtd,
+            ctypes.cast(
+                hash(video_roi_meta), ctypes.POINTER(VideoRegionOfInterestMeta)
+            ).contents,
+        )
+
+        tensor_structure = libgst.gst_structure_new_empty("detection".encode("utf-8"))
+        tensor = Tensor(tensor_structure)
+        tensor["confidence"] = float(confidence)
+        tensor["x_min"] = float(x / self.video_info().width)
+        tensor["x_max"] = float((x + w) / self.video_info().width)
+        tensor["y_min"] = float(y / self.video_info().height)
+        tensor["y_max"] = float((y + h) / self.video_info().height)
+        roi.add_tensor(tensor)
 
         # Add additional parameters if provided
         if extra_params is not None:
             # Serialize as JSON and store as a string field
-            tensor['extra_params_json'] = json.dumps(extra_params)
+            tensor["extra_params_json"] = json.dumps(extra_params)
 
         return roi
 
@@ -132,7 +179,9 @@ class VideoFrame:
     ## @brief Get messages attached to this VideoFrame
     #  @return messages attached to this VideoFrame
     def messages(self) -> List[str]:
-        return [json_meta.get_message() for json_meta in GVAJSONMeta.iterate(self.__buffer)]
+        return [
+            json_meta.get_message() for json_meta in GVAJSONMeta.iterate(self.__buffer)
+        ]
 
     ## @brief Attach message to this VideoFrame
     #  @param message message to attach to this VideoFrame
@@ -142,15 +191,21 @@ class VideoFrame:
     ## @brief Remove message from this VideoFrame
     #  @param message message to remove
     def remove_message(self, message: str):
-        if not isinstance(message,GVAJSONMetaStr) or not GVAJSONMeta.remove_json_meta(self.__buffer, message.meta):
+        if not isinstance(message, GVAJSONMetaStr) or not GVAJSONMeta.remove_json_meta(
+            self.__buffer, message.meta
+        ):
             raise RuntimeError("VideoFrame: message doesn't belong to this VideoFrame")
 
     ## @brief Remove region with the specified index
     #  @param roi Region to remove
     def remove_region(self, roi) -> None:
-        if not libgst.gst_buffer_remove_meta(hash(self.__buffer), ctypes.byref(roi.meta())):
-            raise RuntimeError("VideoFrame: Underlying GstVideoRegionOfInterestMeta for RegionOfInterest "
-                               "doesn't belong to this VideoFrame")
+        if not libgst.gst_buffer_remove_meta(
+            hash(self.__buffer), ctypes.byref(roi.meta())
+        ):
+            raise RuntimeError(
+                "VideoFrame: Underlying GstVideoRegionOfInterestMeta for RegionOfInterest "
+                "doesn't belong to this VideoFrame"
+            )
 
     ## @brief Get buffer data wrapped by numpy.ndarray
     #  @return numpy array instance
@@ -160,13 +215,17 @@ class VideoFrame:
             # pixel stride for 1st plane. works well for for 1-plane formats, like BGR, BGRA, BGRx
             bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
             is_yuv_format = self.__video_info.finfo.format in [
-                GstVideo.VideoFormat.NV12, GstVideo.VideoFormat.I420]
+                GstVideo.VideoFormat.NV12,
+                GstVideo.VideoFormat.I420,
+            ]
             w = self.__video_info.width
             if is_yuv_format:
                 h = int(self.__video_info.height * 1.5)
-            elif self.__video_info.finfo.format in [GstVideo.VideoFormat.BGR,
-                                                    GstVideo.VideoFormat.BGRA,
-                                                    GstVideo.VideoFormat.BGRX]:
+            elif self.__video_info.finfo.format in [
+                GstVideo.VideoFormat.BGR,
+                GstVideo.VideoFormat.BGRA,
+                GstVideo.VideoFormat.BGRX,
+            ]:
                 h = self.__video_info.height
             else:
                 raise RuntimeError("VideoFrame.data: Unsupported format")
@@ -175,22 +234,29 @@ class VideoFrame:
             requested_size = h * w * bytes_per_pix
 
             if mapped_data_size != requested_size:
-                warn("Size of buffer's data: {}, and requested size: {}\n"
-                     "Let to get shape from video meta...".format(
-                         mapped_data_size, requested_size), stacklevel=2)
+                warn(
+                    "Size of buffer's data: {}, and requested size: {}\n"
+                    "Let to get shape from video meta...".format(
+                        mapped_data_size, requested_size
+                    ),
+                    stacklevel=2,
+                )
                 meta = self.video_meta()
                 if meta:
                     h, w = meta.height, meta.width
                     requested_size = h * w * bytes_per_pix
                 else:
-                    warn("Video meta is {}. Can't get shape.".format(meta),
-                         stacklevel=2)
+                    warn(
+                        "Video meta is {}. Can't get shape.".format(meta), stacklevel=2
+                    )
 
             try:
                 if mapped_data_size < requested_size:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
                 elif mapped_data_size == requested_size:
-                    yield numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)
+                    yield numpy.ndarray(
+                        (h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8
+                    )
                 elif is_yuv_format:
                     # In some cases image size after mapping can be larger than expected image size.
                     # One of the reasons can be vaapi decoder which appends lines to the end of an image
@@ -200,12 +266,24 @@ class VideoFrame:
                 else:
                     raise RuntimeError("VideoFrame.data: Corrupted buffer")
             except TypeError as e:
-                warn(str(e) + "\nSize of buffer's data: {}, and requested size: {}".format(
-                    mapped_data_size, requested_size), stacklevel=2)
+                warn(
+                    str(e)
+                    + "\nSize of buffer's data: {}, and requested size: {}".format(
+                        mapped_data_size, requested_size
+                    ),
+                    stacklevel=2,
+                )
                 raise e
 
     def __is_bounded(self, x, y, w, h):
-        return x >= 0 and y >= 0 and w >= 0 and h >= 0 and x + w <= self.__video_info.width and y + h <= self.__video_info.height
+        return (
+            x >= 0
+            and y >= 0
+            and w >= 0
+            and h >= 0
+            and x + w <= self.__video_info.width
+            and y + h <= self.__video_info.height
+        )
 
     def __clip(self, x, y, w, h):
         frame_width, frame_height = self.__video_info.width, self.__video_info.height
@@ -222,32 +300,39 @@ class VideoFrame:
         n_planes = self.__video_info.finfo.n_planes
         if n_planes not in [2, 3]:
             raise RuntimeError(
-                'VideoFrame.__repack_video_frame: Unsupported number of planes {}'.format(n_planes))
+                "VideoFrame.__repack_video_frame: Unsupported number of planes {}".format(
+                    n_planes
+                )
+            )
 
         h, w = self.__video_info.height, self.__video_info.width
         stride = self.__video_info.stride[0]
         bytes_per_pix = self.__video_info.finfo.pixel_stride[0]
         input_h = int(len(data) / (w * bytes_per_pix) / 1.5)
 
-        planes = [numpy.ndarray((h, w, bytes_per_pix),
-                                buffer=data, dtype=numpy.uint8)]
+        planes = [numpy.ndarray((h, w, bytes_per_pix), buffer=data, dtype=numpy.uint8)]
         offset = stride * input_h
         stride = self.__video_info.stride[1]
 
         if n_planes == 2:
-            uv_plane = self.__extract_plane(ctypes.addressof(
-                data) + offset, stride * input_h // 2, (h // 2, w, bytes_per_pix))
+            uv_plane = self.__extract_plane(
+                ctypes.addressof(data) + offset,
+                stride * input_h // 2,
+                (h // 2, w, bytes_per_pix),
+            )
             planes.append(uv_plane)
         else:
             shape = (h // 4, w, bytes_per_pix)
-            u_plane = self.__extract_plane(ctypes.addressof(
-                data) + offset, stride * input_h // 2, shape)
+            u_plane = self.__extract_plane(
+                ctypes.addressof(data) + offset, stride * input_h // 2, shape
+            )
 
             offset += stride * input_h // 2
             stride = self.__video_info.stride[2]
 
-            v_plane = self.__extract_plane(ctypes.addressof(
-                data) + offset, stride * input_h // 2, shape)
+            v_plane = self.__extract_plane(
+                ctypes.addressof(data) + offset, stride * input_h // 2, shape
+            )
 
             planes.append(u_plane)
             planes.append(v_plane)
@@ -256,8 +341,9 @@ class VideoFrame:
 
     @staticmethod
     def __extract_plane(data_ptr, data_size, shape):
-        plane_raw = ctypes.cast(data_ptr, ctypes.POINTER(
-            ctypes.c_byte * data_size)).contents
+        plane_raw = ctypes.cast(
+            data_ptr, ctypes.POINTER(ctypes.c_byte * data_size)
+        ).contents
         return numpy.ndarray(shape, buffer=plane_raw, dtype=numpy.uint8)
 
     @staticmethod

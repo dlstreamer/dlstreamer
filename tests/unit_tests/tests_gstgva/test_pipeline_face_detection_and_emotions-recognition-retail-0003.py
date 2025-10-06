@@ -36,7 +36,7 @@ GOLD_TRUE = [
                  'layer_name': "prob_emotion",
                  'name': "detection"
              }
-         ], class_id=1
+         ], class_id=0
          ),
     BBox(0.18315134942531586, 0.19866728782653809, 0.30272287130355835, 0.5095890760421753,
          [
@@ -45,7 +45,7 @@ GOLD_TRUE = [
                  'layer_name': "prob_emotion",
                  'name': "emotion"
              }
-         ], class_id=1
+         ], class_id=0
          )
 ]
 

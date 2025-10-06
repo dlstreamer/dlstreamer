@@ -1,11 +1,12 @@
 /*******************************************************************************
- * Copyright (C) 2019-2022 Intel Corporation
+ * Copyright (C) 2019-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #pragma once
 
+#include "gst/gstbuffer.h"
 #ifdef __cplusplus
 
 #include "common/post_processor.h"

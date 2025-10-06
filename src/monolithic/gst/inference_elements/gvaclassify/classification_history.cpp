@@ -13,7 +13,6 @@
 #include <video_frame.h>
 
 #include <algorithm>
-#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 
 ClassificationHistory::ClassificationHistory(GstGvaClassify *gva_classify)
     : gva_classify(gva_classify), current_num_frame(0), history(CLASSIFICATION_HISTORY_SIZE) {
@@ -29,7 +28,7 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
         // we have recent classification result or classification is not required for this object
         bool result = false;
         gint id;
-        if (NEW_METADATA && roi->id >= 0) {
+        if (roi->id >= 0) {
             GMutexLockGuard guard(&gva_classify->base_inference.meta_mutex);
             GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
             if (!relation_meta) {
@@ -42,10 +41,6 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
             }
 
             if (!get_od_id(od_mtd, &id))
-                // object has not been tracked
-                return true;
-        } else {
-            if (!get_object_id(roi, &id))
                 // object has not been tracked
                 return true;
         }

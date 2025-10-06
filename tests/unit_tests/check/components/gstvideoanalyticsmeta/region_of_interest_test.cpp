@@ -4,7 +4,8 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
-#include "video_frame.h"
+#include "glib.h"
+#include "gst/analytics/analytics.h"
 
 #include <glib/gslice.h>
 #include <gmock/gmock.h>
@@ -21,6 +22,8 @@ using ::testing::_;
 using ::testing::Mock;
 using ::testing::Return;
 
+#include "dlstreamer/gst/videoanalytics/region_of_interest.h"
+
 struct RegionOfInterestTest : public ::testing::Test {
 
     // TODO: rename to SetUpTestSuite when migrate to googletest version higher than 1.8
@@ -35,9 +38,25 @@ struct RegionOfInterestTest : public ::testing::Test {
         buffer = gst_buffer_new_and_alloc(0);
         GstVideoInfo info;
         gst_video_info_set_format(&info, GST_VIDEO_FORMAT_NV12, 1920, 1080); // FullHD
+
+        const gchar *label = "detection";
+
         GstVideoRegionOfInterestMeta *meta =
-            gst_buffer_add_video_region_of_interest_meta(buffer, "detection", 0.0, 0.0, 0.3, 0.6);
-        region_of_interest = new GVA::RegionOfInterest(meta);
+            gst_buffer_add_video_region_of_interest_meta(buffer, label, 0.0, 0.0, 0.3, 0.6);
+
+        GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(buffer);
+        ASSERT_NE(relation_meta, nullptr);
+
+        GQuark label_quark = g_quark_from_string(label);
+
+        GstAnalyticsODMtd od_mtd;
+        gboolean ret = gst_analytics_relation_meta_add_oriented_od_mtd(relation_meta, label_quark, 0.0, 0.0, 0.3, 0.6,
+                                                                       0.0, 0.77f, &od_mtd);
+        ASSERT_TRUE(ret);
+
+        meta->id = od_mtd.id;
+
+        region_of_interest = new GVA::RegionOfInterest(od_mtd, meta);
     }
 
     void TearDown() {
@@ -49,21 +68,24 @@ struct RegionOfInterestTest : public ::testing::Test {
 };
 
 TEST_F(RegionOfInterestTest, RegionOfInterestTestTensors) {
-    ASSERT_DOUBLE_EQ(region_of_interest->confidence(), 0.0);
     ASSERT_EQ(region_of_interest->tensors().size(), 0);
 
     std::vector<GVA::Tensor> test_tensors;
     const size_t tensors_num = 10;
     for (size_t i = 0; i < tensors_num; ++i) {
-        GVA::Tensor tensor = region_of_interest->add_tensor("tensor_" + std::to_string(i));
+        GstStructure *gst_structure = gst_structure_new_empty(("tensor_" + std::to_string(i)).c_str());
+        GVA::Tensor tensor(gst_structure);
         tensor.set_double("confidence", (double)i / (double)tensors_num);
+        region_of_interest->add_tensor(tensor);
         test_tensors.push_back(tensor);
     }
-    GVA::Tensor detection = region_of_interest->add_tensor("detection");
+    GstStructure *detection_structure = gst_structure_new_empty("detection");
+    GVA::Tensor detection(detection_structure);
     detection.set_double("confidence", 0.77);
+    region_of_interest->add_tensor(detection);
 
     ASSERT_EQ(region_of_interest->tensors().size(), tensors_num + 1);
-    ASSERT_DOUBLE_EQ(region_of_interest->confidence(), 0.77);
+    ASSERT_DOUBLE_EQ(region_of_interest->confidence(), 0.77f);
     ASSERT_DOUBLE_EQ((*region_of_interest).tensors()[5].confidence(), 0.5);
 
     double confidence = 0.0;

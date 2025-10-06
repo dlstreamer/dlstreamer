@@ -1,19 +1,22 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include <algorithm>
 #include <map>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 #include <opencv2/imgproc.hpp>
 
+#include "gst/analytics/analytics.h"
 #include "pre_processor_info_parser.hpp"
 #include "pre_processors.h"
 #include "region_of_interest.h"
+#include "tensor.h"
 #include "utils.h"
 
 using namespace InferenceBackend;
@@ -134,8 +137,9 @@ InputPreprocessingFunction createFaceAlignmentFunction(GstStructure *params, Gst
     std::vector<float> reference_points;
     std::vector<float> landmarks_points;
     // look for tensor data with corresponding format
-    GVA::RegionOfInterest roi(roi_meta);
-    for (auto tensor : roi.tensors()) {
+    for (GList *l = roi_meta->params; l; l = g_list_next(l)) {
+        GstStructure *s = GST_STRUCTURE(l->data);
+        GVA::Tensor tensor(s);
         if (tensor.format() == "landmark_points") {
             landmarks_points = tensor.data<float>();
             break;

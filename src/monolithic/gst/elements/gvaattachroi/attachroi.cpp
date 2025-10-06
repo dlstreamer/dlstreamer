@@ -185,8 +185,10 @@ void addRoiFromJsonObjNode(const json &jsonRoi, GVA::VideoFrame &vframe) {
             auto nameValueIter = jsonTensor.find("name");
             if (nameValueIter == jsonTensor.end())
                 continue;
-            GVA::Tensor tensor = roi.add_tensor(nameValueIter->get<std::string>());
+            GstStructure *gst_structure = gst_structure_new_empty(nameValueIter->get<std::string>().c_str());
+            GVA::Tensor tensor(gst_structure);
             attachJsonTensorToTensor(tensor, jsonTensor);
+            roi.add_tensor(tensor);
         }
     }
 }

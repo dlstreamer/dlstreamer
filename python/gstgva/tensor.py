@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2022 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -13,12 +13,21 @@ import gi
 from typing import List
 from warnings import warn
 
-gi.require_version('Gst', '1.0')
+gi.require_version("Gst", "1.0")
+gi.require_version("GstAnalytics", "1.0")
 
 from enum import Enum
-from gi.repository import GObject, Gst
-from .util import libgst, libgobject, G_VALUE_ARRAY_POINTER, GValueArray, GValue, G_VALUE_POINTER
+from gi.repository import GObject, Gst, GstAnalytics, GLib
+from .util import (
+    libgst,
+    libgobject,
+    G_VALUE_ARRAY_POINTER,
+    GValueArray,
+    GValue,
+    G_VALUE_POINTER,
+)
 from .util import GVATensorMeta
+
 
 ## @brief This class represents tensor - map-like storage for inference result information, such as output blob
 # description (output layer dims, layout, rank, precision, etc.), inference result in a raw and interpreted forms.
@@ -74,7 +83,7 @@ class Tensor:
         PRECISION.U64: "U64",
         PRECISION.BIN: "BIN",
         PRECISION.BOOL: "BOOL",
-        PRECISION.CUSTOM: "CUSTOM"
+        PRECISION.CUSTOM: "CUSTOM",
     }
 
     __precision_numpy_dtype = {
@@ -88,7 +97,7 @@ class Tensor:
         PRECISION.U8: numpy.uint8,
         PRECISION.U16: numpy.uint16,
         PRECISION.U32: numpy.uint32,
-        PRECISION.U64: numpy.uint64
+        PRECISION.U64: numpy.uint64,
     }
 
     ## @brief This enum describes model layer layout
@@ -106,10 +115,12 @@ class Tensor:
     ## @brief Get inference results blob precision
     #  @return PRECISION, PRECISION.UNSPECIFIED if can't be read
     def precision(self) -> PRECISION:
-        try:
-            return self.PRECISION(self["precision"])
-        except:
+        precision = self["precision"]
+
+        if precision is None:
             return self.PRECISION.UNSPECIFIED
+
+        return self.PRECISION(precision)
 
     ## @brief Get inference result blob layout
     #  @return LAYOUT, LAYOUT.ANY if can't be read
@@ -121,19 +132,26 @@ class Tensor:
 
     ## @brief Get raw inference result blob data
     #  @return numpy.ndarray of values representing raw inference data, None if data can't be read
-    def data(self) -> numpy.ndarray:
+    def data(self) -> numpy.ndarray | None:
+        if self.precision() == self.PRECISION.UNSPECIFIED:
+            return None
+
         precision = self.__precision_numpy_dtype[self.precision()]
 
         gvalue = libgst.gst_structure_get_value(
-            self.__structure, 'data_buffer'.encode('utf-8'))
+            self.__structure, "data_buffer".encode("utf-8")
+        )
 
         if gvalue:
             gvariant = libgobject.g_value_get_variant(gvalue)
             nbytes = ctypes.c_size_t()
             data_ptr = libgobject.g_variant_get_fixed_array(
-                gvariant, ctypes.byref(nbytes), 1)
+                gvariant, ctypes.byref(nbytes), 1
+            )
             array_type = ctypes.c_ubyte * nbytes.value
-            return numpy.ctypeslib.as_array(array_type.from_address(data_ptr)).view(dtype=precision)
+            return numpy.ctypeslib.as_array(array_type.from_address(data_ptr)).view(
+                dtype=precision
+            )
 
         return None
 
@@ -142,7 +160,7 @@ class Tensor:
     def name(self) -> str:
         name = libgst.gst_structure_get_name(self.__structure)
         if name:
-            return name.decode('utf-8')
+            return name.decode("utf-8")
         return None
 
     ## @brief Get model name which was used for inference
@@ -154,6 +172,11 @@ class Tensor:
     #  @return layer name as a string, None if failed to get
     def layer_name(self) -> str:
         return self["layer_name"]
+
+    ## @brief Get inference result type
+    #  @return type as a string, None if failed to get
+    def type(self) -> str:
+        return self["type"]
 
     ## @brief Get confidence of inference result
     #  @return confidence of inference result as a float, None if failed to get
@@ -182,13 +205,16 @@ class Tensor:
     ## @brief Get list of fields contained in Tensor instance
     #  @return List of fields contained in Tensor instance
     def fields(self) -> List[str]:
-        return [libgst.gst_structure_nth_field_name(self.__structure, i).decode("utf-8") for i in range(self.__len__())]
+        return [
+            libgst.gst_structure_nth_field_name(self.__structure, i).decode("utf-8")
+            for i in range(self.__len__())
+        ]
 
     ## @brief Get item by the field name
     #  @param key Field name
     #  @return Item, None if failed to get
     def __getitem__(self, key):
-        key = key.encode('utf-8')
+        key = key.encode("utf-8")
         gtype = libgst.gst_structure_get_field_type(self.__structure, key)
         if gtype == hash(GObject.TYPE_INVALID):  # key is not found
             return None
@@ -198,40 +224,45 @@ class Tensor:
         elif gtype == hash(GObject.TYPE_INT):
             value = ctypes.c_int()
             res = libgst.gst_structure_get_int(
-                self.__structure, key, ctypes.byref(value))
+                self.__structure, key, ctypes.byref(value)
+            )
             return value.value if res else None
         elif gtype == hash(GObject.TYPE_DOUBLE):
             value = ctypes.c_double()
             res = libgst.gst_structure_get_double(
-                self.__structure, key, ctypes.byref(value))
+                self.__structure, key, ctypes.byref(value)
+            )
             return value.value if res else None
         elif gtype == hash(GObject.TYPE_VARIANT):
             # TODO Returning pointer for now that can be used with other ctypes functions
             #      Return more useful python value
-            return libgst.gst_structure_get_value(self.__structure,key)
+            return libgst.gst_structure_get_value(self.__structure, key)
         elif gtype == hash(GObject.TYPE_POINTER):
             # TODO Returning pointer for now that can be used with other ctypes functions
             #      Return more useful python value
-            return libgst.gst_structure_get_value(self.__structure,key)
+            return libgst.gst_structure_get_value(self.__structure, key)
         else:
             # try to get value as GValueArray (e.g., "dims" key)
             gvalue_array = G_VALUE_ARRAY_POINTER()
-            is_array = libgst.gst_structure_get_array(self.__structure, key, ctypes.byref(gvalue_array))
+            is_array = libgst.gst_structure_get_array(
+                self.__structure, key, ctypes.byref(gvalue_array)
+            )
             if not is_array:
                 # Fallback return value
                 libgst.g_value_array_free(gvalue_array)
-                return libgst.gst_structure_get_value(self.__structure,key)
+                return libgst.gst_structure_get_value(self.__structure, key)
             else:
                 value = list()
                 for i in range(0, gvalue_array.contents.n_values):
-                    g_value = libgobject.g_value_array_get_nth(gvalue_array, ctypes.c_uint(i))
+                    g_value = libgobject.g_value_array_get_nth(
+                        gvalue_array, ctypes.c_uint(i)
+                    )
                     if g_value.contents.g_type == hash(GObject.TYPE_FLOAT):
                         value.append(libgobject.g_value_get_float(g_value))
                     elif g_value.contents.g_type == hash(GObject.TYPE_UINT):
                         value.append(libgobject.g_value_get_uint(g_value))
                     else:
-                        raise TypeError(
-                            "Unsupported value type for GValue array")
+                        raise TypeError("Unsupported value type for GValue array")
                 libgst.g_value_array_free(gvalue_array)
                 return value
 
@@ -254,7 +285,7 @@ class Tensor:
     ## @brief Remove item by the field name
     #  @param key Field name
     def __delitem__(self, key: str) -> None:
-        libgst.gst_structure_remove_field(self.__structure, key.encode('utf-8'))
+        libgst.gst_structure_remove_field(self.__structure, key.encode("utf-8"))
 
     ## @brief Get label id
     #  @return label id as an int, None if failed to get
@@ -268,7 +299,7 @@ class Tensor:
 
     ## @brief Set Tensor instance's name
     def set_name(self, name: str) -> None:
-        libgst.gst_structure_set_name(self.__structure, name.encode('utf-8'))
+        libgst.gst_structure_set_name(self.__structure, name.encode("utf-8"))
 
     ## @brief Get inference result blob layout as a string
     #  @return layout as a string, "ANY" if can't be read
@@ -292,7 +323,7 @@ class Tensor:
     #  @param label label name as a string
     def set_label(self, label: str) -> None:
         if not self.is_detection():
-            self['label'] = label
+            self["label"] = label
         else:
             raise RuntimeError("Detection GVA::Tensor can't have label.")
 
@@ -306,6 +337,11 @@ class Tensor:
     #  @return True if tensor contains detection results, False otherwise
     def is_detection(self) -> bool:
         return self.name() == "detection"
+
+    ## @brief Get underlying GstStructure
+    #  @return C-style pointer to GstStructure
+    def get_structure(self) -> ctypes.c_void_p:
+        return self.__structure
 
     ## @brief Construct Tensor instance from C-style GstStructure
     #  @param structure C-style pointer to GstStructure to create Tensor instance from.
@@ -342,7 +378,8 @@ class Tensor:
         else:
             raise TypeError
         libgst.gst_structure_set_value(
-            self.__structure, key.encode('utf-8'), hash(gvalue))
+            self.__structure, key.encode("utf-8"), hash(gvalue)
+        )
 
     @classmethod
     def _iterate(cls, buffer):
@@ -354,7 +391,9 @@ class Tensor:
         gpointer = ctypes.c_void_p()
         while True:
             try:
-                value = libgst.gst_buffer_iterate_meta_filtered(hash(buffer), ctypes.byref(gpointer), meta_api)
+                value = libgst.gst_buffer_iterate_meta_filtered(
+                    hash(buffer), ctypes.byref(gpointer), meta_api
+                )
             except Exception as error:
                 value = None
 
@@ -363,3 +402,84 @@ class Tensor:
 
             tensor_meta = ctypes.cast(value, ctypes.POINTER(GVATensorMeta)).contents
             yield Tensor(tensor_meta.data)
+
+    def convert_to_meta(
+        self, relation_meta: GstAnalytics.RelationMeta
+    ) -> GstAnalytics.Mtd | None:
+        mtd = None
+        if self.type() == "classification_result":
+            confidence_level = (
+                self.confidence() if self.confidence() is not None else 0.0
+            )
+
+            class_quark = (
+                GLib.quark_from_string(self.label()) if self.label() is not None else 0
+            )
+
+            success, mtd = relation_meta.add_one_cls_mtd(confidence_level, class_quark)
+
+            if not success:
+                raise RuntimeError(
+                    "Failed to add classification metadata to RelationMeta"
+                )
+
+        return mtd
+
+    @staticmethod
+    def convert_to_tensor(mtd: GstAnalytics.Mtd) -> ctypes.c_void_p | None:
+        structure = libgst.gst_structure_new_empty("tensor".encode("utf-8"))
+        tensor = Tensor(structure)
+
+        if type(mtd) == GstAnalytics.ClsMtd:
+            class_count = mtd.get_length()
+            result_confidence = 0.0
+            result_label = ""
+
+            for i in range(class_count):
+                confidence = mtd.get_level(i)
+                if confidence < 0.0:
+                    raise RuntimeError("Negative confidence level in metadata")
+
+                quark_label = mtd.get_quark(i)
+                label = GLib.quark_to_string(quark_label) if quark_label else ""
+
+                if label:
+                    if result_label and not result_label[-1].isspace():
+                        result_label += " "
+                    result_label += label
+
+                if confidence > result_confidence:
+                    result_confidence = confidence
+
+            tensor.set_name("classification")
+            tensor.set_label(result_label)
+            tensor["type"] = "classification_result"
+            tensor["confidence"] = result_confidence
+
+            cls_descriptor_mtd = None
+            for cls_descriptor_mtd in mtd.meta:
+                if (
+                    cls_descriptor_mtd.id == mtd.id
+                    or type(cls_descriptor_mtd) != GstAnalytics.ClsMtd
+                ):
+                    continue
+
+                rel = mtd.meta.get_relation(mtd.id, cls_descriptor_mtd.id)
+
+                if rel == GstAnalytics.RelTypes.RELATE_TO:
+                    break
+
+                cls_descriptor_mtd = None
+
+            if class_count == 1 and cls_descriptor_mtd is not None:
+                label_id = cls_descriptor_mtd.get_index_by_quark(
+                    GLib.quark_from_string(result_label)
+                )
+
+                if label_id >= 0:
+                    tensor["label_id"] = label_id
+
+            return tensor.get_structure()
+
+        warn(f"Unsupported MtdType {mtd.type} for conversion to Tensor")
+        return None

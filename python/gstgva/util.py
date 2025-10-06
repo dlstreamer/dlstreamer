@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2021 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -312,6 +312,9 @@ libgstvideo.gst_video_region_of_interest_meta_get_param.restype = ctypes.c_void_
 libgstvideo.gst_video_region_of_interest_meta_add_param.argtypes = [
     VIDEO_REGION_OF_INTEREST_POINTER, ctypes.c_void_p]
 libgstvideo.gst_video_region_of_interest_meta_add_param.restype = None
+libgstvideo.gst_buffer_get_video_region_of_interest_meta_id.argtypes = [
+    ctypes.c_void_p, ctypes.c_uint]
+libgstvideo.gst_buffer_get_video_region_of_interest_meta_id.restype = ctypes.c_void_p
 
 # GVATensorMeta
 class GVATensorMeta(ctypes.Structure):
