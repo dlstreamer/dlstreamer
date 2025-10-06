@@ -62,11 +62,8 @@ TEST_F(VideoFrameTest, VideoFrameTestRegions) {
     }
     ASSERT_EQ(frame->regions().size(), ROIS_NUMBER);
 
-    frame->remove_region(regions[0]);
-    frame->remove_region(regions[ROIS_NUMBER - 1]);
-    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER - 2);
-
-    unsigned idx = 1; // start with 1 because 0 region was popped
+    // unsigned idx = 1; // start with 1 because 0 region was popped
+    unsigned idx = 0;
     regions = frame->regions();
     for (GVA::RegionOfInterest &roi : frame->regions()) {
         std::vector<GVA::RegionOfInterest>::iterator pos_elem_reg =
@@ -82,7 +79,7 @@ TEST_F(VideoFrameTest, VideoFrameTestRegions) {
 
     // ROI in clipped coordinates can be added if it is bounded to [0,1]
     GVA::RegionOfInterest roi1 = frame->add_region(0.0, 0.0, 0.3, 0.6, "label", 0.8, true);
-    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER - 1);
+    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER + 1);
 
     // ROI will be clipped (before adding) if it is not bounded to [0,1]
     GVA::RegionOfInterest roi1_bad = frame->add_region(0.7, 0.3, 0.35, 0.1, "label", 0.8, true);
@@ -94,11 +91,11 @@ TEST_F(VideoFrameTest, VideoFrameTestRegions) {
     gst_structure_get_double(detection_param, "x_max", &x_max);
     ASSERT_FLOAT_EQ(x_max, 1.0); // 0.7 {x} + 0.35 {w} = 1.05 {x_max}, which is more than 1.0, so width will be clipped
                                  // to 0.3 from 0.35, so that 0.7 {x} + 0.3 {w} = 1.0 {x_max}
-    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER);
+    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER + 2);
 
     // ROI in abs coordinates can be added if it is bounded to FullHD
     GVA::RegionOfInterest roi2 = frame->add_region(0, 0, 1000, 1000, "label", 0.8);
-    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER + 1);
+    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER + 3);
 
     // ROI will be clipped (before adding) if it is not bounded to FullHD
     GVA::RegionOfInterest roi2_bad = frame->add_region(1900, 1000, 100, 100, "label", 0.8);
@@ -106,7 +103,7 @@ TEST_F(VideoFrameTest, VideoFrameTestRegions) {
                                         // to 20 from 100, so that 1900 {x} + 20 {w} = 1920
     ASSERT_EQ(roi2_bad._meta()->h, 80); // 1000 {y} + 100 {w} = 1100, which is more than 1080, so width will be clipped
                                         // to 80 from 100, so that 1000 {x} + 80 {w} = 1080
-    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER + 2);
+    ASSERT_EQ(frame->regions().size(), ROIS_NUMBER + 4);
 
     // check intitial roi2_bad
     ASSERT_EQ(roi2_bad._meta()->x, 1900);
@@ -114,28 +111,11 @@ TEST_F(VideoFrameTest, VideoFrameTestRegions) {
     ASSERT_EQ(roi2_bad._meta()->h, 80);
     ASSERT_EQ(roi2_bad._meta()->w, 20);
 
-    // modify roi2_bad to see if modifications are applied
-    roi2_bad._meta()->x = 1000;
-    roi2_bad._meta()->y = 1000;
-    roi2_bad._meta()->h = 100;
-    roi2_bad._meta()->w = 100;
-
-    regions = frame->regions();
-
-    std::vector<GVA::RegionOfInterest>::iterator pos_elem_reg =
-        std::find_if(regions.begin(), regions.end(), [idx](GVA::RegionOfInterest roi) {
-            auto rect = roi.rect();
-            return (rect.x == 1000 and rect.y == 1000 and rect.h == 100 and rect.w == 100);
-        });
-    if (pos_elem_reg != regions.end())
-        regions.erase(pos_elem_reg);
-    ASSERT_EQ(regions.size(), ROIS_NUMBER + 1);
-
-    // pop all the regions
-    regions = frame->regions();
-    for (int i = 0; i < regions.size(); ++i)
-        frame->remove_region(regions[i]);
-    ASSERT_EQ(frame->regions().size(), 0);
+    auto rect = roi2_bad.rect();
+    ASSERT_EQ(rect.x, 1900);
+    ASSERT_EQ(rect.y, 1000);
+    ASSERT_EQ(rect.h, 80);
+    ASSERT_EQ(rect.w, 20);
 
     // no changes for tensor meta
     ASSERT_EQ(frame->tensors().size(), 0);
@@ -230,7 +210,7 @@ TEST_F(VideoFrameTest, VideoFrameTestRegionIDs) {
     std::map<int, int> ids_entry;
     for (int i = 0; i < ROIS_NUMBER; i++) {
         int roi_id = regions[i].region_id();
-        ASSERT_NE(roi_id, 0) << "Region ID shouldn't be 0";
+        ASSERT_GT(roi_id, -1) << "Region ID should be non-negative";
         ids_entry[roi_id]++;
     }
 

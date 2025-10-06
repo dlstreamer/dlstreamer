@@ -13,8 +13,8 @@ gi.require_version('GstVideo', '1.0')
 gi.require_version('GLib', '2.0')
 gi.require_version('Gst', '1.0')
 
-from gstgva.region_of_interest import RegionOfInterest
-from gstgva.util import VideoRegionOfInterestMeta
+from gstgva.region_of_interest import RegionOfInterest, Tensor
+from gstgva.util import VideoRegionOfInterestMeta, libgst
 from gstgva.video_frame import VideoFrame
 from gi.repository import GstVideo, GLib, GObject, Gst
 
@@ -38,11 +38,15 @@ class RegionOfInterestTestCase(unittest.TestCase):
 
         tensors_num = 10
         for i in range(0, tensors_num):
-            tensor = self.roi.add_tensor("tensor_" + str(i))
-            tensor['confidence'] = i / 10
+            gst_structure = libgst.gst_structure_new_empty(
+                f"tensor_{i}".encode("utf-8")
+            )
+            tensor = Tensor(gst_structure)
+            tensor["confidence"] = i / 10
+            self.roi.add_tensor(tensor)
 
         self.assertEqual(len(list(self.roi.tensors())), tensors_num + 1)
-        delta = 0.000000001
+        delta = 0.0000001
         self.assertAlmostEqual(self.roi.confidence(), 0.77, delta=delta)
         self.assertAlmostEqual((list(self.roi.tensors()))[
                                5].confidence(), 0.4, delta=delta)

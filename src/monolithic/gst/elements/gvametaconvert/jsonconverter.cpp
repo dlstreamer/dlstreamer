@@ -149,6 +149,11 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
         jobject.push_back({"h", rect.h});
         jobject.push_back({"region_id", roi.region_id()});
 
+        gint parent_id = roi.parent_id();
+        if (parent_id >= 0) {
+            jobject.push_back({"parent_id", parent_id});
+        }
+
         if (id != 0)
             jobject.push_back({"id", id});
 

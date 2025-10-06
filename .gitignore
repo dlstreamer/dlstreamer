@@ -11,6 +11,7 @@ build
 /build_afl
 /results
 .vscode
+.cache
 .idea
 _release
 cmake-build-*/

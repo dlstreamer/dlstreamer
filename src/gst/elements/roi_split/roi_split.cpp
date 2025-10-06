@@ -8,6 +8,7 @@
 
 #include "dlstreamer/gst/frame.h"
 #include "dlstreamer/image_metadata.h"
+#include "gst/analytics/analytics.h"
 #include "metadata/gva_tensor_meta.h"
 #include "region_of_interest.h"
 
@@ -79,18 +80,27 @@ static GstFlowReturn roi_split_transform_ip(GstBaseTransform *base, GstBuffer *b
     GST_DEBUG_OBJECT(self, "%s", __FUNCTION__);
 
     // Filter ROIs by object class
+    GstAnalyticsODMtd od_mtd;
     GstVideoRegionOfInterestMeta *roi_meta;
-    std::vector<GstVideoRegionOfInterestMeta *> rois;
+    std::vector<GstAnalyticsODMtd> rois;
     gpointer state = nullptr;
-    while ((roi_meta = ((GstVideoRegionOfInterestMeta *)gst_buffer_iterate_meta_filtered(
-                buf, &state, GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE)))) {
-        if (roi_meta->roi_type) {
+
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
+    if (!relation_meta) {
+        GST_DEBUG_OBJECT(self, "No Relation meta. Push GAP event: ts=%" GST_TIME_FORMAT,
+                         GST_TIME_ARGS(GST_BUFFER_PTS(buf)));
+        return send_gap_event(base->srcpad, buf);
+    }
+
+    while (gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
+        GQuark label_quark = gst_analytics_od_mtd_get_obj_type(&od_mtd);
+        if (label_quark) {
             auto &classes = self->object_classes;
-            std::string name = g_quark_to_string(roi_meta->roi_type);
+            std::string name = g_quark_to_string(label_quark);
             if (std::find(classes.begin(), classes.end(), name) == classes.end())
                 continue;
         }
-        rois.push_back(roi_meta);
+        rois.push_back(od_mtd);
     }
 
     if (rois.empty()) {
@@ -100,7 +110,7 @@ static GstFlowReturn roi_split_transform_ip(GstBaseTransform *base, GstBuffer *b
 
     // Create new buffers per ROI and push
     for (size_t i = 0; i < rois.size(); i++) {
-        roi_meta = rois[i];
+        od_mtd = rois[i];
 
         // Create separate buffers from buf for each ROI meta
         GstBuffer *roi_buf = gst_buffer_new();
@@ -112,17 +122,34 @@ static GstFlowReturn roi_split_transform_ip(GstBaseTransform *base, GstBuffer *b
             return GST_FLOW_ERROR;
         }
 
+        gint x, y, w, h;
+        gfloat r;
+
+        if (!gst_analytics_od_mtd_get_oriented_location(&od_mtd, &x, &y, &w, &h, &r, nullptr)) {
+            GST_ERROR_OBJECT(self, "Failed to get oriented location from od_mtd");
+            gst_buffer_unref(roi_buf);
+            return GST_FLOW_ERROR;
+        }
+
         // attach VideoCropMeta
         auto crop_meta = gst_buffer_add_video_crop_meta(roi_buf);
-        crop_meta->x = roi_meta->x;
-        crop_meta->y = roi_meta->y;
-        crop_meta->width = roi_meta->w;
-        crop_meta->height = roi_meta->h;
+        crop_meta->x = x;
+        crop_meta->y = y;
+        crop_meta->width = w;
+        crop_meta->height = h;
 
         // attach SourceIdentifierMetadata
         auto meta = GST_GVA_TENSOR_META_ADD(roi_buf);
         gst_structure_set_name(meta->data, dlstreamer::SourceIdentifierMetadata::name);
-        GVA::RegionOfInterest gva_roi(roi_meta);
+
+        roi_meta = gst_buffer_get_video_region_of_interest_meta_id(buf, od_mtd.id);
+        if (!roi_meta) {
+            GST_ERROR_OBJECT(self, "Failed to get ROI meta by id %u", od_mtd.id);
+            gst_buffer_unref(roi_buf);
+            return GST_FLOW_ERROR;
+        }
+
+        GVA::RegionOfInterest gva_roi(od_mtd, roi_meta);
         gst_structure_set(meta->data, dlstreamer::SourceIdentifierMetadata::key::roi_id, G_TYPE_INT,
                           gva_roi.region_id(), dlstreamer::SourceIdentifierMetadata::key::object_id, G_TYPE_INT,
                           gva_roi.object_id(), dlstreamer::SourceIdentifierMetadata::key::pts, G_TYPE_POINTER,
@@ -133,7 +160,7 @@ static GstFlowReturn roi_split_transform_ip(GstBaseTransform *base, GstBuffer *b
         }
 
         // push
-        GST_DEBUG_OBJECT(self, "Push ROI buffer: id=%u ts=%" GST_TIME_FORMAT, roi_meta->id,
+        GST_DEBUG_OBJECT(self, "Push ROI buffer: id=%u ts=%" GST_TIME_FORMAT, od_mtd.id,
                          GST_TIME_ARGS(GST_BUFFER_PTS(roi_buf)));
         if (gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(base), roi_buf) != GST_FLOW_OK) {
             GST_ERROR_OBJECT(self, "Failed to push ROI buffer");

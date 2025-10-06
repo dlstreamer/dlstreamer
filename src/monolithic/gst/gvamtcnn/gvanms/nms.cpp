@@ -9,7 +9,6 @@
 #include "safe_arithmetic.hpp"
 #include "utils.h"
 #include "video_frame.h"
-#include <dlstreamer/gst/metadata/objectdetectionmtdext.h>
 #include <gst/analytics/analytics.h>
 #include <inference_backend/logger.h>
 
@@ -248,30 +247,35 @@ gboolean process_onet_nms(GstGvaNms *nms, GstBuffer *buffer) {
             gst_structure_new("landmarks", "format", G_TYPE_STRING, "landmark_points", "data_buffer", G_TYPE_VARIANT, v,
                               "data", G_TYPE_POINTER, g_variant_get_fixed_array(v, &n_elem, 1), NULL);
 
-        if (NEW_METADATA) {
-            GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(buffer);
+        GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(buffer);
 
-            if (not relation_meta)
-                throw std::runtime_error("Failed to add GstAnalyticsRelationMeta to buffer");
+        if (not relation_meta)
+            throw std::runtime_error("Failed to add GstAnalyticsRelationMeta to buffer");
 
-            GstAnalyticsODMtd od_mtd;
-            if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, 0, c->x, c->y, c->width, c->height, 0,
-                                                        &od_mtd)) {
-                throw std::runtime_error("Failed to add roi data to meta");
-            }
-
-            GstAnalyticsODExtMtd od_ext_mtd;
-            if (!gst_analytics_relation_meta_add_od_ext_mtd(relation_meta, 0, 0, &od_ext_mtd)) {
-                throw std::runtime_error("Failed to add roi extended data to meta");
-            }
-
-            gst_analytics_od_ext_mtd_add_param(&od_ext_mtd, params);
-        } else {
-            GstVideoRegionOfInterestMeta *meta =
-                gst_buffer_add_video_region_of_interest_meta(buffer, 0, c->x, c->y, c->width, c->height);
-            meta->id = gst_util_seqnum_next();
-            gst_video_region_of_interest_meta_add_param(meta, params);
+        GstAnalyticsODMtd od_mtd;
+        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, 0, c->x, c->y, c->width, c->height, 0, &od_mtd)) {
+            throw std::runtime_error("Failed to add roi data to meta");
         }
+
+        GstAnalyticsMtd tensor_mtd;
+        GVA::Tensor gva_tensor(params);
+        if (gva_tensor.convert_to_meta(&tensor_mtd, &od_mtd, relation_meta)) {
+            if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_CONTAIN, od_mtd.id,
+                                                          tensor_mtd.id)) {
+                throw std::runtime_error(
+                    "Failed to set relation between object detection metadata and tensor metadata");
+            }
+            if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_IS_PART_OF,
+                                                          tensor_mtd.id, od_mtd.id)) {
+                throw std::runtime_error(
+                    "Failed to set relation between tensor metadata and object detection metadata");
+            }
+        }
+
+        GstVideoRegionOfInterestMeta *meta =
+            gst_buffer_add_video_region_of_interest_meta(buffer, 0, c->x, c->y, c->width, c->height);
+        meta->id = od_mtd.id;
+        gst_video_region_of_interest_meta_add_param(meta, params);
     }
 
     g_array_free(candidates, TRUE);

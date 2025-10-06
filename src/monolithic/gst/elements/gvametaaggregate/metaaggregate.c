@@ -1,12 +1,19 @@
 /*******************************************************************************
- * Copyright (C) 2021 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
 #include "metaaggregate.h"
+#include "glib.h"
+#include "gst/analytics/analytics.h"
+#include "gst/analytics/gstanalyticsclassificationmtd.h"
+#include "gst/gstclock.h"
+#include "gst/gstinfo.h"
 #include "utils.h"
 #include <gst/gst.h>
+#include <gstanalyticskeypointsmtd.h>
+#include <sched.h>
 
 gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo *src_pad_video_info,
                                               GstGvaMetaAggregatePad *sink_pad);
@@ -77,6 +84,195 @@ GstFlowReturn aggregate_metas(GstGvaMetaAggregate *magg, GstBuffer *outbuf) {
     return GST_FLOW_OK;
 }
 
+gboolean copy_one_gst_analytics_mtd(GstAnalyticsRelationMeta *dst, const GstAnalyticsMtd *mtd, GstAnalyticsMtd *new_mtd,
+                                    gdouble scale_x, gdouble scale_y) {
+    if (!dst || !mtd->meta) {
+        GST_ERROR("copy_one_gst_analytics_mtd: bad arguments");
+        return FALSE;
+    }
+
+    GstAnalyticsMtdType mtd_type = gst_analytics_mtd_get_mtd_type(mtd);
+
+    if (mtd_type == gst_analytics_od_mtd_get_mtd_type()) {
+        gint x, y, w, h;
+        gfloat r, loc_conf_lvl;
+        if (!gst_analytics_od_mtd_get_oriented_location(mtd, &x, &y, &w, &h, &r, &loc_conf_lvl)) {
+            GST_ERROR("Failed to get oriented location from GstAnalyticsODMtd");
+            return FALSE;
+        }
+
+        GQuark label_quark = gst_analytics_od_mtd_get_obj_type(mtd);
+
+        // Applies scaling factors to x, y coordinates and width, height dimensions.
+        // The addition of 0.5 before casting to integer ensures proper rounding
+        // to the nearest integer value instead of truncation, which provides
+        // more accurate coordinate transformation when scaling.
+        gint new_x = scale_x != 1 ? (gint)(x * scale_x + 0.5) : x;
+        gint new_y = scale_y != 1 ? (gint)(y * scale_y + 0.5) : y;
+        gint new_w = scale_x != 1 ? (gint)(w * scale_x + 0.5) : w;
+        gint new_h = scale_y != 1 ? (gint)(h * scale_y + 0.5) : h;
+
+        if (!gst_analytics_relation_meta_add_oriented_od_mtd(dst, label_quark, new_x, new_y, new_w, new_h, r,
+                                                             loc_conf_lvl, new_mtd)) {
+            GST_ERROR("Failed to add GstAnalyticsODMtd to GstAnalyticsRelationMeta");
+            return FALSE;
+        }
+    } else if (mtd_type == gst_analytics_cls_mtd_get_mtd_type()) {
+        gsize length = gst_analytics_cls_mtd_get_length(mtd);
+        gfloat confidence_levels[length];
+        GQuark class_quarks[length];
+
+        for (gsize i = 0; i < length; i++) {
+            confidence_levels[i] = gst_analytics_cls_mtd_get_level(mtd, i);
+            class_quarks[i] = gst_analytics_cls_mtd_get_quark(mtd, i);
+        }
+
+        if (!gst_analytics_relation_meta_add_cls_mtd(dst, length, confidence_levels, class_quarks, new_mtd)) {
+            GST_ERROR("Failed to add GstAnalyticsClassificationMtd to GstAnalyticsRelationMeta");
+            return FALSE;
+        }
+    } else if (mtd_type == gst_analytics_keypointgroup_mtd_get_mtd_type()) {
+        gsize keypoint_count = gst_analytics_keypointgroup_mtd_get_count(mtd);
+        GstAnalyticsKeypointMtd keypoints[keypoint_count];
+
+        for (gsize i = 0; i < keypoint_count; i++) {
+            GstAnalyticsKeypointMtd keypoint_mtd;
+            if (!gst_analytics_keypointgroup_mtd_get_keypoint_mtd(mtd, &keypoint_mtd, i)) {
+                GST_ERROR("Failed to get keypoint mtd from keypoint group mtd");
+                return FALSE;
+            }
+
+            GstAnalyticsKeypoint keypoint;
+            if (!gst_analytics_keypoint_mtd_get(&keypoint_mtd, &keypoint)) {
+                GST_ERROR("Failed to get keypoint from keypoint mtd");
+                return FALSE;
+            }
+
+            if (!gst_analytics_relation_meta_add_keypoint_mtd(dst, &keypoint, &keypoints[i])) {
+                GST_ERROR("Failed to add keypoint mtd to relation meta");
+                return FALSE;
+            }
+        }
+
+        if (!gst_analytics_relation_meta_add_keypointgroup_mtd(dst, keypoint_count, keypoints, new_mtd)) {
+            GST_ERROR("Failed to add keypoint group mtd to relation meta");
+            return FALSE;
+        }
+    } else if (mtd_type == gst_analytics_keypoint_skeleton_mtd_get_mtd_type()) {
+        gsize skeleton_count = gst_analytics_keypoint_skeleton_mtd_get_count(mtd);
+        GstAnalyticsKeypointPair skeletons[skeleton_count];
+
+        for (gsize i = 0; i < skeleton_count; i++) {
+            if (!gst_analytics_keypoint_skeleton_mtd_get(mtd, &skeletons[i], i)) {
+                GST_ERROR("Failed to get keypoint pair from keypoint skeleton mtd");
+                return FALSE;
+            }
+        }
+
+        if (!gst_analytics_relation_meta_add_keypoint_skeleton_mtd(dst, skeleton_count, skeletons, new_mtd)) {
+            GST_ERROR("Failed to add keypoint skeleton mtd to relation meta");
+            return FALSE;
+        }
+    } else if (mtd_type == gst_analytics_tracking_mtd_get_mtd_type()) {
+        guint64 tracking_id;
+        GstClockTime tracking_first_seen, tracking_last_seen;
+        gboolean tracking_lost;
+
+        if (!gst_analytics_tracking_mtd_get_info(mtd, &tracking_id, &tracking_first_seen, &tracking_last_seen,
+                                                 &tracking_lost)) {
+            GST_ERROR("Failed to get tracking info from GstAnalyticsTrackingMtd");
+            return FALSE;
+        }
+
+        if (!gst_analytics_relation_meta_add_tracking_mtd(dst, tracking_id, tracking_first_seen, new_mtd)) {
+            GST_ERROR("Failed to add GstAnalyticsTrackingMtd to GstAnalyticsRelationMeta");
+            return FALSE;
+        }
+    } else if (mtd_type == gst_analytics_keypoint_mtd_get_mtd_type()) {
+        return FALSE; // Keypoint mtds are copied as part of keypoint group mtd
+    } else if (mtd_type == gst_analytics_segmentation_mtd_get_mtd_type()) {
+        return FALSE; // Segmentation mtds are not supported yet
+    }
+    return TRUE;
+}
+
+gboolean copy_all_gst_analytics_mtd(GstAnalyticsRelationMeta *src, GstAnalyticsRelationMeta *dst, GHashTable *id_map,
+                                    gdouble scale_x, gdouble scale_y) {
+    if (!src || !dst || !id_map) {
+        GST_ERROR("copy_all_gst_analytics_mtd: bad arguments");
+        return FALSE;
+    }
+
+    // GHashTable *id_map = g_hash_table_new(g_direct_hash, g_direct_equal);
+
+    gpointer state = NULL;
+    GstAnalyticsMtd mtd;
+    while (gst_analytics_relation_meta_iterate(src, &state, GST_ANALYTICS_MTD_TYPE_ANY, &mtd)) {
+        if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_keypoint_mtd_get_mtd_type()) {
+            // Keypoint mtds are copied as part of keypoint group mtd, skip them here
+            continue;
+        }
+
+        if (gst_analytics_mtd_get_mtd_type(&mtd) == gst_analytics_tracking_mtd_get_mtd_type()) {
+            continue;
+        }
+
+        GstAnalyticsMtd new_mtd;
+        if (!copy_one_gst_analytics_mtd(dst, &mtd, &new_mtd, scale_x, scale_y)) {
+            GST_ERROR("Failed to copy one analytics mtd");
+            return FALSE;
+        }
+
+        g_hash_table_insert(id_map, GUINT_TO_POINTER(mtd.id), GUINT_TO_POINTER(new_mtd.id));
+    }
+
+    // Copy relations between metadata
+    gpointer original_id, new_id;
+    GHashTableIter iter;
+    g_hash_table_iter_init(&iter, id_map);
+
+    while (g_hash_table_iter_next(&iter, &original_id, &new_id)) {
+        guint orig_id = GPOINTER_TO_UINT(original_id);
+        guint new_id_val = GPOINTER_TO_UINT(new_id);
+
+        gpointer state = NULL;
+        GstAnalyticsMtd rlt_mtd;
+        while (gst_analytics_relation_meta_get_direct_related(src, orig_id, GST_ANALYTICS_REL_TYPE_ANY,
+                                                              GST_ANALYTICS_MTD_TYPE_ANY, &state, &rlt_mtd)) {
+            gpointer related_new_id = g_hash_table_lookup(id_map, GUINT_TO_POINTER(rlt_mtd.id));
+            if (!related_new_id) {
+                GST_ERROR("Failed to find new id for related mtd id %u", rlt_mtd.id);
+                return FALSE;
+            }
+
+            GstAnalyticsRelTypes rel_type = gst_analytics_relation_meta_get_relation(src, orig_id, rlt_mtd.id);
+
+            if (!gst_analytics_relation_meta_set_relation(dst, rel_type, new_id_val,
+                                                          GPOINTER_TO_UINT(related_new_id))) {
+                GST_ERROR("Failed to set relation between mtd ids %u and %u", new_id_val,
+                          GPOINTER_TO_UINT(related_new_id));
+                return FALSE;
+            }
+        }
+
+        if (!gst_analytics_relation_meta_get_mtd(dst, new_id_val, GST_ANALYTICS_MTD_TYPE_ANY, &rlt_mtd)) {
+            GST_ERROR("Failed to get mtd by id %u from dst relation meta", new_id_val);
+            return FALSE;
+        }
+
+        if (gst_analytics_mtd_get_mtd_type(&rlt_mtd) == gst_analytics_keypointgroup_mtd_get_mtd_type()) {
+            if (!gst_analytics_relation_meta_set_keypointgroup_relations(dst, &rlt_mtd, NULL, NULL)) {
+                GST_ERROR("Failed to set keypoint group relations");
+                return FALSE;
+            }
+        }
+    }
+
+    // g_hash_table_destroy(id_map);
+
+    return TRUE;
+}
+
 gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo *src_pad_video_info,
                                               GstGvaMetaAggregatePad *sink_pad) {
     GstMeta *meta = NULL;
@@ -93,6 +289,29 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
     if (!buf_with_meta)
         return TRUE; // there is no buffer on the sink_pad this time. It's accepted behavior
 
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf_with_meta);
+    if (!relation_meta) {
+        // No relation meta on the sink pad buffer. Nothing to attach
+        return TRUE;
+    }
+
+    g_return_val_if_fail(gst_buffer_is_writable(buf), FALSE);
+    GstAnalyticsRelationMeta *new_relation_meta = gst_buffer_add_analytics_relation_meta(buf);
+
+    if (!new_relation_meta) {
+        GST_ERROR("Failed to add GstAnalyticsRelationMeta to output buffer");
+        return FALSE;
+    }
+
+    gfloat scale_x = (gfloat)sink_pad_video_info->width / (gfloat)src_pad_video_info->width;
+    gfloat scale_y = (gfloat)sink_pad_video_info->height / (gfloat)src_pad_video_info->height;
+
+    GHashTable *id_map = g_hash_table_new(g_direct_hash, g_direct_equal);
+    if (!copy_all_gst_analytics_mtd(relation_meta, new_relation_meta, id_map, scale_x, scale_y)) {
+        GST_ERROR("Failed to copy all analytics mtd from sink buffer to output buffer");
+        return FALSE;
+    }
+
     while ((meta = gst_buffer_iterate_meta(buf_with_meta, &state))) {
         g_return_val_if_fail(gst_buffer_is_writable(buf), FALSE);
         if (meta->info->api == GST_VIDEO_REGION_OF_INTEREST_META_API_TYPE) {
@@ -101,7 +320,7 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
             GstVideoRegionOfInterestMeta *output_meta = gst_buffer_add_video_region_of_interest_meta(
                 buf, g_quark_to_string(original_roi_meta->roi_type), original_roi_meta->x, original_roi_meta->y,
                 original_roi_meta->w, original_roi_meta->h);
-            output_meta->id = original_roi_meta->id;
+            output_meta->id = GPOINTER_TO_INT(g_hash_table_lookup(id_map, GINT_TO_POINTER(original_roi_meta->id)));
 
             for (GList *l = original_roi_meta->params; l; l = l->next) {
                 GstStructure *s = GST_STRUCTURE(l->data);
@@ -119,6 +338,8 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
                 // apply scale only when needed (if image size on src pad is different from image size on this sink pad)
                 g_return_val_if_fail(roi_meta_scale(output_meta, src_pad_video_info, detection), FALSE);
             }
+        } else if (meta->info->api == GST_ANALYTICS_RELATION_META_API_TYPE) {
+            // Already copied all analytics mtd above. Nothing to do here
         } else if (meta->info->transform_func) {
             // Try to copy the whole meta from sink buffer to out buffer
             GstMetaTransformCopy copy_data = {.region = FALSE, .offset = 0, .size = -1};
@@ -128,6 +349,9 @@ gboolean buffer_attach_roi_meta_from_sink_pad(GstBuffer *buf, const GstVideoInfo
             }
         }
     }
+
+    g_hash_table_destroy(id_map);
+
     return TRUE;
 }
 

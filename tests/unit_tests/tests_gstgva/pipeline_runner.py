@@ -157,7 +157,7 @@ class TestPipelineRunner(TestGenericPipelineRunner):
                             detection_tensor['x_max'],
                             detection_tensor['y_max'],
                             list(), tracker_id=region.object_id(), class_id=region.label_id())
-                for tensor in region.tensors():
+                for tensor in region.get_gst_roi_params():
                     if tensor.is_detection():
                         continue
                     else:
