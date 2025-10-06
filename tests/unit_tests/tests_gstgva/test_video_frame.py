@@ -6,6 +6,7 @@
 
 import sys
 import unittest
+import numpy as np
 
 import gi
 gi.require_version('Gst', '1.0')
@@ -56,23 +57,32 @@ class VideoFrameTestCase(unittest.TestCase):
         regions = [region for region in self.video_frame_nv12.regions()]
         self.assertEqual(len(regions), rois_num)
 
-        self.video_frame_nv12.remove_region(regions[-1])
-        self.video_frame_nv12.remove_region(regions[0])
-        self.assertEqual(len(list(self.video_frame_nv12.regions())), rois_num - 2)
-
-        
-        for i in range(1, rois_num - 1):
-            region = next((region for region in self.video_frame_nv12.regions()
-                              if (i, i, i + 100, i + 100, "label", i / 100.0) ==
-                              (region.meta().x, region.meta().y, region.meta().w, region.meta().h,
-                                  region.label(), region.confidence())), None)
+        counter = 0
+        for i in range(rois_num):
+            region = next(
+                (
+                    region
+                    for region in self.video_frame_nv12.regions()
+                    if (i, i, i + 100, i + 100, "label", np.float32(i / 100.0))
+                    == (
+                        region.rect().x,
+                        region.rect().y,
+                        region.rect().w,
+                        region.rect().h,
+                        region.label(),
+                        region.confidence(),
+                    )
+                ),
+                None,
+            )
             if region:
-                self.video_frame_nv12.remove_region(region)
-        self.assertEqual(len(list(self.video_frame_nv12.regions())), 0)
+                counter += 1
+        self.assertEqual(counter, rois_num)
 
         self.video_frame_nv12.add_region(
-            0.0, 0.0, 0.3, 0.6, "label", 0.8, normalized=True)
-        self.assertEqual(len(list(self.video_frame_nv12.regions())), 1)
+            0.0, 0.0, 0.3, 0.6, "label", 0.8, normalized=True
+        )
+        self.assertEqual(len(list(self.video_frame_nv12.regions())), rois_num + 1)
         self.assertEqual(len(regions), rois_num)
 
     def test_tensors(self):

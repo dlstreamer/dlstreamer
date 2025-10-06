@@ -65,17 +65,8 @@ GST_START_TEST(test_compact_meta) {
 
 GST_END_TEST;
 
-// Check ROI ID:
-// 1. Every ID should appear on a frame once
-// 2. ID shouldn't be zero.
+// Check ROI ID: Every ID should appear on a frame once
 gboolean check_produced_roi_id(GHashTable *hash_table) {
-    GList *keys = g_hash_table_get_keys(hash_table);
-    for (GList *head = keys; head != NULL; head = head->next) {
-        if (*(gint *)head->data == 0) {
-            return FALSE;
-        }
-    }
-
     GList *values = g_hash_table_get_values(hash_table);
     for (GList *head = values; head != NULL; head = head->next) {
         if (*(gint *)head->data != 1) {

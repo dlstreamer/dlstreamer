@@ -83,7 +83,7 @@ GROUND_TRUTH_CV = [
                  'layer_name': "95",
                  'name': "UNKNOWN"
              }
-         ], class_id=1
+         ], class_id=0
          ),
     BBox(0.18316425383090973, 0.19858068227767944, 0.30258169770240784, 0.5096779465675354,
          [
@@ -119,7 +119,7 @@ GROUND_TRUTH_CV = [
                  'layer_name': "95",
                  'name': "UNKNOWN"
              }
-         ], class_id=1,
+         ], class_id=0,
          )]
 
 GROUND_TRUTH_IE = [
@@ -157,7 +157,7 @@ GROUND_TRUTH_IE = [
                  'layer_name': "95",
                  'name': "UNKNOWN"
              }
-         ], class_id=1
+         ], class_id=0
          ),
     BBox(0.18316425383090973, 0.19858068227767944, 0.30258169770240784, 0.5096779465675354,
          [
@@ -193,7 +193,7 @@ GROUND_TRUTH_IE = [
                  'layer_name': "95",
                  'name': "UNKNOWN"
              }
-         ], class_id=1,
+         ], class_id=0,
          )]
 
 

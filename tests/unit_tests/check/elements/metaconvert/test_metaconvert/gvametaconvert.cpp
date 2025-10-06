@@ -6,9 +6,13 @@
 
 #include <gstgvametaconvert.h>
 
+#include "test_common.h"
+
+#include "glib.h"
+#include "gst/analytics/analytics.h"
+#include "gst/check/internal-check.h"
 #include "gva_json_meta.h"
 #include "region_of_interest.h"
-#include "test_common.h"
 #include "test_utils.h"
 
 #include <gst/video/video.h>
@@ -153,12 +157,24 @@ void setup_inbuffer(GstBuffer *inbuffer, gpointer user_data) {
     gsize n_elem;
     gst_structure_set(s, "data_buffer", G_TYPE_VARIANT, v, "data", G_TYPE_POINTER,
                       g_variant_get_fixed_array(v, &n_elem, 1), NULL);
-    GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(
-        inbuffer, NULL, test_data->box.x_min * test_data->resolution.width,
-        test_data->box.y_min * test_data->resolution.height,
-        (test_data->box.x_max - test_data->box.x_min) * test_data->resolution.width,
-        (test_data->box.y_max - test_data->box.y_min) * test_data->resolution.height);
+
+    gint x = test_data->box.x_min * test_data->resolution.width;
+    gint y = test_data->box.y_min * test_data->resolution.height;
+    gint w = (test_data->box.x_max - test_data->box.x_min) * test_data->resolution.width;
+    gint h = (test_data->box.y_max - test_data->box.y_min) * test_data->resolution.height;
+
+    GstVideoRegionOfInterestMeta *meta = gst_buffer_add_video_region_of_interest_meta(inbuffer, NULL, x, y, w, h);
     gst_video_region_of_interest_meta_add_param(meta, s);
+
+    GstAnalyticsRelationMeta *relation_meta = gst_buffer_add_analytics_relation_meta(inbuffer);
+    ck_assert_msg(relation_meta != NULL, "Failed to add relation meta to buffer");
+
+    GstAnalyticsODMtd od_mtd;
+    gboolean ret = gst_analytics_relation_meta_add_oriented_od_mtd(relation_meta, 0, x, y, w, h, 0.0,
+                                                                   test_data->box.confidence, &od_mtd);
+    ck_assert_msg(ret == TRUE, "Failed to add oriented od mtd to relation meta");
+
+    meta->id = od_mtd.id;
 }
 
 void check_outbuffer(GstBuffer *outbuffer, gpointer user_data) {
