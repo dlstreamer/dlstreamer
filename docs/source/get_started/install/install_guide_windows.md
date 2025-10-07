@@ -5,26 +5,24 @@ Framework on Windows.
 
 ## On Windows System
 
-### Step 1: Install GStreamer
-
-Download and install the latest GStreamer from the
-[GStreamer download page](https://gstreamer.freedesktop.org/download/#windows). The installation
-directory should be `C:\\gstreamer`.
-
-### Step 2: Download and extract DL Streamer dll files
+### Step 1: Download and extract DL Streamer DLL files
 
 Download the archive from
 [DL Streamer assets on GitHub](https://github.com/open-edge-platform/edge-ai-libraries/releases)
 Extract to a new folder, for example `C:\\dlstreamer_dlls`.
 
-### Step 3: Run setup script
+### Step 2: Run setup script
 
-Open a PowerShell prompt and run
+Open a PowerShell prompt, run the following script and follow instructions:
 
 ```bash
 cd C:\\dlstreamer_dlls
 .\setup_dls_env.ps1
 ```
+
+> **NOTE:** There can be an execution policy on your system which does not allow to execute
+> PowerShell scripts. If you encounter such situation, policy can be securely changed in open
+> terminal with the following PowerShell command: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`
 
 You are ready to use Deep Learning Streamer. For further instructions to run
 sample pipeline(s), please go to the [tutorial](../tutorial.md)
