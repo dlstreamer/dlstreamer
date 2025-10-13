@@ -33,7 +33,8 @@ enum {
     PROP_WRITE_PIPE,
     PROP_READ_PIPE,
     PROP_PRINT_STD_DEV,
-    PROP_PRINT_LATENCY
+    PROP_PRINT_LATENCY,
+    PROP_AVG_FPS
 };
 
 #define DEFAULT_INTERVAL "1"
@@ -43,6 +44,9 @@ enum {
 #define DEFAULT_MAX_STARTING_FRAME UINT_MAX
 #define DEFAULT_PRINT_STD_DEV 0
 #define DEFAULT_PRINT_LATENCY 0
+#define DEFAULT_AVG_FPS 0.0
+#define DEFAULT_AVG_FPS_MIN 0.0
+#define DEFAULT_AVG_FPS_MAX G_MAXFLOAT
 
 /* prototypes */
 static void gst_gva_fpscounter_set_property(GObject *object, guint property_id, const GValue *value, GParamSpec *pspec);
@@ -113,6 +117,12 @@ static void gst_gva_fpscounter_class_init(GstGvaFpscounterClass *klass) {
                                     g_param_spec_boolean("print-latency", "print-latency",
                                                          "If true, prints average frame latency", DEFAULT_PRINT_LATENCY,
                                                          G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS));
+
+    g_object_class_install_property(gobject_class, PROP_AVG_FPS,
+                                    g_param_spec_float("avg-fps", "Average FPS",
+                                                       "The average frames per second, read-only parameter",
+                                                       DEFAULT_AVG_FPS_MIN, DEFAULT_AVG_FPS_MAX, DEFAULT_AVG_FPS,
+                                                       G_PARAM_READABLE | G_PARAM_STATIC_STRINGS));
 }
 
 static void gst_gva_fpscounter_init(GstGvaFpscounter *gva_fpscounter) {
@@ -126,6 +136,7 @@ static void gst_gva_fpscounter_init(GstGvaFpscounter *gva_fpscounter) {
     gva_fpscounter->read_pipe = NULL;
     gva_fpscounter->print_std_dev = DEFAULT_PRINT_STD_DEV;
     gva_fpscounter->print_latency = DEFAULT_PRINT_LATENCY;
+    gva_fpscounter->avg_fps = DEFAULT_AVG_FPS;
 }
 
 void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue *value, GParamSpec *pspec) {
@@ -150,6 +161,9 @@ void gst_gva_fpscounter_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_PRINT_LATENCY:
         g_value_set_boolean(value, gvafpscounter->print_latency);
+        break;
+    case PROP_AVG_FPS:
+        g_value_set_float(value, gvafpscounter->avg_fps);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -274,7 +288,7 @@ static GstFlowReturn gst_gva_fpscounter_transform_ip(GstBaseTransform *trans, Gs
 
     GST_DEBUG_OBJECT(gvafpscounter, "transform_ip");
 
-    fps_counter_new_frame(buf, GST_ELEMENT_NAME(GST_ELEMENT(trans)));
+    fps_counter_new_frame(buf, GST_ELEMENT_NAME(GST_ELEMENT(trans)), gvafpscounter);
 
     if (!gst_pad_is_linked(GST_BASE_TRANSFORM_SRC_PAD(trans))) {
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
