@@ -26,6 +26,7 @@ struct _GstGvaFpscounter {
     GstBaseTransform base_gvafpscounter;
     gchar *interval;
     guint starting_frame;
+    gfloat avg_fps;
     gchar *write_pipe;
     gchar *read_pipe;
     gboolean print_std_dev;

@@ -140,6 +140,15 @@ void IterativeFpsCounter::PrintFPS(FILE *output, double sec, bool eos) {
     total /= sec;
 
     if (average) {
+
+        if (num_frames.size() == 1) {
+            // avg fps for only one stream
+            avg_fps = total;
+        } else {
+            // avg fps for multiple streams
+            avg_fps = total / num_frames.size();
+        }
+
         if (eos)
             fprintf(output, "FpsCounter(overall %.2fsec): ", sec);
         else

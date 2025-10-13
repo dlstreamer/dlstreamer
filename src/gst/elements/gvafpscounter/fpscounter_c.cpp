@@ -7,6 +7,7 @@
 #include "fpscounter_c.h"
 #include "config.h"
 #include "fpscounter.h"
+#include "gstgvafpscounter.h"
 #include "inference_backend/logger.h"
 #include "utils.h"
 
@@ -72,7 +73,7 @@ void fps_counter_create_readpipe(void *fpscounter, const char *pipe_name) {
                 if (!handled)
                     throw std::runtime_error("FpsCounter ReadPipe: EOS event wasn't handled. Spinning...");
             };
-            auto new_message_lambda = [](const char *name) { fps_counter_new_frame(NULL, name); };
+            auto new_message_lambda = [](const char *name) { fps_counter_new_frame(NULL, name, NULL); };
             std::shared_ptr<FpsCounter> fps_counter = nullptr;
             fps_counter = std::make_shared<ReadPipeFpsCounter>(pipe_name, new_message_lambda, pipe_complete_lambda);
             fps_counters.insert({"readpipe", fps_counter});
@@ -82,10 +83,16 @@ void fps_counter_create_readpipe(void *fpscounter, const char *pipe_name) {
     }
 }
 
-void fps_counter_new_frame(GstBuffer *buffer, const char *element_name) {
+void fps_counter_new_frame(GstBuffer *buffer, const char *element_name, void *gstgvafpscounter) {
     try {
-        for (auto counter = fps_counters.begin(); counter != fps_counters.end(); ++counter)
+        for (auto counter = fps_counters.begin(); counter != fps_counters.end(); ++counter) {
             counter->second->NewFrame(element_name, output, buffer);
+            if (gstgvafpscounter && counter->first == "average") {
+                auto iterative_counter = std::dynamic_pointer_cast<IterativeFpsCounter>(counter->second);
+                if (iterative_counter)
+                    ((GstGvaFpscounter *)gstgvafpscounter)->avg_fps = iterative_counter->get_avg_fps();
+            }
+        }
     } catch (std::exception &e) {
         GVA_ERROR("Error during adding new frame: %s", Utils::createNestedErrorMsg(e).c_str());
     }
