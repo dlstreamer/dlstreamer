@@ -26,6 +26,9 @@ Pads:
     Pad Template: 'src'
 
 Element Properties:
+  avg-fps             : The average frames per second calculated from the beginning of stream start, read-only parameter.
+                        flags: readable
+                        Float. Range: 0 - 3.402823e+38 Default: 0.0
   interval            : The time interval in seconds for which the fps will be measured
                         flags: readable, writable
                         String. Default: "1"

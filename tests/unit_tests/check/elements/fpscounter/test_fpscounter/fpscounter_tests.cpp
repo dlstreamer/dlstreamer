@@ -67,9 +67,9 @@ TEST_F(FpsCounterTest, FpsCounters_C_interface_positive) {
     fps_counter_create_iterative("1,2", false, false);
 
     for (size_t i = 0; i < 2; i++) {
-        fps_counter_new_frame(nullptr, "test1");
+        fps_counter_new_frame(nullptr, "test1", nullptr);
         usleep(1000000);
-        fps_counter_new_frame(nullptr, "test2");
+        fps_counter_new_frame(nullptr, "test2", nullptr);
     }
     fps_counter_eos("test1");
 
