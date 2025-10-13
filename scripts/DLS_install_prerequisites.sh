@@ -339,13 +339,11 @@ setup_gpu(){
             ;;
     esac
     $SUDO_PREFIX apt update
-    # Install common packages for Intel GPU
-    install_packages libze-intel-gpu1 libze1 clinfo intel-media-va-driver-non-free
     # Additional packages for Ubuntu 22.04/24.04
     if [ "$ubuntu_version" == "24.04" ]; then
-        install_packages intel-gsc intel-opencl-icd=25.05.32567.19-1099~24.04
-    else
-        install_packages intel-opencl-icd
+        install_packages clinfo libze-intel-gpu1=25.18.33578.15-1146~24.04 libze1=1.21.9.0-1136~24.04 intel-media-va-driver-non-free=25.2.4-1146~24.04 intel-gsc=0.9.5-123~u24.04 intel-opencl-icd=25.05.32567.19-1099~24.04
+    elif [ "$ubuntu_version" == "22.04" ]; then
+        install_packages clinfo libze-intel-gpu1=25.18.33578.15-1146~22.04 libze1=1.21.9.0-1136~22.04 intel-media-va-driver-non-free=25.2.4-1146~22.04 intel-opencl-icd=25.18.33578.15-1146~22.04
     fi
 }
 # Function to get .deb package URLs from the latest release of a GitHub repository
