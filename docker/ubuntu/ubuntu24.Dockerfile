@@ -96,7 +96,7 @@ RUN \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
     linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* \
     ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* opencv-data=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
-    libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* libxml2-dev=\* && \
+    libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* libxml2-dev=\* libsoup-3.0-0=\* &&  \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -177,7 +177,7 @@ RUN \
     -Dgst-plugins-good:lame=disabled \
     -Dgst-plugins-good:flac=disabled \
     -Dgst-plugins-good:dv=disabled \
-    -Dgst-plugins-good:soup=disabled \
+    -Dgst-plugins-good:soup=enabled \
     -Dgst-plugins-bad:gpl=enabled \
     -Dgst-plugins-bad:va=enabled \
     -Dgst-plugins-bad:doc=disabled \
