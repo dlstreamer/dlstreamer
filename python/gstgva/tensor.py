@@ -481,5 +481,4 @@ class Tensor:
 
             return tensor.get_structure()
 
-        warn(f"Unsupported MtdType {mtd.type} for conversion to Tensor")
         return None
