@@ -250,6 +250,10 @@ struct ConfigHelper {
         return base_config.at(KEY_CUSTOM_PREPROC_LIB);
     }
 
+    const std::string ov_extension_lib() const {
+        return base_config.at(KEY_OV_EXTENSION_LIB);
+    }
+
     int batch_size() const {
         return std::stoi(base_config.at(KEY_BATCH_SIZE));
     }
@@ -442,6 +446,11 @@ class OpenVinoNewApiImpl {
         _device = config.device();
         _nireq = config.nireq();
 
+        auto ov_extension_lib = config.ov_extension_lib();
+        if (!ov_extension_lib.empty()) {
+            core().add_extension(ov_extension_lib);
+        }
+
         // read model & configure model
         _model = core().read_model(config.model_path());
 
@@ -617,12 +626,16 @@ class OpenVinoNewApiImpl {
     }
 
     // convert ov::Any to GstStructure
-    static std::map<std::string, GstStructure *> get_model_info_preproc(const std::string model_file,
-                                                                        const gchar *pre_proc_config) {
+    static std::map<std::string, GstStructure *>
+    get_model_info_preproc(const std::string model_file, const gchar *pre_proc_config, const gchar *ov_extension_lib) {
         std::map<std::string, GstStructure *> res;
         std::string layer_name("ANY");
         GstStructure *s = nullptr;
         ov::AnyMap modelConfig;
+
+        if (ov_extension_lib && ov_extension_lib[0] != '\0') {
+            core().add_extension(ov_extension_lib);
+        }
 
         std::shared_ptr<ov::Model> _model;
         _model = core().read_model(model_file);
@@ -1766,8 +1779,9 @@ std::map<std::string, GstStructure *> OpenVINOImageInference::GetModelInfoPostpr
 }
 
 std::map<std::string, GstStructure *> OpenVINOImageInference::GetModelInfoPreproc(const std::string model_file,
-                                                                                  const gchar *pre_proc_config) {
-    auto info = OpenVinoNewApiImpl::get_model_info_preproc(model_file, pre_proc_config);
+                                                                                  const gchar *pre_proc_config,
+                                                                                  const gchar *ov_extension_lib) {
+    auto info = OpenVinoNewApiImpl::get_model_info_preproc(model_file, pre_proc_config, ov_extension_lib);
     return info;
 }
 

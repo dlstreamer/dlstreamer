@@ -43,8 +43,8 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const override;
     std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const override;
     std::map<std::string, GstStructure *> GetModelInfoPostproc() const override;
-    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file,
-                                                                     const gchar *pre_proc_config);
+    static std::map<std::string, GstStructure *>
+    GetModelInfoPreproc(const std::string model_file, const gchar *pre_proc_config, const gchar *ov_extension_lib);
 
     bool IsQueueFull() override;
 

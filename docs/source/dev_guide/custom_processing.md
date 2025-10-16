@@ -30,6 +30,9 @@ application:
    elements.
 6. Create a custom post-processing library.
 
+For models with custom operations not natively supported by OpenVINO™, see
+[OpenVINO Custom Operations](./openvino_custom_operations.md).
+
 See the sections below for more details on these options.
 
 ## 1. Consume tensor data and parse/convert it on application side
