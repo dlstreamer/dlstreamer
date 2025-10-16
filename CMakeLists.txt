@@ -224,5 +224,5 @@ endif()
 
 if(${ENABLE_TESTS} AND NOT(WIN32))
     enable_testing()
-    add_subdirectory(dl-streamer-tests)
+    add_subdirectory(tests)
 endif()
