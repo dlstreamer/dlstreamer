@@ -119,6 +119,9 @@ no-block            : (Experimental) Option to help maintain frames per second o
 object-class        : Filter for Region of Interest class label on this element input
                         flags: readable, writable
                         String. Default: null
+ov-extension-lib    : Path to the .so file defining custom OpenVINO operations.
+                        flags: readable, writable
+                        String. Default: null
 parent              : The parent of the object
                         flags: readable, writable
                         Object of type "GstObject"
@@ -150,7 +153,7 @@ reshape-width       : Width to which the network will be reshaped.
 scale-method        : Scale method to use in pre-preprocessing before inference. Only default and scale-method=fast (VAAPI based) supported in this element
                         flags: readable, writable
                         String. Default: null
-scheduling-policy   : Scheduling policy across streams sharing same model instance: throughput (select first incoming frame), latency (select frames with earliest presentation time)
+scheduling-policy   : Scheduling policy across streams sharing same model instance: throughput (select first incoming frame), latency (select frames with earliest presentation time out of the streams sharing same model-instance-id; recommended batch-size less than or equal to the number of streams)
                         flags: readable, writable
                         String. Default: null
 ```

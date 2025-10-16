@@ -148,6 +148,7 @@ InferenceConfig CreateNestedInferenceConfig(GvaBaseInference *gva_base_inference
 
     base[KEY_MODEL] = model_file;
     base[KEY_CUSTOM_PREPROC_LIB] = custom_preproc_lib;
+    base[KEY_OV_EXTENSION_LIB] = gva_base_inference->ov_extension_lib ? gva_base_inference->ov_extension_lib : "";
     base[KEY_NIREQ] = std::to_string(gva_base_inference->nireq);
     if (gva_base_inference->device != nullptr) {
         std::string device = gva_base_inference->device;
@@ -739,8 +740,8 @@ InferenceImpl::Model InferenceImpl::CreateModel(GvaBaseInference *gva_base_infer
         model.output_processor_info = model_proc_provider.parseOutputPostproc();
     } else {
         // combine runtime section of model metadata file and command line pre-process parameters
-        std::map<std::string, GstStructure *> model_config =
-            ImageInference::GetModelInfoPreproc(model_file, gva_base_inference->pre_proc_config);
+        std::map<std::string, GstStructure *> model_config = ImageInference::GetModelInfoPreproc(
+            model_file, gva_base_inference->pre_proc_config, gva_base_inference->ov_extension_lib);
 
         // to construct preprocessor info
         model.input_processor_info = ModelProcProvider::parseInputPreproc(model_config);

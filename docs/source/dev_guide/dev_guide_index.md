@@ -10,6 +10,7 @@
   - [1. Model file format used by OpenVINO™ Toolkit](./model_preparation.md#1-model-file-format-used-by-openvino-toolkit)
   - [2. Model pre- and post-processing](./model_preparation.md#2-model-pre--and-post-processing)
   - [3. Specify model files in GStreamer elements](./model_preparation.md#3-specify-model-files-in-gstreamer-elements)
+- [OpenVINO Custom Operations](./openvino_custom_operations.md)
 - [Model Info Section](./model_info_xml.md)
 - [Python Bindings](./python_bindings.md)
   - [1. GStreamer Python bindings](./python_bindings.md#1-gstreamer-python-bindings)
@@ -75,6 +76,7 @@
 advanced_install/advanced_install_guide_index
 metadata
 model_preparation
+openvino_custom_operations
 model_info_xml
 python_bindings
 custom_plugin_installation
