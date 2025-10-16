@@ -70,8 +70,8 @@ class ImageInference {
     // TODO: return map<OutputLayerDesc>
     virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const = 0;
     virtual std::map<std::string, GstStructure *> GetModelInfoPostproc() const = 0;
-    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file,
-                                                                     const gchar *pre_proc_config);
+    static std::map<std::string, GstStructure *>
+    GetModelInfoPreproc(const std::string model_file, const gchar *pre_proc_config, const gchar *ov_extension_lib);
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -164,6 +164,7 @@ __DECLARE_CONFIG_KEY(FORMAT);
 __DECLARE_CONFIG_KEY(DEVICE);
 __DECLARE_CONFIG_KEY(MODEL); // Path to model
 __DECLARE_CONFIG_KEY(CUSTOM_PREPROC_LIB);
+__DECLARE_CONFIG_KEY(OV_EXTENSION_LIB);
 __DECLARE_CONFIG_KEY(NIREQ);
 __DECLARE_CONFIG_KEY(DEVICE_EXTENSIONS);
 __DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS); // number inference requests running in parallel

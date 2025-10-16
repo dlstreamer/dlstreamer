@@ -38,6 +38,8 @@ TEST(symlink_test, model_file) {
     bi.model_proc = nullptr;
     bi.labels = nullptr;
     bi.custom_preproc_lib = nullptr;
+    bi.custom_postproc_lib = nullptr;
+    bi.ov_extension_lib = nullptr;
 
     try {
         InferenceImpl ii(&bi);
@@ -72,6 +74,8 @@ TEST(symlink_test, model_proc_file) {
     bi.model_proc = (char *)link_path.c_str();
     bi.labels = nullptr;
     bi.custom_preproc_lib = nullptr;
+    bi.custom_postproc_lib = nullptr;
+    bi.ov_extension_lib = nullptr;
 
     try {
         InferenceImpl ii(&bi);
@@ -106,6 +110,8 @@ TEST(symlink_test, labels_file) {
     bi.model_proc = nullptr;
     bi.labels = (char *)link_path.c_str();
     bi.custom_preproc_lib = nullptr;
+    bi.custom_postproc_lib = nullptr;
+    bi.ov_extension_lib = nullptr;
 
     try {
         InferenceImpl ii(&bi);
