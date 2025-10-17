@@ -43,7 +43,7 @@ Requires: x265-libs
 Requires: x264-libs
 Requires: openexr
 Requires: tbb
-Requires: libsoup-3.0-0
+Requires: libsoup3
 Requires: intel-media-driver
 Requires: openvino-2025.3.0
 
