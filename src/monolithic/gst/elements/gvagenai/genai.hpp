@@ -9,6 +9,8 @@
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
+#include "dlstreamer/gst/mappers/gst_to_cpu.h"
+
 #include <opencv2/opencv.hpp>
 #include <openvino/genai/visual_language/pipeline.hpp>
 
@@ -98,6 +100,7 @@ class OpenVINOGenAIContext {
     std::string create_json_metadata(GstClockTime timestamp = GST_CLOCK_TIME_NONE, bool include_metrics = false);
 
   private:
+    std::shared_ptr<dlstreamer::MemoryMapperGSTToCPU> mapper = nullptr;
     std::unique_ptr<ov::genai::VLMPipeline> pipeline = nullptr;
     ov::AnyMap generation_config = {};
     std::optional<ov::genai::SchedulerConfig> scheduler_config = std::nullopt;

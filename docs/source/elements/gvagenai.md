@@ -98,12 +98,32 @@ Pad Templates:
                   width: [ 1, 2147483647 ]
                  height: [ 1, 2147483647 ]
               framerate: [ 0/1, 2147483647/1 ]
+      video/x-raw(memory:DMABuf)
+                 format: { (string)DMA_DRM }
+                  width: [ 1, 2147483647 ]
+                 height: [ 1, 2147483647 ]
+              framerate: [ 0/1, 2147483647/1 ]
+      video/x-raw(memory:VAMemory)
+                 format: { (string)NV12 }
+                  width: [ 1, 2147483647 ]
+                 height: [ 1, 2147483647 ]
+              framerate: [ 0/1, 2147483647/1 ]
 
   SRC template: 'src'
     Availability: Always
     Capabilities:
       video/x-raw
                  format: { (string)RGB, (string)RGBA, (string)RGBx, (string)BGR, (string)BGRA, (string)BGRx, (string)NV12, (string)I420 }
+                  width: [ 1, 2147483647 ]
+                 height: [ 1, 2147483647 ]
+              framerate: [ 0/1, 2147483647/1 ]
+      video/x-raw(memory:DMABuf)
+                 format: { (string)DMA_DRM }
+                  width: [ 1, 2147483647 ]
+                 height: [ 1, 2147483647 ]
+              framerate: [ 0/1, 2147483647/1 ]
+      video/x-raw(memory:VAMemory)
+                 format: { (string)NV12 }
                   width: [ 1, 2147483647 ]
                  height: [ 1, 2147483647 ]
               framerate: [ 0/1, 2147483647/1 ]
@@ -146,6 +166,9 @@ Element Properties:
                         flags: readable, writable
                         Object of type "GstObject"
   prompt              : Text prompt for the GenAI model
+                        flags: readable, writable
+                        String. Default: null
+  prompt-path         : Path to text prompt file for the GenAI model
                         flags: readable, writable
                         String. Default: null
   qos                 : Handle Quality-of-Service events

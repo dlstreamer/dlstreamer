@@ -25,6 +25,7 @@ struct _GstGvaGenAI {
     gchar *device;
     gchar *model_path;
     gchar *prompt;
+    gchar *prompt_path;
     gchar *generation_config;
     gchar *scheduler_config;
     gchar *model_cache_path;
@@ -33,6 +34,7 @@ struct _GstGvaGenAI {
     gboolean metrics;
     guint frame_counter;
 
+    gchar *prompt_string;
     void *openvino_context;
 };
 
