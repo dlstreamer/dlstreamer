@@ -149,23 +149,6 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                 }
             }
 
-            if (frame.roi->id >= 0) {
-                GstAnalyticsODMtd parent_od_mtd;
-                if (gst_analytics_relation_meta_get_od_mtd(relation_meta, frame.roi->id, &parent_od_mtd)) {
-                    if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_IS_PART_OF,
-                                                                  od_mtd.id, parent_od_mtd.id)) {
-                        throw std::runtime_error(
-                            "Failed to set relation between object detection metadata and parent metadata");
-                    }
-
-                    if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_CONTAIN,
-                                                                  parent_od_mtd.id, od_mtd.id)) {
-                        throw std::runtime_error(
-                            "Failed to set relation between object detection metadata and parent metadata");
-                    }
-                }
-            }
-
             GstVideoRegionOfInterestMeta *roi_meta =
                 gst_buffer_add_video_region_of_interest_meta(*writable_buffer, label, x_abs, y_abs, w_abs, h_abs);
 
@@ -173,8 +156,26 @@ void ROIToFrameAttacher::attach(const TensorsTable &tensors, FramesWrapper &fram
                 throw std::runtime_error("Failed to add GstVideoRegionOfInterestMeta to buffer");
 
             roi_meta->id = od_mtd.id;
-            if (frame.roi)
+            if (frame.roi) {
                 roi_meta->parent_id = frame.roi->id;
+
+                if (frame.roi->id >= 0) {
+                    GstAnalyticsODMtd parent_od_mtd;
+                    if (gst_analytics_relation_meta_get_od_mtd(relation_meta, frame.roi->id, &parent_od_mtd)) {
+                        if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_IS_PART_OF,
+                                                                      od_mtd.id, parent_od_mtd.id)) {
+                            throw std::runtime_error(
+                                "Failed to set relation between object detection metadata and parent metadata");
+                        }
+
+                        if (!gst_analytics_relation_meta_set_relation(relation_meta, GST_ANALYTICS_REL_TYPE_CONTAIN,
+                                                                      parent_od_mtd.id, od_mtd.id)) {
+                            throw std::runtime_error(
+                                "Failed to set relation between object detection metadata and parent metadata");
+                        }
+                    }
+                }
+            }
 
             gst_structure_remove_field(detection_tensor, "label");
             gst_structure_remove_field(detection_tensor, "x_abs");
