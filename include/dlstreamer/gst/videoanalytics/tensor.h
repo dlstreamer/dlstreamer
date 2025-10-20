@@ -840,7 +840,7 @@ class Tensor {
                             keypoint_count * keypoint_dimension * sizeof(float));
 
             // set keypoint confidence, point names and point connections
-            tensor.set_vector<float>("confidences", confidences);
+            tensor.set_vector<float>("confidence", confidences);
             tensor.set_vector<std::string>("point_names", point_names);
             tensor.set_vector<std::string>("point_connections", point_connections);
 
