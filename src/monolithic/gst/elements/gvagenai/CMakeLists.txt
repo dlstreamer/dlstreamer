@@ -8,6 +8,7 @@ set(TARGET_NAME "gvagenai")
 
 # Find required packages
 find_package(PkgConfig REQUIRED)
+pkg_search_module(VA va libva REQUIRED)
 pkg_check_modules(GSTREAMER REQUIRED gstreamer-1.0)
 pkg_check_modules(GSTREAMER_BASE REQUIRED gstreamer-base-1.0)
 pkg_check_modules(GSTREAMER_VIDEO REQUIRED gstreamer-video-1.0)
@@ -31,12 +32,15 @@ target_include_directories(${TARGET_NAME} PUBLIC
 )
 
 # Link libraries
+target_link_directories(${TARGET_NAME} PUBLIC ${VA_LIBRARY_DIRS})
+
 target_link_libraries(${TARGET_NAME}
     ${GSTREAMER_LIBRARIES}
     ${GSTREAMER_BASE_LIBRARIES}
     ${GSTREAMER_VIDEO_LIBRARIES}
     openvino::genai
     ${OpenCV_LIBS}
+    common
     dlstreamer_gst_meta
     json-hpp
 )
