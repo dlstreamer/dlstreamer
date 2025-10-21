@@ -235,7 +235,7 @@ fi
 
 # Install dependencies for CLIP models
 if [[ "${MODEL:-}" =~ clip.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade torch torchaudio torchvision || handle_error $LINENO
+  pip install --no-cache-dir --upgrade torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 || handle_error $LINENO
   pip install --no-cache-dir transformers || handle_error $LINENO
   pip install --no-cache-dir pillow || handle_error $LINENO
 fi
@@ -489,7 +489,7 @@ done
 REPO_DIR="$MODELS_PATH/yolov5_repo"
 if [ "$MODEL_IN_LISTv5" = true ] && [ ! -d "$REPO_DIR" ]; then
   git clone https://github.com/ultralytics/yolov5 "$REPO_DIR"
-  pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
+  pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0
   pip install --no-cache-dir -r "$REPO_DIR"/requirements.txt
 fi
 
@@ -582,7 +582,7 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
     mv yolov7.bin "$MODEL_DIR/FP32"
     cd ..
     rm -rf yolov7
-    pip install --no-cache-dir --upgrade torch torchaudio torchvision || handle_error $LINENO
+    pip install --no-cache-dir --upgrade torch==2.8.0 torchaudio==2.8.0 torchvision==0.23.0 || handle_error $LINENO
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
@@ -723,7 +723,7 @@ with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
 os.remove('${MODEL_NAME}.zip')
 "
 
-    mkdir -p FP32 
+    mkdir -p FP32
     cp license-plate-reader/models/yolov8n/yolov8n_retrained.bin FP32/${MODEL_NAME}.bin
     cp license-plate-reader/models/yolov8n/yolov8n_retrained.xml FP32/${MODEL_NAME}.xml
     chmod -R u+w license-plate-reader
@@ -942,7 +942,7 @@ with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
 os.remove('${MODEL_NAME}.zip')
 "
 
-    mkdir -p FP32 
+    mkdir -p FP32
     cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.bin FP32/${MODEL_NAME}.bin
     cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.xml FP32/${MODEL_NAME}.xml
     chmod -R u+w license-plate-reader
