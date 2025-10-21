@@ -140,6 +140,9 @@ FROM builder AS gstreamer-builder
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
+# Copy GStreamer patch for vacompositor and vafilter fixes
+COPY dependencies/patches/gstreamer-1-26-6-vacompositor-vafilter-fixes.patch /tmp/gstreamer-patch.patch
+
 # Build GStreamer
 WORKDIR /home/dlstreamer
 
@@ -154,6 +157,7 @@ WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
+    git apply /tmp/gstreamer-patch.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \
@@ -231,7 +235,8 @@ RUN \
     build/ && \
     ninja -C build && \
     meson install -C build/ && \
-    rm -r subprojects/gst-devtools subprojects/gst-examples
+    rm -r subprojects/gst-devtools subprojects/gst-examples && \
+    rm /tmp/gstreamer-patch.patch
 
 ENV PKG_CONFIG_PATH="${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
