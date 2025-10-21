@@ -24,6 +24,7 @@ ExternalProject_Add(
     PREFIX ${CMAKE_BINARY_DIR}/gstreamer
     GIT_REPOSITORY  https://gitlab.freedesktop.org/gstreamer/gstreamer.git
     GIT_TAG         ${DESIRED_VERSION}
+	PATCH_COMMAND   patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/gstreamer-1-26-6-vacompositor-vafilter-fixes.patch
     BUILD_COMMAND       ninja
     INSTALL_COMMAND     meson install
     TEST_COMMAND        ""
