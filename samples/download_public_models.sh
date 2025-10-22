@@ -58,6 +58,11 @@ SUPPORTED_MODELS=(
   "yolov8m-seg"
   "yolov8l-seg"
   "yolov8x-seg"
+  "yolov8n-pose"
+  "yolov8s-pose"
+  "yolov8m-pose"
+  "yolov8l-pose"
+  "yolov8x-pose"
   "yolov8_license_plate_detector"
   "yolov9t"
   "yolov9s"
@@ -618,7 +623,7 @@ converted_model = converted_path + '/' + model_name + '.xml'
 core = openvino.Core()
 ov_model = core.read_model(model=converted_model)
 
-if model_type in ["YOLOv8-SEG", "yolo_v11_seg"]:
+if model_type in ["yolo_v8_seg", "yolo_v11_seg"]:
     ov_model.output(0).set_names({"boxes"})
     ov_model.output(1).set_names({"masks"})
 
@@ -643,26 +648,31 @@ EOF
 # List of models and their types
 declare -A YOLO_MODELS
 YOLO_MODELS=(
-  ["yolov8n"]="YOLOv8"
-  ["yolov8s"]="YOLOv8"
-  ["yolov8m"]="YOLOv8"
-  ["yolov8l"]="YOLOv8"
-  ["yolov8x"]="YOLOv8"
-  ["yolov8n-obb"]="YOLOv8-OBB"
-  ["yolov8s-obb"]="YOLOv8-OBB"
-  ["yolov8m-obb"]="YOLOv8-OBB"
-  ["yolov8l-obb"]="YOLOv8-OBB"
-  ["yolov8x-obb"]="YOLOv8-OBB"
-  ["yolov8n-seg"]="YOLOv8-SEG"
-  ["yolov8s-seg"]="YOLOv8-SEG"
-  ["yolov8m-seg"]="YOLOv8-SEG"
-  ["yolov8l-seg"]="YOLOv8-SEG"
-  ["yolov8x-seg"]="YOLOv8-SEG"
-  ["yolov9t"]="YOLOv8"
-  ["yolov9s"]="YOLOv8"
-  ["yolov9m"]="YOLOv8"
-  ["yolov9c"]="YOLOv8"
-  ["yolov9e"]="YOLOv8"
+  ["yolov8n"]="yolo_v8"
+  ["yolov8s"]="yolo_v8"
+  ["yolov8m"]="yolo_v8"
+  ["yolov8l"]="yolo_v8"
+  ["yolov8x"]="yolo_v8"
+  ["yolov8n-obb"]="yolo_v8_obb"
+  ["yolov8s-obb"]="yolo_v8_obb"
+  ["yolov8m-obb"]="yolo_v8_obb"
+  ["yolov8l-obb"]="yolo_v8_obb"
+  ["yolov8x-obb"]="yolo_v8_obb"
+  ["yolov8n-seg"]="yolo_v8_seg"
+  ["yolov8s-seg"]="yolo_v8_seg"
+  ["yolov8m-seg"]="yolo_v8_seg"
+  ["yolov8l-seg"]="yolo_v8_seg"
+  ["yolov8x-seg"]="yolo_v8_seg"
+  ["yolov8n-pose"]="yolo_v8_pose"
+  ["yolov8s-pose"]="yolo_v8_pose"
+  ["yolov8m-pose"]="yolo_v8_pose"
+  ["yolov8l-pose"]="yolo_v8_pose"
+  ["yolov8x-pose"]="yolo_v8_pose"
+  ["yolov9t"]="yolo_v8"
+  ["yolov9s"]="yolo_v8"
+  ["yolov9m"]="yolo_v8"
+  ["yolov9c"]="yolo_v8"
+  ["yolov9e"]="yolo_v8"
   ["yolov10n"]="yolo_v10"
   ["yolov10s"]="yolo_v10"
   ["yolov10m"]="yolo_v10"
