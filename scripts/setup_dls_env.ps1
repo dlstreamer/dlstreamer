@@ -1,3 +1,4 @@
+#Requires -RunAsAdministrator
 # ==============================================================================
 # Copyright (C) 2025 Intel Corporation
 #

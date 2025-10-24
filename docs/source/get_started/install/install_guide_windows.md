@@ -13,7 +13,7 @@ Extract to a new folder, for example `C:\\dlstreamer_dlls`.
 
 ### Step 2: Run setup script
 
-Open a PowerShell prompt, run the following script and follow instructions:
+Open a PowerShell prompt as and administrator, run the following script and follow instructions:
 
 ```bash
 cd C:\\dlstreamer_dlls
