@@ -9,6 +9,7 @@ import time
 import logging
 import itertools
 import os
+import re
 import subprocess
 
 import gi
@@ -201,16 +202,23 @@ def sample_pipeline(pipeline, sample_duration):
 
 ######################################## Preprocess ###############################################
 
+preprocessing_rules = {
+    "vaapi": "va",
+    "memory:VASurface": "memory:VAMemory",
+    r"! capsfilter caps=video/x-raw\(memory:VAMemory\) !(.*(gvadetect|gvaclassify))": r"!\1",
+    r"! video/x-raw\(memory:VAMemory\) !(.*(gvadetect|gvaclassify))": r"!\1",
+    r"parsebin ! vah\w*dec": "decodebin3",
+    r"\w*parse ! vah\w*dec": "decodebin3",
+    r"\bdecodebin\b": "decodebin3",
+}
+
 def preprocess_pipeline(pipeline):
-    for i, element in enumerate(pipeline):
-        if "decodebin" in element:
-            pipeline[i] = "decodebin3"
-
-        if "vaapipostproc" in element:
-            pipeline[i] = "vapostproc"
-
-        if "vaapi-surface-sharing" in element:
-            pipeline[i] = "va-surface-sharing"
+    pipeline = "!".join(pipeline)
+    for pattern, replacement in preprocessing_rules.items():
+        if re.search(pattern, pipeline):
+            pipeline = re.sub(pattern, replacement, pipeline)
+    pipeline = pipeline.split("!")
+    return pipeline
 
 #################################### Gvadetect & Gvaclassify ######################################
 
@@ -243,7 +251,7 @@ def add_parameter_suggestions(element, device, backend, suggestions):
                     parameters["pre-process-backend"] = backend
                     parameters["batch-size"] = str(batch)
                     parameters["nireq"] = str(nireq)
-                    suggestion.append(f"{element} {assemble_parameters(parameters)}")
+                    suggestion.append(f" {element} {assemble_parameters(parameters)}")
 
 ####################################### Main Logic ################################################
 
@@ -269,8 +277,9 @@ def get_optimized_pipeline(pipeline, search_duration = 300, sample_duration = 10
 
     logger.info("FPS: %f.2", fps)
 
-    # Replace any elements that we're sure have a best-in-class alternatives.
-    preprocess_pipeline(pipeline)
+    # Make pipeline definition portable across inference devices.
+    # Replace elements with known better alternatives.
+    pipeline = preprocess_pipeline(pipeline)
 
     # Prepare the suggestions structure
     # Suggestions structure:
