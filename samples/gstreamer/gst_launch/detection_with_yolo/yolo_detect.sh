@@ -95,9 +95,6 @@ else
 fi
 
 DECODE_ELEMENT="! decodebin3 !"
-if [[ "$DEVICE" == "GPU" ]]; then
-  DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"
-fi
 
 if [[ "$PPBKEND" == "" ]]; then
   PREPROC_BACKEND="ie"
