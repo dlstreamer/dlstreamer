@@ -7,9 +7,9 @@
 
 $GSTREAMER_VERSION = "1.26.6"
 $OPENVINO_VERSION = "2025.3"
-$GSTREAMER_DEST_FOLDER = "C:\\gstreamer"
-$OPENVINO_DEST_FOLDER = "C:\\openvino"
-$DLSTREAMER_TMP = "C:\\dlstreamer_tmp"
+$GSTREAMER_DEST_FOLDER = "C:\gstreamer"
+$OPENVINO_DEST_FOLDER = "C:\openvino"
+$DLSTREAMER_TMP = "C:\dlstreamer_tmp"
 
 # Create temporary directory if it doesn't exist
 if (-Not (Test-Path $DLSTREAMER_TMP)) {
@@ -175,6 +175,7 @@ $USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
 $pathEntries = $USER_PATH -split ';'
 if (-Not ($pathEntries -contains 'VideoAccelerationCompatibilityPack')) {
 	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ';' + [Environment]::GetEnvironmentVariable('LIBVA_DRIVERS_PATH', 'User'), [System.EnvironmentVariableTarget]::User)
+	Write-Host 'Added LIBVA drivers path to User Path variable'
 }
 
 Write-Host 'Setting variables: GST_PLUGIN_PATH, Path (for DLLs)'
@@ -184,6 +185,7 @@ $USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
 $pathEntries = $USER_PATH -split ';'
 if (-Not ($pathEntries -contains $CURRENT_DIR)) {
     [Environment]::SetEnvironmentVariable('Path', ($USER_PATH + ';' + $CURRENT_DIR), [System.EnvironmentVariableTarget]::User)
+	Write-Host 'Added current directory to User Path variable'
 }
 
 Write-Host 'Setting variables: GST_PLUGIN_SCANNER'
@@ -191,20 +193,25 @@ $GSTREAMER_PLUGIN_SCANNER_PATH = (Get-ChildItem -Filter gst-plugin-scanner.exe -
 [Environment]::SetEnvironmentVariable('GST_PLUGIN_SCANNER', $GSTREAMER_PLUGIN_SCANNER_PATH, [System.EnvironmentVariableTarget]::User)
 
 Write-Host 'Setting variables: Path (for gst-launch-1.0)'
-$GSTREAMER_DIR = (Get-ChildItem -Filter gst-launch-1.0.exe -Recurse -Path 'C:\gstreamer' -Include 'gst-launch-1.0.exe' -ErrorAction SilentlyContinue).DirectoryName | Select-Object -First 1
+$GSTREAMER_BIN_DIR = "$GSTREAMER_DEST_FOLDER\1.0\msvc_x86_64\bin"
 $USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
 $pathEntries = $USER_PATH -split ';'
-if (-Not ($pathEntries -contains $GSTREAMER_DIR)) {
-	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ';' + $GSTREAMER_DIR, [System.EnvironmentVariableTarget]::User)
+if (-Not ($pathEntries -contains $GSTREAMER_BIN_DIR)) {
+	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ';' + $GSTREAMER_BIN_DIR, [System.EnvironmentVariableTarget]::User)
+	Write-Host 'Added gst-launch-1.0 directory to User Path variable'
 }
 
 Write-Host 'Setting variables:, OpenVINO_DIR, OPENVINO_LIB_PATHS, Path (for OpenVINO)'
-[Environment]::SetEnvironmentVariable('OpenVINO_DIR', "C:\openvino\runtime\cmake", [System.EnvironmentVariableTarget]::User)
-[Environment]::SetEnvironmentVariable('OpenVINOGenAI_DIR', "C:\openvino\runtime\cmake", [System.EnvironmentVariableTarget]::User)
-[Environment]::SetEnvironmentVariable('OPENVINO_LIB_PATHS', "C:\openvino\runtime\3rdparty\tbb\bin;C:\openvino\runtime\bin\intel64\Release", [System.EnvironmentVariableTarget]::User)
-if (-Not [Environment]::GetEnvironmentVariable('Path', 'User').Contains('openvino')) {
-	$USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
-	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ";C:\openvino\runtime\3rdparty\tbb\bin;C:\openvino\runtime\bin\intel64\Release", [System.EnvironmentVariableTarget]::User)
+[Environment]::SetEnvironmentVariable('OpenVINO_DIR', "$OPENVINO_DEST_FOLDER\runtime\cmake", [System.EnvironmentVariableTarget]::User)
+[Environment]::SetEnvironmentVariable('OpenVINOGenAI_DIR', "$OPENVINO_DEST_FOLDER\runtime\cmake", [System.EnvironmentVariableTarget]::User)
+[Environment]::SetEnvironmentVariable('OPENVINO_LIB_PATHS', "$OPENVINO_DEST_FOLDER\runtime\3rdparty\tbb\bin;$OPENVINO_DEST_FOLDER\runtime\bin\intel64\Release", [System.EnvironmentVariableTarget]::User)
+$OPENVINO_TBB_DIR = "$OPENVINO_DEST_FOLDER\runtime\3rdparty\tbb\bin"
+$OPENVINO_BIN_DIR = "$OPENVINO_DEST_FOLDER\runtime\bin\intel64\Release"
+$USER_PATH = [Environment]::GetEnvironmentVariable('Path', 'User')
+$pathEntries = $USER_PATH -split ';'
+if (-Not (($pathEntries -contains $OPENVINO_TBB_DIR) -and ($pathEntries -contains $OPENVINO_BIN_DIR))) {
+	[Environment]::SetEnvironmentVariable('Path', $USER_PATH + ";$OPENVINO_TBB_DIR;$OPENVINO_BIN_DIR", [System.EnvironmentVariableTarget]::User)
+	Write-Host 'Added OpenVINO directories to User Path variable'
 }
 
 $env:Path = [System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')
