@@ -11,7 +11,15 @@
 
 namespace InferenceBackend {
 
-enum class ImagePreprocessorType : int { AUTO = 0, OPENCV, IE, VAAPI_SYSTEM, VAAPI_SURFACE_SHARING };
+enum class ImagePreprocessorType : int {
+    AUTO = 0,
+    OPENCV,
+    IE,
+    VAAPI_SYSTEM,
+    VAAPI_SURFACE_SHARING,
+    D3D11,
+    D3D11_SURFACE_SHARING
+};
 class ImagePreprocessor {
   public:
     static ImagePreprocessor *Create(ImagePreprocessorType type, const std::string custom_preproc_lib);

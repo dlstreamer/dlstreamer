@@ -77,6 +77,9 @@ InferenceBackend::MemoryType memoryTypeFromCaps(GstCaps *caps) {
     case SYSTEM_MEMORY_CAPS_FEATURE:
         return InferenceBackend::MemoryType::SYSTEM;
 
+    case D3D11_MEMORY_CAPS_FEATURE:
+        return InferenceBackend::MemoryType::D3D11;
+
     case VA_SURFACE_CAPS_FEATURE:
     case VA_MEMORY_CAPS_FEATURE:
         return InferenceBackend::MemoryType::VAAPI;
@@ -142,6 +145,7 @@ struct Impl {
 
     GstVideoInfo *_vinfo;
     std::string _backend_type;
+    InferenceBackend::MemoryType _mem_type;
 
     SharedObject::Ptr _gpurenderer_loader;
     std::unique_ptr<Renderer> _renderer;
@@ -265,6 +269,8 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     DEVICE_SELECTOR device = DEVICE_CPU;
     if (!gvawatermark->device) {
         switch (mem_type) {
+        // For now use CPU renderer for d3d11
+        case MemoryType::D3D11:
         case MemoryType::SYSTEM:
             device = DEVICE_CPU;
             break;
@@ -408,7 +414,7 @@ static void gst_gva_watermark_impl_class_init(GstGvaWatermarkImplClass *klass) {
 
 Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
            dlstreamer::ContextPtr context, bool obb)
-    : _vinfo(info), _obb(obb) {
+    : _vinfo(info), _mem_type(mem_type), _obb(obb) {
     assert(_vinfo);
     if (GST_VIDEO_INFO_COLORIMETRY(_vinfo).matrix == GstVideoColorMatrix::GST_VIDEO_COLOR_MATRIX_UNKNOWN)
         throw std::runtime_error("GST_VIDEO_COLOR_MATRIX_UNKNOWN");
@@ -441,7 +447,20 @@ size_t get_keypoint_index_by_name(const gchar *target_name, GValueArray *names) 
 bool Impl::render(GstBuffer *buffer) {
     ITT_TASK(__FUNCTION__);
 
-    GVA::VideoFrame video_frame(buffer, _vinfo);
+    // For D3D11 input, map to system memory temporarily for rendering
+    GstBuffer *render_buffer = buffer;
+    GstMapInfo map_info;
+    bool mapped = false;
+
+    if (_mem_type == InferenceBackend::MemoryType::D3D11) {
+        // Map D3D11 buffer to system memory for CPU rendering
+        if (!gst_buffer_map(buffer, &map_info, GST_MAP_READWRITE)) {
+            return false;
+        }
+        mapped = true;
+    }
+
+    GVA::VideoFrame video_frame(render_buffer, _vinfo);
     auto video_frame_rois = video_frame.regions();
 
     std::vector<render::Prim> prims;
@@ -472,8 +491,13 @@ bool Impl::render(GstBuffer *buffer) {
 
     // Skip render if there are no primitives to draw
     if (!prims.empty()) {
-        auto gstbuffer = std::make_shared<dlstreamer::GSTFrame>(buffer, _vinfo);
+        auto gstbuffer = std::make_shared<dlstreamer::GSTFrame>(render_buffer, _vinfo);
         _renderer->draw(gstbuffer, prims);
+    }
+
+    // Unmap D3D11 buffer if it was mapped
+    if (mapped) {
+        gst_buffer_unmap(buffer, &map_info);
     }
 
     return true;

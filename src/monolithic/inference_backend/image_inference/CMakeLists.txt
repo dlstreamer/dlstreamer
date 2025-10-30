@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -10,6 +10,10 @@ add_subdirectory(openvino)
 
 if(${ENABLE_VAAPI})
         add_subdirectory(async_with_va_api)
+endif()
+
+if(WIN32)
+        add_subdirectory(async_with_d3d11)
 endif()
 
 find_package(PkgConfig REQUIRED)
@@ -33,6 +37,10 @@ PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/openvino
         ${CMAKE_CURRENT_SOURCE_DIR}/async_with_va_api
 )
+
+if(WIN32)
+        target_include_directories(${TARGET_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/async_with_d3d11)
+endif()
 
 target_link_libraries(${TARGET_NAME}
 PUBLIC

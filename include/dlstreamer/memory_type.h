@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -35,6 +35,7 @@ enum class MemoryType {
     PyTorch = 0x10000,
     TensorFlow = 0x20000,
     VA = 0x40000,
+    D3D11 = 0x80000
 };
 
 template <typename T_DOWN, typename T_UP>
@@ -73,6 +74,8 @@ inline const char *memory_type_to_string(MemoryType type) {
         return "TensorFlow";
     case MemoryType::VA:
         return "VAMemory";
+    case MemoryType::D3D11:
+        return "D3D11Memory";
     case MemoryType::Any:
         return "Any";
     }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -15,6 +15,8 @@ CapsFeature get_caps_feature(GstCaps *caps) {
             return VA_SURFACE_CAPS_FEATURE;
         if (gst_caps_features_contains(features, VAMEMORY_FEATURE_STR))
             return VA_MEMORY_CAPS_FEATURE;
+        if (gst_caps_features_contains(features, D3D11MEMORY_FEATURE_STR))
+            return D3D11_MEMORY_CAPS_FEATURE;
     }
     return SYSTEM_MEMORY_CAPS_FEATURE;
 }
