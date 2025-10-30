@@ -114,10 +114,12 @@ def scan_system():
 ##################################### Pipeline Running ############################################
 
 def explore_pipelines(suggestions, base_fps, search_duration, sample_duration):
-    best_pipeline = []
     start_time = time.time()
+    combinations = itertools.product(*suggestions)
+    # first element is the original pipeline, use it as baseline
+    best_pipeline = list(next(combinations))
     best_fps = base_fps
-    for combination in itertools.product(*suggestions):
+    for combination in combinations:
         combination = list(combination)
         log_parameters_of_interest(combination)
 
@@ -170,6 +172,7 @@ def sample_pipeline(pipeline, sample_duration):
         # Terminate in those cases.
         _, state, _ = pipeline.get_state(Gst.CLOCK_TIME_NONE)
         if state == Gst.State.READY:
+            pipeline.set_state(Gst.State.NULL)
             del pipeline
             raise RuntimeError("Pipeline not healthy, terminating early")
 
@@ -222,34 +225,44 @@ def preprocess_pipeline(pipeline):
 
 #################################### Gvadetect & Gvaclassify ######################################
 
-def add_gvadetect_suggestions(suggestions, context):
-    add_classification_suggestions("gvadetect", suggestions, context)
+def add_device_suggestions(suggestions, context):
+    for suggestion in suggestions:
+        for element in ["gvadetect", "gvaclassify"]:
+            if element in suggestion[0]:
+                parameters = parse_element_parameters(suggestion[0])
 
-def add_gvaclassify_suggestions(suggestions, context):
-    add_classification_suggestions("gvaclassify", suggestions, context)
+                if context["GPU"] & (parameters.get("device", "") != "GPU"):
+                    parameters["device"] = "GPU"
+                    parameters["pre-process-backend"] = "va-surface-sharing"
+                    suggestion.append(f" {element} {assemble_parameters(parameters)}")
 
-def add_classification_suggestions(element, suggestions, context):
-    if context["GPU"]:
-        add_parameter_suggestions(element, "GPU", "va-surface-sharing", suggestions)
+                if context["NPU"] & (parameters.get("device", "") != "NPU"):
+                    parameters["device"] = "NPU"
+                    parameters["pre-process-backend"] = "va"
+                    suggestion.append(f" {element} {assemble_parameters(parameters)}")
 
-    if context["NPU"]:
-        add_parameter_suggestions(element, "NPU", "va", suggestions)
+                parameters["device"] = "CPU"
+                parameters["pre-process-backend"] = "opencv"
+                suggestion.append(f" {element} {assemble_parameters(parameters)}")
 
-    add_parameter_suggestions(element, "CPU", "opencv", suggestions)
-
-
-def add_parameter_suggestions(element, device, backend, suggestions):
+def add_batch_suggestions(suggestions, _):
     batches = [1, 2, 4, 8, 16, 32]
+    for suggestion in suggestions:
+        for element in ["gvadetect", "gvaclassify"]:
+            if element in suggestion[0]:
+                parameters = parse_element_parameters(suggestion[0])
+                for batch in batches:
+                    parameters["batch-size"] = str(batch)
+                    suggestion.append(f" {element} {assemble_parameters(parameters)}")
+
+
+def add_nireq_suggestions(suggestions, _):
     nireqs = range(1, 9)
     for suggestion in suggestions:
-        if element in suggestion[0]:
-            parameters = parse_element_parameters(suggestion[0])
-
-            for batch in batches:
+        for element in ["gvadetect", "gvaclassify"]:
+            if element in suggestion[0]:
+                parameters = parse_element_parameters(suggestion[0])
                 for nireq in nireqs:
-                    parameters["device"] = device
-                    parameters["pre-process-backend"] = backend
-                    parameters["batch-size"] = str(batch)
                     parameters["nireq"] = str(nireq)
                     suggestion.append(f" {element} {assemble_parameters(parameters)}")
 
@@ -258,15 +271,16 @@ def add_parameter_suggestions(element, device, backend, suggestions):
 # Steps of pipeline optimization:
 # 1. Measure the baseline pipeline's performace.
 # 2. Pre-process the pipeline to cover cases where we're certain of the best alternative.
-# 3. Run the pipeline through generators that provide suggestions for element alternatives.
-# 4. Create a cartesian product of the suggestions
+# 3. Prepare a set of processors providing alternatives for elements.
+# 3. Run the processors in sequence and test their effect on the pipeline.
+# 5. For every processor create a cartesian product of the suggestions
 #    and start running the combinations to measure performance.
-# 5. Any time a better pipeline is found, save it and its performance information.
-# 6. Return the best discovered pipeline.
+# 6. Any time a better pipeline is found, save it and its performance information.
+# 7. Return the best discovered pipeline.
 def get_optimized_pipeline(pipeline, search_duration = 300, sample_duration = 10):
     context = scan_system()
 
-    pipeline = " ".join(pipeline).split("!")
+    pipeline = pipeline.split("!")
 
     # Measure the performance of the original pipeline
     try:
@@ -281,6 +295,26 @@ def get_optimized_pipeline(pipeline, search_duration = 300, sample_duration = 10
     # Replace elements with known better alternatives.
     pipeline = preprocess_pipeline(pipeline)
 
+    processors = [
+        add_device_suggestions,
+        add_batch_suggestions,
+        add_nireq_suggestions,
+    ]
+
+    search_end_time = time.time() + search_duration
+    for processor in processors:
+        remaining_duration = search_end_time - time.time()
+        if search_end_time <= time.time():
+            break
+
+        suggestions = prepare_suggestions(pipeline)
+        processor(suggestions, context)
+        pipeline, fps = explore_pipelines(suggestions, fps, remaining_duration, sample_duration)
+
+    # Reconstruct the pipeline as a single string and return it.
+    return "!".join(pipeline), fps
+
+def prepare_suggestions(pipeline):
     # Prepare the suggestions structure
     # Suggestions structure:
     #   [
@@ -292,21 +326,8 @@ def get_optimized_pipeline(pipeline, search_duration = 300, sample_duration = 10
     suggestions = []
     for element in pipeline:
         suggestions.append([element])
+    return suggestions
 
-    # Collect suggestions for pipeline improvements
-    add_gvadetect_suggestions(suggestions, context)
-    add_gvaclassify_suggestions(suggestions, context)
-
-    # Explore the suggestions and try to discover pipelines with better performance
-    best_pipeline, best_fps = explore_pipelines(suggestions, fps, search_duration, sample_duration)
-
-    # Fall back in case no better pipeline was found.
-    if not best_pipeline:
-        best_pipeline = pipeline
-        best_fps = fps
-
-    # Reconstruct the pipeline as a single string and return it.
-    return "!".join(best_pipeline), best_fps
 
 def main():
     parser = argparse.ArgumentParser(
@@ -321,8 +342,10 @@ def main():
                         help="Pipeline to be analyzed")
     args=parser.parse_args()
 
+    pipeline = " ".join(args.pipeline)
+
     try:
-        best_pipeline, best_fps = get_optimized_pipeline(args.pipeline,
+        best_pipeline, best_fps = get_optimized_pipeline(pipeline,
                                                          args.search_duration,
                                                          args.sample_duration)
         logger.info("\nBest found pipeline: %s \nwith fps: %f.2", best_pipeline, best_fps)
