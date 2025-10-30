@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -45,6 +45,10 @@ PUBLIC
         logger
         dlstreamer_logger
 )
+
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} PUBLIC d3d11)
+endif()
 
 if (${ENABLE_VAAPI} AND ${OpenVINO_VERSION} VERSION_GREATER_EQUAL "2023.3")
         add_definitions(-DENABLE_GPU_TILE_AFFINITY)

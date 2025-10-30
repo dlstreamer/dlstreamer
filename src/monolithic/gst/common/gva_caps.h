@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,6 +14,7 @@
 #define DMABUF_FEATURE_STR "memory:DMABuf"
 #define VASURFACE_FEATURE_STR "memory:VASurface"
 #define VAMEMORY_FEATURE_STR "memory:VAMemory"
+#define D3D11MEMORY_FEATURE_STR "memory:D3D11Memory"
 
 #define SYSTEM_MEM_CAPS GST_VIDEO_CAPS_MAKE("{ BGRx, BGRA, BGR, NV12, I420 }") "; "
 
@@ -32,12 +33,19 @@
 #define DMA_BUFFER_CAPS
 #endif
 
-#define GVA_CAPS SYSTEM_MEM_CAPS DMA_BUFFER_CAPS VASURFACE_CAPS VAMEMORY_CAPS
+#ifdef _MSC_VER
+#define D3D11MEMORY_CAPS GST_VIDEO_CAPS_MAKE_WITH_FEATURES(D3D11MEMORY_FEATURE_STR, "{ NV12 }") "; "
+#else
+#define D3D11MEMORY_CAPS
+#endif
+
+#define GVA_CAPS SYSTEM_MEM_CAPS DMA_BUFFER_CAPS VASURFACE_CAPS VAMEMORY_CAPS D3D11MEMORY_CAPS
 typedef enum {
     SYSTEM_MEMORY_CAPS_FEATURE,
     VA_SURFACE_CAPS_FEATURE,
     VA_MEMORY_CAPS_FEATURE,
     DMA_BUF_CAPS_FEATURE,
+    D3D11_MEMORY_CAPS_FEATURE,
     ANY_CAPS_FEATURE
 } CapsFeature;
 

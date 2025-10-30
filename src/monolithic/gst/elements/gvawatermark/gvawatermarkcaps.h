@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,5 +25,13 @@
 #define WATERMARK_DMA_BUFFER_CAPS
 #endif
 
+#if _MSC_VER
+#define WATERMARK_D3D11_CAPS                                                                                           \
+    GST_VIDEO_CAPS_MAKE_WITH_FEATURES(D3D11MEMORY_FEATURE_STR, "{ BGRx, RGBA, BGRA, BGR, NV12, I420 }") "; "
+#else
+#define WATERMARK_D3D11_CAPS
+#endif
+
 #define WATERMARK_ALL_CAPS                                                                                             \
-    WATERMARK_SYSTEM_CAPS WATERMARK_VASURFACE_CAPS WATERMARK_DMA_BUFFER_CAPS WATERMARK_VAMEMORY_CAPS
+    WATERMARK_SYSTEM_CAPS WATERMARK_VASURFACE_CAPS WATERMARK_DMA_BUFFER_CAPS WATERMARK_VAMEMORY_CAPS                   \
+        WATERMARK_D3D11_CAPS

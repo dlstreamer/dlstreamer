@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -9,6 +9,9 @@
 #include "dlstreamer/gst/mappers/gst_to_cpu.h"
 #include "dlstreamer/gst/mappers/gst_to_dma.h"
 #include "dlstreamer/gst/mappers/gst_to_vaapi.h"
+#ifdef _MSC_VER
+#include "dlstreamer/gst/mappers/gst_to_d3d11.h"
+#endif
 #include "inference_backend/image.h"
 
 namespace InferenceBackend {
@@ -75,6 +78,14 @@ class BufferToImageMapper final {
             image->va_surface_id = dlstreamer::ptr_cast<dlstreamer::VAAPITensor>(tensor0)->va_surface();
             image->va_display = tensor0->context()->handle(dlstreamer::VAAPIContext::key::va_display);
         };
+#ifdef _MSC_VER
+        if (_memory_type == MemoryType::D3D11) {
+            image->d3d11_texture = dlstreamer::ptr_cast<dlstreamer::D3D11Tensor>(tensor0)->d3d11_texture();
+            auto gst_d3d_device =
+                static_cast<GstD3D11Device *>(tensor0->context()->handle(dlstreamer::D3D11Context::key::d3d_device));
+            image->d3d11_device = reinterpret_cast<void *>(gst_d3d11_device_get_device_handle(gst_d3d_device));
+        }
+#endif
         image->dma_fd = tensor0->handle(dlstreamer::tensor::key::dma_fd, 0);
         image->drm_format_modifier = tensor0->handle(dlstreamer::tensor::key::drm_modifier, 0);
 
@@ -102,6 +113,10 @@ class BufferMapperFactory {
             return std::make_shared<dlstreamer::MemoryMapperGSTToVAAPI>(nullptr, output_context);
         case InferenceBackend::MemoryType::USM_DEVICE_POINTER:
             throw std::runtime_error("Not impemented");
+#ifdef _MSC_VER
+        case InferenceBackend::MemoryType::D3D11:
+            return std::make_shared<dlstreamer::MemoryMapperGSTToD3D11>(nullptr, output_context);
+#endif
         case InferenceBackend::MemoryType::ANY:
         default:
             break;
