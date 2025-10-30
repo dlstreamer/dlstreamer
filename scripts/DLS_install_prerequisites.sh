@@ -59,10 +59,6 @@ echo "Reinstall NPU driver: $reinstall_npu_driver"
 echo "Running on: $on_host_or_docker"
 
 # Define the Intel® repository URL, keyring path, and key URL
-INTEL_ONEAPI_REPO_URL="https://apt.repos.intel.com/oneapi all main"
-INTEL_ONEAPI_KEYRING_PATH="/usr/share/keyrings/intel-sw-products.gpg"
-INTEL_ONEAPI_KEY_URL="https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB"
-INTEL_ONEAPI_LIST="intel-oneapi.list"
 
 INTEL_CL_GPU_KEY_URL="https://repositories.intel.com/gpu/intel-graphics.key"
 INTEL_CL_GPU_REPO_URL_22="https://repositories.intel.com/gpu/ubuntu jammy unified"
@@ -726,10 +722,6 @@ esac
 
 
 if [ $intel_gpu_state -ne 0 ]; then
-
-    configure_repository "$INTEL_ONEAPI_KEY_URL" "$INTEL_ONEAPI_KEYRING_PATH" "$INTEL_ONEAPI_REPO_URL" "$INTEL_ONEAPI_LIST"
-    echo_color "\n Intel® One API repository has been configured.\n" "green"
-    update_package_lists
 
     setup_gpu
 
