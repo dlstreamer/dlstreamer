@@ -35,20 +35,21 @@ typedef struct _GvaBaseInference {
     GstBaseTransform base_transform;
 
     // properties
-    gchar *model;
-    gchar *model_proc;
-    gchar *device;
-    guint inference_interval;
+    gboolean no_block;
     gboolean reshape;
+    gboolean share_va_display_ctx;
+    guint inference_interval;
     guint batch_size;
     guint reshape_width;
     guint reshape_height;
-    gboolean no_block;
     guint nireq;
-    gchar *model_instance_id;
-    gchar *scheduling_policy;
     guint cpu_streams;
     guint gpu_streams;
+    gchar *model;
+    gchar *model_proc;
+    gchar *device;
+    gchar *model_instance_id;
+    gchar *scheduling_policy;
     gchar *ie_config;
     gchar *pre_proc_config;
     gchar *allocator_name;

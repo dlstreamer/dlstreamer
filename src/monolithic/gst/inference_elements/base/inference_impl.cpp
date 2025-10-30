@@ -651,6 +651,13 @@ bool canReuseSharedVADispCtx(GvaBaseInference *gva_base_inference, size_t max_st
 
     const std::string device(gva_base_inference->device);
 
+    if (!gva_base_inference->share_va_display_ctx) {
+        GVA_INFO("\n[%s] Do not share VADisplay ctx (%p) for [ gva_base_inference {%s} model_instance_id {%s} ]\n",
+                 __FUNCTION__, static_cast<void *>(gva_base_inference->priv->va_display.get()),
+                 GST_ELEMENT_NAME(gva_base_inference), std::string(gva_base_inference->model_instance_id).c_str());
+        return false;
+    }
+
     // Check reference count if display is set
     if (gva_base_inference->priv->va_display) {
         // This counts all shared_ptr references, not just streams, but is the best available heuristic
