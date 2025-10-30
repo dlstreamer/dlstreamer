@@ -92,6 +92,10 @@ if(${ENABLE_VAAPI})
         target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async)
 endif()
 
+if(WIN32)
+        target_link_libraries(${TARGET_NAME} PRIVATE d3d11_wrapper image_inference_async_d3d11)
+endif()
+
 add_subdirectory(gvaattachroi)
 add_subdirectory(gvametapublish)
 add_subdirectory(gvapython)

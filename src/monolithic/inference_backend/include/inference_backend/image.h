@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -26,7 +26,7 @@ struct fourcc {
 
 namespace InferenceBackend {
 
-enum class MemoryType { ANY = 0, SYSTEM = 1, DMA_BUFFER = 2, VAAPI = 3, USM_DEVICE_POINTER = 4 };
+enum class MemoryType { ANY = 0, SYSTEM = 1, DMA_BUFFER = 2, VAAPI = 3, USM_DEVICE_POINTER = 4, D3D11 = 5 };
 
 enum FourCC {
     FOURCC_RGBP_F32 = 0x07282024,
@@ -67,6 +67,10 @@ struct Image {
         struct {                            // if type==VAAPI
             uint32_t va_surface_id;
             void *va_display;
+        };
+        struct { // if type==D3D11
+            void *d3d11_texture;
+            void *d3d11_device;
         };
     };
     int dma_fd = -1; // if type==DMA_BUFFER or VPUX device is used

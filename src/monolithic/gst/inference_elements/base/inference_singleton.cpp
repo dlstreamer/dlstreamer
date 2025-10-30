@@ -124,6 +124,8 @@ std::string capsFeatureString(CapsFeature newCapsFeature) {
         return "VAMemory";
     case DMA_BUF_CAPS_FEATURE:
         return "DMABuf";
+    case D3D11_MEMORY_CAPS_FEATURE:
+        return "D3D11Memory";
     }
     return "";
 }

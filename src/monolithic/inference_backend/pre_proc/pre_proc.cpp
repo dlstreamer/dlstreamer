@@ -22,6 +22,9 @@ ImagePreprocessor *ImagePreprocessor::Create(ImagePreprocessorType type, const s
     case ImagePreprocessorType::VAAPI_SYSTEM:
         p = CreatePreProcOpenCV(custom_preproc_lib);
         break;
+    case ImagePreprocessorType::D3D11:
+        p = CreatePreProcOpenCV(custom_preproc_lib);
+        break;
     }
     if (p == nullptr)
         throw std::runtime_error("Failed to allocate Image preprocessor");

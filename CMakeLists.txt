@@ -47,6 +47,9 @@ add_definitions(-DPACKAGE_NAME="Deep Learning Streamer elements")
 add_definitions(-DGST_PACKAGE_ORIGIN="https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer")
 add_definitions(-DPLUGIN_LICENSE="MIT/X11")
 add_definitions(-DPRODUCT_FULL_NAME="Deep Learning Streamer")
+if(WIN32)
+    add_definitions(-DNOMINMAX)
+endif()
 
 # Helper macros and functions
 

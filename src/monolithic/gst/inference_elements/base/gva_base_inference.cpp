@@ -902,6 +902,18 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
                                           "gstreamer-vaapi isn't built with required patches");
             }
         }
+#ifdef _MSC_VER
+        if (!base_inference->priv->d3d11_device && (base_inference->caps_feature == D3D11_MEMORY_CAPS_FEATURE)) {
+            // Try to query D3D11Device from decoder. Select dlstreamer::MemoryType::D3D11 memory type as default.
+            try {
+                base_inference->priv->d3d11_device =
+                    std::make_shared<dlstreamer::GSTContextQuery>(trans, dlstreamer::MemoryType::D3D11);
+                GST_INFO_OBJECT(trans, "Got D3D11Device (%p) from query", base_inference->priv->d3d11_device.get());
+            } catch (...) {
+                GST_WARNING_OBJECT(trans, "Couldn't query D3D11Device from gstreamer-d3d11 elements.");
+            }
+        }
+#endif
 
         base_inference->inference = acquire_inference_instance(base_inference).get();
         if (!base_inference->inference)
@@ -916,9 +928,21 @@ gboolean gva_base_inference_set_caps(GstBaseTransform *trans, GstCaps *incaps, G
         }
 
         // Create a buffer mapper once we know the target memory type
+#ifdef _MSC_VER
+        if (base_inference->caps_feature == D3D11_MEMORY_CAPS_FEATURE) {
+            base_inference->priv->buffer_mapper =
+                BufferMapperFactory::createMapper(base_inference->inference->GetInferenceMemoryType(),
+                                                  base_inference->info, base_inference->priv->d3d11_device);
+        } else {
+            base_inference->priv->buffer_mapper =
+                BufferMapperFactory::createMapper(base_inference->inference->GetInferenceMemoryType(),
+                                                  base_inference->info, base_inference->priv->va_display);
+        }
+#else
         base_inference->priv->buffer_mapper =
             BufferMapperFactory::createMapper(base_inference->inference->GetInferenceMemoryType(), base_inference->info,
                                               base_inference->priv->va_display);
+#endif
 
         if (!base_inference->priv->buffer_mapper)
             throw std::runtime_error("couldn't create buffer mapper");

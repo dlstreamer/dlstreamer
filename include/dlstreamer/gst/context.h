@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2024 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,6 +14,10 @@
 #include "dlstreamer/gst/mappers/gst_to_vaapi.h"
 #include "dlstreamer/gst/utils.h"
 #include "dlstreamer/utils.h"
+#ifdef _MSC_VER
+#define GST_USE_UNSTABLE_API
+#include <gst/d3d11/gstd3d11device.h>
+#endif
 
 namespace dlstreamer {
 
@@ -57,7 +61,17 @@ class GSTContextQuery : public BaseContext {
                 gst_object_unref(display_obj);
                 GST_INFO("Got VADisplay from VA context: %p", value);
             }
-        } else {
+        }
+#ifdef _MSC_VER
+        else if (key == BaseContext::key::d3d_device) {
+            GstD3D11Device *d3d11_device = NULL;
+            if (gst_structure_get(_structure, "device", GST_TYPE_D3D11_DEVICE, &d3d11_device, NULL)) {
+                value = reinterpret_cast<handle_t>(d3d11_device);
+                // gst_clear_object(&d3d11_device);
+            }
+        }
+#endif
+        else {
             if (!gst_structure_get(_structure, key.data(), G_TYPE_POINTER, &value, NULL)) {
                 GST_ERROR("Invalid gst_structure_get() method field(s) requested");
             }
@@ -77,13 +91,20 @@ class GSTContextQuery : public BaseContext {
     static constexpr auto VA_DISPLAY_FIELD_NAME = "gst-display";
     static constexpr auto VA_DISPLAY_PROPERTY_NAME = "va-display";
 
+    static constexpr auto D3D11_CONTEXT_NAME = "gst.d3d11.device.handle";
+
     const char *get_context_name(MemoryType memory_type) {
         if (memory_type == MemoryType::VA) {
             // Load GST-VA and reuse VAAPI path.
             set_memory_type(MemoryType::VAAPI);
             return VA_CONTEXT_NAME;
         }
-
+#ifdef _MSC_VER
+        if (memory_type == MemoryType::D3D11) {
+            set_memory_type(MemoryType::D3D11);
+            return D3D11_CONTEXT_NAME;
+        }
+#endif
         if (memory_type == MemoryType::VAAPI) {
             GST_ELEMENT_WARNING(_context, LIBRARY, INIT, ("VASurface and Gst-VAAPI is deprecated."),
                                 ("%s", "Please use VAMemory na Gst-VA instead."));

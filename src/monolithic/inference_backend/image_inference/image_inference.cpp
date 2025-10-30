@@ -7,6 +7,9 @@
 #include "image_inference_async/image_inference_async.h"
 #include "openvino_image_inference.h"
 #include "utils.h"
+#ifdef _MSC_VER
+#include "image_inference_async_d3d11/image_inference_async_d3d11.h"
+#endif
 
 using namespace InferenceBackend;
 
@@ -71,6 +74,27 @@ ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType inpu
         break;
     }
 
+    case MemoryType::D3D11: {
+        async_mode = true;
+        // Ensure context is provided for D3D11
+        if (!context) {
+            throw std::invalid_argument("Null context provided (D3D11Context is expected)");
+        }
+        // Determine the preprocessor type based on configuration
+        ImagePreprocessorType preproc_type = getPreProcType(config.at(KEY_BASE));
+        switch (preproc_type) {
+        case ImagePreprocessorType::D3D11:
+            memory_type_to_use = MemoryType::SYSTEM;
+            break;
+        case ImagePreprocessorType::D3D11_SURFACE_SHARING:
+            memory_type_to_use = MemoryType::D3D11;
+            throw std::runtime_error("Not implemented yet");
+            break;
+        default:
+            throw std::runtime_error("Incorrect pre-process-backend, should be d3d11 or d3d11-surface-sharing");
+        }
+        break;
+    }
     default:
         throw std::invalid_argument("Unsupported memory type");
     }
@@ -82,8 +106,13 @@ ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType inpu
     ImageInference::Ptr result_inference;
     if (async_mode) {
 #ifdef ENABLE_VAAPI
+#ifndef _MSC_VER
         // Wrap the inference in an asynchronous handler if async mode is enabled
         result_inference = std::make_shared<ImageInferenceAsync>(config, context, std::move(ov_inference));
+#endif
+#endif
+#ifdef _MSC_VER
+        result_inference = std::make_shared<ImageInferenceAsyncD3D11>(config, context, std::move(ov_inference));
 #endif
     } else {
         // Use the OpenVINO inference directly if not in async mode

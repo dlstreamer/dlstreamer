@@ -8,6 +8,10 @@ set (TARGET_NAME "dlstreamer_gst")
 
 pkg_search_module(VA va libva REQUIRED)
 
+if(WIN32)
+    pkg_check_modules(GSTD3D11 gstreamer-d3d11-1.0>=1.16 REQUIRED)
+endif()
+
 add_library(${TARGET_NAME} SHARED allocator.cpp transform_element.cpp)
 set_compile_flags(${TARGET_NAME})
 
@@ -21,6 +25,13 @@ PRIVATE
         ${VA_INCLUDE_DIRS}
         )
 
+if(WIN32)
+    target_include_directories(${TARGET_NAME}
+    PRIVATE
+        ${GSTD3D11_INCLUDE_DIRS}
+    )
+endif()
+
 target_link_libraries(${TARGET_NAME}
 PUBLIC
         dlstreamer_api
@@ -33,6 +44,13 @@ PUBLIC
 PRIVATE
         ${GSTALLOC_LIBRARIES}
 )
+
+if(WIN32)
+    target_link_libraries(${TARGET_NAME}
+    PRIVATE
+        ${GSTD3D11_LIBRARIES}
+    )
+endif()
 
 install(TARGETS ${TARGET_NAME} DESTINATION ${DLSTREAMER_PLUGINS_INSTALL_PATH})
 
