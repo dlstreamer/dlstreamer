@@ -20,7 +20,7 @@ DEFAULT_METRICS="false"
 show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Video Summarization with MiniCPM-V model using gvagenai element"
+    echo "Video Summarization with MiniCPM-V or Phi-4-multimodal-instruct model using gvagenai element"
     echo ""
     echo "Options:"
     echo "  -s, --source FILE/URL/CAMERA      Input source (file path, URL or web camera)"
@@ -40,11 +40,12 @@ show_usage() {
     echo ""
 }
 
-# Check if MINICPM_MODEL_PATH is set
-if [ -z "${MINICPM_MODEL_PATH:-}" ]; then
-    echo "ERROR - MINICPM_MODEL_PATH environment variable is not set." >&2
-    echo "Please set it to the path where your MiniCPM-V model is located." >&2
-    echo "Example: export MINICPM_MODEL_PATH=/path/to/minicpm-v-model" >&2
+# Check if GENAI_MODEL_PATH is set
+if [ -z "${GENAI_MODEL_PATH:-}" ]; then
+    echo "ERROR - GENAI_MODEL_PATH environment variable is not set." >&2
+    echo "Please set it to the path where your MiniCPM-V or Phi-4-multimodal-instruct model is located." >&2
+    echo "Examples: export GENAI_MODEL_PATH=/path/to/minicpm-v-model" >&2
+    echo "          export GENAI_MODEL_PATH=/path/to/Phi-4-multimodal" >&2
     exit 1
 fi
 
@@ -120,8 +121,8 @@ if [[ "$DEVICE" != "CPU" && "$DEVICE" != "GPU" && "$DEVICE" != "NPU" ]]; then
 fi
 
 # Print configuration
-echo "=== MiniCPM-V with gvagenai Configuration ==="
-echo "Model Path: $MINICPM_MODEL_PATH"
+echo "=== sample gvagenai configuration ==="
+echo "Model Path: $GENAI_MODEL_PATH"
 echo "Source: $INPUT"
 echo "Device: $DEVICE"
 echo "Prompt: $PROMPT"
@@ -132,8 +133,8 @@ echo "Metrics: $METRICS"
 echo "==========================================="
 
 # Check if model exists
-if [ ! -d "$MINICPM_MODEL_PATH" ]; then
-    echo "ERROR - Model directory not found: $MINICPM_MODEL_PATH" >&2
+if [ ! -d "$GENAI_MODEL_PATH" ]; then
+    echo "ERROR - Model directory not found: $GENAI_MODEL_PATH" >&2
     exit 1
 fi
 
@@ -150,7 +151,7 @@ fi
 GENERATION_CONFIG="max_new_tokens=${MAX_NEW_TOKENS}"
 
 # Create the pipeline
-OUTPUT_FILE="minicpm_output.json"
+OUTPUT_FILE="genai_output.json"
 
 PIPELINE="gst-launch-1.0 \
     $SOURCE_ELEMENT ! \
@@ -159,7 +160,7 @@ PIPELINE="gst-launch-1.0 \
     video/x-raw,format=RGB ! \
     gvagenai \
         device=$DEVICE \
-        model-path=\"$MINICPM_MODEL_PATH\" \
+        model-path=\"$GENAI_MODEL_PATH\" \
         prompt=\"$PROMPT\" \
         generation-config=\"$GENERATION_CONFIG\" \
         frame-rate=$FRAME_RATE \
@@ -169,7 +170,7 @@ PIPELINE="gst-launch-1.0 \
     fakesink async=false"
 
 echo ""
-echo "Running MiniCPM-V inference pipeline..."
+echo "Running gvagenai inference pipeline..."
 echo "Pipeline: $PIPELINE"
 echo ""
 
