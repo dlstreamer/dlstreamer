@@ -14,10 +14,10 @@
 #                 /       \
 #                /         \
 #               V           |
-#      gstreamer-builder    |
+#      gstreamer-builder  opencv-builder
 #               |           |
 #               |           |
-#    (copy libs) \          |
+#    (copy libs) \          | (copy libs)
 #                 \         |
 #                  V        V
 #                dlstreamer-dev
@@ -95,7 +95,7 @@ RUN \
     libcairo2-dev=\* libxt-dev=\* libgirepository1.0-dev=\* libgles2-mesa-dev=\* wayland-protocols=\* \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
     linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* \
-    ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libopencv-dev=\* opencv-data=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
+    ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
     libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* libxml2-dev=\* libsoup-3.0-0=\* &&  \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -136,7 +136,49 @@ USER root
 
 ENV PATH="/python3venv/bin:${PATH}"
 
-FROM builder AS gstreamer-builder
+# ==============================================================================
+FROM builder AS opencv-builder
+
+SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+# Build OpenCV
+WORKDIR /
+
+RUN \
+    curl -sSL -o opencv.zip https://github.com/opencv/opencv/archive/4.12.0.zip && \
+    curl -sSL -o opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.12.0.zip && \
+    unzip opencv.zip && \
+    unzip opencv_contrib.zip && \
+    rm opencv.zip opencv_contrib.zip && \
+    mv opencv-4.12.0 opencv && \
+    mv opencv_contrib-4.12.0 opencv_contrib && \
+    mkdir -p opencv/build
+
+WORKDIR /opencv/build
+
+RUN \
+    cmake \
+    -DBUILD_TESTS=OFF \
+    -DBUILD_PERF_TESTS=OFF \
+    -DBUILD_EXAMPLES=OFF \
+    -DBUILD_opencv_apps=OFF \
+    -DWITH_VA=ON \
+    -DWITH_VA_INTEL=ON \
+    -DWITH_FFMPEG=OFF \
+    -DWITH_TBB=ON \
+    -DWITH_OPENMP=ON \
+    -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
+    -DOPENCV_GENERATE_PKGCONFIG=YES \
+    -GNinja .. && \
+    ninja -j "$(nproc)" && \
+    ninja install
+
+WORKDIR /copy_libs
+RUN cp -a /usr/local/lib/libopencv* ./
+
+# ==============================================================================
+
+FROM opencv-builder AS gstreamer-builder
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
@@ -267,6 +309,9 @@ FROM builder AS dlstreamer-dev
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
+COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
+COPY --from=opencv-builder /copy_libs/ /usr/local/lib/
+COPY --from=opencv-builder /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4
 COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 
 # Build librealsense
@@ -373,6 +418,7 @@ RUN apt-get update && \
 RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
+    mkdir -p /deb-pkg/opt/opencv/include && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -381,6 +427,8 @@ RUN \
     cp -r "${DLSTREAMER_DIR}/include/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp "${DLSTREAMER_DIR}/README.md" /deb-pkg/opt/intel/dlstreamer && \
     cp -rT "${GSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer/gstreamer && \
+    cp -a /usr/local/lib/libopencv*.so* /deb-pkg/opt/opencv/ && \
+    cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \
@@ -471,7 +519,7 @@ RUN \
 # DL Streamer environment variables
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/:
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/usr/lib:/opt/intel/dlstreamer/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/usr/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc

@@ -371,9 +371,11 @@ cv::Mat convertClassIndicesToBGR(const cv::Mat &classMap, const std::vector<cv::
     CV_Assert(classMap.channels() == 1);
     cv::Mat colorMap(classMap.size(), CV_8UC3);
     for (int i = 0; i < classMap.rows; ++i) {
+        const double *classRowPtr = classMap.ptr<double>(i);
+        cv::Vec3b *colorRowPtr = colorMap.ptr<cv::Vec3b>(i);
         for (int j = 0; j < classMap.cols; ++j) {
-            int64_t classIdx = classMap.at<int64_t>(i, j);
-            colorMap.at<cv::Vec3b>(i, j) = colorPalette[classIdx];
+            int64_t classIdx = static_cast<int64_t>(classRowPtr[j]);
+            colorRowPtr[j] = colorPalette[classIdx];
         }
     }
     return colorMap;
