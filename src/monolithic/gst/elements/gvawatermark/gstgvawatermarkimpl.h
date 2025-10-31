@@ -7,9 +7,21 @@
 #ifndef _GST_GVA_WATERMARK_IMPL_H_
 #define _GST_GVA_WATERMARK_IMPL_H_
 
+#include "inference_backend/image_inference.h"
 #include <gst/base/gstbasetransform.h>
 #include <gst/video/video.h>
 #include <memory>
+
+#ifndef _MSC_VER
+#include <dlstreamer/gst/context.h>
+#include <dlstreamer/vaapi/context.h>
+#include <va/va.h>
+#endif
+
+#include <opencv2/core.hpp>
+#include <opencv2/core/ocl.hpp>
+#include <opencv2/core/va_intel.hpp>
+#include <opencv2/imgproc.hpp>
 
 G_BEGIN_DECLS
 
@@ -30,6 +42,18 @@ struct _GstGvaWatermarkImpl {
     gchar *device;
     bool obb;
     std::shared_ptr<struct Impl> impl;
+    InferenceBackend::MemoryType negotiated_mem_type = InferenceBackend::MemoryType::ANY;
+
+#ifndef _MSC_VER
+    VADisplay va_dpy = nullptr;
+    std::shared_ptr<dlstreamer::GSTContext> gst_ctx;
+    std::shared_ptr<dlstreamer::VAAPIContext> vaapi_ctx;
+    std::shared_ptr<dlstreamer::MemoryMapperGSTToVAAPI> gst_to_vaapi;
+#endif
+
+    bool overlay_ready = false;
+    cv::Mat overlay_cpu;
+    cv::UMat overlay_gpu;
 };
 
 struct _GstGvaWatermarkImplClass {

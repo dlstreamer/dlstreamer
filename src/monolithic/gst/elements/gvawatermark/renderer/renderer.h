@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,6 +18,7 @@
 class Renderer {
   public:
     void draw(dlstreamer::FramePtr buffer, std::vector<render::Prim> prims);
+    void draw_va(cv::Mat buffer, std::vector<render::Prim> prims);
 
     virtual ~Renderer() = default;
 

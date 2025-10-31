@@ -149,13 +149,13 @@ SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 WORKDIR /
 
 RUN \
-    curl -sSL --insecure -o opencv.zip https://github.com/opencv/opencv/archive/4.10.0.zip && \
-    curl -sSL --insecure -o opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.10.0.zip && \
+    curl -sSL --insecure -o opencv.zip https://github.com/opencv/opencv/archive/4.12.0.zip && \
+    curl -sSL --insecure -o opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/4.12.0.zip && \
     unzip opencv.zip && \
     unzip opencv_contrib.zip && \
     rm opencv.zip opencv_contrib.zip && \
-    mv opencv-4.10.0 opencv && \
-    mv opencv_contrib-4.10.0 opencv_contrib && \
+    mv opencv-4.12.0 opencv && \
+    mv opencv_contrib-4.12.0 opencv_contrib && \
     mkdir -p opencv/build
 
 WORKDIR /opencv/build
@@ -166,6 +166,11 @@ RUN \
     -DBUILD_PERF_TESTS=OFF \
     -DBUILD_EXAMPLES=OFF \
     -DBUILD_opencv_apps=OFF \
+    -DWITH_VA=ON \
+    -DWITH_VA_INTEL=ON \
+    -DWITH_FFMPEG=OFF \
+    -DWITH_TBB=ON \
+    -DWITH_OPENMP=ON \
     -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
     -DOPENCV_GENERATE_PKGCONFIG=YES \
     -GNinja .. && \

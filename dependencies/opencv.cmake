@@ -7,19 +7,13 @@
 include(ExternalProject)
 
 # When changing version, you will also need to change the download hash
-set(DESIRED_VERSION 4.6.0)
-
-find_package(OpenCV ${DESIRED_VERSION})
-
-if (OpenCV_FOUND)
-    return()
-endif()
+set(DESIRED_VERSION 4.12.0)
 
 ExternalProject_Add(
     opencv-contrib
     PREFIX ${CMAKE_BINARY_DIR}/opencv-contrib
     URL     https://github.com/opencv/opencv_contrib/archive/${DESIRED_VERSION}.zip
-    URL_MD5 9065c130d87da6f5e7a4044f6f7ce4f6
+    URL_MD5 2eecff53ebd74f6291108247d365cb61
     CONFIGURE_COMMAND   ""
     BUILD_COMMAND       ""
     INSTALL_COMMAND     ""
@@ -31,15 +25,23 @@ ExternalProject_Add(
     opencv
     PREFIX ${CMAKE_BINARY_DIR}/opencv
     URL     https://github.com/opencv/opencv/archive/${DESIRED_VERSION}.zip
-    URL_MD5 e86914869fd4811f42814a4a2ad98d86
+    URL_MD5 6bc2ed099ff31451242f37a5f2dac0cf
     CMAKE_GENERATOR     Ninja
     TEST_COMMAND        ""
     CMAKE_ARGS          -DBUILD_TESTS=OFF 
+                        -DCMAKE_BUILD_TYPE=Release
+                        -DOPENCV_GENERATE_PKGCONFIG=ON
+                        -DBUILD_SHARED_LIBS=ON
                         -DBUILD_PERF_TESTS=OFF 
                         -DBUILD_EXAMPLES=OFF 
                         -DBUILD_opencv_apps=OFF 
                         -DOPENCV_EXTRA_MODULES_PATH=${SOURCE_DIR}/modules
                         -DCMAKE_INSTALL_PREFIX:PATH=${CMAKE_BINARY_DIR}/opencv-bin
+                        -DWITH_VA=ON
+                        -DWITH_VA_INTEL=ON
+                        -DWITH_FFMPEG=OFF
+                        -DWITH_TBB=ON
+                        -DWITH_OPENMP=OFF
 )
 
 if (INSTALL_DLSTREAMER)
