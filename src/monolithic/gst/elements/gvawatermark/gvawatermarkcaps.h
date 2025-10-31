@@ -17,7 +17,7 @@
 #define WATERMARK_VASURFACE_CAPS                                                                                       \
     GST_VIDEO_CAPS_MAKE_WITH_FEATURES(VASURFACE_FEATURE_STR, WATERMARK_PREFERRED_REMOTE_FORMAT) "; "
 #define WATERMARK_VAMEMORY_CAPS                                                                                        \
-    GST_VIDEO_CAPS_MAKE_WITH_FEATURES(VAMEMORY_FEATURE_STR, WATERMARK_PREFERRED_REMOTE_FORMAT) "; "
+    GST_VIDEO_CAPS_MAKE_WITH_FEATURES(VAMEMORY_FEATURE_STR, WATERMARK_VA_PREFERRED_REMOTE_FORMAT) "; "
 #define WATERMARK_DMA_BUFFER_CAPS                                                                                      \
     GST_VIDEO_CAPS_MAKE_WITH_FEATURES(DMABUF_FEATURE_STR, WATERMARK_VA_PREFERRED_REMOTE_FORMAT) "; "
 #else

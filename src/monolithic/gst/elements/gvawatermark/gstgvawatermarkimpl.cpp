@@ -7,6 +7,19 @@
 #include "gstgvawatermarkimpl.h"
 #include "gvawatermarkcaps.h"
 
+#ifndef _MSC_VER
+#include <dlstreamer/image_info.h>
+#include <gmodule.h>
+#else
+// On Windows try to include libva headers if available; otherwise fall back to minimal constants.
+#if __has_include(<va/va.h>)
+#include <va/va.h>
+#endif
+#ifndef VA_INVALID_SURFACE
+#define VA_INVALID_SURFACE (-1)
+#endif
+#endif
+
 #include <gst/allocators/gstdmabuf.h>
 #include <gst/base/gstbasetransform.h>
 #include <gst/gst.h>
@@ -22,9 +35,7 @@
 #include "so_loader.h"
 #include "utils.h"
 #include "video_frame.h"
-#include <dlstreamer/gst/context.h>
-#include <dlstreamer/gst/frame.h>
-#include <dlstreamer/memory_mapper_factory.h>
+
 #ifdef ENABLE_VAAPI
 #include <dlstreamer/vaapi/mappers/vaapi_to_dma.h>
 #endif
@@ -35,6 +46,14 @@
 #include <exception>
 #include <string>
 #include <typeinfo>
+#ifndef ENABLE_VAAPI
+// VAAPI disabled: provide minimal stub types/constants to satisfy signatures without libva.
+#ifndef VA_INVALID_SURFACE
+#define VA_INVALID_SURFACE (-1)
+#endif
+typedef int VASurfaceID; // simple integral placeholder
+typedef void *VADisplay; // opaque pointer placeholder
+#endif
 
 #define ELEMENT_LONG_NAME "Implementation for detection/classification/recognition results labeling"
 #define ELEMENT_DESCRIPTION "Implements gstgvawatermark element functionality."
@@ -93,34 +112,14 @@ InferenceBackend::MemoryType memoryTypeFromCaps(GstCaps *caps) {
     }
 }
 
-dlstreamer::MemoryMapperPtr createMapperToDMA(InferenceBackend::MemoryType in_mem_type,
-                                              dlstreamer::ContextPtr context) {
-#ifdef ENABLE_VAAPI
-    auto in_mapper = BufferMapperFactory::createMapper(in_mem_type, context);
-    if (in_mem_type == InferenceBackend::MemoryType::DMA_BUFFER)
-        return in_mapper;
-
-    if (in_mem_type != InferenceBackend::MemoryType::VAAPI)
-        throw std::runtime_error("Unsupported input memory type for DMA FD conversion");
-
-    // In case of VAAPI memory create chain of mappers GST -> VAAPI -> DMA
-    auto vaapi_to_dma = std::make_shared<dlstreamer::MemoryMapperVAAPIToDMA>(context, nullptr);
-    return std::make_shared<dlstreamer::MemoryMapperChain>(
-        dlstreamer::MemoryMapperChain{std::move(in_mapper), std::move(vaapi_to_dma)});
-#else
-    UNUSED(in_mem_type);
-    UNUSED(context);
-    throw std::runtime_error("VAAPI disabled");
-    return nullptr;
-#endif
-}
-
 } // namespace
 
 struct Impl {
-    Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
-         dlstreamer::ContextPtr context, bool obb);
+    Impl(GstVideoInfo *info, InferenceBackend::MemoryType mem_type);
+    bool extract_primitives(GstBuffer *buffer);
+    int get_num_primitives() const;
     bool render(GstBuffer *buffer);
+    bool render_va(cv::Mat *buffer);
     const std::string &getBackendType() const {
         return _backend_type;
     }
@@ -135,13 +134,14 @@ struct Impl {
                                             const std::vector<uint32_t> &dims, const std::vector<float> &confidence,
                                             const GVA::Rect<double> &rectangle, std::vector<render::Prim> &prims) const;
 
-    std::unique_ptr<Renderer> createRenderer(std::shared_ptr<ColorConverter> converter, DEVICE_SELECTOR device,
-                                             InferenceBackend::MemoryType mem_type, dlstreamer::ContextPtr context);
+    std::unique_ptr<Renderer> createRenderer(std::shared_ptr<ColorConverter> converter);
 
     std::unique_ptr<Renderer> createGPURenderer(dlstreamer::ImageFormat format,
                                                 std::shared_ptr<ColorConverter> converter,
                                                 InferenceBackend::MemoryType mem_type,
                                                 dlstreamer::ContextPtr vaapi_context);
+
+    std::unique_ptr<Renderer> createOpenCVRenderer(std::shared_ptr<ColorConverter> converter);
 
     GstVideoInfo *_vinfo;
     std::string _backend_type;
@@ -149,6 +149,9 @@ struct Impl {
 
     SharedObject::Ptr _gpurenderer_loader;
     std::unique_ptr<Renderer> _renderer;
+    std::unique_ptr<Renderer> _renderer_opencv;
+
+    std::vector<render::Prim> prims;
 
     const int _thickness = 2;
     const double _radius_multiplier = 0.0025;
@@ -238,14 +241,15 @@ void gst_gva_watermark_impl_finalize(GObject *object) {
 }
 
 static gboolean gst_gva_watermark_impl_start(GstBaseTransform *trans) {
-    GstGvaWatermarkImpl *gvawatermark = GST_GVA_WATERMARK_IMPL(trans);
-
-    GST_DEBUG_OBJECT(gvawatermark, "start");
-
-    GST_INFO_OBJECT(gvawatermark, "%s parameters:\n -- Device: %s\n", GST_ELEMENT_NAME(GST_ELEMENT_CAST(gvawatermark)),
-                    gvawatermark->device);
-
-    return true;
+    auto *self = GST_GVA_WATERMARK_IMPL(trans);
+    GST_DEBUG_OBJECT(self, "start");
+#ifdef ENABLE_VAAPI
+    // Always request VA display early (idempotent)
+    gst_element_post_message(GST_ELEMENT(self),
+                             gst_message_new_need_context(GST_OBJECT(self), "gst.va.display.handle"));
+#endif
+    GST_INFO_OBJECT(self, "%s parameters:\n -- Device: %s\n", GST_ELEMENT_NAME(GST_ELEMENT_CAST(self)), self->device);
+    return TRUE;
 }
 
 static gboolean gst_gva_watermark_impl_stop(GstBaseTransform *trans) {
@@ -266,17 +270,16 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
 
     gst_video_info_from_caps(&gvawatermark->info, incaps);
     const auto mem_type = memoryTypeFromCaps(incaps);
-    DEVICE_SELECTOR device = DEVICE_CPU;
+    gvawatermark->negotiated_mem_type = mem_type;
+
     if (!gvawatermark->device) {
         switch (mem_type) {
         // For now use CPU renderer for d3d11
         case MemoryType::D3D11:
         case MemoryType::SYSTEM:
-            device = DEVICE_CPU;
             break;
         case MemoryType::VAAPI:
         case MemoryType::DMA_BUFFER:
-            device = DEVICE_GPU_AUTOSELECTED;
             break;
         default:
             GST_ERROR_OBJECT(gvawatermark, "Unsupported memory type: %d", static_cast<int>(mem_type));
@@ -284,7 +287,6 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
         }
     } else {
         if (std::string(gvawatermark->device) == "GPU") {
-            device = DEVICE_GPU;
             if (get_caps_feature(incaps) == SYSTEM_MEMORY_CAPS_FEATURE) {
                 GST_ELEMENT_ERROR(
                     gvawatermark, CORE, FAILED,
@@ -295,7 +297,6 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
                 return false;
             }
         } else if (std::string(gvawatermark->device) == "CPU") {
-            device = DEVICE_CPU;
         } else {
             GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Unsupported 'device' property name"),
                               ("Device with %s name is not supported in the gvawatermark", gvawatermark->device));
@@ -305,20 +306,27 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
 
     gvawatermark->impl.reset();
 
+#if defined(ENABLE_VAAPI) && !defined(_MSC_VER)
     VaApiDisplayPtr va_dpy;
     if (mem_type == MemoryType::VAAPI) {
-        try {
-            va_dpy = std::make_shared<dlstreamer::GSTContextQuery>(
-                trans, (get_caps_feature(incaps) == VA_MEMORY_CAPS_FEATURE) ? dlstreamer::MemoryType::VA
-                                                                            : dlstreamer::MemoryType::VAAPI);
-        } catch (const std::exception &e) {
-            GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not create VAAPI context"),
-                              ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));
+        // Prefer context obtained via set_context
+        if (gvawatermark->vaapi_ctx) {
+            va_dpy = gvawatermark->vaapi_ctx;
+        } else {
+            try {
+                va_dpy = std::make_shared<dlstreamer::GSTContextQuery>(
+                    trans, (get_caps_feature(incaps) == VA_MEMORY_CAPS_FEATURE) ? dlstreamer::MemoryType::VA
+                                                                                : dlstreamer::MemoryType::VAAPI);
+            } catch (const std::exception &e) {
+                GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not create VAAPI context"),
+                                  ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));
+            }
         }
     }
+#endif
 
     try {
-        gvawatermark->impl = std::make_shared<Impl>(&gvawatermark->info, device, mem_type, va_dpy, gvawatermark->obb);
+        gvawatermark->impl = std::make_shared<Impl>(&gvawatermark->info, mem_type);
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(gvawatermark, CORE, FAILED, ("Could not initialize"),
                           ("Cannot create watermark instance. %s", Utils::createNestedErrorMsg(e).c_str()));
@@ -333,6 +341,167 @@ static gboolean gst_gva_watermark_impl_set_caps(GstBaseTransform *trans, GstCaps
     return true;
 }
 
+// Resolve VA display only when VAAPI enabled (Linux path); otherwise stub.
+#ifdef ENABLE_VAAPI
+#ifndef _WIN32
+static VADisplay resolve_va_display_from_gst_display(GstObject *gst_display_obj) {
+    if (!gst_display_obj)
+        return nullptr;
+    static GModule *mod = nullptr;
+    if (!mod) {
+        const char *sons[] = {"libgstva-1.0.so.0", "libgstva-1.0.so"};
+        for (auto son : sons) {
+            mod = g_module_open(son, G_MODULE_BIND_LAZY);
+            if (mod)
+                break;
+        }
+    }
+    if (!mod)
+        return nullptr;
+    using GetVaFn = VADisplay (*)(gpointer);
+    GetVaFn get_va = nullptr;
+    const char *syms[] = {"gst_va_display_get_va_display", "gst_va_display_get_va_dpy"};
+    for (auto s : syms) {
+        if (g_module_symbol(mod, s, (gpointer *)&get_va) && get_va)
+            break;
+    }
+    return get_va ? get_va((gpointer)gst_display_obj) : nullptr;
+}
+#else
+static VADisplay resolve_va_display_from_gst_display(GstObject *) { return nullptr; }
+#endif
+#else
+static VADisplay resolve_va_display_from_gst_display(GstObject *) { return nullptr; }
+#endif
+
+// Grab VADisplay from GstContext (handles both pointer and object cases)
+static void gst_gva_watermark_impl_set_context(GstElement *elem, GstContext *context) {
+    auto *self = GST_GVA_WATERMARK_IMPL(elem);
+    const gchar *ctx_type = gst_context_get_context_type(context);
+    const GstStructure *s = gst_context_get_structure(context);
+
+#if defined(ENABLE_VAAPI) && !defined(_MSC_VER)
+    if (!self->gst_ctx)
+        self->gst_ctx = std::make_shared<dlstreamer::GSTContext>(GST_ELEMENT(self));
+
+    if (!self->va_dpy && g_strcmp0(ctx_type, "gst.va.display.handle") == 0) {
+        if (gst_structure_has_field(s, "va-display")) {
+            self->va_dpy = (VADisplay)g_value_get_pointer(gst_structure_get_value(s, "va-display"));
+            GST_INFO_OBJECT(self, "Acquired VADisplay pointer: %p", self->va_dpy);
+        } else if (gst_structure_has_field(s, "gst-display")) {
+            GstObject *gst_disp = nullptr;
+            gst_structure_get(s, "gst-display", GST_TYPE_OBJECT, &gst_disp, NULL);
+            if (gst_disp) {
+                self->va_dpy = resolve_va_display_from_gst_display(gst_disp);
+                GST_INFO_OBJECT(self, "Acquired VADisplay from GstVaDisplay: %p", self->va_dpy);
+                gst_object_unref(gst_disp);
+            }
+        }
+    }
+
+    if (self->va_dpy && (!self->vaapi_ctx || !self->gst_to_vaapi)) {
+        self->vaapi_ctx = std::make_shared<dlstreamer::VAAPIContext>(self->va_dpy);
+        self->gst_to_vaapi = std::make_shared<dlstreamer::MemoryMapperGSTToVAAPI>(self->gst_ctx, self->vaapi_ctx);
+        GST_INFO_OBJECT(self, "Initialized VAAPI context and GST->VAAPI mapper");
+
+        static bool ocl_ctx_inited = false;
+        if (!ocl_ctx_inited && !g_getenv("VA_GPU_DISABLE_VA_OCL_INIT")) {
+            try {
+                cv::va_intel::ocl::initializeContextFromVA(self->va_dpy, /*interop*/ true);
+                GST_INFO_OBJECT(self, "OpenCV VA/OpenCL context initialized (zero-copy requested)");
+                ocl_ctx_inited = true;
+
+                if (cv::ocl::useOpenCL()) {
+                    cv::ocl::Device dev = cv::ocl::Device::getDefault();
+#if defined(CV_VERSION_MAJOR)
+                    GST_INFO_OBJECT(self, "OpenCL device: %s (vendor=%s version=%s driver=%s)", dev.name().c_str(),
+                                    dev.vendorName().c_str(), dev.version().c_str(), dev.driverVersion().c_str());
+#else
+                    GST_INFO_OBJECT(self, "OpenCL device: %s (vendorID=%d version=%s)", dev.name().c_str(),
+                                    dev.vendorID(), dev.version().c_str());
+#endif
+                } else {
+                    GST_WARNING_OBJECT(self, "OpenCL not active after initializeContextFromVA");
+                }
+            } catch (const cv::Exception &e) {
+                GST_WARNING_OBJECT(self, "initializeContextFromVA failed: %s (will use fallback copies if any)",
+                                   e.what());
+            }
+        }
+    }
+#endif // ENABLE_VAAPI && !_MSC_VER
+
+    GST_ELEMENT_CLASS(gst_gva_watermark_impl_parent_class)->set_context(elem, context);
+}
+
+static bool buffer_has_va(GstBuffer *buf) {
+    if (!buf)
+        return false;
+    guint n = gst_buffer_n_memory(buf);
+    for (guint i = 0; i < n; ++i) {
+        GstMemory *m = gst_buffer_peek_memory(buf, i);
+        if (!m)
+            continue;
+        if (gst_is_dmabuf_memory(m))
+            return true;
+        if (gst_memory_is_type(m, "VAMemory"))
+            return true;
+    }
+    return false;
+}
+
+// Minimal fallback: resolve VASurfaceID from GstVA at runtime (no unstable headers)
+#ifdef ENABLE_VAAPI
+#ifdef _WIN32
+static VASurfaceID get_surface_from_buffer(GstBuffer *) { return VA_INVALID_SURFACE; }
+#else
+static VASurfaceID get_surface_from_buffer(GstBuffer *buf) {
+    if (!buf)
+        return VA_INVALID_SURFACE;
+
+    static GModule *mod = nullptr;
+    if (!mod) {
+        const char *sons[] = {"libgstva-1.0.so.0", "libgstva-1.0.so"};
+        for (auto son : sons) {
+            mod = g_module_open(son, G_MODULE_BIND_LAZY);
+            if (mod)
+                break;
+        }
+    }
+    if (!mod)
+        return VA_INVALID_SURFACE;
+
+    using GetSurfFromBuf = VASurfaceID (*)(GstBuffer *);
+    using GetSurfFromMem = VASurfaceID (*)(GstMemory *);
+
+    GetSurfFromBuf get_from_buf = nullptr;
+    GetSurfFromMem get_from_mem = nullptr;
+    g_module_symbol(mod, "gst_va_buffer_get_surface", (gpointer *)&get_from_buf);
+    g_module_symbol(mod, "gst_va_memory_get_surface", (gpointer *)&get_from_mem);
+
+    if (get_from_buf) {
+        VASurfaceID s = get_from_buf(buf);
+        if (s != VA_INVALID_SURFACE)
+            return s;
+    }
+    if (get_from_mem) {
+        guint n = gst_buffer_n_memory(buf);
+        for (guint i = 0; i < n; ++i) {
+            GstMemory *m = gst_buffer_peek_memory(buf, i);
+            if (m && gst_memory_is_type(m, "VAMemory")) {
+                VASurfaceID s = get_from_mem(m);
+                if (s != VA_INVALID_SURFACE)
+                    return s;
+            }
+        }
+    }
+    return VA_INVALID_SURFACE;
+}
+#endif
+#else
+static VASurfaceID get_surface_from_buffer(GstBuffer *) { return VA_INVALID_SURFACE; }
+#endif
+
 static GstFlowReturn gst_gva_watermark_impl_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
     GstGvaWatermarkImpl *gvawatermark = GST_GVA_WATERMARK_IMPL(trans);
 
@@ -342,17 +511,89 @@ static GstFlowReturn gst_gva_watermark_impl_transform_ip(GstBaseTransform *trans
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
     }
 
-    // TODO: remove when problem with refcounting in inference elements is resolved
-    if (!gst_buffer_is_writable(buf)) {
-        GST_ELEMENT_WARNING(gvawatermark, STREAM, FAILED, ("Can't draw because buffer is not writable. Skipped"),
-                            (nullptr));
-        return GST_FLOW_OK;
-    }
+    InferenceBackend::MemoryType mt = gvawatermark->negotiated_mem_type;
+    bool negotiated_is_va =
+        (mt == InferenceBackend::MemoryType::VAAPI || mt == InferenceBackend::MemoryType::DMA_BUFFER);
+    bool buffer_is_va_like = negotiated_is_va && buffer_has_va(buf);
+#if defined(ENABLE_VAAPI) && !defined(_MSC_VER)
+    bool have_va_context = (gvawatermark->vaapi_ctx || gvawatermark->va_dpy);
+#else
+    bool have_va_context = false;
+#endif
+    bool force_cpu = (gvawatermark->device && g_strcmp0(gvawatermark->device, "CPU") == 0);
+    bool use_gpu_path = have_va_context && buffer_is_va_like && !force_cpu;
+// Disable GPU/VA render path when VAAPI feature disabled at build time.
+#ifndef ENABLE_VAAPI
+    use_gpu_path = false;
+#endif
 
     try {
         if (!gvawatermark->impl)
             throw std::invalid_argument("Watermark is not set");
-        gvawatermark->impl->render(buf);
+
+        gvawatermark->impl->extract_primitives(buf);
+
+        // return if there is nothing to render
+        if (gvawatermark->impl->get_num_primitives() == 0) {
+            GST_DEBUG_OBJECT(gvawatermark, "No primitives to render");
+            return GST_FLOW_OK;
+        }
+
+    // VA/GPU render path only when VAAPI enabled
+#if defined(ENABLE_VAAPI) && !defined(_MSC_VER)
+    if (use_gpu_path) {
+            GST_TRACE_OBJECT(gvawatermark, "Using VA/GPU render path");
+
+            VASurfaceID sid = VA_INVALID_SURFACE;
+            sid = get_surface_from_buffer(buf);
+            if (sid == VA_INVALID_SURFACE) {
+                GST_WARNING_OBJECT(gvawatermark,
+                                   "Mapped frame is not VAAPIFrame and GstVA fallback failed; pass-through");
+                use_gpu_path = false;
+            } else {
+                GST_INFO_OBJECT(gvawatermark, "Using GstVA, VASurfaceID=%d", (int)sid);
+                // At this point you have valid VADisplay (self->va_dpy) and VASurfaceID (sid)
+                GST_LOG_OBJECT(gvawatermark, "Got VADisplay=%p, VASurfaceID=%d", gvawatermark->va_dpy, (int)sid);
+
+                const int width = GST_VIDEO_INFO_WIDTH(&gvawatermark->info);
+                const int height = GST_VIDEO_INFO_HEIGHT(&gvawatermark->info);
+
+                if (!gvawatermark->overlay_ready || gvawatermark->overlay_cpu.empty() ||
+                    gvawatermark->overlay_cpu.cols != width || gvawatermark->overlay_cpu.rows != height ||
+                    gvawatermark->overlay_cpu.type() != CV_8UC3) {
+
+                    gvawatermark->overlay_cpu.create(height, width, CV_8UC3);
+                    gvawatermark->overlay_ready = true;
+                    GST_INFO_OBJECT(gvawatermark, "Allocated CPU overlay (%dx%d CV_8UC4)", width, height);
+                }
+
+                // Clear only once per frame (fast memset on host)
+                gvawatermark->overlay_cpu.setTo(cv::Scalar(0, 0, 0, 0));
+
+                cv::UMat u;
+                cv::va_intel::convertFromVASurface(gvawatermark->va_dpy, sid, cv::Size(width, height), u);
+
+                gvawatermark->impl->render_va(&(gvawatermark->overlay_cpu));
+
+                // Upload once (host -> UMat). OpenCL runtime can keep it on device afterward.
+                gvawatermark->overlay_cpu.copyTo(gvawatermark->overlay_gpu);
+
+                if (cv::ocl::useOpenCL()) {
+                    cv::UMat gray, mask;
+                    cv::cvtColor(gvawatermark->overlay_gpu, gray, cv::COLOR_BGR2GRAY);
+                    cv::threshold(gray, mask, 0, 255, cv::THRESH_BINARY);
+                    gvawatermark->overlay_gpu.copyTo(u, mask);
+
+                    cv::va_intel::convertToVASurface(gvawatermark->va_dpy, u, sid, cv::Size(width, height));
+                }
+            }
+    }
+#endif // ENABLE_VAAPI
+
+        if (!use_gpu_path) {
+            GST_TRACE_OBJECT(gvawatermark, "Using CPU/System render path");
+            gvawatermark->impl->render(buf);
+        }
     } catch (const std::exception &e) {
         const std::string msg = Utils::createNestedErrorMsg(e);
         GST_ELEMENT_ERROR(gvawatermark, STREAM, FAILED, ("gvawatermark has failed to process frame."),
@@ -388,6 +629,8 @@ static void gst_gva_watermark_impl_class_init(GstGvaWatermarkImplClass *klass) {
     gst_element_class_set_static_metadata(element_class, ELEMENT_LONG_NAME, "Video", ELEMENT_DESCRIPTION,
                                           "Intel Corporation");
 
+    element_class->set_context = GST_DEBUG_FUNCPTR(gst_gva_watermark_impl_set_context);
+
     gobject_class->set_property = gst_gva_watermark_impl_set_property;
     gobject_class->get_property = gst_gva_watermark_impl_get_property;
     gobject_class->dispose = gst_gva_watermark_impl_dispose;
@@ -412,9 +655,7 @@ static void gst_gva_watermark_impl_class_init(GstGvaWatermarkImplClass *klass) {
                                                          (GParamFlags)(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS)));
 }
 
-Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryType mem_type,
-           dlstreamer::ContextPtr context, bool obb)
-    : _vinfo(info), _mem_type(mem_type), _obb(obb) {
+Impl::Impl(GstVideoInfo *info, InferenceBackend::MemoryType mem_type) : _vinfo(info), _mem_type(mem_type) {
     assert(_vinfo);
     if (GST_VIDEO_INFO_COLORIMETRY(_vinfo).matrix == GstVideoColorMatrix::GST_VIDEO_COLOR_MATRIX_UNKNOWN)
         throw std::runtime_error("GST_VIDEO_COLOR_MATRIX_UNKNOWN");
@@ -425,8 +666,11 @@ Impl::Impl(GstVideoInfo *info, DEVICE_SELECTOR device, InferenceBackend::MemoryT
 
     dlstreamer::ImageFormat format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(_vinfo));
     std::shared_ptr<ColorConverter> converter = create_color_converter(format, color_table, Kr, Kb);
+    std::shared_ptr<ColorConverter> converterBGR =
+        create_color_converter(dlstreamer::ImageFormat::BGR, color_table, Kr, Kb);
 
-    _renderer = createRenderer(std::move(converter), device, mem_type, context);
+    _renderer = createRenderer(std::move(converter));
+    _renderer_opencv = createOpenCVRenderer(std::move(converterBGR));
 }
 
 size_t get_keypoint_index_by_name(const gchar *target_name, GValueArray *names) {
@@ -444,26 +688,13 @@ size_t get_keypoint_index_by_name(const gchar *target_name, GValueArray *names) 
     return names->n_values;
 }
 
-bool Impl::render(GstBuffer *buffer) {
+bool Impl::extract_primitives(GstBuffer *buffer) {
     ITT_TASK(__FUNCTION__);
 
-    // For D3D11 input, map to system memory temporarily for rendering
-    GstBuffer *render_buffer = buffer;
-    GstMapInfo map_info;
-    bool mapped = false;
-
-    if (_mem_type == InferenceBackend::MemoryType::D3D11) {
-        // Map D3D11 buffer to system memory for CPU rendering
-        if (!gst_buffer_map(buffer, &map_info, GST_MAP_READWRITE)) {
-            return false;
-        }
-        mapped = true;
-    }
-
-    GVA::VideoFrame video_frame(render_buffer, _vinfo);
+    GVA::VideoFrame video_frame(buffer, _vinfo);
     auto video_frame_rois = video_frame.regions();
 
-    std::vector<render::Prim> prims;
+    prims.clear();
     prims.reserve(video_frame_rois.size());
     // Prepare primitives for all ROIs
     for (auto &roi : video_frame_rois) {
@@ -489,15 +720,48 @@ bool Impl::render(GstBuffer *buffer) {
     if (ff_text.tellp() != 0)
         prims.emplace_back(render::Text(ff_text.str(), _ff_text_position, _font.type, _font.scale, _default_color));
 
+    return true;
+}
+
+int Impl::get_num_primitives() const {
+    return static_cast<int>(prims.size());
+}
+
+bool Impl::render(GstBuffer *buffer) {
+    ITT_TASK(__FUNCTION__);
+
+    // For D3D11 input, map to system memory temporarily for rendering
+    GstMapInfo map_info;
+    bool mapped = false;
+
+    if (_mem_type == InferenceBackend::MemoryType::D3D11) {
+        // Map D3D11 buffer to system memory for CPU rendering
+        if (!gst_buffer_map(buffer, &map_info, GST_MAP_READWRITE)) {
+            return false;
+        }
+        mapped = true;
+    }
+
     // Skip render if there are no primitives to draw
     if (!prims.empty()) {
-        auto gstbuffer = std::make_shared<dlstreamer::GSTFrame>(render_buffer, _vinfo);
+        auto gstbuffer = std::make_shared<dlstreamer::GSTFrame>(buffer, _vinfo);
         _renderer->draw(gstbuffer, prims);
     }
 
     // Unmap D3D11 buffer if it was mapped
     if (mapped) {
         gst_buffer_unmap(buffer, &map_info);
+    }
+
+    return true;
+}
+
+bool Impl::render_va(cv::Mat *buffer) {
+    ITT_TASK(__FUNCTION__);
+
+    // Skip render if there are no primitives to draw
+    if (!prims.empty()) {
+        _renderer_opencv->draw_va(*buffer, prims);
     }
 
     return true;
@@ -752,47 +1016,18 @@ void Impl::preparePrimsForKeypointConnections(GstStructure *s, const std::vector
     g_value_array_free(point_names);
 }
 
-std::unique_ptr<Renderer> Impl::createRenderer(std::shared_ptr<ColorConverter> converter, DEVICE_SELECTOR device,
-                                               InferenceBackend::MemoryType mem_type, dlstreamer::ContextPtr context) {
+std::unique_ptr<Renderer> Impl::createRenderer(std::shared_ptr<ColorConverter> converter) {
 
     dlstreamer::ImageFormat format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(_vinfo));
-    if (device == DEVICE_GPU || device == DEVICE_GPU_AUTOSELECTED) {
-        try {
-            auto renderer = createGPURenderer(format, converter, mem_type, context);
-            _backend_type = "GPU";
-            return renderer;
-        } catch (const std::exception &e) {
-            if (device == DEVICE_GPU) {
-                std::string err_msg =
-                    "GPU Watermark initialization failed: " + std::string(e.what()) + ". " + Utils::dpcppInstructionMsg;
-                throw std::runtime_error(err_msg);
-            }
-        }
-    }
-    _backend_type = "CPU";
     auto buf_mapper = BufferMapperFactory::createMapper(InferenceBackend::MemoryType::SYSTEM);
     return create_cpu_renderer(format, converter, std::move(buf_mapper));
 }
 
-std::unique_ptr<Renderer> Impl::createGPURenderer(dlstreamer::ImageFormat format,
-                                                  std::shared_ptr<ColorConverter> converter,
-                                                  InferenceBackend::MemoryType mem_type,
-                                                  dlstreamer::ContextPtr vaapi_context) {
+std::unique_ptr<Renderer> Impl::createOpenCVRenderer(std::shared_ptr<ColorConverter> converter) {
 
-    constexpr char FUNCTION_NAME[] = "create_renderer";
-    constexpr char LIBRARY_NAME[] = "libgpurenderer.so";
-
-    auto dma_mapper = createMapperToDMA(mem_type, vaapi_context);
-
-    using create_renderer_func_t = Renderer *(dlstreamer::ImageFormat format, std::shared_ptr<ColorConverter> converter,
-                                              dlstreamer::MemoryMapperPtr input_buffer_mapper, int width, int height);
-
-    _gpurenderer_loader = SharedObject::getLibrary(LIBRARY_NAME);
-    auto create_renderer_func = _gpurenderer_loader->getFunction<create_renderer_func_t>(FUNCTION_NAME);
-
-    auto renderer = create_renderer_func(format, converter, std::move(dma_mapper), GST_VIDEO_INFO_WIDTH(_vinfo),
-                                         GST_VIDEO_INFO_HEIGHT(_vinfo));
-    return std::unique_ptr<Renderer>(renderer);
+    auto buf_mapper = BufferMapperFactory::createMapper(InferenceBackend::MemoryType::SYSTEM);
+    auto format = dlstreamer::ImageFormat::BGR;
+    return create_cpu_renderer(format, converter, std::move(buf_mapper));
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -69,6 +69,12 @@ void Renderer::convert_prims_color(std::vector<render::Prim> &prims) {
 void Renderer::draw(dlstreamer::FramePtr buffer, std::vector<render::Prim> prims) {
     auto mapped_buf = buffer_map(buffer);
     std::vector<cv::Mat> image_planes = convertBufferToCvMats(*mapped_buf);
+    convert_prims_color(prims);
+    draw_backend(image_planes, prims);
+}
+
+void Renderer::draw_va(cv::Mat buffer, std::vector<render::Prim> prims) {
+    std::vector<cv::Mat> image_planes = {buffer};
     convert_prims_color(prims);
     draw_backend(image_planes, prims);
 }

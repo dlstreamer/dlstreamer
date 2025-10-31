@@ -1,2 +1,3 @@
 opt/intel/dlstreamer/ /opt/intel/
+opt/opencv/ /opt/
 usr/lib/ /usr
