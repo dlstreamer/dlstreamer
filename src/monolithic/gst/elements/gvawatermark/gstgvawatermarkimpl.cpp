@@ -368,10 +368,14 @@ static VADisplay resolve_va_display_from_gst_display(GstObject *gst_display_obj)
     return get_va ? get_va((gpointer)gst_display_obj) : nullptr;
 }
 #else
-static VADisplay resolve_va_display_from_gst_display(GstObject *) { return nullptr; }
+static VADisplay resolve_va_display_from_gst_display(GstObject *) {
+    return nullptr;
+}
 #endif
 #else
-static VADisplay resolve_va_display_from_gst_display(GstObject *) { return nullptr; }
+static VADisplay resolve_va_display_from_gst_display(GstObject *) {
+    return nullptr;
+}
 #endif
 
 // Grab VADisplay from GstContext (handles both pointer and object cases)
@@ -453,7 +457,9 @@ static bool buffer_has_va(GstBuffer *buf) {
 // Minimal fallback: resolve VASurfaceID from GstVA at runtime (no unstable headers)
 #ifdef ENABLE_VAAPI
 #ifdef _WIN32
-static VASurfaceID get_surface_from_buffer(GstBuffer *) { return VA_INVALID_SURFACE; }
+static VASurfaceID get_surface_from_buffer(GstBuffer *) {
+    return VA_INVALID_SURFACE;
+}
 #else
 static VASurfaceID get_surface_from_buffer(GstBuffer *buf) {
     if (!buf)
@@ -499,7 +505,9 @@ static VASurfaceID get_surface_from_buffer(GstBuffer *buf) {
 }
 #endif
 #else
-static VASurfaceID get_surface_from_buffer(GstBuffer *) { return VA_INVALID_SURFACE; }
+static VASurfaceID get_surface_from_buffer(GstBuffer *) {
+    return VA_INVALID_SURFACE;
+}
 #endif
 
 static GstFlowReturn gst_gva_watermark_impl_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
@@ -539,9 +547,9 @@ static GstFlowReturn gst_gva_watermark_impl_transform_ip(GstBaseTransform *trans
             return GST_FLOW_OK;
         }
 
-    // VA/GPU render path only when VAAPI enabled
+// VA/GPU render path only when VAAPI enabled
 #if defined(ENABLE_VAAPI) && !defined(_MSC_VER)
-    if (use_gpu_path) {
+        if (use_gpu_path) {
             GST_TRACE_OBJECT(gvawatermark, "Using VA/GPU render path");
 
             VASurfaceID sid = VA_INVALID_SURFACE;
@@ -587,7 +595,7 @@ static GstFlowReturn gst_gva_watermark_impl_transform_ip(GstBaseTransform *trans
                     cv::va_intel::convertToVASurface(gvawatermark->va_dpy, u, sid, cv::Size(width, height));
                 }
             }
-    }
+        }
 #endif // ENABLE_VAAPI
 
         if (!use_gpu_path) {
