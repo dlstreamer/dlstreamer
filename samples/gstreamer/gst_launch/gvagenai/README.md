@@ -1,8 +1,8 @@
 # Models with gvagenai Element
 
-This directory contains a script demonstrating how to use the `gvagenai` element with MiniCPM-V 2.6 or Phi-4-multimodal-instruct for video summarization.
+This directory contains a script demonstrating how to use the `gvagenai` element with MiniCPM-V 2.6, Phi-4-multimodal-instruct or Gemma 3 for video summarization.
 
-The `gvagenai` element integrates OpenVINO™ GenAI capabilities into video processing pipelines. It supports visual language models like MiniCPM-V or Phi-4-multimodal-instruct for video content description and analysis.
+The `gvagenai` element integrates OpenVINO™ GenAI capabilities into video processing pipelines. It supports visual language models like MiniCPM-V, Phi-4-multimodal-instruct or Gemma 3 for video content description and analysis.
 
 ## How It Works
 
@@ -46,6 +46,23 @@ Set the model path:
 ```bash
 export GENAI_MODEL_PATH=/path/to/your/Phi-4-multimodal
 ```
+
+## Gemma 3 Model Preparation
+
+You need to prepare your Gemma 3 model in OpenVINO™ format, you can learn more from [Visual-language assistant with Gemma 3 and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/gemma3/gemma3.ipynb):
+
+```bash
+optimum-cli export openvino --model google/gemma-3-4b-it Gemma3
+```
+
+Set the model path:
+
+```bash
+export GENAI_MODEL_PATH=/path/to/your/Gemma3
+```
+
+> [!NOTE]
+> For installation of `optimum-cli` and other required dependencies needed to export the models, please refer to the respective OpenVINO™ notebook tutorials linked in each model preparation section above.
 
 ## Running the Sample
 
