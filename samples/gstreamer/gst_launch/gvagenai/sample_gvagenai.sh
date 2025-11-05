@@ -20,7 +20,7 @@ DEFAULT_METRICS="false"
 show_usage() {
     echo "Usage: $0 [OPTIONS]"
     echo ""
-    echo "Video Summarization with MiniCPM-V or Phi-4-multimodal-instruct model using gvagenai element"
+    echo "Video Summarization with MiniCPM-V, Phi-4-multimodal-instruct or Gemma 3 model using gvagenai element"
     echo ""
     echo "Options:"
     echo "  -s, --source FILE/URL/CAMERA      Input source (file path, URL or web camera)"
@@ -43,9 +43,10 @@ show_usage() {
 # Check if GENAI_MODEL_PATH is set
 if [ -z "${GENAI_MODEL_PATH:-}" ]; then
     echo "ERROR - GENAI_MODEL_PATH environment variable is not set." >&2
-    echo "Please set it to the path where your MiniCPM-V or Phi-4-multimodal-instruct model is located." >&2
+    echo "Please set it to the path where your MiniCPM-V, Phi-4-multimodal-instruct or Gemma 3 model is located." >&2
     echo "Examples: export GENAI_MODEL_PATH=/path/to/minicpm-v-model" >&2
     echo "          export GENAI_MODEL_PATH=/path/to/Phi-4-multimodal" >&2
+    echo "          export GENAI_MODEL_PATH=/path/to/gemma-3-model" >&2
     exit 1
 fi
 
@@ -77,7 +78,7 @@ while [[ $# -gt 0 ]]; do
             FRAME_RATE="$2"
             shift 2
             ;;
-        -f|--chunk-size)
+        -c|--chunk-size)
             CHUNK_SIZE="$2"
             shift 2
             ;;
