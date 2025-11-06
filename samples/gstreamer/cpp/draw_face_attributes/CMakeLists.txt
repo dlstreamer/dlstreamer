@@ -30,12 +30,12 @@ link_directories(${TARGET_NAME} /opt/intel/dlstreamer/lib
 
 add_executable(${TARGET_NAME} ${MAIN_SRC} ${MAIN_HEADERS})
 
-include(CheckCCompilerFlag)
-check_c_compiler_flag(-Wno-deprecated-enum-enum-conversion HAVE_SIGN_CONVERSION)
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag(-Wno-deprecated-enum-enum-conversion HAVE_DEPRECATED_ENUM_CONVERSION)
 
-if (HAVE_SIGN_CONVERSION)
+if (HAVE_DEPRECATED_ENUM_CONVERSION)
     target_compile_options(${TARGET_NAME} PRIVATE -Wno-deprecated-enum-enum-conversion)
-endif (HAVE_SIGN_CONVERSION)
+endif (HAVE_DEPRECATED_ENUM_CONVERSION)
 
 set_target_properties(${TARGET_NAME} PROPERTIES CMAKE_CXX_STANDARD 23)
 
