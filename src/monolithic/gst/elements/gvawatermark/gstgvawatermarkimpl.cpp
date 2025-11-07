@@ -394,8 +394,9 @@ static void gst_gva_watermark_impl_set_context(GstElement *elem, GstContext *con
             GST_INFO_OBJECT(self, "Acquired VADisplay pointer: %p", self->va_dpy);
         } else if (gst_structure_has_field(s, "gst-display")) {
             GstObject *gst_disp = nullptr;
-            gst_structure_get(s, "gst-display", GST_TYPE_OBJECT, &gst_disp, NULL);
-            if (gst_disp) {
+            if (!gst_structure_get(s, "gst-display", GST_TYPE_OBJECT, &gst_disp, NULL) || !gst_disp) {
+                GST_WARNING_OBJECT(self, "Failed to retrieve 'gst-display' from GstContext structure");
+            } else {
                 self->va_dpy = resolve_va_display_from_gst_display(gst_disp);
                 GST_INFO_OBJECT(self, "Acquired VADisplay from GstVaDisplay: %p", self->va_dpy);
                 gst_object_unref(gst_disp);
