@@ -12,7 +12,8 @@ gst-inspect-1.0 utility.
 | [gvaclassify](./gvaclassify.md)    | Performs object classification/segmentation/pose estimation. Inputs: ROIs or full frame. Output: prediction metadata. The `queue` element must be put directly after the `gvaclassify` element in the pipeline.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! gvadetect model=$mDetect device=GPU ! queue ! gvaclassify model=$mClassify device=CPU ! queue ! … OUT<br>                                                                                                           |
 | [gvainference](./gvainference.md)   | Executes any inference model and outputs raw results. Does not interpret data and does not generate metadata. The `queue` element must be put directly after the `gvainference` element in the pipeline.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! gvadetect model=$mDetect device=GPU ! queue ! gvainference model=$mHeadPoseEst device=CPU ! queue ! … OUT<br>                                                                                                            |
 | [gvatrack](./gvatrack.md)       | Tracks objects across video frames using zero-term or short-term tracking algorithms. Zero-term tracking assigns unique object IDs and requires object detection to run on every frame. Short-term tracking allows for tracking objects between frames, reducing the need to run object detection on each frame.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! gvadetect model=$mDetect device=GPU ! gvatrack tracking-type=short-term-imageless ! … OUT<br> |
-| [gvaaudiodetect](./gvaaudiodetect.md) | Legacy plugin. Performs audio event detection using the `AclNet` model.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! audioresample ! audioconvert ! audio/x-raw … ! audiomixer … ! gvaaudiodetect model=$mAudioDetect ! … OUT<br>                                                                                                                                                                                                                                     |
+| [gvaaudiodetect](./gvaaudiodetect.md) | Legacy plugin. Performs audio event detection using the `AclNet` model.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! audioresample ! audioconvert ! audio/x-raw … ! audiomixer … ! gvaaudiodetect model=$mAudioDetect ! … OUT<br>   
+| [gvaaudiotranscribe](./gvaaudiotranscribe.md) | ASR plugin. Performs audio transcription using `Whisper` model.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! audioresample ! audioconvert ! audio/x-raw … ! audiomixer … ! gvaaudiotranscribe model=$mASR device=CPU ! … OUT<br>                                                                                                                                                                                                                                   |
 | [gvagenai](./gvagenai.md)       | Performs inference using GenAI models. It can be used to generate text descriptions from images or video.<br>Example:<br> gst-launch-1.0 … ! decodebin3 ! videoconvert ! gvagenai model=$mGenAI device=GPU ! … OUT<br>                                                                                                                                                                                                                                             |
 
 
@@ -39,6 +40,7 @@ gvaclassify
 gvainference
 gvatrack
 gvaaudiodetect
+gvaaudiotranscribe
 gvagenai
 gvaattachroi
 gvafpscounter
