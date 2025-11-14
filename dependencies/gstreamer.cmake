@@ -20,11 +20,12 @@ set(DESIRED_VERSION 1.26.6)
 # endif()
 
 ExternalProject_Add(
-    gstreamer
-    PREFIX ${CMAKE_BINARY_DIR}/gstreamer
-    GIT_REPOSITORY  https://gitlab.freedesktop.org/gstreamer/gstreamer.git
-    GIT_TAG         ${DESIRED_VERSION}
-	PATCH_COMMAND   patch -p1 < ${CMAKE_CURRENT_SOURCE_DIR}/patches/gstreamer-1-26-6-vacompositor-vafilter-fixes.patch
+	gstreamer
+	PREFIX ${CMAKE_BINARY_DIR}/gstreamer
+	GIT_REPOSITORY  https://gitlab.freedesktop.org/gstreamer/gstreamer.git
+	GIT_TAG         ${DESIRED_VERSION}
+	# Use external script for patch to avoid quoting issues; script handles idempotency and logging
+	PATCH_COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/patches/apply_gst_patch.sh gstreamer-1-26-6-vacompositor-vafilter-fixes.patch 
     BUILD_COMMAND       ninja
     INSTALL_COMMAND     meson install
     TEST_COMMAND        ""
