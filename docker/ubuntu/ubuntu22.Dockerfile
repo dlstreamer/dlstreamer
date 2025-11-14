@@ -67,8 +67,8 @@ RUN \
 
 RUN \
     apt-get update && \
-    apt-get install --allow-downgrades -y -q --no-install-recommends libze-intel-gpu1=\* libze1=\* \
-    intel-media-va-driver-non-free=\* intel-opencl-icd=\* && \
+    apt-get install -y -q --no-install-recommends libze-intel-gpu1=25.18.33578.15-1146~22.04 libze1=1.21.9.0-1136~22.04 \
+    intel-media-va-driver-non-free=25.2.4-1146~22.04 intel-opencl-icd=25.18.33578.15-1146~22.04  && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -467,12 +467,12 @@ RUN \
     curl -fsSL https://repositories.intel.com/gpu/intel-graphics.key | \
     gpg --dearmor -o /usr/share/keyrings/intel-graphics.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | \
-    tee /etc/apt/sources.list.d/intel-gpu-noble.list
+    tee /etc/apt/sources.list.d/intel-gpu-jammy.list
 
 RUN \
     apt-get update && \
-    apt-get install --allow-downgrades -y -q --no-install-recommends libze-intel-gpu1=\* libze1=\* \
-    intel-media-va-driver-non-free=\* intel-opencl-icd=\* && \
+    apt-get install -y -q --no-install-recommends libze-intel-gpu1=25.18.33578.15-1146~22.04 libze1=1.21.9.0-1136~22.04 \
+    intel-media-va-driver-non-free=25.2.4-1146~22.04 intel-opencl-icd=25.18.33578.15-1146~22.04  && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
