@@ -332,21 +332,30 @@ class VideoFrame {
     }
 
     std::vector<RegionOfInterest> get_regions() const {
-        std::vector<RegionOfInterest> regions;
-        gpointer state = NULL;
-        GstAnalyticsRelationMeta *relation_meta;
-        GstVideoRegionOfInterestMeta *roi_meta;
-        GstAnalyticsODMtd od_mtd;
-
-        relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
+        GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
 
         if (!relation_meta) {
             return {};
         }
 
+        // Count regions to pre-allocate vector capacity
+        gpointer state = NULL;
+        GstAnalyticsODMtd od_mtd;
+        size_t count = 0;
         while (
             gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
-            roi_meta = gst_buffer_get_video_region_of_interest_meta_id(buffer, od_mtd.id);
+            ++count;
+        }
+
+        // Pre-allocate vector to avoid reallocation during emplace_back
+        std::vector<RegionOfInterest> regions;
+        regions.reserve(count);
+
+        // Construct RegionOfInterest objects
+        state = NULL;
+        while (
+            gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &od_mtd)) {
+            GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_get_video_region_of_interest_meta_id(buffer, od_mtd.id);
             if (!roi_meta) {
                 throw std::runtime_error(
                     "GVA::VideoFrame: Failed to get video region of interest meta for object detection metadata");
