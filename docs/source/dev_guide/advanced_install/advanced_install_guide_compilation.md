@@ -12,7 +12,7 @@ from the source code provided in
 ## Step 1: Install prerequisites (only for Ubuntu)
 
 Follow the instructions in
-[the prerequisites](../../get_started/install/install_guide_ubuntu#prerequisites) section.
+[the prerequisites](../../get_started/install/install_guide_ubuntu.md#prerequisites) section.
 
 ## Step 2: Install build dependencies
 
