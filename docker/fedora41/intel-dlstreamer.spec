@@ -82,6 +82,7 @@ done
 /opt/opencv/
 /opt/rdkafka/
 /opt/ffmpeg/
+/opt/librealsense/
 
 %changelog
 * CURRENT_DATE_TIME DL Streamer Team <dlstreamer@intel.com> - DLSTREAMER_VERSION
