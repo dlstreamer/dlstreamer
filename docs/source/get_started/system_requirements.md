@@ -18,7 +18,6 @@ discrete GPUs:
 
  Codename   | GPU                                | Operating system
 ------------|------------------------------------|----------------------------
- [Flex](https://www.intel.com/content/www/us/en/ark/products/series/230021/intel-data-center-gpu-flex-series.html)       | Intel® Data Center GPU Flex Series | Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
  [Alchemist](https://www.intel.com/content/www/us/en/products/details/discrete-gpus/arc/arc-a-series/products.html)  | Intel® Arc™ GPU Series A           | Ubuntu 22.04.5 LTS with kernel version 6.8.0-85<br>Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
  [Battlemage](https://www.intel.com/content/www/us/en/ark/products/series/240391/intel-arc-b-series-graphics.html) | Intel® Arc™ GPU Series B           | Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
 
