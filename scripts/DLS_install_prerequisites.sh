@@ -329,14 +329,14 @@ setup_gpu(){
             echo_color "\n ✓ Intel® Client GPU detected! We'll automatically install the optimized GPU drivers for your system. \n" "green"
             ;;
         2)
-            echo_color "\n Your system contains Intel® Data Center GPU. To install proper drivers, please visit: https://dgpu-docs.intel.com/driver/installation.html#ubuntu" "bred"
+            echo_color "\n Your system contains unsupported Intel® Data Center GPU. To get more information about drivers, please visit: https://dgpu-docs.intel.com/driver/installation.html#ubuntu" "bred"
             exit 1
             ;;
     esac
     $SUDO_PREFIX apt update
     # Additional packages for Ubuntu 22.04/24.04
     if [ "$ubuntu_version" == "24.04" ]; then
-        $SUDO_PREFIX apt-get install -y --no-install-recommends software-properties-common 
+        $SUDO_PREFIX apt-get install -y --no-install-recommends software-properties-common
         $SUDO_PREFIX add-apt-repository -y $INTEL_CL_GPU_REPO_URL
         $SUDO_PREFIX apt update
         echo "Snapshot: 20250911T030400Z" | $SUDO_PREFIX tee -a /etc/apt/sources.list.d/$INTEL_GPU_LIST
@@ -696,7 +696,7 @@ if [ -n "$intel_gpus" ]; then
     if [ -n "$intel_dc_gpu" ]; then
         intel_gpu_state=2
         gpu_info="$intel_dc_gpu"
-        echo_color "\n Your system contains Intel® Data Center GPU. To install proper drivers, please follow the instruction at: https://dgpu-docs.intel.com/driver/installation.html" "bred"
+        echo_color "\n Your system contains unsupported Intel® Data Center GPU. To get more information about drivers, please visit: https://dgpu-docs.intel.com/driver/installation.html#ubuntu" "bred"
         exit 1
     else
         # If no DC GPU is found, it must be a client GPU
@@ -895,7 +895,7 @@ else
             echo_color " To enable GPU support, install the Intel® Client GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/client/overview.html \n" "cyan"
             ;;
         2)
-            echo_color " To enable GPU support, install the Intel® Data Center GPU drivers manually by following the instructions available at https://dgpu-docs.intel.com/driver/installation.html#ubuntu \n" "cyan"
+            echo_color " Your system contains unsupported Intel® Data Center GPU. To get more information about drivers, please visit: https://dgpu-docs.intel.com/driver/installation.html#ubuntu \n" "cyan"
             ;;
         esac
 
