@@ -90,7 +90,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
   private:
     void FreeRequest(std::shared_ptr<BatchRequest> request);
-    bool DoNeedImagePreProcessing() const;
+    bool DoNeedImagePreProcessing(const InferenceBackend::ImagePtr src_img);
     void SubmitImageProcessing(const std::string &input_name, std::shared_ptr<BatchRequest> request,
                                const InferenceBackend::Image &src_img,
                                const InferenceBackend::InputImageLayerDesc::Ptr &pre_proc_info,
