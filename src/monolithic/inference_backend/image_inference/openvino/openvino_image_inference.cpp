@@ -1724,8 +1724,31 @@ void OpenVINOImageInference::BypassImageProcessing(const std::string &input_name
     }
 }
 
-bool OpenVINOImageInference::DoNeedImagePreProcessing() const {
-    return pre_processor.get() != nullptr;
+bool OpenVINOImageInference::DoNeedImagePreProcessing(const InferenceBackend::ImagePtr image) {
+    if (pre_processor.get() != nullptr)
+        return true;
+
+    if (image == nullptr)
+        return false;
+
+    // workaround for NPU plugin serialization when non-contiguous tensors submitted
+    if ((_impl->_device.find("NPU") != std::string::npos) && (_impl->_memory_type == MemoryType::SYSTEM) &&
+        ((image->format == FourCC::FOURCC_RGBP) || (image->format == FourCC::FOURCC_BGRP))) {
+
+        bool contiguous = (image->planes[1] - image->planes[0] == image->width * image->height) &&
+                          (image->planes[2] - image->planes[1] == image->width * image->height) &&
+                          (image->stride[0] == image->stride[1]) && (image->stride[1] == image->stride[2]) &&
+                          (image->stride[2] == image->width);
+
+        if (!contiguous) {
+            GVA_WARNING("Force OPENCV preprocessor to convert non-contiguous tensors into contigous memory location");
+            pre_processor.reset(
+                InferenceBackend::ImagePreprocessor::Create(InferenceBackend::ImagePreprocessorType::OPENCV, ""));
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void OpenVINOImageInference::ApplyInputPreprocessors(
@@ -1738,7 +1761,7 @@ void OpenVINOImageInference::ApplyInputPreprocessors(
             continue;
 
         if (preprocessor.first == KEY_image) {
-            if (!DoNeedImagePreProcessing())
+            if (!DoNeedImagePreProcessing(nullptr))
                 continue;
         }
 
@@ -1767,7 +1790,7 @@ void OpenVINOImageInference::SubmitImage(
     std::shared_ptr<BatchRequest> request = freeRequests.pop();
 
     try {
-        if (DoNeedImagePreProcessing()) {
+        if (DoNeedImagePreProcessing(frame->GetImage())) {
             SubmitImageProcessing(
                 image_layer, request, *frame->GetImage(),
                 getImagePreProcInfo(input_preprocessors), // contain operations order for Custom Image PreProcessing
@@ -1855,7 +1878,7 @@ void OpenVINOImageInference::Flush() {
         if (request->buffers.size() > 0) {
             try {
                 // WA: Fill non-complete batch with last element. Can be removed once supported in OV
-                if (batch_size > 1 && !DoNeedImagePreProcessing()) {
+                if (batch_size > 1 && !DoNeedImagePreProcessing(nullptr)) {
                     size_t input_idx = 0;
                     for (auto &input_vec : request->in_tensors) {
                         for (int i = input_vec.size(); i < batch_size; i++)
