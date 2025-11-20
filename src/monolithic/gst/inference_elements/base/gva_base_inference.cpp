@@ -422,6 +422,9 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     g_free(base_inference->model_instance_id);
     base_inference->model_instance_id = nullptr;
 
+    g_free(base_inference->scheduling_policy);
+    base_inference->scheduling_policy = nullptr;
+
     g_free(base_inference->pre_proc_type);
     base_inference->pre_proc_type = nullptr;
 

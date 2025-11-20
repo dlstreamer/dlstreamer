@@ -638,29 +638,47 @@ class Tensor {
                 GValueArray *point_names = nullptr;
                 gst_structure_get_array(gst_structure(), "point_names", &point_names);
 
-                if (point_names->n_values != keypoint_count)
-                    throw std::runtime_error("Mismatch between keypoint count and keypoint names");
+                auto cleanup = [&]() {
+                    if (point_connections) {
+                        g_value_array_free(point_connections);
+                    }
+                    if (point_names) {
+                        g_value_array_free(point_names);
+                    }
+                };
 
-                names.resize(keypoint_count);
-                for (gsize n = 0; n < keypoint_count; n++) {
-                    const gchar *name = g_value_get_string(point_names->values + n);
-                    names[n] = g_quark_from_string(name);
-                }
+                try {
+                    if (point_names->n_values != keypoint_count) {
+                        cleanup();
+                        throw std::runtime_error("Mismatch between keypoint count and keypoint names");
+                    }
 
-                skeleton_count = point_connections->n_values / 2;
-                skeletons.resize(skeleton_count);
-                for (gsize s = 0; s < skeleton_count; s++) {
-                    const gchar *point_name_1 = g_value_get_string(point_connections->values + s * 2);
-                    const gchar *point_name_2 = g_value_get_string(point_connections->values + s * 2 + 1);
-                    for (gsize n = 0; n < point_names->n_values; n++) {
+                    names.resize(keypoint_count);
+                    for (gsize n = 0; n < keypoint_count; n++) {
                         const gchar *name = g_value_get_string(point_names->values + n);
-                        if (g_strcmp0(name, point_name_1) == 0) {
-                            skeletons[s].kp1 = n;
-                        }
-                        if (g_strcmp0(name, point_name_2) == 0) {
-                            skeletons[s].kp2 = n;
+                        names[n] = g_quark_from_string(name);
+                    }
+
+                    skeleton_count = point_connections->n_values / 2;
+                    skeletons.resize(skeleton_count);
+                    for (gsize s = 0; s < skeleton_count; s++) {
+                        const gchar *point_name_1 = g_value_get_string(point_connections->values + s * 2);
+                        const gchar *point_name_2 = g_value_get_string(point_connections->values + s * 2 + 1);
+                        for (gsize n = 0; n < point_names->n_values; n++) {
+                            const gchar *name = g_value_get_string(point_names->values + n);
+                            if (g_strcmp0(name, point_name_1) == 0) {
+                                skeletons[s].kp1 = n;
+                            }
+                            if (g_strcmp0(name, point_name_2) == 0) {
+                                skeletons[s].kp2 = n;
+                            }
                         }
                     }
+
+                    cleanup();
+                } catch (...) {
+                    cleanup();
+                    throw;
                 }
             }
 

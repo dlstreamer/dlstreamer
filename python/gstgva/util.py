@@ -6,6 +6,7 @@
 
 import ctypes
 from contextlib import contextmanager
+import weakref
 import gi
 gi.require_version('GstVideo', '1.0')
 gi.require_version('GstAudio', '1.0')
@@ -153,6 +154,8 @@ libgst.gst_structure_new_empty.argtypes = [ctypes.c_char_p]
 libgst.gst_structure_new_empty.restype = ctypes.c_void_p
 libgst.gst_structure_copy.argtypes = [ctypes.c_void_p]
 libgst.gst_structure_copy.restype = ctypes.c_void_p
+libgst.gst_structure_free.argtypes = [ctypes.c_void_p]
+libgst.gst_structure_free.restype = None
 
 # gst_caps
 libgst.gst_caps_get_structure.argtypes = [ctypes.c_void_p, ctypes.c_uint]
@@ -171,6 +174,10 @@ libgst.gst_meta_get_info.restype = ctypes.c_void_p
 
 # gst utils
 libgst.gst_util_seqnum_next.restype = ctypes.c_uint
+
+def gst_structure_free(ptr: int):
+    if ptr:
+        libgst.gst_structure_free(ctypes.c_void_p(ptr))
 
 
 def is_vaapi_buffer(_buffer):
@@ -227,6 +234,15 @@ def gst_buffer_data(_buffer, flags):
         yield ctypes.cast(mapping.data, ctypes.POINTER(ctypes.c_byte * mapping.size)).contents
     finally:
         libgst.gst_buffer_unmap(ptr, mapping)
+        
+class GstStructureHandle:
+    def __init__(self, ptr: ctypes.c_void_p):
+        addr = int(ptr)
+        self.ptr = addr
+        self._finalizer = weakref.finalize(self, gst_structure_free, addr)
+
+    def as_c_void_p(self) -> ctypes.c_void_p:
+        return ctypes.c_void_p(self.ptr)
 
 
 # libgobject
