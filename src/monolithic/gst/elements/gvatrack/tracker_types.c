@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,7 @@
 #define ZERO_TERM_NAME "zero-term"
 #define SHORT_TERM_IMAGELESS_NAME "short-term-imageless"
 #define ZERO_TERM_IMAGELESS_NAME "zero-term-imageless"
+#define DEEP_SORT_NAME "deep-sort"
 
 GType gst_gva_get_tracking_type(void) {
     static GType gva_tracking_type = 0;
@@ -17,6 +18,7 @@ GType gst_gva_get_tracking_type(void) {
         {ZERO_TERM, "Zero-term tracker", ZERO_TERM_NAME},
         {SHORT_TERM_IMAGELESS, "Short-term imageless tracker", SHORT_TERM_IMAGELESS_NAME},
         {ZERO_TERM_IMAGELESS, "Zero-term imageless tracker", ZERO_TERM_IMAGELESS_NAME},
+        {DEEP_SORT, "Deep SORT tracker with visual features", DEEP_SORT_NAME},
         {0, NULL, NULL}};
 
     if (!gva_tracking_type)
@@ -33,6 +35,8 @@ const gchar *tracking_type_to_string(GstGvaTrackingType type) {
         return SHORT_TERM_IMAGELESS_NAME;
     case ZERO_TERM_IMAGELESS:
         return ZERO_TERM_IMAGELESS_NAME;
+    case DEEP_SORT:
+        return DEEP_SORT_NAME;
     default:
         return UNKNOWN_TYPE_NAME;
     }
