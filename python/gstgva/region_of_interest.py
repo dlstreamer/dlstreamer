@@ -13,7 +13,7 @@ from typing import List
 from collections import namedtuple
 
 from .tensor import Tensor
-from .util import VideoRegionOfInterestMeta
+from .util import VideoRegionOfInterestMeta, GstStructureHandle
 from .util import libgst, libgobject, libgstvideo, GLIST_POINTER
 
 import gi
@@ -41,6 +41,7 @@ class RegionOfInterest(object):
         self.__od_meta = od_meta
         self._detection = None
         self._tensors = []
+        self._converted_structures: list[GstStructureHandle] = []
 
         # Load existing tensors from ROI meta
         if roi_meta and roi_meta._params:
@@ -70,6 +71,8 @@ class RegionOfInterest(object):
             if tensor_structure is not None:
                 tensor = Tensor(tensor_structure)
                 self._tensors.append(tensor)
+                handle = GstStructureHandle(tensor_structure)
+                self._converted_structures.append(handle)
 
     ## @brief Get bounding box of the RegionOfInterest as pixel coordinates in original image
     #  @return Bounding box coordinates of the RegionOfInterest
