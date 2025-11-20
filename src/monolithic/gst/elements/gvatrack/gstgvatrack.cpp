@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -38,6 +38,7 @@ enum {
     PROP_DEVICE,
     PROP_TRACKING_TYPE,
     PROP_TRACKING_CONFIG,
+    PROP_FEATURE_MODEL,
 };
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaTrack, gst_gva_track, GST_TYPE_BASE_TRANSFORM,
@@ -128,6 +129,12 @@ void gst_gva_track_cleanup(GstGvaTrack *gva_track) {
     g_free(gva_track->device);
     gva_track->device = NULL;
 
+    g_free(gva_track->tracking_config);
+    gva_track->tracking_config = NULL;
+
+    g_free(gva_track->feature_model);
+    gva_track->feature_model = NULL;
+
     if (gva_track->info) {
         gst_video_info_free(gva_track->info);
         gva_track->info = NULL;
@@ -177,6 +184,11 @@ static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
                                                         "Comma separated list of KEY=VALUE parameters specific to "
                                                         "platform/tracker. Please see user guide for more details",
                                                         nullptr, kDefaultGParamFlags));
+    g_object_class_install_property(
+        gobject_class, PROP_FEATURE_MODEL,
+        g_param_spec_string("feature-model", "Feature extraction model",
+                            "Path to feature extraction model for Deep SORT tracking (e.g., mars-small128.xml)",
+                            nullptr, kDefaultGParamFlags));
 }
 
 static void gst_gva_track_init(GstGvaTrack *gva_track) {
@@ -199,6 +211,10 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
         g_free(gva_track->tracking_config);
         gva_track->tracking_config = g_value_dup_string(value);
         break;
+    case PROP_FEATURE_MODEL:
+        g_free(gva_track->feature_model);
+        gva_track->feature_model = g_value_dup_string(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -218,6 +234,9 @@ static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *v
         break;
     case PROP_TRACKING_CONFIG:
         g_value_set_string(value, gva_track->tracking_config);
+        break;
+    case PROP_FEATURE_MODEL:
+        g_value_set_string(value, gva_track->feature_model);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);

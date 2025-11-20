@@ -8,6 +8,7 @@
 
 #include "tracker_factory.h"
 
+#include "deep_sort_tracker.h"
 #include "tracker.h"
 
 vas::ColorFormat gstVideoFmtToVasColorFmt(GstVideoFormat format) {
@@ -51,6 +52,28 @@ bool TrackerFactory::RegisterAll() {
                                        std::bind(create_vas_tracker, _1, TrackingType::SHORT_TERM_IMAGELESS, _2, _3));
     result &= TrackerFactory::Register(GstGvaTrackingType::ZERO_TERM_IMAGELESS,
                                        std::bind(create_vas_tracker, _1, TrackingType::ZERO_TERM_IMAGELESS, _2, _3));
+
+    // Register Deep SORT tracker - handles both with and without feature model
+    auto create_deep_sort_tracker = [](const GstGvaTrack *gva_track, dlstreamer::MemoryMapperPtr mapper,
+                                       dlstreamer::ContextPtr /*context*/) -> ITracker * {
+        std::string feature_model_path = gva_track->feature_model ? gva_track->feature_model : "";
+
+        if (!feature_model_path.empty()) {
+            // Create Deep SORT tracker with feature extraction model
+            std::string device = gva_track->device ? gva_track->device : "CPU";
+            return new DeepSortWrapper::DeepSortTracker(
+                feature_model_path, device, DeepSortWrapper::DEFAULT_MAX_IOU_DISTANCE, DeepSortWrapper::DEFAULT_MAX_AGE,
+                DeepSortWrapper::DEFAULT_N_INIT, DeepSortWrapper::DEFAULT_MAX_COSINE_DISTANCE,
+                DeepSortWrapper::DEFAULT_NN_BUDGET, std::move(mapper));
+        } else {
+            // Create Deep SORT tracker without feature extraction model (appearance features disabled)
+            return new DeepSortWrapper::DeepSortTracker(
+                DeepSortWrapper::DEFAULT_MAX_IOU_DISTANCE, DeepSortWrapper::DEFAULT_MAX_AGE,
+                DeepSortWrapper::DEFAULT_N_INIT, DeepSortWrapper::DEFAULT_MAX_COSINE_DISTANCE,
+                DeepSortWrapper::DEFAULT_NN_BUDGET, std::move(mapper));
+        }
+    };
+    result &= TrackerFactory::Register(GstGvaTrackingType::DEEP_SORT, create_deep_sort_tracker);
 
     return result;
 }

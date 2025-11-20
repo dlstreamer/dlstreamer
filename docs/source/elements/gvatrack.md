@@ -1,12 +1,12 @@
 # gvatrack
 
-Performs object tracking using zero-term, zero-term-imageless, or
-short-term-imageless tracking algorithms. Zero-term tracking assigns
-unique object IDs and requires object detection to run on every frame.
-Short-term tracking allows for tracking objects between frames,
-reducing the need to run object detection on each frame. Imageless
-tracking forms object associations based on the movement and shape of
-objects, and does not use image data.
+Performs object tracking using zero-term, zero-term-imageless, short-term-imageless or 
+deepsort tracking algorithms. 
+
+Zero-term tracking assigns unique object IDs and requires object detection to run on every frame.
+Short-term tracking allows for tracking objects between frames, reducing the need to run object detection on each frame. 
+Imageless tracking forms object associations based on the movement and shape of objects, and does not use image data.
+Deep SORT tracking combines motion prediction (Kalman filter) with appearance features (deep learning re-identification) for robust multi-object tracking with reduced ID switches. 
 
 Please refer to [Object Tracking](../dev_guide/object_tracking.md)
 for more information on the element properties.
@@ -92,4 +92,14 @@ Element Properties:
                           (0): zero-term        - Zero-term tracker
                           (1): short-term-imageless - Short-term imageless tracker
                           (2): zero-term-imageless - Zero-term imageless tracker
+                          (3): deep-sort        - Deep SORT tracker
+ feature-model       : Path to feature extraction model for Deep SORT tracking (internal feature extractor mode).
+                       Deep SORT requires a 128-dimensional feature vector model (e.g., mars-small128) for re-identification.
+                       Available modes:
+                         (1) Internal feature extractor:
+                             gvatrack tracking-type=deep-sort feature-model=mars_small128_fp32.xml
+                         (2) External feature extractor (using gvainference before gvatrack):
+                             gvainference model=mars_small128_fp32.xml device=GPU inference-region=roi-list ! queue ! gvatrack tracking-type=deep-sort
+                       flags: readable, writable
+                       String. Default: ""
 ```
