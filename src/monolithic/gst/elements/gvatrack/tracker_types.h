@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -14,6 +14,7 @@ typedef enum {
     ZERO_TERM,
     SHORT_TERM_IMAGELESS,
     ZERO_TERM_IMAGELESS,
+    DEEP_SORT,
 } GstGvaTrackingType;
 
 #define GST_GVA_TRACKING_TYPE (gst_gva_get_tracking_type())
