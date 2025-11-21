@@ -102,7 +102,7 @@ SUPPORTED_MODELS=(
   "clip-vit-base-patch16"
   "clip-vit-base-patch32"
   "ch_PP-OCRv4_rec_infer" # PaddlePaddle OCRv4 multilingual model
-  "mars-small128" # Person re-identification model for DeepSORT tracking
+  "mars-small128" # DeepSORT person re-identification model (uses convert_mars_deepsort.py)
 )
 
 # Corresponds to files in 'datasets' directory
@@ -964,295 +964,42 @@ os.remove('${MODEL_NAME}.zip')
   fi
 fi
 
-# Mars-Small128 Person Re-ID Model for DeepSORT tracking
+# Mars-Small128 DeepSORT Person Re-ID Model
 if [[ "$MODEL" == "mars-small128" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="mars-small128"
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE_FP32="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-  DST_FILE_INT8="$MODEL_DIR/INT8/$MODEL_NAME.xml"
-
-  if [[ ! -f "$DST_FILE_FP32" ]]; then
-    echo "Downloading and converting: ${MODEL_DIR}"
-    mkdir -p "$MODEL_DIR/FP32"
-    mkdir -p "$MODEL_DIR/INT8"
+  
+  if [[ ! -f "$MODEL_DIR/mars_small128_fp32.xml" ]]; then
+    echo_color "Converting Mars-Small128 model for DeepSORT tracking..." "blue"
+    
+    # Get the script directory (samples directory) before changing directories
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    CONVERTER_SCRIPT="$SCRIPT_DIR/models/convert_mars_deepsort.py"
+    
+    if [[ ! -f "$CONVERTER_SCRIPT" ]]; then
+      echo_color "ERROR: Converter script not found: $CONVERTER_SCRIPT" "red"
+      handle_error $LINENO
+    fi
+    
+    mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
+    
+    # Activate virtual environment
     source "$VENV_DIR/bin/activate"
-
-    # Install additional requirements for Mars model
-    pip install --no-cache-dir torch torchvision || handle_error $LINENO
-
-    echo_color "Creating Mars-Small128 PyTorch model..." "blue"
     
-    python3 - <<EOF
-import torch
-import torch.nn as nn
-import openvino as ov
-import nncf
-import numpy as np
-
-class MarsSmall128Model(nn.Module):
-    """Mars-Small128 Person Re-Identification Model"""
+    # Install dependencies for converter script
+    pip install --no-cache-dir torch openvino nncf gdown || handle_error $LINENO
     
-    def __init__(self):
-        super(MarsSmall128Model, self).__init__()
-        
-        # Feature extraction backbone
-        self.backbone = nn.Sequential(
-            # Block 1
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 2
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 3
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 4
-            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 5
-            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((1, 1))
-        )
-        
-        # Feature embedding layer
-        self.fc = nn.Linear(512, 128)
-        
-    def forward(self, x):
-        x = self.backbone(x)
-        x = x.view(x.size(0), -1)  # Flatten
-        x = self.fc(x)
-        # L2 normalize for similarity computation
-        x = torch.nn.functional.normalize(x, p=2, dim=1)
-        return x
-
-# Create model with proper architecture
-model = MarsSmall128Model()
-
-# Model specifications
-input_shape = (1, 3, 128, 64)  # NCHW format
-
-# Initialize with Xavier/Glorot normal initialization
-for module in model.modules():
-    if isinstance(module, nn.Conv2d):
-        nn.init.xavier_normal_(module.weight)
-        if module.bias is not None:
-            nn.init.constant_(module.bias, 0)
-    elif isinstance(module, nn.Linear):
-        nn.init.xavier_normal_(module.weight)
-        nn.init.constant_(module.bias, 0)
-    elif isinstance(module, nn.BatchNorm2d):
-        nn.init.constant_(module.weight, 1)
-        nn.init.constant_(module.bias, 0)
-
-model.eval()
-
-# Create example input
-example_input = torch.randn(input_shape)
-EOF
-
-    echo_color "Converting to OpenVINO with input shape: (1,3,128,64)" "blue"
+    echo_color "Running Mars-Small128 converter..." "blue"
+    python3 "$CONVERTER_SCRIPT" --output-dir "$MODEL_DIR" --precision both || handle_error $LINENO
     
-    python3 - <<EOF
-import torch
-import torch.nn as nn
-import openvino as ov
-import nncf
-import numpy as np
-
-class MarsSmall128Model(nn.Module):
-    """Mars-Small128 Person Re-Identification Model"""
-    
-    def __init__(self):
-        super(MarsSmall128Model, self).__init__()
-        
-        # Feature extraction backbone
-        self.backbone = nn.Sequential(
-            # Block 1
-            nn.Conv2d(3, 32, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(32),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 2
-            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(64),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 3
-            nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(128),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 4
-            nn.Conv2d(128, 256, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(256),
-            nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=2, stride=2),
-            
-            # Block 5
-            nn.Conv2d(256, 512, kernel_size=3, stride=1, padding=1),
-            nn.BatchNorm2d(512),
-            nn.ReLU(inplace=True),
-            nn.AdaptiveAvgPool2d((1, 1))
-        )
-        
-        # Feature embedding layer
-        self.fc = nn.Linear(512, 128)
-        
-    def forward(self, x):
-        x = self.backbone(x)
-        x = x.view(x.size(0), -1)  # Flatten
-        x = self.fc(x)
-        # L2 normalize for similarity computation
-        x = torch.nn.functional.normalize(x, p=2, dim=1)
-        return x
-
-# Recreate and initialize model
-model = MarsSmall128Model()
-
-for module in model.modules():
-    if isinstance(module, nn.Conv2d):
-        nn.init.xavier_normal_(module.weight)
-        if module.bias is not None:
-            nn.init.constant_(module.bias, 0)
-    elif isinstance(module, nn.Linear):
-        nn.init.xavier_normal_(module.weight)
-        nn.init.constant_(module.bias, 0)
-    elif isinstance(module, nn.BatchNorm2d):
-        nn.init.constant_(module.weight, 1)
-        nn.init.constant_(module.bias, 0)
-
-model.eval()
-
-# Recreate input shape
-input_shape = (1, 3, 128, 64)
-example_input = torch.randn(input_shape)
-
-# Convert to OpenVINO
-ov_model = ov.convert_model(
-    model,
-    example_input=example_input,
-    input=[("x", input_shape)]
-)
-
-# Ensure static shape
-ov_model.reshape({"x": input_shape})
-
-# Save FP32 model
-ov.save_model(ov_model, "./FP32/mars-small128.xml")
-EOF
-
-    echo_color "✅ FP32 model saved" "green"
-    echo_color "Generating calibration dataset for INT8 quantization..." "blue"
-    
-    python3 - <<EOF
-import openvino as ov
-import nncf
-import numpy as np
-
-# Generate calibration dataset for INT8 quantization
-calibration_size = 100
-calibration_data = []
-
-for i in range(calibration_size):
-    # Create realistic variation in person appearance data
-    if i % 4 == 0:
-        base_color = np.random.uniform(0.6, 1.0, size=(3,))  # Bright clothing
-    elif i % 4 == 1:
-        base_color = np.random.uniform(0.0, 0.4, size=(3,))  # Dark clothing
-    elif i % 4 == 2:
-        base_color = np.random.uniform(0.3, 0.7, size=(3,))  # Medium tones
-    else:
-        base_color = np.random.uniform(0.1, 0.9, size=(3,))  # Random colors
-    
-    # Create person-like shape
-    image = np.zeros((3, 128, 64), dtype=np.float32)  # (C, H, W)
-    
-    # Body region
-    body_width = min(np.random.randint(16, 32), 48)
-    body_height = min(np.random.randint(60, 90), 90)
-    body_start_x = np.random.randint(8, max(9, 64 - body_width - 8))
-    body_start_y = np.random.randint(25, max(26, 128 - body_height - 10))
-    
-    body_end_x = min(body_start_x + body_width, 64)
-    body_end_y = min(body_start_y + body_height, 128)
-    
-    # Head region
-    head_size = min(np.random.randint(8, 16), body_width, 16)
-    head_x = max(0, min(body_start_x + body_width // 2 - head_size // 2, 64 - head_size))
-    head_y = max(0, body_start_y - head_size - 2)
-    head_end_x = min(head_x + head_size, 64)
-    head_end_y = min(head_y + head_size, 128)
-    
-    # Apply colors with noise
-    for c in range(3):
-        # Body
-        if body_start_y < body_end_y and body_start_x < body_end_x:
-            noise = np.random.normal(0, 0.1, (body_end_y - body_start_y, body_end_x - body_start_x))
-            image[c, body_start_y:body_end_y, body_start_x:body_end_x] = base_color[c] + noise
-        
-        # Head
-        if head_y < head_end_y and head_x < head_end_x and head_y >= 0:
-            head_color = np.clip(base_color[c] + np.random.uniform(-0.2, 0.2), 0.0, 1.0)
-            noise = np.random.normal(0, 0.05, (head_end_y - head_y, head_end_x - head_x))
-            image[c, head_y:head_end_y, head_x:head_end_x] = head_color + noise
-    
-    # Add noise and normalize
-    image += np.random.normal(0, 0.02, image.shape)
-    image = np.clip(image, 0.0, 1.0)
-    
-    # Add batch dimension
-    calibration_sample = np.expand_dims(image, axis=0).astype(np.float32)
-    calibration_data.append(calibration_sample)
-
-# Create calibration dataset for NNCF
-def calibration_dataset():
-    for data_item in calibration_data:
-        yield data_item
-
-calibration_dataset_nncf = nncf.Dataset(calibration_dataset())
-
-# Load the FP32 model for quantization
-ov_model = ov.Core().read_model("./FP32/mars-small128.xml")
-
-# Apply INT8 quantization
-quantized_model = nncf.quantize(
-    ov_model,
-    calibration_dataset_nncf,
-    subset_size=min(calibration_size, 100)
-)
-
-# Save INT8 model
-ov.save_model(quantized_model, "./INT8/mars-small128.xml")
-EOF
-
-    echo_color "✅ INT8 model saved" "green"
+    echo_color "✅ Mars-Small128 conversion completed" "green"
     echo_color "═══════════════════════════════════════════════════" "cyan"
-    echo_color "MARS-SMALL128 CONVERSION COMPLETED!" "bgreen"
+    echo_color "📁 Output directory: $MODEL_DIR" "blue"
+    echo_color "📏 Models: mars_small128_fp32.xml, mars_small128_int8.xml" "blue"
+    echo_color "🎯 Usage: DeepSORT person re-identification tracking" "blue"
     echo_color "═══════════════════════════════════════════════════" "cyan"
-    echo_color "📁 Output directory: FP32/ and INT8/" "blue"
-    echo_color "📏 Input shape: (1,3,128,64) (NCHW)" "blue"
-    echo_color "🎯 Output: 128-dimensional feature vector" "blue"
-    echo_color "🔧 Usage: Person re-identification in DeepSORT tracking" "blue"
-    echo_color "═══════════════════════════════════════════════════" "cyan"
-
+    
     cd ../..
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
