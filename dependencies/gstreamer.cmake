@@ -25,7 +25,7 @@ ExternalProject_Add(
 	GIT_REPOSITORY  https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 	GIT_TAG         ${DESIRED_VERSION}
 	# Use external script for patch to avoid quoting issues; script handles idempotency and logging
-	PATCH_COMMAND bash ${CMAKE_CURRENT_SOURCE_DIR}/patches/apply_gst_patch.sh gstreamer-1-26-6-vacompositor-vafilter-fixes.patch 
+	PATCH_COMMAND bash -c "bash ${CMAKE_CURRENT_SOURCE_DIR}/patches/apply_gst_patch.sh $(find ${CMAKE_CURRENT_SOURCE_DIR}/patches -maxdepth 1 -name '*.patch' -type f | sort)"
     BUILD_COMMAND       ninja
     INSTALL_COMMAND     meson install
     TEST_COMMAND        ""

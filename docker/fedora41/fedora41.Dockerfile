@@ -187,6 +187,10 @@ FROM opencv-builder AS gstreamer-builder
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 WORKDIR /home/dlstreamer
 
+# Copy GStreamer patches
+RUN mkdir -p /tmp/patches
+COPY dependencies/patches/ /tmp/patches/
+
 RUN \
     git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
 
@@ -198,6 +202,7 @@ WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
+    git apply /tmp/patches/*.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \
@@ -275,7 +280,8 @@ RUN \
     build/ && \
     ninja -C build && \
     meson install -C build/ && \
-    rm -r subprojects/gst-devtools subprojects/gst-examples
+    rm -r subprojects/gst-devtools subprojects/gst-examples && \
+    rm -rf /tmp/patches/
 
 ENV PKG_CONFIG_PATH="${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
