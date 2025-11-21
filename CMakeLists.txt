@@ -26,8 +26,8 @@ endif()
 
 # Define version
 set(VERSION_MAJOR 2025)
-set(VERSION_MINOR 1)
-set(VERSION_PATCH 2)
+set(VERSION_MINOR 2)
+set(VERSION_PATCH 0)
 
 if (NOT DEFINED GIT_INFO OR "${GIT_INFO}" STREQUAL "")
     set(GIT_INFO "0")
@@ -134,7 +134,7 @@ option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
 option(ENABLE_VPUX "Enables VPUX specific features" OFF)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)
-# Enable GenAI by default on Windows. 
+# Enable GenAI by default on Windows.
 # It can be enabled on Ubuntu but there is no support for Fedora.
 if(WIN32)
     set(ENABLE_GENAI ON)
