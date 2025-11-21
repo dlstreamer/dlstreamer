@@ -181,8 +181,9 @@ FROM opencv-builder AS gstreamer-builder
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
-# Copy GStreamer patch for vacompositor and vafilter fixes
-COPY dependencies/patches/gstreamer-1-26-6-vacompositor-vafilter-fixes.patch /tmp/gstreamer-patch.patch
+# Copy GStreamer patches
+RUN mkdir -p /tmp/patches
+COPY dependencies/patches/ /tmp/patches/
 
 # Build GStreamer
 WORKDIR /home/dlstreamer
@@ -198,7 +199,7 @@ WORKDIR /home/dlstreamer/gstreamer
 
 RUN \
     git switch -c "$GST_VERSION" "tags/$GST_VERSION" && \
-    git apply /tmp/gstreamer-patch.patch && \
+    git apply /tmp/patches/*.patch && \
     meson setup \
     -Dexamples=disabled \
     -Dtests=disabled \
@@ -277,7 +278,7 @@ RUN \
     ninja -C build && \
     meson install -C build/ && \
     rm -r subprojects/gst-devtools subprojects/gst-examples && \
-    rm /tmp/gstreamer-patch.patch
+    rm -rf /tmp/patches/
 
 ENV PKG_CONFIG_PATH="${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 
