@@ -1015,6 +1015,8 @@ if [[ " ${MODELS_TO_PROCESS[@]} " =~ " mars-small128 " ]] || [[ " ${MODELS_TO_PR
     cd ../..
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
+  fi
+fi
 
 # Deactivate and remove venvs
 echo "Removing Python virtual environments..."
