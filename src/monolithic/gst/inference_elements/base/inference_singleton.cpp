@@ -189,19 +189,17 @@ std::shared_ptr<InferenceImpl> acquire_inference_instance(GvaBaseInference *base
 void release_inference_instance(GvaBaseInference *base_inference) {
     try {
         std::lock_guard<std::mutex> guard(inference_pool_mutex_);
-        std::string name = get_inference_key(base_inference);
-        GST_INFO_OBJECT(base_inference, "key: %s\n", name.c_str());
 
-        auto it = inference_pool_.find(name);
-        if (it == inference_pool_.end())
-            return;
-
-        auto infRefs = it->second;
-        infRefs->refs.erase(base_inference);
-        if (infRefs->refs.empty()) {
-            infRefs->proxy.reset();
-            infRefs.reset();
-            inference_pool_.erase(name);
+        for (auto it = inference_pool_.begin(); it != inference_pool_.end();) {
+            auto infRefs = it->second;
+            infRefs->refs.erase(base_inference);
+            if (infRefs->refs.empty()) {
+                infRefs->proxy.reset();
+                infRefs.reset();
+                it = inference_pool_.erase(it);
+            } else {
+                ++it;
+            }
         }
     } catch (const std::exception &e) {
         GST_ELEMENT_ERROR(base_inference, LIBRARY, SHUTDOWN, ("base_inference failed on releasing inference instance"),
