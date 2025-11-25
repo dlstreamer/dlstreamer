@@ -31,6 +31,7 @@
 
 advanced_install_guide_prerequisites
 advanced_install_guide_compilation
+advanced_install_on_windows
 advanced_build_docker_image
 advanced_uninstall_guide
 :::
