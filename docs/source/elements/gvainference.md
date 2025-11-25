@@ -148,4 +148,7 @@ Element Properties:
   scheduling-policy   : Scheduling policy across streams sharing same model instance: throughput (select first incoming frame), latency (select frames with earliest presentation time out of the streams sharing same model-instance-id; recommended batch-size less than or equal to the number of streams)
                         flags: readable, writable
                         String. Default: null
+  share-va-display-ctx: Feature allowing sharing VA Display context across inference elements
+                        flags: readable, writable
+                        Boolean. Default: true                        
 ```
