@@ -467,6 +467,23 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *trans, GstCaps 
     return TRUE;
 }
 // Helper to attach motion ROIs and associated analytics metadata (aggregated in a single relation meta)
+// Attach motion results to the buffer using TWO complementary metadata layers:
+// 1. GstAnalyticsRelationMeta ("relation" meta): an aggregate container that holds one object
+//    detection metadata (ODMtd) entry per motion ROI. This is a compact, machine-readable
+//    summary used by higher-level analytics components. Each ODMtd stores integer pixel
+//    coordinates and a confidence (always 1.0 for binary motion presence here).
+// 2. GstVideoRegionOfInterestMeta (ROI meta): a traditional per-region video meta providing
+//    label + rectangle + arbitrary parameters. We add a "detection" GstStructure with
+//    normalized coordinates (x_min/x_max/y_min/y_max) rounded to three decimals to reduce
+//    payload noise. The ROI meta 'id' is set to the corresponding ODMtd id to allow consumers
+//    to cross-reference both representations if they prefer one format over the other.
+//
+// Rationale:
+// - Relation meta enables unified iteration of all analytic objects in a frame (motion, detections, etc.).
+// - ROI meta preserves compatibility with existing GStreamer video analytics / downstream plugins expecting ROIs.
+// - Normalized, rounded coordinates facilitate lightweight serialization while integer pixel coordinates preserve
+// fidelity. If relation meta cannot be obtained/created, we skip attaching any motion ROIs to avoid partially
+// inconsistent state.
 static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffer *buf,
                                               const std::vector<MotionRect> &rois, int width, int height) {
     if (rois.empty())
@@ -480,6 +497,7 @@ static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffe
         GST_WARNING_OBJECT(self, "Buffer not writable; skipping motion ROI attachment");
         return;
     }
+    // Obtain (or create) the aggregate relation meta that will hold all motion ODMtd entries.
     GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
     if (!relation_meta) {
         relation_meta = gst_buffer_add_analytics_relation_meta(buf);
@@ -507,34 +525,44 @@ static void gst_gva_motion_detect_attach_rois(GstGvaMotionDetect *self, GstBuffe
         double _y = y * height + 0.5;
         double _w = w * width + 0.5;
         double _h = h * height + 0.5;
-        // Apply precision reduction to normalized coordinates
+        // Apply precision reduction to normalized coordinates (rounded to 0.001) for compactness.
         double x_min_r = md_round_coord(x);
         double x_max_r = md_round_coord(x + w);
         double y_min_r = md_round_coord(y);
         double y_max_r = md_round_coord(y + h);
+        // Create per-ROI auxiliary structure carrying normalized box + confidence for ROI meta.
         GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max",
                                                     G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
                                                     G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
-        GstAnalyticsODMtd od_mtd;
-        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"), (int)std::lround(_x),
-                                                    (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h),
-                                                    1.0, &od_mtd)) {
-            GST_WARNING_OBJECT(self, "Failed to add OD metadata for motion ROI");
-            gst_structure_free(detection);
-            continue;
-        }
+        // Atomic pairing requirement: either BOTH metadata types (ROI meta + ODMtd) are attached for this motion
+        // rectangle or NONE. Strategy:
+        // 1. Create ROI meta first; if that fails, skip entirely (no ODMtd added).
+        // 2. Attempt ODMtd addition; if that fails, remove the ROI meta we just added to avoid orphan ROI.
+        // 3. Only after both succeed do we link ids and add the detection structure.
+        // This prevents orphan ODMtd entries and orphan ROI metas.
         GstVideoRegionOfInterestMeta *roi_meta =
             gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
                                                          (guint)std::lround(_w), (guint)std::lround(_h));
         if (!roi_meta) {
-            GST_WARNING_OBJECT(self, "Failed to add ROI meta for motion ROI");
+            GST_WARNING_OBJECT(self, "Failed to add ROI meta for motion ROI (atomic pair) -> skipping");
             gst_structure_free(detection);
             continue;
         }
+        GstAnalyticsODMtd od_mtd;
+        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"), (int)std::lround(_x),
+                                                    (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h),
+                                                    1.0, &od_mtd)) {
+            GST_WARNING_OBJECT(self, "Failed to add OD metadata for motion ROI (atomic pair) -> rolling back ROI meta");
+            // Roll back ROI meta to maintain all-or-nothing invariant.
+            gst_buffer_remove_meta(buf, (GstMeta *)roi_meta);
+            gst_structure_free(detection);
+            continue;
+        }
+        // Link ROI meta to its corresponding ODMtd entry by copying the generated id, then attach auxiliary params.
         roi_meta->id = od_mtd.id;
         gst_video_region_of_interest_meta_add_param(roi_meta, detection);
-        GST_LOG_OBJECT(self, "Attached motion ROI id=%d rect=[%d,%d %dx%d]", od_mtd.id, (int)std::lround(_x),
-                       (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h));
+        GST_LOG_OBJECT(self, "Attached motion ROI id=%d rect=[%d,%d %dx%d] (atomic pair)", od_mtd.id,
+                       (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h));
         attached++;
     }
     // Enumerate OD metadata for debug correlation
