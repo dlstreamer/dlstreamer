@@ -8,6 +8,9 @@
 MODEL=${1:-"all"} # Supported values listed in SUPPORTED_MODELS below. Type one model,list of models separated by coma or 'all' to download all models.
 QUANTIZE=${2:-""} # Supported values listed in SUPPORTED_MODELS below.
 
+# Save the directory where the script was launched from
+LAUNCH_DIR="$PWD"
+
 . /etc/os-release
 
 # Changing the config dir for the duration of the script to prevent potential conflics with
@@ -151,7 +154,7 @@ prepare_models_list() {
     # Validate each model
     for model in "${models_array[@]}"; do
         model=$(echo "$model" | xargs)  # Trim whitespace
-        
+
         if ! [[ " ${SUPPORTED_MODELS[*]} " =~ " $model " ]]; then
             echo "Unsupported model: $model" >&2
             exit 1
@@ -970,7 +973,7 @@ os.remove('${MODEL_NAME}.zip')
     cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.xml FP32/${MODEL_NAME}.xml
     chmod -R u+w license-plate-reader
     rm -rf license-plate-reader
-    cd ..
+    cd -
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
@@ -984,8 +987,11 @@ if [[ " ${MODELS_TO_PROCESS[@]} " =~ " mars-small128 " ]] || [[ " ${MODELS_TO_PR
   if [[ ! -f "$MODEL_DIR/mars_small128_fp32.xml" ]]; then
     echo_color "Converting Mars-Small128 model for DeepSORT tracking..." "blue"
 
-    # Get the script directory (samples directory) before changing directories
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Get the script directory (samples directory) using absolute path
+    cd "$LAUNCH_DIR"
+    echo "Current directory: $(pwd)"
+    SCRIPT_DIR="$(dirname "$(realpath "${BASH_SOURCE[0]}")")"
+    echo "Script directory: $SCRIPT_DIR"
     CONVERTER_SCRIPT="$SCRIPT_DIR/models/convert_mars_deepsort.py"
 
     if [[ ! -f "$CONVERTER_SCRIPT" ]]; then
