@@ -4,6 +4,12 @@
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
 
+/*******************************************************************************
+ * Copyright (C) 2025 Intel Corporation
+ *
+ * SPDX-License-Identifier: MIT
+ ******************************************************************************/
+
 #include "gvamotiondetect.h"
 #include <algorithm>
 #include <cmath>
@@ -15,11 +21,12 @@
 #include <opencv2/imgproc.hpp>
 #include <vector>
 
-// Enable analytics relation meta only on non-Windows builds; Windows uses ROI-only path by default.
-#ifndef _WIN32
 #include <dlstreamer/gst/videoanalytics/video_frame.h>
-#define GVA_MD_HAVE_ANALYTICS 1
-#endif
+
+// Linux parity helper: round normalized coordinates to 3 decimal places to reduce metadata verbosity.
+static inline double md_round_coord(double v) {
+    return std::floor(v * 1000.0 + 0.5) / 1000.0;
+}
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug_win);
 #define GST_CAT_DEFAULT gst_gva_motion_detect_debug_win
@@ -27,6 +34,21 @@ GST_DEBUG_CATEGORY_STATIC(gst_gva_motion_detect_debug_win);
 struct MotionRectWin {
     int x, y, w, h;
 };
+
+// Build motion mask (software path) analogous to Linux md_build_motion_mask.
+// Inputs: current small-scale grayscale frame and previous frame; Output: morph (opened+dilated) binary mask.
+static void md_build_motion_mask(const cv::UMat &curr_small, const cv::UMat &prev_small_gray, cv::UMat &morph,
+                                 int pixel_diff_threshold) {
+    cv::UMat diff, blur, thr;
+    cv::absdiff(curr_small, prev_small_gray, diff);
+    cv::GaussianBlur(diff, blur, cv::Size(3, 3), 0);
+    cv::threshold(blur, thr, std::max(1, std::min(255, pixel_diff_threshold)), 255, cv::THRESH_BINARY);
+    cv::UMat tmp;
+    cv::Mat k = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
+    cv::morphologyEx(thr, tmp, cv::MORPH_OPEN, k);
+    cv::dilate(tmp, morph, k);
+}
+// (md_scan_blocks & merge helpers moved below struct for MSVC complete type availability)
 
 enum {
     PROP_0,
@@ -66,6 +88,134 @@ struct _GstGvaMotionDetect {
     uint64_t frame_index;
     GMutex meta_mutex; // protect metadata writes
 };
+
+// Scan blocks to produce raw motion rectangles (parity with Linux md_scan_blocks, adapted to Windows struct & members)
+static void md_scan_blocks(GstGvaMotionDetect *self, const cv::UMat &morph, int width, int height, int small_w,
+                           int small_h, std::vector<MotionRectWin> &raw) {
+    double scale_x = (double)width / (double)small_w;
+    double scale_y = (double)height / (double)small_h;
+    double full_area = (double)width * height;
+    double min_rel = std::clamp(self->min_rel_area, 0.0, 0.25);
+    int block_full = std::max(16, self->block_size);
+    int bs_w = std::max(4, (int)std::round(block_full / scale_x));
+    int bs_h = std::max(4, (int)std::round(block_full / scale_y));
+    double CHANGE_THR = std::clamp(self->motion_threshold, 0.0, 1.0);
+    cv::Mat m_cpu = morph.getMat(cv::ACCESS_READ);
+    int required = std::max(1, self->confirm_frames);
+    if (required > 1) {
+        int rows = (small_h + bs_h - 1) / bs_h;
+        int cols = (small_w + bs_w - 1) / bs_w;
+        if (self->block_state.empty() || self->block_state.rows != rows || self->block_state.cols != cols)
+            self->block_state = cv::Mat(rows, cols, CV_8U, cv::Scalar(0));
+        for (int by = 0, gy = 0; by < small_h; by += bs_h, ++gy) {
+            int h_small = std::min(bs_h, small_h - by);
+            if (h_small < 4)
+                break;
+            for (int bx = 0, gx = 0; bx < small_w; bx += bs_w, ++gx) {
+                int w_small = std::min(bs_w, small_w - bx);
+                if (w_small < 4)
+                    break;
+                cv::Rect r(bx, by, w_small, h_small);
+                cv::Mat sub = m_cpu(r);
+                int changed = cv::countNonZero(sub);
+                double ratio = (double)changed / (double)(r.width * r.height);
+                unsigned char &state = self->block_state.at<unsigned char>(gy, gx);
+                if (ratio >= CHANGE_THR) {
+                    if (state < required)
+                        state++;
+                } else {
+                    if (state > 0)
+                        state--;
+                }
+                if (state < required)
+                    continue;
+                int fx = (int)std::round(r.x * scale_x);
+                int fy = (int)std::round(r.y * scale_y);
+                int fw = (int)std::round(r.width * scale_x);
+                int fh = (int)std::round(r.height * scale_y);
+                double area_full = (double)fw * fh;
+                if (area_full / full_area < min_rel)
+                    continue;
+                const int PAD = 4;
+                fx = std::max(0, fx - PAD);
+                fy = std::max(0, fy - PAD);
+                fw = std::min(width - fx, fw + 2 * PAD);
+                fh = std::min(height - fy, fh + 2 * PAD);
+                if (fx + fw > width)
+                    fw = width - fx;
+                if (fy + fh > height)
+                    fh = height - fy;
+                raw.push_back({fx, fy, fw, fh});
+            }
+        }
+    } else { // single-frame immediate logic
+        for (int by = 0; by < small_h; by += bs_h) {
+            int h_small = std::min(bs_h, small_h - by);
+            if (h_small < 4)
+                break;
+            for (int bx = 0; bx < small_w; bx += bs_w) {
+                int w_small = std::min(bs_w, small_w - bx);
+                if (w_small < 4)
+                    break;
+                cv::Rect r(bx, by, w_small, h_small);
+                cv::Mat sub = m_cpu(r);
+                int changed = cv::countNonZero(sub);
+                double ratio = (double)changed / (double)(r.width * r.height);
+                if (ratio < CHANGE_THR)
+                    continue;
+                int fx = (int)std::round(r.x * scale_x);
+                int fy = (int)std::round(r.y * scale_y);
+                int fw = (int)std::round(r.width * scale_x);
+                int fh = (int)std::round(r.height * scale_y);
+                double area_full = (double)fw * fh;
+                if (area_full / full_area < min_rel)
+                    continue;
+                const int PAD = 4;
+                fx = std::max(0, fx - PAD);
+                fy = std::max(0, fy - PAD);
+                fw = std::min(width - fx, fw + 2 * PAD);
+                fh = std::min(height - fy, fh + 2 * PAD);
+                if (fx + fw > width)
+                    fw = width - fx;
+                if (fy + fh > height)
+                    fh = height - fy;
+                raw.push_back({fx, fy, fw, fh});
+            }
+        }
+    }
+}
+
+// Merge overlapping motion rectangles (parity with Linux gst_gva_motion_detect_merge_rois)
+static void gst_gva_motion_detect_merge_rois(std::vector<MotionRectWin> &raw) {
+    bool merged = true;
+    while (merged) {
+        merged = false;
+        std::vector<MotionRectWin> out;
+        std::vector<char> used(raw.size(), 0);
+        for (size_t i = 0; i < raw.size(); ++i) {
+            if (used[i])
+                continue;
+            MotionRectWin a = raw[i];
+            for (size_t j = i + 1; j < raw.size(); ++j) {
+                if (used[j])
+                    continue;
+                MotionRectWin b = raw[j];
+                bool overlap = !(b.x + b.w < a.x || a.x + a.w < b.x || b.y + b.h < a.y || a.y + a.h < b.y);
+                if (overlap) {
+                    int nx = std::min(a.x, b.x);
+                    int ny = std::min(a.y, b.y);
+                    int nw = std::max(a.x + a.w, b.x + b.w) - nx;
+                    int nh = std::max(a.y + a.h, b.y + b.h) - ny;
+                    a = {nx, ny, nw, nh};
+                    used[j] = 1;
+                    merged = true;
+                }
+            }
+            out.push_back(a);
+        }
+        raw.swap(out);
+    }
+}
 
 struct _GstGvaMotionDetectClass {
     GstBaseTransformClass parent_class;
@@ -175,13 +325,19 @@ static gboolean gst_gva_motion_detect_set_caps(GstBaseTransform *t, GstCaps *in,
     return gst_video_info_from_caps(&self->vinfo, in);
 }
 
-// Attach motion metadata. If analytics headers are available we add relation meta + OD entries; otherwise fallback to
-// ROI-only.
+// Attach motion metadata using an atomic pairing strategy identical to Linux implementation: for each published track
+// either BOTH metadata types (relation ODMtd + ROI meta with detection structure) are added or NONE. If relation meta
+// creation fails, attachment for all motion ROIs is skipped to avoid inconsistent dual-layer state.
+// Helper to attach motion ROIs and analytics metadata (Windows parity with Linux):
+// Attaches TWO metadata layers per motion ROI:
+// 1. GstAnalyticsRelationMeta (aggregate ODMtd entries holding integer pixel coords + confidence)
+// 2. GstVideoRegionOfInterestMeta (per-ROI meta with "detection" structure containing normalized, rounded coords)
+// Atomic per-ROI: either both are added or none. If relation meta cannot be obtained, all motion ROIs are skipped.
 static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstBuffer *buf, int width, int height) {
     std::vector<_GstGvaMotionDetect::Track> publish;
     publish.reserve(self->tracks.size());
     for (auto &tr : self->tracks) {
-        if (tr.age >= self->min_persistence && tr.miss <= self->max_miss)
+        if (tr.age >= self->min_persistence && tr.miss == 0)
             publish.push_back(tr);
     }
     if (publish.empty())
@@ -194,21 +350,28 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
     if (!gst_buffer_is_writable(buf))
         return;
     g_mutex_lock(&self->meta_mutex);
-#if defined(GVA_MD_HAVE_ANALYTICS)
+    // Obtain or create relation meta; if unavailable skip all attachments (all-or-nothing frame-level constraint).
     GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buf);
-    if (!relation_meta)
+    if (!relation_meta) {
         relation_meta = gst_buffer_add_analytics_relation_meta(buf);
-        // If relation_meta creation fails we gracefully degrade to ROI-only path.
-#endif
+        if (relation_meta)
+            GST_LOG_OBJECT(self, "Added new GstAnalyticsRelationMeta %p (Windows)", relation_meta);
+    }
+    if (!relation_meta) {
+        GST_WARNING_OBJECT(
+            self, "Failed to obtain/create GstAnalyticsRelationMeta; skipping motion metadata (Windows atomic)");
+        g_mutex_unlock(&self->meta_mutex);
+        return;
+    }
     for (auto &tr : publish) {
         double nx = std::clamp(tr.sx / (double)width, 0.0, 1.0);
         double ny = std::clamp(tr.sy / (double)height, 0.0, 1.0);
         double nw = std::clamp(tr.sw / (double)width, 0.0, 1.0);
         double nh = std::clamp(tr.sh / (double)height, 0.0, 1.0);
-        double x_min_r = nx;
-        double y_min_r = ny;
-        double x_max_r = std::min(1.0, nx + nw);
-        double y_max_r = std::min(1.0, ny + nh);
+        double x_min_r = md_round_coord(nx);
+        double y_min_r = md_round_coord(ny);
+        double x_max_r = md_round_coord(std::min(1.0, nx + nw));
+        double y_max_r = md_round_coord(std::min(1.0, ny + nh));
         double _x = nx * width + 0.5;
         double _y = ny * height + 0.5;
         double _w = nw * width + 0.5;
@@ -216,45 +379,28 @@ static void gst_gva_motion_detect_attach_metadata(GstGvaMotionDetect *self, GstB
         GstStructure *detection = gst_structure_new("detection", "x_min", G_TYPE_DOUBLE, x_min_r, "x_max",
                                                     G_TYPE_DOUBLE, x_max_r, "y_min", G_TYPE_DOUBLE, y_min_r, "y_max",
                                                     G_TYPE_DOUBLE, y_max_r, "confidence", G_TYPE_DOUBLE, 1.0, NULL);
-#if defined(GVA_MD_HAVE_ANALYTICS)
-        bool attached_with_relation = false;
-        if (relation_meta) {
-            GstAnalyticsODMtd od_mtd;
-            if (gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"),
-                                                       (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w),
-                                                       (int)std::lround(_h), 1.0, &od_mtd)) {
-                GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
-                    buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
-                    (guint)std::lround(_h));
-                if (roi_meta) {
-                    roi_meta->id = od_mtd.id;
-                    gst_video_region_of_interest_meta_add_param(roi_meta, detection);
-                    attached_with_relation = true;
-                }
-            }
-        }
-        if (!attached_with_relation) {
-            // Fallback: ROI-only
-            GstVideoRegionOfInterestMeta *roi_meta = gst_buffer_add_video_region_of_interest_meta(
-                buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y), (guint)std::lround(_w),
-                (guint)std::lround(_h));
-            if (!roi_meta) {
-                gst_structure_free(detection);
-                continue;
-            }
-            gst_video_region_of_interest_meta_add_param(roi_meta, detection);
-        }
-#else  // No analytics (Windows build or headers absent): ROI-only path
-       // ROI-only path when analytics headers absent
+        // Atomic pairing per ROI: create ROI meta first, then add ODMtd; on ODMtd failure roll back ROI meta.
         GstVideoRegionOfInterestMeta *roi_meta =
             gst_buffer_add_video_region_of_interest_meta(buf, "motion", (guint)std::lround(_x), (guint)std::lround(_y),
                                                          (guint)std::lround(_w), (guint)std::lround(_h));
         if (!roi_meta) {
+            GST_WARNING_OBJECT(self, "Failed to add ROI meta (Windows atomic) -> skipping ROI");
             gst_structure_free(detection);
             continue;
         }
+        GstAnalyticsODMtd od_mtd;
+        if (!gst_analytics_relation_meta_add_od_mtd(relation_meta, g_quark_from_string("motion"), (int)std::lround(_x),
+                                                    (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h),
+                                                    1.0, &od_mtd)) {
+            GST_WARNING_OBJECT(self, "Failed to add ODMtd (Windows atomic) -> rolling back ROI meta");
+            gst_buffer_remove_meta(buf, (GstMeta *)roi_meta);
+            gst_structure_free(detection);
+            continue;
+        }
+        roi_meta->id = od_mtd.id;
         gst_video_region_of_interest_meta_add_param(roi_meta, detection);
-#endif // defined(GVA_MD_HAVE_ANALYTICS)
+        GST_LOG_OBJECT(self, "Attached motion ROI id=%d rect=[%d,%d %dx%d] (Windows atomic)", od_mtd.id,
+                       (int)std::lround(_x), (int)std::lround(_y), (int)std::lround(_w), (int)std::lround(_h));
     }
     g_mutex_unlock(&self->meta_mutex);
 }
@@ -289,140 +435,13 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
         curr_luma.copyTo(self->prev_luma);
         return GST_FLOW_OK;
     }
-    // Build motion mask (refactored helper inline for Windows)
-    cv::UMat diff, blur, thr, morph;
-    cv::absdiff(curr_small, self->prev_small_gray, diff);
-    cv::GaussianBlur(diff, blur, cv::Size(3, 3), 0);
-    cv::threshold(blur, thr, std::max(1, std::min(255, self->pixel_diff_threshold)), 255, cv::THRESH_BINARY);
-    {
-        cv::UMat tmp;
-        cv::Mat k = cv::getStructuringElement(cv::MORPH_RECT, cv::Size(3, 3));
-        cv::morphologyEx(thr, tmp, cv::MORPH_OPEN, k);
-        cv::dilate(tmp, morph, k);
-    }
+    // Build motion mask via helper (parity with Linux pipeline)
+    cv::UMat morph;
+    md_build_motion_mask(curr_small, self->prev_small_gray, morph, self->pixel_diff_threshold);
     std::vector<MotionRectWin> raw;
-    double scale_x = (double)width / (double)small_w;
-    double scale_y = (double)height / (double)small_h;
-    double full_area = (double)width * height;
-    // Use configurable minimum relative area threshold to filter out tiny noise boxes
-    double min_rel = std::clamp(self->min_rel_area, 0.0, 0.25);
-    int block_full = std::max(16, self->block_size);
-    int bs_w = std::max(4, (int)std::round(block_full / scale_x));
-    int bs_h = std::max(4, (int)std::round(block_full / scale_y));
-    double CHANGE_THR = std::clamp(self->motion_threshold, 0.0, 1.0);
-    cv::Mat m_cpu = morph.getMat(cv::ACCESS_READ);
-    int required = std::max(1, self->confirm_frames);
-    if (required > 1) {
-        int rows = (small_h + bs_h - 1) / bs_h;
-        int cols = (small_w + bs_w - 1) / bs_w;
-        if (self->block_state.empty() || self->block_state.rows != rows || self->block_state.cols != cols)
-            self->block_state = cv::Mat(rows, cols, CV_8U, cv::Scalar(0));
-        for (int by = 0, gy = 0; by < small_h; by += bs_h, ++gy) {
-            int h_small = std::min(bs_h, small_h - by);
-            if (h_small < 4)
-                break;
-            for (int bx = 0, gx = 0; bx < small_w; bx += bs_w, ++gx) {
-                int w_small = std::min(bs_w, small_w - bx);
-                if (w_small < 4)
-                    break;
-                cv::Rect r(bx, by, w_small, h_small);
-                cv::Mat sub = m_cpu(r);
-                int changed = cv::countNonZero(sub);
-                double ratio = (double)changed / (double)(r.width * r.height);
-                unsigned char &state = self->block_state.at<unsigned char>(gy, gx);
-                if (ratio >= CHANGE_THR) {
-                    if (state < required)
-                        state++;
-                } else {
-                    if (state > 0)
-                        state--;
-                }
-                if (state < required)
-                    continue;
-                int fx = (int)std::round(r.x * scale_x);
-                int fy = (int)std::round(r.y * scale_y);
-                int fw = (int)std::round(r.width * scale_x);
-                int fh = (int)std::round(r.height * scale_y);
-                double area_full = (double)fw * fh;
-                if (area_full / full_area < min_rel)
-                    continue;
-                const int PAD = 4;
-                fx = std::max(0, fx - PAD);
-                fy = std::max(0, fy - PAD);
-                fw = std::min(width - fx, fw + 2 * PAD);
-                fh = std::min(height - fy, fh + 2 * PAD);
-                if (fx + fw > width)
-                    fw = width - fx;
-                if (fy + fh > height)
-                    fh = height - fy;
-                raw.push_back({fx, fy, fw, fh});
-            }
-        }
-    } else { // single-frame immediate logic
-        for (int by = 0; by < small_h; by += bs_h) {
-            int h_small = std::min(bs_h, small_h - by);
-            if (h_small < 4)
-                break;
-            for (int bx = 0; bx < small_w; bx += bs_w) {
-                int w_small = std::min(bs_w, small_w - bx);
-                if (w_small < 4)
-                    break;
-                cv::Rect r(bx, by, w_small, h_small);
-                cv::Mat sub = m_cpu(r);
-                int changed = cv::countNonZero(sub);
-                double ratio = (double)changed / (double)(r.width * r.height);
-                if (ratio < CHANGE_THR)
-                    continue;
-                int fx = (int)std::round(r.x * scale_x);
-                int fy = (int)std::round(r.y * scale_y);
-                int fw = (int)std::round(r.width * scale_x);
-                int fh = (int)std::round(r.height * scale_y);
-                double area_full = (double)fw * fh;
-                if (area_full / full_area < min_rel)
-                    continue;
-                const int PAD = 4;
-                fx = std::max(0, fx - PAD);
-                fy = std::max(0, fy - PAD);
-                fw = std::min(width - fx, fw + 2 * PAD);
-                fh = std::min(height - fy, fh + 2 * PAD);
-                if (fx + fw > width)
-                    fw = width - fx;
-                if (fy + fh > height)
-                    fh = height - fy;
-                raw.push_back({fx, fy, fw, fh});
-            }
-        }
-    }
-    // Merge overlaps
-    bool merged = true;
-    while (merged) {
-        merged = false;
-        std::vector<MotionRectWin> out;
-        std::vector<char> used(raw.size(), 0);
-        for (size_t i = 0; i < raw.size(); ++i) {
-            if (used[i])
-                continue;
-            MotionRectWin a = raw[i];
-            for (size_t j = i + 1; j < raw.size(); ++j) {
-                if (used[j])
-                    continue;
-                MotionRectWin b = raw[j];
-                bool overlap = !(b.x + b.w < a.x || a.x + a.w < b.x || b.y + b.h < a.y || a.y + a.h < b.y);
-                if (overlap) {
-                    int nx = std::min(a.x, b.x);
-                    int ny = std::min(a.y, b.y);
-                    int nw = std::max(a.x + a.w, b.x + b.w) - nx;
-                    int nh = std::max(a.y + a.h, b.y + b.h) - ny;
-                    a = {nx, ny, nw, nh};
-                    used[j] = 1;
-                    merged = true;
-                }
-            }
-            out.push_back(a);
-        }
-        raw.swap(out);
-    }
-    // Tracking
+    md_scan_blocks(self, morph, width, height, small_w, small_h, raw);
+    gst_gva_motion_detect_merge_rois(raw);
+    // Tracking (parity with Linux logic)
     std::vector<char> matched(raw.size(), 0);
     for (auto &t : self->tracks)
         t.miss++;
@@ -459,6 +478,13 @@ static GstFlowReturn gst_gva_motion_detect_transform_ip(GstBaseTransform *t, Gst
             auto &r = raw[i];
             self->tracks.push_back({r.x, r.y, r.w, r.h, (double)r.x, (double)r.y, (double)r.w, (double)r.h, 1, 0});
         }
+    // Remove stale tracks exceeding max_miss (Linux parity)
+    if (self->max_miss >= 0) {
+        self->tracks.erase(
+            std::remove_if(self->tracks.begin(), self->tracks.end(),
+                           [self](const _GstGvaMotionDetect::Track &t) { return t.miss > self->max_miss; }),
+            self->tracks.end());
+    }
     // Attach metadata now that tracks updated
     gst_gva_motion_detect_attach_metadata(self, buf, width, height);
     curr_small.copyTo(self->prev_small_gray);
@@ -493,32 +519,40 @@ static void gst_gva_motion_detect_class_init(GstGvaMotionDetectClass *klass) {
     oclass->get_property = gst_gva_motion_detect_get_property;
     g_object_class_install_property(
         oclass, PROP_BLOCK_SIZE,
-        g_param_spec_int("block-size", "Block Size", "Full-res block size", 16, 512, 64, G_PARAM_READWRITE));
+        g_param_spec_int("block-size", "Block Size",
+                         "Full-resolution block size (pixels) used for grid motion detection", 16, 512, 64,
+                         G_PARAM_READWRITE));
     g_object_class_install_property(oclass, PROP_MOTION_THRESHOLD,
                                     g_param_spec_double("motion-threshold", "Motion Threshold",
-                                                        "Per-block changed pixel ratio", 0.0, 1.0, 0.05,
-                                                        G_PARAM_READWRITE));
+                                                        "Per-block changed pixel ratio required to flag motion (0..1)",
+                                                        0.0, 1.0, 0.05, G_PARAM_READWRITE));
     g_object_class_install_property(oclass, PROP_MIN_PERSISTENCE,
-                                    g_param_spec_int("min-persistence", "Min Persistence", "Frames track must persist",
-                                                     1, 30, 2, G_PARAM_READWRITE));
-    g_object_class_install_property(
-        oclass, PROP_MAX_MISS,
-        g_param_spec_int("max-miss", "Max Miss", "Grace frames before drop", 0, 30, 1, G_PARAM_READWRITE));
+                                    g_param_spec_int("min-persistence", "Min Persistence",
+                                                     "Frames an ROI must persist before being emitted", 1, 30, 2,
+                                                     G_PARAM_READWRITE));
+    g_object_class_install_property(oclass, PROP_MAX_MISS,
+                                    g_param_spec_int("max-miss", "Max Miss",
+                                                     "Grace frames after last match before ROI is dropped", 0, 30, 1,
+                                                     G_PARAM_READWRITE));
     g_object_class_install_property(oclass, PROP_IOU_THRESHOLD,
-                                    g_param_spec_double("iou-threshold", "IoU Threshold", "Tracking IoU threshold", 0.0,
+                                    g_param_spec_double("iou-threshold", "IoU Threshold",
+                                                        "IoU threshold for matching ROIs frame-to-frame (0..1)", 0.0,
                                                         1.0, 0.3, G_PARAM_READWRITE));
-    g_object_class_install_property(
-        oclass, PROP_SMOOTH_ALPHA,
-        g_param_spec_double("smooth-alpha", "Smooth Alpha", "EMA smoothing factor", 0.0, 1.0, 0.5, G_PARAM_READWRITE));
+    g_object_class_install_property(oclass, PROP_SMOOTH_ALPHA,
+                                    g_param_spec_double("smooth-alpha", "Smooth Alpha",
+                                                        "EMA smoothing factor for ROI coordinates (0..1)", 0.0, 1.0,
+                                                        0.5, G_PARAM_READWRITE));
     g_object_class_install_property(
         oclass, PROP_PIXEL_DIFF_THRESHOLD,
-        g_param_spec_int("pixel-diff-threshold", "Pixel Diff Threshold",
-                         "Per-pixel absolute luma difference threshold (1..255) before blurring", 1, 255, 15,
+        g_param_spec_int(
+            "pixel-diff-threshold", "Pixel Diff Threshold",
+            "Per-pixel absolute luma difference used before blur+threshold (1..255). Lower = more sensitive", 1, 255,
+            15, G_PARAM_READWRITE));
+    g_object_class_install_property(
+        oclass, PROP_CONFIRM_FRAMES,
+        g_param_spec_int("confirm-frames", "Confirm Frames",
+                         "Consecutive frames required to confirm motion block (1=single-frame immediate)", 1, 10, 1,
                          G_PARAM_READWRITE));
-    g_object_class_install_property(oclass, PROP_CONFIRM_FRAMES,
-                                    g_param_spec_int("confirm-frames", "Confirm Frames",
-                                                     "Consecutive frames to confirm motion", 1, 10, 2,
-                                                     G_PARAM_READWRITE));
     g_object_class_install_property(oclass, PROP_MIN_REL_AREA,
                                     g_param_spec_double("min-rel-area", "Min Relative Area",
                                                         "Minimum relative frame area (0..0.25) required for a motion "
@@ -534,7 +568,7 @@ static void gst_gva_motion_detect_init(GstGvaMotionDetect *self) {
     self->iou_threshold = 0.3;
     self->smooth_alpha = 0.5;
     self->pixel_diff_threshold = 15;
-    self->confirm_frames = 2;
+    self->confirm_frames = 1;    // Linux parity: immediate single-frame confirmation
     self->min_rel_area = 0.0005; // default minimum relative area (0.05% of frame)
     self->frame_index = 0;
     g_mutex_init(&self->meta_mutex);
