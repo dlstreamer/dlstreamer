@@ -30,6 +30,7 @@ typedef struct _GstGvaTrack {
     GstGvaTrackingType tracking_type;
     gchar *tracking_config;
     gchar *feature_model;
+    gchar *deepsort_trck_cfg;
 
     ITracker *tracker;
 } GstGvaTrack;

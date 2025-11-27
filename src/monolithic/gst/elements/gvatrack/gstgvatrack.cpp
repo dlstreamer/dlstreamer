@@ -21,11 +21,13 @@
 
 #define ELEMENT_LONG_NAME "Object tracker (generates GstGvaObjectTrackerMeta, GstVideoRegionOfInterestMeta)"
 #define ELEMENT_DESCRIPTION                                                                                            \
-    "Performs object tracking using zero-term, zero-term-imageless, or short-term-imageless tracking "                 \
+    "Performs object tracking using zero-term, zero-term-imageless, short-term-imageless, or Deep SORT tracking "      \
     "algorithms. Zero-term tracking assigns unique object IDs and requires object detection to run on every frame. "   \
     "Short-term tracking allows to track objects between frames, thereby reducing the need to run object detection "   \
-    "on each frame. Imageless tracking forms object associations "                                                     \
-    "based on the movement and shape of objects, and it does not use image data."
+    "on each frame. Imageless tracking forms object associations based on the movement and shape of objects, and it "  \
+    "does not use image data. Deep SORT combines motion prediction (Kalman filter) with appearance features for "      \
+    "robust tracking in complex scenarios. It can work with pre-extracted features from gvainference or use a "        \
+    "separate feature extraction model specified via feature-model property."
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_track_debug_category);
 #define GST_CAT_DEFAULT gst_gva_track_debug_category
@@ -39,6 +41,7 @@ enum {
     PROP_TRACKING_TYPE,
     PROP_TRACKING_CONFIG,
     PROP_FEATURE_MODEL,
+    PROP_DEEPSORT_TRCK_CFG,
 };
 
 G_DEFINE_TYPE_WITH_CODE(GstGvaTrack, gst_gva_track, GST_TYPE_BASE_TRANSFORM,
@@ -189,6 +192,16 @@ static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
         g_param_spec_string("feature-model", "Feature extraction model",
                             "Path to feature extraction model for Deep SORT tracking (e.g., mars-small128.xml)",
                             nullptr, kDefaultGParamFlags));
+
+    g_object_class_install_property(gobject_class, PROP_DEEPSORT_TRCK_CFG,
+                                    g_param_spec_string("deepsort-trck-cfg", "Deep SORT tracker configuration",
+                                                        "Comma separated list of KEY=VALUE parameters specific to."
+                                                        "Please see user guide for more details"
+                                                        "Deep SORT tracker: max_iou_distance (default 0.7), "
+                                                        "max_age (default 30 frames), n_init (default 3 frames), "
+                                                        "max_cosine_distance (default 0.2), nn_budget (default 100). "
+                                                        "Example: deepsort-trck-cfg=max_age=60,max_cosine_distance=0.3",
+                                                        nullptr, kDefaultGParamFlags));
 }
 
 static void gst_gva_track_init(GstGvaTrack *gva_track) {
@@ -215,6 +228,10 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
         g_free(gva_track->feature_model);
         gva_track->feature_model = g_value_dup_string(value);
         break;
+    case PROP_DEEPSORT_TRCK_CFG:
+        g_free(gva_track->deepsort_trck_cfg);
+        gva_track->deepsort_trck_cfg = g_value_dup_string(value);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
@@ -237,6 +254,9 @@ static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *v
         break;
     case PROP_FEATURE_MODEL:
         g_value_set_string(value, gva_track->feature_model);
+        break;
+    case PROP_DEEPSORT_TRCK_CFG:
+        g_value_set_string(value, gva_track->deepsort_trck_cfg);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
@@ -349,9 +369,15 @@ static gboolean gst_gva_track_sink_event(GstBaseTransform *trans, GstEvent *even
 static gboolean gst_gva_track_start(GstBaseTransform *trans) {
     GstGvaTrack *gva_track = GST_GVA_TRACK(trans);
 
-    GST_INFO_OBJECT(gva_track, "%s parameters:\n -- Device: %s\n -- Tracking type: %s\n -- Tracking config: %s\n",
-                    GST_ELEMENT_NAME(GST_ELEMENT_CAST(gva_track)), gva_track->device,
-                    tracking_type_to_string(gva_track->tracking_type), gva_track->tracking_config);
+    if (gva_track->tracking_type == DEEP_SORT) {
+        GST_INFO_OBJECT(gva_track, "Deep SORT configuration:\n -- Feature model: %s\n -- Deep SORT config: %s\n",
+                        gva_track->feature_model ? gva_track->feature_model : "using gvainference",
+                        gva_track->deepsort_trck_cfg ? gva_track->deepsort_trck_cfg : "using defaults");
+    } else {
+        GST_INFO_OBJECT(gva_track, "%s parameters:\n -- Device: %s\n -- Tracking type: %s\n -- Tracking config: %s\n",
+                        GST_ELEMENT_NAME(GST_ELEMENT_CAST(gva_track)), gva_track->device,
+                        tracking_type_to_string(gva_track->tracking_type), gva_track->tracking_config);
+    }
 
     return TRUE;
 }
