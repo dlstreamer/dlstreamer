@@ -806,6 +806,9 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
     case PROP_SHARE_VADISPLAY_CTX:
         g_value_set_boolean(value, base_inference->share_va_display_ctx);
         break;
+    case PROP_SCHEDULING_POLICY:
+        g_value_set_string(value, base_inference->scheduling_policy);
+        break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
         break;
