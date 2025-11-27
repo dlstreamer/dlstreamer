@@ -100,6 +100,53 @@ gvatrack tracking-type=deep-sort
 
 **Advantages**: Device flexibility (CPU/GPU/NPU), potentially higher throughput
 
+### Configuration Parameters
+
+Deep SORT behavior can be fine-tuned using the `deepsort-trck-cfg` property with comma-separated `KEY=VALUE` parameters:
+
+#### Available Parameters
+
+| Parameter | Default | Description | Tuning Guidelines |
+|-----------|---------|-------------|-------------------|
+| `max_iou_distance` | 0.7 | Maximum IoU(Intersection over Union) distance threshold for matching detections to existing tracks based on bounding box overlap | Lower values (0.5-0.6) = stricter spatial matching, less tolerance for movement. Higher values (0.7-0.8) = more lenient matching, better track continuity but higher risk of identity switches |
+| `max_age` | 30 | Maximum number of frames a track survives without detection before deletion | **Increase to 60-90** to reduce object loss during occlusions or missed detections. Lower values delete tracks faster, good for crowded scenes |
+| `n_init` | 3 | Number of consecutive detections required to confirm a new track | Lower values (1-2) = faster initialization but more false positives. Higher values = more reliable but slower confirmation |
+| `max_cosine_distance` | 0.2 | Maximum cosine distance threshold for appearance feature matching between detections and tracks | **Increase to 0.3-0.4** to handle lighting changes, better for similar-looking objects, viewing angles, or appearance variations. Lower values = stricter appearance matching |
+| `nn_budget` | 100 | Maximum number of appearance features stored per track | Higher values = better re-identification, good for extended tracking scenarios but more memory. Typical range: 50-150 |
+
+#### Examples for Common Tuning Scenarios
+
+**Reducing object loss (tracks disappearing too quickly):**
+```bash
+gvatrack tracking-type=deep-sort deepsort-trck-cfg="max_age=60,max_cosine_distance=0.3"
+```
+
+**Handling fast-moving objects:**
+```bash
+gvatrack tracking-type=deep-sort deepsort-trck-cfg="max_iou_distance=0.6,max_age=45"
+```
+
+**Crowded scenes with occlusions:**
+```bash
+gvatrack tracking-type=deep-sort deepsort-trck-cfg="max_age=90,max_cosine_distance=0.35,nn_budget=150"
+```
+
+**Conservative tracking (minimize false positives):**
+```bash
+gvatrack tracking-type=deep-sort deepsort-trck-cfg="n_init=5,max_cosine_distance=0.15"
+```
+
+### Example Pipeline
+
+```bash
+gst-launch-1.0 filesrc location=video.mp4 ! decodebin ! \
+  gvadetect model=person-detection.xml ! \
+  gvainference model=mars-small128.xml device=GPU inference-region=roi-list ! \
+  gvatrack tracking-type=deep-sort \
+    deepsort-trck-cfg="max_age=60,max_cosine_distance=0.3" ! \
+  gvawatermark ! videoconvert ! autovideosink
+```
+
 
 
 ## How to read object unique id

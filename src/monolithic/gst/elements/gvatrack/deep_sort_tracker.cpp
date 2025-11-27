@@ -6,6 +6,7 @@
 
 #include "deep_sort_tracker.h"
 #include "mapped_mat.h"
+#include "utils.h"
 #include <algorithm>
 #include <cmath>
 #include <numeric>
@@ -399,29 +400,33 @@ std::vector<float> FeatureExtractor::postprocess(const ov::Tensor &output) {
  */
 DeepSortTracker::DeepSortTracker(const std::string &feature_model_path, const std::string &device,
                                  float max_iou_distance, int max_age, int n_init, float max_cosine_distance,
-                                 int nn_budget, dlstreamer::MemoryMapperPtr mapper)
+                                 int nn_budget, const std::string &dptrckcfg, dlstreamer::MemoryMapperPtr mapper)
     : feature_extractor_(std::make_unique<FeatureExtractor>(feature_model_path, device)), next_id_(1),
       max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
-      max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
+      max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), dptrckcfg_(dptrckcfg),
+      buffer_mapper_(std::move(mapper)) {
 
-    GST_INFO("DeepSortTracker initialized with OpenCV KALMAN FILTER and FeatureExtractor: max_iou_distance=%.3f, "
-             "max_age=%d, n_init=%d, "
-             "max_cosine_distance=%.3f",
-             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+    parse_dps_trck_config();
+    GST_INFO_OBJECT(this,
+                    "DeepSortTracker initialized with OpenCV KALMAN FILTER and FeatureExtractor: "
+                    "max_iou_distance=%.3f, max_age=%d, n_init=%d, max_cosine_distance=%.3f, nn_budget=%d\n",
+                    max_iou_distance_, max_age_, n_init_, max_cosine_distance_, nn_budget_);
 }
 
 /**
  * @brief Initialize Deep SORT tracker with tracking parameters (features from gvainference)
  */
 DeepSortTracker::DeepSortTracker(float max_iou_distance, int max_age, int n_init, float max_cosine_distance,
-                                 int nn_budget, dlstreamer::MemoryMapperPtr mapper)
+                                 int nn_budget, const std::string &dptrckcfg, dlstreamer::MemoryMapperPtr mapper)
     : feature_extractor_(nullptr), next_id_(1), max_iou_distance_(max_iou_distance), max_age_(max_age), n_init_(n_init),
-      max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), buffer_mapper_(std::move(mapper)) {
+      max_cosine_distance_(max_cosine_distance), nn_budget_(nn_budget), dptrckcfg_(dptrckcfg),
+      buffer_mapper_(std::move(mapper)) {
 
-    GST_INFO("DeepSortTracker initialized with OpenCV KALMAN FILTER (features from gvainference): "
-             "max_iou_distance=%.3f, max_age=%d, n_init=%d, "
-             "max_cosine_distance=%.3f",
-             max_iou_distance_, max_age_, n_init_, max_cosine_distance_);
+    parse_dps_trck_config();
+    GST_INFO_OBJECT(this,
+                    "DeepSortTracker initialized with OpenCV KALMAN FILTER (features from gvainference): "
+                    "max_iou_distance=%.3f, max_age=%d, n_init=%d, max_cosine_distance=%.3f, nn_budget=%d\n",
+                    max_iou_distance_, max_age_, n_init_, max_cosine_distance_, nn_budget_);
 }
 
 /**
@@ -563,9 +568,6 @@ std::vector<Detection> DeepSortTracker::convert_detections(const cv::Mat &image,
             const auto &region = regions[i];
             cv::Rect_<float> bbox(region.rect().x, region.rect().y, region.rect().w, region.rect().h);
             float confidence = region.confidence();
-
-            GST_DEBUG("Processing region %zu: bbox[x=%d,y=%d,w=%d,h=%d], confidence=%.3f", i, (int)bbox.x, (int)bbox.y,
-                      (int)bbox.width, (int)bbox.height, confidence);
 
             // Extract feature vector from tensor data attached to the region (from gvainference)
             std::vector<float> feature_vector;
@@ -989,6 +991,48 @@ void DeepSortTracker::hungarian_assignment_greedy(const std::vector<std::vector<
             det_assigned[det_idx] = true;
             trk_assigned[best_trk] = true;
         }
+    }
+}
+
+/**
+ * @brief Parse Deep SORT tracking configuration from key/value string
+ */
+void DeepSortTracker::parse_dps_trck_config() {
+    // Parse tracking configuration
+    auto cfg = Utils::stringToMap(dptrckcfg_);
+    auto iter = cfg.end();
+    try {
+        iter = cfg.find("max_iou_distance");
+        if (iter != cfg.end()) {
+            max_iou_distance_ = std::stof(iter->second);
+            cfg.erase(iter);
+        }
+        iter = cfg.find("max_age");
+        if (iter != cfg.end()) {
+            max_age_ = std::stoi(iter->second);
+            cfg.erase(iter);
+        }
+        iter = cfg.find("n_init");
+        if (iter != cfg.end()) {
+            n_init_ = std::stoi(iter->second);
+            cfg.erase(iter);
+        }
+        iter = cfg.find("max_cosine_distance");
+        if (iter != cfg.end()) {
+            max_cosine_distance_ = std::stof(iter->second);
+            cfg.erase(iter);
+        }
+        iter = cfg.find("nn_budget");
+        if (iter != cfg.end()) {
+            nn_budget_ = std::stoi(iter->second);
+            cfg.erase(iter);
+        }
+    } catch (...) {
+        if (iter == cfg.end())
+            std::throw_with_nested(
+                std::runtime_error("[DeepSortTracker] Error occured while parsing key/value parameters"));
+        std::throw_with_nested(
+            std::runtime_error("[DeepSortTracker] Invalid value provided for parameter: " + iter->first));
     }
 }
 

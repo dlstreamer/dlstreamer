@@ -25,7 +25,7 @@ namespace DeepSortWrapper {
 constexpr float DEFAULT_MAX_IOU_DISTANCE = 0.7f;    // Maximum IoU distance threshold for matching
 constexpr int DEFAULT_MAX_AGE = 30;                 // Maximum number of missed frames before track is deleted
 constexpr int DEFAULT_N_INIT = 3;                   // Number of consecutive hits required to confirm a track
-constexpr float DEFAULT_MAX_COSINE_DISTANCE = 0.2f; // Maximum cosine distance for appearance matching
+constexpr float DEFAULT_MAX_COSINE_DISTANCE = 0.2f; // Maximum cosine distance for appearance matching.
 constexpr int DEFAULT_NN_BUDGET = 100;
 constexpr int DEFAULT_FEATURES_VECTOR_SIZE_128 = 128;
 
@@ -139,18 +139,18 @@ class DeepSortTracker : public ITracker {
     DeepSortTracker(const std::string &feature_model_path, const std::string &device = "CPU",
                     float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
                     int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
-                    int nn_budget = DEFAULT_NN_BUDGET, dlstreamer::MemoryMapperPtr mapper = nullptr);
+                    int nn_budget = DEFAULT_NN_BUDGET, const std::string &dptrckcfg = "",
+                    dlstreamer::MemoryMapperPtr mapper = nullptr);
 
     // Constructor for using pre-extracted features from gvainference
     DeepSortTracker(float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
                     int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
-                    int nn_budget = DEFAULT_NN_BUDGET, dlstreamer::MemoryMapperPtr mapper = nullptr);
+                    int nn_budget = DEFAULT_NN_BUDGET, const std::string &dptrckcfg = "",
+                    dlstreamer::MemoryMapperPtr mapper = nullptr);
 
     ~DeepSortTracker() override = default;
 
     void track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_meta) override;
-
-    void do_color_space_conversion(cv::Mat &image, cv::Mat &raw_image, dlstreamer::FramePtr sys_buffer);
 
   private:
     // Deep SORT algorithm components
@@ -164,6 +164,7 @@ class DeepSortTracker : public ITracker {
     int n_init_;
     float max_cosine_distance_;
     int nn_budget_;
+    std::string dptrckcfg_;
 
     // Memory mapper for buffer access
     dlstreamer::MemoryMapperPtr buffer_mapper_;
@@ -181,6 +182,9 @@ class DeepSortTracker : public ITracker {
                               std::vector<std::pair<int, int>> &assignments);
     void hungarian_assignment_greedy(const std::vector<std::vector<float>> &cost_matrix,
                                      std::vector<std::pair<int, int>> &assignments);
+
+    void do_color_space_conversion(cv::Mat &image, cv::Mat &raw_image, dlstreamer::FramePtr sys_buffer);
+    void parse_dps_trck_config();
 };
 
 } // namespace DeepSortWrapper
