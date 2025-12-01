@@ -7,7 +7,8 @@
 import re
 
 preprocessing_rules = {
-    "vaapi": "va",
+    "vaapipostproc": "vapostproc",
+    "vaapi-surface-sharing": "va-surface-sharing",
     "memory:VASurface": "memory:VAMemory",
     r"! capsfilter caps=video/x-raw\(memory:VAMemory\) !(.*(gvadetect|gvaclassify))": r"!\1",
     r"! video/x-raw\(memory:VAMemory\) !(.*(gvadetect|gvaclassify))": r"!\1",
