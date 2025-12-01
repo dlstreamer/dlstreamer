@@ -29,10 +29,10 @@ struct Format {
 };
 
 // This structure contains formats supported by software processing, in order of priority.
-constexpr Format possible_formats[] = {{VA_FOURCC_BGRA, InferenceBackend::FourCC::FOURCC_BGRA},
-                                       {VA_FOURCC_BGRX, InferenceBackend::FourCC::FOURCC_BGRX},
-                                       {VA_FOURCC_I420, InferenceBackend::FourCC::FOURCC_I420},
-                                       {VA_FOURCC_NV12, InferenceBackend::FourCC::FOURCC_NV12}};
+constexpr Format possible_formats[] = {
+    {VA_FOURCC_BGRA, InferenceBackend::FourCC::FOURCC_BGRA}, {VA_FOURCC_BGRX, InferenceBackend::FourCC::FOURCC_BGRX},
+    {VA_FOURCC_RGBA, InferenceBackend::FourCC::FOURCC_RGBA}, {VA_FOURCC_RGBX, InferenceBackend::FourCC::FOURCC_RGBX},
+    {VA_FOURCC_I420, InferenceBackend::FourCC::FOURCC_I420}, {VA_FOURCC_NV12, InferenceBackend::FourCC::FOURCC_NV12}};
 
 std::string FourccName(int code) {
     const char c1 = (code & (0x000000ff << 24)) >> 24;
