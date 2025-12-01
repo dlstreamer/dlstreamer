@@ -171,7 +171,7 @@ RUN \
     -DWITH_VA_INTEL=ON \
     -DWITH_FFMPEG=OFF \
     -DWITH_TBB=ON \
-    -DWITH_OPENMP=ON \
+    -DWITH_OPENMP=OFF \
     -DOPENCV_EXTRA_MODULES_PATH=/opencv_contrib/modules \
     -DOPENCV_GENERATE_PKGCONFIG=YES \
     -GNinja .. && \
