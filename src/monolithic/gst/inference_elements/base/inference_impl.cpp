@@ -264,6 +264,7 @@ bool IsModelProcSupportedForVaapi(const std::vector<ModelInputProcessorInfo::Ptr
         // In these cases we need to switch to opencv preproc
         // VAAPI converts color to RGBP by default (?)
         if (input_desc && ((input_desc->getTargetColorSpace() != PreProcColorSpace::BGR &&
+                            input_desc->getTargetColorSpace() != PreProcColorSpace::RGB &&
                             input_desc->doNeedColorSpaceConversion(static_cast<int>(format)))))
             return false;
     }
