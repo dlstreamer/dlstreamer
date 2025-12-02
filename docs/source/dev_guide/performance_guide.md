@@ -183,3 +183,32 @@ gst-launch-1.0 filesrc location=${VIDEO_FILE_1} ! decodebin3 ! videoconvert ! \
 The Deep Learning Streamer Pipeline Framework example performance benchmark
 results can be found as a part of the
 [Smart Cities Accelerated by Intel® Graphics Solutions paper](https://www.intel.com/content/www/us/en/secure/content-details/826398/smart-cities-accelerated-by-intel-gpus-arc-gpu-addendum.html?wapkw=smart%20cities&DocID=826398).
+
+## 7. Displaying analysis results with gvawatermark
+
+When video analysis results are supposed to be visually inspected, the `gvawatermark` element must be added to the pipeline. It should be positioned after inference elements (such as `gvadetect`, `gvaclassify`, or `gvainference`) and before the pipeline's sink that displays the results live or saves them to a video file. 
+
+The `device` property of `gvawatermark` allows for executing the gvawatermark code that renders ROIs, labels, keypoints, etc. either on the CPU or on the GPU. Intuitively, the GPU might look like a better option regardless of the configuration of the other parts of the pipeline. However, the following important factors must be taken into account:
+1. When using an integrated GPU whose resources are already 100% consumed by the inference process, adding watermark generation to the GPU's workload will lower the pipeline performance. In this scenario, we recommend using the default `CPU` setting, since the cost of data transmission will usually be negligible, and no GPU resources will have to be withdrawn from the inference process.
+2. On the other hand, when a powerful PCI-based discrete GPU is used, computing resources on the GPU are often available, and video frame transfers from the GPU to the system can become the main bottleneck, eliminating the benefits of the additional hardware. In these situations, setting `device=GPU` is highly recommended in order to keep the video frames on the GPU end to end.
+3. Remember to match memory types across the pipeline: for `device=GPU`, keep `"video/x-raw(memory:VAMemory)"` and use `pre-process-backend=va-surface-sharing` to avoid hidden copies.
+
+Examples:
+
+- CPU watermark when the integrated GPU is fully utilized by inference:
+
+  ```bash
+  gst-launch-1.0 filesrc location=${VIDEO_FILE} ! decodebin3 ! "video/x-raw(memory:VAMemory)" ! \
+    gvadetect model=${MODEL_FILE} device=GPU pre-process-backend=va-surface-sharing ! queue ! \
+    gvawatermark device=CPU ! vapostproc ! autovideosink
+  ```
+
+- End-to-end GPU watermark on a discrete PCIe GPU (avoid frame round-trips to system memory):
+
+  ```bash
+  gst-launch-1.0 filesrc location=${VIDEO_FILE} ! qtdemux ! varenderD129h264dec ! varenderD129postproc ! \
+    "video/x-raw(memory:VAMemory)" ! gvadetect model=${MODEL_FILE} device=GPU.1 pre-process-backend=va-surface-sharing ! \
+    queue ! gvawatermark device=GPU ! videoconvert ! x264enc ! mp4mux ! filesink location=${OUTPUT_FILE}
+  ```
+
+
