@@ -56,23 +56,13 @@ bool TrackerFactory::RegisterAll() {
     // Register Deep SORT tracker - handles both with and without feature model
     auto create_deep_sort_tracker = [](const GstGvaTrack *gva_track, dlstreamer::MemoryMapperPtr mapper,
                                        dlstreamer::ContextPtr /*context*/) -> ITracker * {
-        std::string feature_model_path = gva_track->feature_model ? gva_track->feature_model : "";
         std::string dptrckcfg = gva_track->deepsort_trck_cfg ? gva_track->deepsort_trck_cfg : "";
 
-        if (!feature_model_path.empty()) {
-            // Create Deep SORT tracker with feature extraction model
-            std::string device = gva_track->device ? gva_track->device : "CPU";
-            return new DeepSortWrapper::DeepSortTracker(
-                feature_model_path, device, DeepSortWrapper::DEFAULT_MAX_IOU_DISTANCE, DeepSortWrapper::DEFAULT_MAX_AGE,
-                DeepSortWrapper::DEFAULT_N_INIT, DeepSortWrapper::DEFAULT_MAX_COSINE_DISTANCE,
-                DeepSortWrapper::DEFAULT_NN_BUDGET, dptrckcfg, std::move(mapper));
-        } else {
-            // Create Deep SORT tracker without feature extraction model (appearance features disabled)
-            return new DeepSortWrapper::DeepSortTracker(
-                DeepSortWrapper::DEFAULT_MAX_IOU_DISTANCE, DeepSortWrapper::DEFAULT_MAX_AGE,
-                DeepSortWrapper::DEFAULT_N_INIT, DeepSortWrapper::DEFAULT_MAX_COSINE_DISTANCE,
-                DeepSortWrapper::DEFAULT_NN_BUDGET, dptrckcfg, std::move(mapper));
-        }
+        // Create Deep SORT tracker with external feature extraction model via gvainference
+        return new DeepSortWrapper::DeepSortTracker(DeepSortWrapper::DEFAULT_MAX_IOU_DISTANCE,
+                                                    DeepSortWrapper::DEFAULT_MAX_AGE, DeepSortWrapper::DEFAULT_N_INIT,
+                                                    DeepSortWrapper::DEFAULT_MAX_COSINE_DISTANCE,
+                                                    DeepSortWrapper::DEFAULT_NN_BUDGET, dptrckcfg, std::move(mapper));
     };
     result &= TrackerFactory::Register(GstGvaTrackingType::DEEP_SORT, create_deep_sort_tracker);
 

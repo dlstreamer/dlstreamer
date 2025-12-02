@@ -74,21 +74,7 @@ Deep SORT requires a feature extraction model that generates 128-dimensional fea
 
 This downloads both FP32 and INT8 quantized versions of the model.
 
-### Usage Modes
-
-Deep SORT supports two modes of operation:
-
-#### (1) Internal Feature Extractor
-
-The `gvatrack` element performs feature extraction internally. Inference runs on CPU by default.
-
-```bash
-gvatrack tracking-type=deep-sort feature-model=/path/to/mars-small128/FP32/mars-small128.xml
-```
-
-**Advantages**: Simpler pipeline, automatic feature extraction per detection
-
-#### (2) External Feature Extractor
+#### Usage with External Feature Extractor
 
 Use `gvainference` before `gvatrack` to perform feature extraction. This allows running inference on GPU or other devices for better performance.
 
