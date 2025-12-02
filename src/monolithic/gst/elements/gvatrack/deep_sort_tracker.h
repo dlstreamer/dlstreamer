@@ -127,21 +127,11 @@ class FeatureExtractor {
 
     int input_height_;
     int input_width_;
-
-    cv::Mat preprocess(const cv::Mat &image);
-    std::vector<float> postprocess(const ov::Tensor &output);
 };
 
 // Deep SORT tracker implementation
 class DeepSortTracker : public ITracker {
   public:
-    // Constructor for feature extraction using provided model
-    DeepSortTracker(const std::string &feature_model_path, const std::string &device = "CPU",
-                    float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
-                    int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
-                    int nn_budget = DEFAULT_NN_BUDGET, const std::string &dptrckcfg = "",
-                    dlstreamer::MemoryMapperPtr mapper = nullptr);
-
     // Constructor for using pre-extracted features from gvainference
     DeepSortTracker(float max_iou_distance = DEFAULT_MAX_IOU_DISTANCE, int max_age = DEFAULT_MAX_AGE,
                     int n_init = DEFAULT_N_INIT, float max_cosine_distance = DEFAULT_MAX_COSINE_DISTANCE,
@@ -154,7 +144,6 @@ class DeepSortTracker : public ITracker {
 
   private:
     // Deep SORT algorithm components
-    std::unique_ptr<FeatureExtractor> feature_extractor_; // nullptr when using pre-extracted features
     std::vector<std::unique_ptr<Track>> tracks_;
     int next_id_;
 
@@ -170,7 +159,7 @@ class DeepSortTracker : public ITracker {
     dlstreamer::MemoryMapperPtr buffer_mapper_;
 
     // Helper methods
-    std::vector<Detection> convert_detections(const cv::Mat &image, const std::vector<GVA::RegionOfInterest> &regions);
+    std::vector<Detection> convert_detections(const std::vector<GVA::RegionOfInterest> &regions);
     void associate_detections_to_tracks(const std::vector<Detection> &detections,
                                         std::vector<std::pair<int, int>> &matches, std::vector<int> &unmatched_dets,
                                         std::vector<int> &unmatched_trks);
@@ -183,7 +172,6 @@ class DeepSortTracker : public ITracker {
     void hungarian_assignment_greedy(const std::vector<std::vector<float>> &cost_matrix,
                                      std::vector<std::pair<int, int>> &assignments);
 
-    void do_color_space_conversion(cv::Mat &image, cv::Mat &raw_image, dlstreamer::FramePtr sys_buffer);
     void parse_dps_trck_config();
 };
 

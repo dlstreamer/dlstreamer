@@ -92,16 +92,8 @@ Element Properties:
                           (0): zero-term        - Zero-term tracker
                           (1): short-term-imageless - Short-term imageless tracker
                           (2): zero-term-imageless - Zero-term imageless tracker
-                          (3): deep-sort        - Deep SORT tracker
- feature-model       : Path to feature extraction model for Deep SORT tracking (internal feature extractor mode).
-                       Deep SORT requires a 128-dimensional feature vector model (e.g., mars-small128) for re-identification.
-                       Available modes:
-                         (1) Internal feature extractor:
-                             gvatrack tracking-type=deep-sort feature-model=mars_small128_fp32.xml
-                         (2) External feature extractor (using gvainference before gvatrack):
-                             gvainference model=mars_small128_fp32.xml device=GPU inference-region=roi-list ! queue ! gvatrack tracking-type=deep-sort
-                       flags: readable, writable
-                       String. Default: ""
+                          (3): deep-sort        - Deep SORT tracker , Requires external feature extractor (using gvainference before gvatrack):
+                               .. gvainference model=mars_small128_fp32.xml device=GPU inference-region=roi-list ! queue ! gvatrack tracking-type=deep-sort ..
  deepsort-trck-cfg   : Comma separated list of KEY=VALUE parameters to configure Deep SORT tracker behavior.
                        Available parameters:
                          - max_iou_distance: Maximum IoU distance threshold for matching detections to tracks (default: 0.7)

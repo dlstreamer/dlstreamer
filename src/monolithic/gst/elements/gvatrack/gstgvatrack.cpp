@@ -26,8 +26,7 @@
     "Short-term tracking allows to track objects between frames, thereby reducing the need to run object detection "   \
     "on each frame. Imageless tracking forms object associations based on the movement and shape of objects, and it "  \
     "does not use image data. Deep SORT combines motion prediction (Kalman filter) with appearance features for "      \
-    "robust tracking in complex scenarios. It can work with pre-extracted features from gvainference or use a "        \
-    "separate feature extraction model specified via feature-model property."
+    "robust tracking in complex scenarios. It works with pre-extracted features from gvainference."
 
 GST_DEBUG_CATEGORY_STATIC(gst_gva_track_debug_category);
 #define GST_CAT_DEFAULT gst_gva_track_debug_category
@@ -187,12 +186,6 @@ static void gst_gva_track_class_init(GstGvaTrackClass *klass) {
                                                         "Comma separated list of KEY=VALUE parameters specific to "
                                                         "platform/tracker. Please see user guide for more details",
                                                         nullptr, kDefaultGParamFlags));
-    g_object_class_install_property(
-        gobject_class, PROP_FEATURE_MODEL,
-        g_param_spec_string("feature-model", "Feature extraction model",
-                            "Path to feature extraction model for Deep SORT tracking (e.g., mars-small128.xml)",
-                            nullptr, kDefaultGParamFlags));
-
     g_object_class_install_property(gobject_class, PROP_DEEPSORT_TRCK_CFG,
                                     g_param_spec_string("deepsort-trck-cfg", "Deep SORT tracker configuration",
                                                         "Comma separated list of KEY=VALUE parameters specific to."
@@ -224,10 +217,6 @@ static void gst_gva_track_set_property(GObject *object, guint prop_id, const GVa
         g_free(gva_track->tracking_config);
         gva_track->tracking_config = g_value_dup_string(value);
         break;
-    case PROP_FEATURE_MODEL:
-        g_free(gva_track->feature_model);
-        gva_track->feature_model = g_value_dup_string(value);
-        break;
     case PROP_DEEPSORT_TRCK_CFG:
         g_free(gva_track->deepsort_trck_cfg);
         gva_track->deepsort_trck_cfg = g_value_dup_string(value);
@@ -251,9 +240,6 @@ static void gst_gva_track_get_property(GObject *object, guint prop_id, GValue *v
         break;
     case PROP_TRACKING_CONFIG:
         g_value_set_string(value, gva_track->tracking_config);
-        break;
-    case PROP_FEATURE_MODEL:
-        g_value_set_string(value, gva_track->feature_model);
         break;
     case PROP_DEEPSORT_TRCK_CFG:
         g_value_set_string(value, gva_track->deepsort_trck_cfg);
@@ -370,8 +356,7 @@ static gboolean gst_gva_track_start(GstBaseTransform *trans) {
     GstGvaTrack *gva_track = GST_GVA_TRACK(trans);
 
     if (gva_track->tracking_type == DEEP_SORT) {
-        GST_INFO_OBJECT(gva_track, "Deep SORT configuration:\n -- Feature model: %s\n -- Deep SORT config: %s\n",
-                        gva_track->feature_model ? gva_track->feature_model : "using gvainference",
+        GST_INFO_OBJECT(gva_track, "Deep SORT configuration:\n Deep SORT config: %s\n",
                         gva_track->deepsort_trck_cfg ? gva_track->deepsort_trck_cfg : "using defaults");
     } else {
         GST_INFO_OBJECT(gva_track, "%s parameters:\n -- Device: %s\n -- Tracking type: %s\n -- Tracking config: %s\n",
