@@ -121,6 +121,11 @@ if [[ "$DEVICE" != "CPU" && "$DEVICE" != "GPU" && "$DEVICE" != "NPU" ]]; then
     exit 1
 fi
 
+# Enable debug logging if metrics is enabled
+if [[ "$METRICS" == "true" ]]; then
+    export GST_DEBUG=4
+fi
+
 # Print configuration
 echo "=== sample gvagenai configuration ==="
 echo "Model Path: $GENAI_MODEL_PATH"
