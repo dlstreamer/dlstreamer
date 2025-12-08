@@ -108,5 +108,40 @@ export GENAI_MODEL_PATH=/path/to/your/Gemma3
 - Contains inference results with timestamps and metadata
 - When `--metrics` is enabled, includes performance metrics such as inference time and throughput
 
+## Troubleshooting
+
+### General Issues
+
+**Model validation:**
+- Use [LLM Bench tool](https://github.com/openvinotoolkit/openvino.genai/tree/master/tools/llm_bench) to verify the model works with OpenVINO™ GenAI runtime independently
+
+**Model path not set:**
+- Ensure that the `GENAI_MODEL_PATH` environment variable is correctly set to the path of your model
+- Verify the directory exists and contains the required model files
+
+**Debug logging:**
+- Enable detailed logs: `GST_DEBUG=gvagenai:5 ./sample_gvagenai.sh`
+- When using `--metrics` flag, `GST_DEBUG=4` is automatically enabled
+
+### Common Error Messages
+
+**Chat template error:**
+```
+Chat template wasn't found. This may indicate that the model wasn't trained for chat scenario.
+Please add 'chat_template' to tokenizer_config.json to use the model in chat scenario.
+```
+- **Cause:** The model is outdated and doesn't contain a chat template
+- **Solution:** Re-export the model with the latest version of `optimum-intel` library
+
+**Tokenizer error:**
+```
+Either openvino_tokenizer.xml was not provided or it was not loaded correctly.
+Tokenizer::encode is not available
+```
+- **Cause:** The tokenizer file is missing or corrupted
+- **Solution:** 
+  1. Install sentencepiece: `pip install sentencepiece`
+  2. Re-export the model with the latest version of `optimum-intel` library
+
 ## See also
 * [Samples overview](../../README.md)
