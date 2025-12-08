@@ -6,7 +6,7 @@
 # ==============================================================================
 
 MODEL=${1:-"all"} # Supported values listed in SUPPORTED_MODELS below. Type one model,list of models separated by coma or 'all' to download all models.
-QUANTIZE=${2:-""} # Supported values listed in SUPPORTED_MODELS below.
+QUANTIZE=${2:-""} # Supported values listed in SUPPORTED_QUANTIZATION_DATASETS below.
 
 # Save the directory where the script was launched from
 LAUNCH_DIR="$PWD"
