@@ -108,6 +108,11 @@ Pad Templates:
                   width: [ 1, 2147483647 ]
                  height: [ 1, 2147483647 ]
               framerate: [ 0/1, 2147483647/1 ]
+      video/x-raw(memory:D3D11Memory)
+                 format: { (string)NV12 }
+                  width: [ 1, 2147483647 ]
+                 height: [ 1, 2147483647 ]
+              framerate: [ 0/1, 2147483647/1 ]
 
   SRC template: 'src'
     Availability: Always
