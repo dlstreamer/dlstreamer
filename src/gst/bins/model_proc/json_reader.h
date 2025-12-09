@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2022 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,7 @@
 
 #include <fstream>
 #include <gst/gst.h>
-#include <json-schema.hpp>
+#include <nlohmann/json-schema.hpp>
 #include <nlohmann/json.hpp>
 #include <string>
 
