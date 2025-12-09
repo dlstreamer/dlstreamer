@@ -154,11 +154,13 @@ static gboolean load_effective_prompt(GstGvaGenAI *gvagenai) {
     gboolean has_prompt = (gvagenai->prompt && strlen(gvagenai->prompt) > 0);
     gboolean has_prompt_path = (gvagenai->prompt_path && strlen(gvagenai->prompt_path) > 0);
     if (!has_prompt && !has_prompt_path) {
-        GST_ERROR_OBJECT(gvagenai, "Either 'prompt' or 'prompt-path' property must be specified");
+        GST_ELEMENT_ERROR(gvagenai, RESOURCE, SETTINGS, ("Prompt not specified"),
+                          ("Either 'prompt' or 'prompt-path' property must be specified"));
         return FALSE;
     }
     if (has_prompt && has_prompt_path) {
-        GST_ERROR_OBJECT(gvagenai, "Both 'prompt' and 'prompt-path' properties are set. Please specify only one.");
+        GST_ELEMENT_ERROR(gvagenai, RESOURCE, SETTINGS, ("Conflicting prompt properties"),
+                          ("Both 'prompt' and 'prompt-path' properties are set. Please specify only one."));
         return FALSE;
     }
 
@@ -169,7 +171,8 @@ static gboolean load_effective_prompt(GstGvaGenAI *gvagenai) {
         try {
             std::ifstream file(gvagenai->prompt_path);
             if (!file.is_open()) {
-                GST_ERROR_OBJECT(gvagenai, "Failed to open prompt file: %s", gvagenai->prompt_path);
+                GST_ELEMENT_ERROR(gvagenai, RESOURCE, OPEN_READ, ("Failed to open prompt file"),
+                                  ("Could not open file: %s", gvagenai->prompt_path));
                 return FALSE;
             }
 
@@ -183,7 +186,8 @@ static gboolean load_effective_prompt(GstGvaGenAI *gvagenai) {
 
             gvagenai->prompt_string = g_strdup(content.c_str());
         } catch (const std::exception &e) {
-            GST_ERROR_OBJECT(gvagenai, "Error reading prompt file %s: %s", gvagenai->prompt_path, e.what());
+            GST_ELEMENT_ERROR(gvagenai, RESOURCE, READ, ("Error reading prompt file"),
+                              ("Failed to read file %s: %s", gvagenai->prompt_path, e.what()));
             return FALSE;
         }
     } else {
@@ -307,12 +311,14 @@ static gboolean gst_gvagenai_start(GstBaseTransform *base) {
     GstGvaGenAI *gvagenai = GST_GVAGENAI(base);
 
     if (!gvagenai->model_path) {
-        GST_ERROR_OBJECT(gvagenai, "Model path not specified");
+        GST_ELEMENT_ERROR(gvagenai, RESOURCE, SETTINGS, ("Model path not specified"),
+                          ("'model-path' property must be set before starting"));
         return FALSE;
     }
 
     if (!load_effective_prompt(gvagenai)) {
-        GST_ERROR_OBJECT(gvagenai, "Failed to load effective prompt");
+        GST_ELEMENT_ERROR(gvagenai, RESOURCE, FAILED, ("Failed to load effective prompt"),
+                          ("Could not load or validate prompt configuration"));
         return FALSE;
     }
 
@@ -325,7 +331,7 @@ static gboolean gst_gvagenai_start(GstBaseTransform *base) {
                                             gvagenai->scheduler_config ? gvagenai->scheduler_config : "");
         gvagenai->openvino_context = context;
     } catch (const std::exception &e) {
-        GST_ERROR_OBJECT(gvagenai, "Failed to initialize OpenVINO™ GenAI context: %s", e.what());
+        GST_ELEMENT_ERROR(gvagenai, LIBRARY, INIT, ("Failed to initialize OpenVINO™ GenAI context"), ("%s", e.what()));
         return FALSE;
     }
 
@@ -349,7 +355,8 @@ static GstFlowReturn gst_gvagenai_transform_ip(GstBaseTransform *base, GstBuffer
     GstGvaGenAI *gvagenai = GST_GVAGENAI(base);
 
     if (!gvagenai->openvino_context) {
-        GST_ERROR_OBJECT(gvagenai, "Context not initialized");
+        GST_ELEMENT_ERROR(gvagenai, CORE, STATE_CHANGE, ("Context not initialized"),
+                          ("OpenVINO GenAI context is not initialized, element may not have started properly"));
         return GST_FLOW_ERROR;
     }
 
@@ -377,16 +384,20 @@ static GstFlowReturn gst_gvagenai_transform_ip(GstBaseTransform *base, GstBuffer
     auto *context = static_cast<genai::OpenVINOGenAIContext *>(gvagenai->openvino_context);
 
     // Convert frame to tensor and add to vector
-    if (!context->add_tensor_to_vector(buf, &info)) {
-        GST_ERROR_OBJECT(gvagenai, "Failed to add frame to tensor vector");
+    try {
+        context->add_tensor_to_vector(buf, &info);
+    } catch (const std::exception &e) {
+        GST_ELEMENT_ERROR(gvagenai, STREAM, FAILED, ("Failed to add frame to tensor vector"), ("Error: %s", e.what()));
         return GST_FLOW_ERROR;
     }
 
     // Only process if we've accumulated enough tensors
     if (context->get_tensor_vector_size() >= gvagenai->chunk_size) {
         // Process tensor vector
-        if (!context->inference_tensor_vector(gvagenai->prompt_string)) {
-            GST_ERROR_OBJECT(gvagenai, "Failed to inference tensor vector");
+        try {
+            context->inference_tensor_vector(gvagenai->prompt_string);
+        } catch (const std::exception &e) {
+            GST_ELEMENT_ERROR(gvagenai, STREAM, FAILED, ("Failed to inference tensor vector"), ("Error: %s", e.what()));
             return GST_FLOW_ERROR;
         }
 
@@ -412,7 +423,8 @@ static gboolean gst_gvagenai_set_caps(GstBaseTransform *base, GstCaps *incaps, G
     // Validate that we can handle the input caps
     GstVideoInfo info;
     if (!gst_video_info_from_caps(&info, incaps)) {
-        GST_ERROR_OBJECT(base, "Failed to parse input caps");
+        GST_ELEMENT_ERROR(base, STREAM, FORMAT, ("Failed to parse input caps"),
+                          ("Could not extract video information from input capabilities"));
         return FALSE;
     }
 
@@ -421,7 +433,10 @@ static gboolean gst_gvagenai_set_caps(GstBaseTransform *base, GstCaps *incaps, G
     if (format != GST_VIDEO_FORMAT_RGB && format != GST_VIDEO_FORMAT_RGBA && format != GST_VIDEO_FORMAT_RGBx &&
         format != GST_VIDEO_FORMAT_BGR && format != GST_VIDEO_FORMAT_BGRA && format != GST_VIDEO_FORMAT_BGRx &&
         format != GST_VIDEO_FORMAT_NV12 && format != GST_VIDEO_FORMAT_I420) {
-        GST_ERROR_OBJECT(base, "Unsupported video format: %s", gst_video_format_to_string(format));
+        GST_ELEMENT_ERROR(
+            base, STREAM, FORMAT, ("Unsupported video format"),
+            ("Format %s is not supported. Supported formats: RGB, RGBA, RGBx, BGR, BGRA, BGRx, NV12, I420",
+             gst_video_format_to_string(format)));
         return FALSE;
     }
 

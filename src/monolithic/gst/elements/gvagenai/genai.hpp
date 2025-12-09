@@ -11,7 +11,6 @@
 
 #include "dlstreamer/gst/mappers/gst_to_cpu.h"
 
-#include <opencv2/opencv.hpp>
 #include <openvino/genai/visual_language/pipeline.hpp>
 
 namespace genai {
@@ -39,16 +38,16 @@ class OpenVINOGenAIContext {
      * @brief Convert GStreamer buffer to tensor and add to vector
      * @param buffer GStreamer buffer containing video frame
      * @param info Video format information
-     * @return true if successful, false otherwise
+     * @throws std::runtime_error if conversion fails
      */
-    bool add_tensor_to_vector(GstBuffer *buffer, GstVideoInfo *info);
+    void add_tensor_to_vector(GstBuffer *buffer, GstVideoInfo *info);
 
     /**
      * @brief Run inference on buffered tensors
      * @param prompt Text prompt for the model
-     * @return true if successful, false otherwise
+     * @throws std::runtime_error if inference fails
      */
-    bool inference_tensor_vector(const std::string &prompt);
+    void inference_tensor_vector(const std::string &prompt);
 
     /**
      * @brief Get number of tensors in the vector

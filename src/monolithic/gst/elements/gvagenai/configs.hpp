@@ -33,6 +33,7 @@ class ConfigParser {
      *
      * @param config_str Configuration string in "key1=value1,key2=value2" format
      * @return AnyMap with generation properties ready for model configuration
+     * @throws std::runtime_error if parsing fails or invalid values are provided
      */
     static ov::AnyMap parse_generation_config_string(const std::string &config_str);
 
@@ -46,6 +47,7 @@ class ConfigParser {
      *
      * @param config_str Configuration string in "key1=value1,key2=value2" format
      * @return Optional SchedulerConfig object, nullopt if config_str is empty
+     * @throws std::runtime_error if parsing fails or invalid values are provided
      */
     static std::optional<ov::genai::SchedulerConfig> parse_scheduler_config_string(const std::string &config_str);
 
