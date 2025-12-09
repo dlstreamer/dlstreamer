@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -7,10 +7,6 @@
 #include "utils.h"
 
 #include <safe_arithmetic.hpp>
-
-#ifdef WIN32
-#include <filesystem>
-#endif
 
 #ifdef __linux__
 #include <dirent.h>
@@ -87,33 +83,6 @@ size_t GetFileSize(const std::string &file_path) {
 bool CheckFileSize(const std::string &path, size_t size_threshold) {
     auto file_size = GetFileSize(path);
     return file_size <= size_threshold;
-}
-
-std::tuple<bool, std::string> parseDeviceName(const std::string &device_name) {
-    bool has_vpu_device_id = false;
-    std::string vpu_device_name;
-    if (device_name.find("VPUX") == 0) {
-        vpu_device_name = "VPU-0";
-        if (device_name != "VPUX") {
-            has_vpu_device_id = true;
-            const std::regex vpux_vpu_id_regex{"^VPUX\\.VPU-(\\d+)$"};
-            std::smatch vpux_vpu_id_matcher{};
-
-            if (std::regex_match(device_name, vpux_vpu_id_matcher, vpux_vpu_id_regex)) {
-                assert(vpux_vpu_id_matcher.size() == 2);
-
-                const std::ssub_match _vpux_vpu_id_matcher = vpux_vpu_id_matcher[1];
-                const std::string id_str = _vpux_vpu_id_matcher.str();
-
-                vpu_device_name = "VPU-" + id_str;
-            } else {
-                throw std::invalid_argument("Device does not match VPUX.VPU-<id> pattern, where <id> is an integer. "
-                                            "Check your device name: " +
-                                            device_name);
-            }
-        }
-    }
-    return std::make_tuple(has_vpu_device_id, vpu_device_name);
 }
 
 uint32_t getRelativeGpuDeviceIndex(const std::string &device) {
