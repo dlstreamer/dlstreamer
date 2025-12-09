@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -94,6 +94,13 @@ GValue JsonReader::convertToGValue(const nlohmann::json::reference value, const 
             //     // gst_value_array_append_value(&gvalue, &a);
             //     // g_value_unset(&a);
             // }
+            break;
+        }
+        case nlohmann::json::value_t::binary: {
+            g_value_init(&gvalue, G_TYPE_BYTES);
+            const auto &binary_data = value.get_binary();
+            GBytes *bytes = g_bytes_new(binary_data.data(), binary_data.size());
+            g_value_take_boxed(&gvalue, bytes);
             break;
         }
         case nlohmann::json::value_t::discarded:

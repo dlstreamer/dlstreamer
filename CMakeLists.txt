@@ -67,33 +67,6 @@ function (set_compile_flags TARGET)
     endif()
 endfunction(set_compile_flags)
 
-# FIXME: replace with file(SIZE ...) when cmake version >= 3.14
-function(file_size FILE SIZE)
-    file(READ "${FILE}" CONTENT HEX)
-    string(LENGTH "${CONTENT}" CONTENT_LENGTH)
-    set(${SIZE} ${CONTENT_LENGTH} PARENT_SCOPE)
-endfunction(file_size)
-
-function(download_and_verify URL TARGET TARGET_NAME)
-    if(NOT EXISTS ${TARGET})
-        file(DOWNLOAD ${URL} ${TARGET} SHOW_PROGRESS STATUS DOWNLOAD_STATUS)
-        list(GET DOWNLOAD_STATUS 0 RETURN_CODE)
-        list(GET DOWNLOAD_STATUS 1 MESSAGE)
-        if(NOT ${RETURN_CODE} EQUAL 0)
-            file(REMOVE ${TARGET})
-            message(FATAL_ERROR "Unable to download ${TARGET_NAME}: ${MESSAGE}")
-        endif()
-    endif()
-
-    file_size(${TARGET} FILE_SIZE)
-    if(${FILE_SIZE} EQUAL 0)
-        file(REMOVE ${TARGET})
-        message(FATAL_ERROR "Invalid ${TARGET_NAME} downloaded")
-    endif()
-
-    message(STATUS "Download of ${TARGET_NAME} is successful")
-endfunction(download_and_verify)
-
 # Set output paths
 if (NOT(BIN_FOLDER))
     if("${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
