@@ -73,7 +73,7 @@ struct Image {
             void *d3d11_device;
         };
     };
-    int dma_fd = -1; // if type==DMA_BUFFER or VPUX device is used
+    int dma_fd = -1; // if type==DMA_BUFFER
 
     int format = 0; // FourCC
     uint64_t drm_format_modifier = 0;

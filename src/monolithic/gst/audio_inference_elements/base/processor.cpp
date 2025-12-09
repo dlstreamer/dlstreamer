@@ -132,17 +132,6 @@ GstFlowReturn infer_audio(GvaAudioBaseInference *audio_base_inference, GstBuffer
             throw std::runtime_error("Invalid Audio buffer");
         auto map_context = std::unique_ptr<GstMapInfo, std::function<void(GstMapInfo *)>>(
             &map, [buf](GstMapInfo *map) { gst_buffer_unmap(buf, map); });
-#ifdef ENABLE_VPUX
-        auto mem = GstMemoryUniquePtr(gst_buffer_get_memory(buf, 0), gst_memory_unref);
-        if (not mem.get())
-            throw std::runtime_error("Failed to get GstBuffer memory");
-        if (gst_is_dmabuf_memory(mem.get())) {
-            int fd = gst_dmabuf_memory_get_fd(mem);
-            if (fd <= 0)
-                throw std::runtime_error("Failed to get file desc associated with GstBuffer memory");
-            audio_base_inference->dma_fd = fd;
-        }
-#endif
         auto samples = reinterpret_cast<int16_t *>(map.data);
         uint32_t num_samples = map.size / sizeof(int16_t);
         check_and_adjust_properties(num_samples, audio_base_inference);
@@ -155,9 +144,9 @@ GstFlowReturn infer_audio(GvaAudioBaseInference *audio_base_inference, GstBuffer
             std::vector<float> normalized_samples = audio_base_inference->pre_proc(&frame);
             auto normalized_samples_u8 = inf_handle->convertFloatToU8(normalized_samples);
             if (normalized_samples_u8.empty())
-                inf_handle->setInputBlob(normalized_samples.data(), audio_base_inference->dma_fd);
+                inf_handle->setInputBlob(normalized_samples.data());
             else
-                inf_handle->setInputBlob(normalized_samples_u8.data(), audio_base_inference->dma_fd);
+                inf_handle->setInputBlob(normalized_samples_u8.data());
             inf_handle->infer();
             audio_base_inference->post_proc(&frame, inf_handle->getInferenceOutput());
         }

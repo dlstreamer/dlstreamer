@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -76,7 +76,6 @@ constexpr bool IsLinux() {
 }
 size_t GetFileSize(const std::string &file_path);
 bool CheckFileSize(const std::string &path, size_t size_threshold);
-std::tuple<bool, std::string> parseDeviceName(const std::string &device_name);
 
 /**
  * Parses GPU device name and returns relative GPU index from it.

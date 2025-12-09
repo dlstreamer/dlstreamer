@@ -104,7 +104,6 @@ cmake_dependent_option(ENABLE_TESTS "Parameter to enable tests building" ON "UNI
 cmake_dependent_option(ENABLE_FUZZING "Parameter to enable fuzzy tests building" OFF "UNIX" OFF)
 cmake_dependent_option(ENABLE_RDKAFKA_INSTALLATION "Enables rdkafka installation" OFF "UNIX" OFF)
 option(ENABLE_AUDIO_INFERENCE_ELEMENTS "Enables audio inference elements" ON)
-option(ENABLE_VPUX "Enables VPUX specific features" OFF)
 option(ENABLE_REALSENSE "Parameter to enable RelaseSense plugin compilation" OFF)
 option(ENABLE_GENAI "Enables GenAI elements" OFF)
 # Enable GenAI by default on Windows.
