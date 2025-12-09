@@ -29,7 +29,6 @@ typedef struct _GvaAudioBaseInference {
     gchar *device;
 
     // other fields
-    int dma_fd; // used if VPUX remote blob enabled
     gboolean values_checked;
     guint sample_length;
     // smart pointers cannot be used because of mixed c and c++ code
