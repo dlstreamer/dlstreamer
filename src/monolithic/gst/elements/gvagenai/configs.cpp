@@ -33,8 +33,7 @@ void ConfigParser::convert_prop(ov::AnyMap &properties, const std::string &key, 
         ss >> ov_val;
     }
     if (ss.fail()) {
-        GST_ERROR("Cannot convert %s to expected type for property %s", value.c_str(), key.c_str());
-        return;
+        throw std::runtime_error("Cannot convert value '" + value + "' to expected type for property '" + key + "'");
     }
     properties.emplace(ov_prop(ov_val));
     GST_INFO("Set generation config: %s = %s", key.c_str(), value.c_str());
@@ -59,11 +58,11 @@ void ConfigParser::convert_prop(ov::AnyMap &properties, const std::string &key, 
                     int64_t token_id = std::stoll(item);
                     items_set.insert(token_id);
                 } catch (const std::exception &e) {
-                    GST_ERROR("Invalid token ID: %s", item.c_str());
+                    throw std::runtime_error("Invalid token ID '" + item + "' in property '" + key + "': " + e.what());
                 }
             } else {
-                GST_ERROR("Unsupported type for set property: %s", typeid(T).name());
-                return;
+                throw std::runtime_error("Unsupported type for set property '" + key +
+                                         "': " + std::string(typeid(T).name()));
             }
         }
     }
@@ -84,10 +83,8 @@ void ConfigParser::convert_prop(ov::AnyMap &properties, const std::string &key, 
     } else if (value == "NEVER") {
         criteria = ov::genai::StopCriteria::NEVER;
     } else {
-        GST_WARNING("Invalid stop_criteria value: %s. Valid values are: EARLY, "
-                    "HEURISTIC, NEVER",
-                    value.c_str());
-        return;
+        throw std::runtime_error("Invalid stop_criteria value '" + value +
+                                 "'. Valid values are: EARLY, HEURISTIC, NEVER");
     }
     properties.emplace(ov_prop(criteria));
     GST_INFO("Set generation config: %s = %s", ov_prop_name.c_str(), value.c_str());
@@ -166,7 +163,11 @@ ov::AnyMap ConfigParser::parse_generation_config_string(const std::string &confi
 
             if (!key.empty()) {
                 config_map[key] = value;
+            } else {
+                throw std::runtime_error("Empty key in generation config: '" + pair + "'");
             }
+        } else if (!pair.empty()) {
+            throw std::runtime_error("Invalid generation config format, expected KEY=VALUE: '" + pair + "'");
         }
     }
     return ConfigParser::convert_to_properties(config_map);
@@ -194,8 +195,9 @@ std::optional<ov::genai::SchedulerConfig> ConfigParser::parse_scheduler_config_s
             std::string key = trim(pair.substr(0, pos));
             std::string value = trim(pair.substr(pos + 1));
 
-            if (key.empty())
-                continue;
+            if (key.empty()) {
+                throw std::runtime_error("Empty key in scheduler config: '" + pair + "'");
+            }
 
             try {
                 if (key == "max_num_batched_tokens") {
@@ -226,12 +228,14 @@ std::optional<ov::genai::SchedulerConfig> ConfigParser::parse_scheduler_config_s
                     // Collect cache eviction config parameters
                     cache_eviction_params[key] = value;
                 } else {
-                    GST_WARNING("Unknown scheduler config key: %s", key.c_str());
+                    throw std::runtime_error("Unknown scheduler config key: '" + key + "'");
                 }
             } catch (const std::exception &e) {
-                GST_ERROR("Failed to parse scheduler config value for key %s: %s. Error: %s", key.c_str(),
-                          value.c_str(), e.what());
+                throw std::runtime_error("Failed to parse scheduler config value for key '" + key + "' with value '" +
+                                         value + "': " + e.what());
             }
+        } else if (!pair.empty()) {
+            throw std::runtime_error("Invalid scheduler config format, expected KEY=VALUE: '" + pair + "'");
         }
     }
 
@@ -263,10 +267,8 @@ std::optional<ov::genai::SchedulerConfig> ConfigParser::parse_scheduler_config_s
                     } else if (value == "NORM_SUM") {
                         aggregation_mode = ov::genai::AggregationMode::NORM_SUM;
                     } else {
-                        GST_WARNING("Invalid cache_eviction_aggregation_mode value: %s. "
-                                    "Valid values are: SUM, NORM_SUM",
-                                    value.c_str());
-                        continue;
+                        throw std::runtime_error("Invalid cache_eviction_aggregation_mode value '" + value +
+                                                 "'. Valid values are: SUM, NORM_SUM");
                     }
                 } else if (key == "cache_eviction_apply_rotation") {
                     std::istringstream(value) >> std::boolalpha >> apply_rotation;
@@ -285,7 +287,7 @@ std::optional<ov::genai::SchedulerConfig> ConfigParser::parse_scheduler_config_s
                      start_size, recent_size, max_cache_size, static_cast<int>(aggregation_mode),
                      apply_rotation ? "true" : "false", snapkv_window_size);
         } catch (const std::exception &e) {
-            GST_ERROR("Failed to apply cache eviction config: %s", e.what());
+            throw std::runtime_error("Failed to apply cache eviction config: " + std::string(e.what()));
         }
     }
 
