@@ -19,50 +19,22 @@ This sample builds GStreamer pipeline of the following elements:
 - `gvametapublish` for saving inference results to a JSON file
 - `fakesink` for discarding output
 
-## MiniCPM-V Model Preparation
-
-You need to prepare your MiniCPM-V model in OpenVINO™ format, you can learn more from [Visual-language assistant with MiniCPM-V2 and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/minicpm-v-multimodal-chatbot/minicpm-v-multimodal-chatbot.ipynb):
-
-```bash
-optimum-cli export openvino --model openbmb/MiniCPM-V-2_6 --weight-format int4 MiniCPM-V-2_6
-```
-
-Set the model path:
-
-```bash
-export GENAI_MODEL_PATH=/path/to/your/MiniCPM-V-2_6
-```
-
-## Phi-4-multimodal-instruct Model Preparation
-
-You need to prepare your Phi-4-multimodal-instruct model in OpenVINO™ format, you can learn more from [Visual-language assistant with Phi-4-multimodal-instruct and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/phi-4-multimodal/phi-4-multimodal.ipynb):
-
-```bash
-optimum-cli export openvino --model microsoft/Phi-4-multimodal-instruct Phi-4-multimodal
-```
-
-Set the model path:
-
-```bash
-export GENAI_MODEL_PATH=/path/to/your/Phi-4-multimodal
-```
-
-## Gemma 3 Model Preparation
-
-You need to prepare your Gemma 3 model in OpenVINO™ format, you can learn more from [Visual-language assistant with Gemma 3 and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/gemma3/gemma3.ipynb):
-
-```bash
-optimum-cli export openvino --model google/gemma-3-4b-it Gemma3
-```
-
-Set the model path:
-
-```bash
-export GENAI_MODEL_PATH=/path/to/your/Gemma3
-```
+## Model Preparation
 
 > [!NOTE]
-> For installation of `optimum-cli` and other required dependencies needed to export the models, please refer to the respective OpenVINO™ notebook tutorials linked in each model preparation section above.
+> To install `optimum-cli` and other required dependencies for model export, refer to the respective OpenVINO™ notebook tutorials linked in the table below.
+> DL Streamer currently depends on OpenVINO™ GenAI 2025.3.0. For optimal compatibility, use the library versions specified in [export-requirements.txt](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2025/3/samples/export-requirements.txt).
+
+| Model | Export Command | Tutorial |
+|-------|----------------|----------|
+| **MiniCPM-V 2.6** | `optimum-cli export openvino --model openbmb/MiniCPM-V-2_6 --weight-format int4 MiniCPM-V-2_6` | [Visual-language assistant with MiniCPM-V2 and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/minicpm-v-multimodal-chatbot/minicpm-v-multimodal-chatbot.ipynb) |
+| **Phi-4-multimodal-instruct** | `optimum-cli export openvino --model microsoft/Phi-4-multimodal-instruct Phi-4-multimodal` | [Visual-language assistant with Phi-4-multimodal-instruct and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/phi-4-multimodal/phi-4-multimodal.ipynb) |
+| **Gemma 3** | `optimum-cli export openvino --model google/gemma-3-4b-it Gemma3` | [Visual-language assistant with Gemma 3 and OpenVINO™](https://github.com/openvinotoolkit/openvino_notebooks/blob/latest/notebooks/gemma3/gemma3.ipynb) |
+
+After exporting the model, set the model path:
+```bash
+export GENAI_MODEL_PATH=/path/to/your/model
+```
 
 ## Running the Sample
 
