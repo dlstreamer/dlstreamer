@@ -158,7 +158,7 @@ there is need to install [OpenVINO GenAI archive](https://docs.openvino.ai/2025/
 
   ```bash
   curl -L https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/2025.3/linux/openvino_genai_ubuntu24_2025.3.0.0_x86_64.tar.gz | tar -xz &&
-  mv openvino_genai_ubuntu24_2025.3.0.0_x86_64 /opt/intel/openvino_genai
+  sudo mv openvino_genai_ubuntu24_2025.3.0.0_x86_64 /opt/intel/openvino_genai
   source /opt/intel/openvino_genai/setupvars.sh
   ```
 
