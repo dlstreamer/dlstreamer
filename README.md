@@ -1,6 +1,5 @@
-# DL Streamer is now part of Open Edge Platform, for latest updates and releases please visit new repo: https://github.com/open-edge-platform/edge-ai-libraries/tree/main/libraries/dl-streamer
-    
-## Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+# Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+## DL Streamer is now part of Open Edge Platform
 
 ### Overview
 <div align="center"><img src="intro.gif" width=900/></div>
