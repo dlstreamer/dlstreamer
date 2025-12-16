@@ -60,6 +60,6 @@ if(WIN32)
     target_link_libraries(${TARGET_NAME} PUBLIC ${GSTD3D11_LIBRARIES})
 endif()
 
-if(${ENABLE_VAAPI})
+if(${ENABLE_VAAPI} AND NOT(WIN32))
     target_link_libraries(${TARGET_NAME} PRIVATE va_api_wrapper)
 endif()

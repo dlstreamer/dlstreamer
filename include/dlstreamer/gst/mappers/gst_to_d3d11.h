@@ -36,16 +36,11 @@ class MemoryMapperGSTToD3D11 : public BaseMemoryMapper {
 
   protected:
     void *get_d3d11_texture(GstMemory *mem) {
-        GstMapInfo map_info;
-        GstMapFlags flags = GST_MAP_READ;
-        gst_memory_map(mem, &map_info, flags);
         gboolean is_d3d11 = gst_is_d3d11_memory(mem);
         if (!is_d3d11) {
-            gst_memory_unmap(mem, &map_info);
             throw std::runtime_error("MemoryMapperGSTToD3D11: GstMemory is not D3D11 memory");
         }
         void *d3d11_texture = reinterpret_cast<void *>(gst_d3d11_memory_get_resource_handle((GstD3D11Memory *)mem));
-        gst_memory_unmap(mem, &map_info);
         return d3d11_texture;
     }
 };
