@@ -18,8 +18,9 @@ discrete GPUs:
 
  Codename   | GPU                                | Operating system
 ------------|------------------------------------|----------------------------
- [Alchemist](https://www.intel.com/content/www/us/en/products/details/discrete-gpus/arc/arc-a-series/products.html)  | Intel® Arc™ GPU Series A           | Ubuntu 22.04.5 LTS with kernel version 6.8.0-85<br>Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
- [Battlemage](https://www.intel.com/content/www/us/en/ark/products/series/240391/intel-arc-b-series-graphics.html) | Intel® Arc™ GPU Series B           | Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
+ [Alchemist](https://www.intel.com/content/www/us/en/products/details/discrete-gpus/arc/arc-a-series/products.html) | Intel® Arc™ GPU Series A | Ubuntu 22.04.5 LTS with kernel version 6.8.0-85<br>Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
+ [Battlemage](https://www.intel.com/content/www/us/en/ark/products/series/240391/intel-arc-b-series-graphics.html) | Intel® Arc™ GPU Series B | Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
+ [Battlemage Pro](https://www.intel.com/content/www/us/en/products/docs/discrete-gpus/arc/workstations/b-series/overview.html) | Intel® Arc™ Pro GPU Series B | Ubuntu 24.04.3 LTS (HWE) with kernel version 6.14.0-33
 
 To see the full list of potentially supported platforms, please refer to
 [OpenVINO™ System Requirements](https://www.intel.com/content/www/us/en/developer/tools/openvino-toolkit/system-requirements.html)
