@@ -8,16 +8,35 @@
 # (https://www.pexels.com)
 # ==============================================================================
 
+set -euo pipefail
+
 # Default values
 DEFAULT_SOURCE="https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"
 DEFAULT_DEVICE="CPU"
 DEFAULT_OUTPUT="json"
-MODEL="clip-vit-large-patch14"
+DEFAULT_MODEL="clip-vit-large-patch14"
 
 # Check if MODELS_PATH is set
 if [ -z "$MODELS_PATH" ]; then
     echo "ERROR - MODELS_PATH is not set." >&2
     exit 1
+fi
+
+SUPPORTED_MODELS=(
+  "clip-vit-large-patch14"
+  "clip-vit-base-patch16"
+  "clip-vit-base-patch32"
+)
+
+# Arguments
+SOURCE_FILE=${1:-$DEFAULT_SOURCE}
+DEVICE=${2:-$DEFAULT_DEVICE}
+OUTPUT=${3:-$DEFAULT_OUTPUT}
+MODEL=${4:-$DEFAULT_MODEL}
+
+if ! [[ " ${SUPPORTED_MODELS[*]} " =~ [[:space:]]${MODEL}[[:space:]] ]]; then
+  echo "Unsupported model: $MODEL" >&2
+  exit 1
 fi
 
 # Print MODELS_PATH
@@ -31,11 +50,6 @@ if [ ! -f "$MODEL_PATH" ]; then
     echo "ERROR - model not found: $MODEL_PATH" >&2
     exit 1
 fi
-
-# Arguments
-SOURCE_FILE=${1:-$DEFAULT_SOURCE}
-DEVICE=${2:-$DEFAULT_DEVICE}
-OUTPUT=${3:-$DEFAULT_OUTPUT}
 
 # Determine the source element based on the input
 if [[ "$SOURCE_FILE" == "/dev/video"* ]]; then

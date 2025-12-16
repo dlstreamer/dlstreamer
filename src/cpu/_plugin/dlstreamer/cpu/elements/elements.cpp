@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -17,7 +17,7 @@
 
 extern "C" {
 
-DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = { //
+DLS_EXPORT const dlstreamer::ElementDesc *dlstreamer_elements[] = {
     &rate_adjust, &tensor_convert, &tensor_histogram, &tensor_sliding_window,
     // post-processing for object detection
     &tensor_postproc_add_params, &tensor_postproc_detection, &tensor_postproc_yolo,

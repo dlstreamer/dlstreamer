@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2020-2024 Intel Corporation
+ * Copyright (C) 2020-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,7 +18,7 @@
 
 using namespace post_processing;
 
-TensorsTable KeypointsOpenPoseConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable KeypointsOpenPoseConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
     try {

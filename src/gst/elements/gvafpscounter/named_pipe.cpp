@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -117,7 +117,10 @@ NamedPipe::~NamedPipe() {
             if (remove(_pipeName.c_str()))
                 throw std::runtime_error("Failed to remove pipe " + _pipeName);
         }
+    } catch (const std::exception& e) {
+        fprintf(stderr, "Error in NamedPipe destructor: %s\n", e.what());
     } catch (...) {
+        fprintf(stderr, "Unknown error in NamedPipe destructor\n");
     }
 }
 
@@ -130,8 +133,11 @@ int NamedPipe::write(const void *buf, std::size_t count) {
 }
 
 void NamedPipe::close() {
-    if (::close(_pipeDescriptor))
-        throw std::runtime_error("Failed to close a pipe.");
+    if (isDescriptorValid(_pipeDescriptor)) {
+        if (::close(_pipeDescriptor) != 0)
+            throw std::runtime_error("Failed to close a pipe.");
+        _pipeDescriptor = -1;
+    }
 }
 
 std::string NamedPipe::getName() const {

@@ -27,17 +27,17 @@ or use any other media/video file.
 
 Benchmark video decode and inference on single model (using gvainference element):
 ```sh
-./benchmark_one_model.sh VIDEO_FILE [MODEL_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [SINK_ELEMENT]
+./benchmark_one_model.sh VIDEO_FILE [MODEL_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [INFERENCE_ELEMENT] [SINK_ELEMENT]
 ```
 
 Benchmark video decode and inference on two models (object detection and object classification models) using gvadetect and gvaclassify elements:
 ```sh
-./benchmark_two_models.sh VIDEO_FILE [MODEL1_PATH] [MODEL2_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [SINK_ELEMENT]
+./benchmark_two_models.sh VIDEO_FILE [MODEL1_PATH] [MODEL2_PATH] [DECODE_DEVICE] [INFERENCE_DEVICE] [NUMBER_STREAMS] [NUMBER_PROCESSES] [DECODE_ELEMENT] [INFERENCE1_ELEMENT] [INFERENCE2_ELEMENT] [SINK_ELEMENT]
 ```
 
-The sample `benchmark_one_model.sh` takes one to eight command-line parameters (last seven are optional):
-1. [INPUT_VIDEO] to specify input video file
-2. [MODEL] to specify model in OpenVINO™ toolkit IR format. Default is `face-detection-adas-0001` model in `INT8` precision.
+The sample `benchmark_one_model.sh` takes one to eight command-line parameters (last eight are optional):
+1. [VIDEO_FILE] to specify a path to input video file
+2. [MODEL_PATH] to specify a path to model in OpenVINO™ toolkit IR format. Default is `face-detection-adas-0001` model in `INT8` precision.
 3. [DECODE_DEVICE] to specify device for video decode, could be
     * CPU (Default)
     * GPU
@@ -48,8 +48,9 @@ The sample `benchmark_one_model.sh` takes one to eight command-line parameters (
     * ...
 5. [NUMBER_STREAMS] number of simultaneous streams to benchmark
 6. [NUMBER_PROCESSES] number of processes. If multiple processes, streams distributed equally across processes
-7. [DECODE_ELEMENT] element (or pipeline of elements in gst-launch format) for demuxing and video decoding. Default is 'decodebin3'
-8. [SINK_ELEMENT] sink element (or pipeline of elements in gst-launch format), default is `fakesink async=false`
+7. [DECODE_ELEMENT] element (or pipeline of elements in gst-launch format) for demuxing and video decoding. Default is `decodebin3`
+8. [INFERENCE_ELEMENT] DL Streamer pipeline element to perform the inference, default is `gvainference`
+9. [SINK_ELEMENT] sink element (or pipeline of elements in gst-launch format), default is `fakesink async=false`
 
 The sample `benchmark_one_model.sh` has similar parameters with additional parameter for second model.
 

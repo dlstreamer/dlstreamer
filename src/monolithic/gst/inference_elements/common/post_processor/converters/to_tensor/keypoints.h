@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022 Intel Corporation
+ * Copyright (C) 2022-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -58,6 +58,6 @@ class KeypointsConverter : public BlobToTensorConverter {
         : BlobToTensorConverter(std::move(initializer)), format("keypoints") {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
+    TensorsTable convert(const OutputBlobs &output_blobs) = 0;
 };
 } // namespace post_processing

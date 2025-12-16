@@ -93,7 +93,7 @@ OUTPUT_PATHFILE=./dlstreamer.fifo
 rm -f $OUTPUT_PATHFILE
 mkfifo $OUTPUT_PATHFILE
 
-echo "Waiting for Intel® Deep Learning Streamer (Intel® DL Streamer) to write lines to FIFO: $OUTPUT_PATHFILE"
+echo "Waiting for Deep Learning Streamer (DL Streamer) to write lines to FIFO: $OUTPUT_PATHFILE"
 
 # Emit output to console
 tail -f $OUTPUT_PATHFILE

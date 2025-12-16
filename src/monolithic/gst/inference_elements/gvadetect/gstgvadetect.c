@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -16,7 +16,7 @@
 #define ELEMENT_LONG_NAME "Object detection (generates GstVideoRegionOfInterestMeta)"
 #define ELEMENT_DESCRIPTION                                                                                            \
     "Performs object detection using SSD-like "                                                                        \
-    "(including MobileNet-V1/V2 and ResNet), YoloV2/YoloV3/YoloV2-tiny/YoloV3-tiny "                                   \
+    "(including MobileNet-V1/V2 and ResNet), YOLOv5 - YOLO11, YOLOX "                                                  \
     "and FasterRCNN-like object detection models."
 
 enum {
@@ -112,3 +112,13 @@ void gst_gva_detect_init(GstGvaDetect *gvadetect) {
     gvadetect->base_inference.type = GST_GVA_DETECT_TYPE;
     gvadetect->threshold = DEFAULT_THRESHOLD;
 }
+
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvadetect", GST_RANK_NONE, GST_TYPE_GVA_DETECT))
+        return FALSE;
+
+    return TRUE;
+}
+
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvadetect, PRODUCT_FULL_NAME " gvadetect element", plugin_init,
+                  PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

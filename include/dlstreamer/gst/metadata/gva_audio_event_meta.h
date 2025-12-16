@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,6 +10,12 @@
 #include <gst/gst.h>
 #define GVA_AUDIO_EVENT_META_API_NAME "GstGVAAudioEventMetaAPI"
 #define GVA_AUDIO_EVENT_META_IMPL_NAME "GstGVAAudioEventMeta"
+
+#if _MSC_VER
+#define DLS_EXPORT __declspec(dllexport)
+#else
+#define DLS_EXPORT __attribute__((visibility("default")))
+#endif
 
 G_BEGIN_DECLS
 
@@ -34,13 +40,13 @@ typedef struct {
     GstMeta meta;
     GQuark event_type;
     gint id;
-    gulong start_timestamp;
-    gulong end_timestamp;
+    guint64 start_timestamp;
+    guint64 end_timestamp;
 
     GList *params;
 } GstGVAAudioEventMeta;
 
-GType gst_gva_audio_event_meta_api_get_type(void);
+DLS_EXPORT GType gst_gva_audio_event_meta_api_get_type(void);
 #define GST_GVA_AUDIO_EVENT_META_API_TYPE (gst_gva_audio_event_meta_api_get_type())
 
 const GstMetaInfo *gst_gva_audio_event_meta_get_info(void);
@@ -51,12 +57,12 @@ const GstMetaInfo *gst_gva_audio_event_meta_get_info(void);
 
 GstGVAAudioEventMeta *gst_gva_buffer_get_audio_event_meta_id(GstBuffer *buffer, gint id);
 
-GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta(GstBuffer *buffer, const gchar *event_type,
-                                                          gulong start_timestamp, gulong end_timestamp);
+DLS_EXPORT GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta(GstBuffer *buffer, const gchar *event_type,
+                                                                     gulong start_timestamp, gulong end_timestamp);
 
 GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta_id(GstBuffer *buffer, GQuark event_type,
                                                              gulong start_timestamp, gulong end_timestamp);
-void gst_gva_audio_event_meta_add_param(GstGVAAudioEventMeta *meta, GstStructure *s);
+DLS_EXPORT void gst_gva_audio_event_meta_add_param(GstGVAAudioEventMeta *meta, GstStructure *s);
 
 GstStructure *gst_gva_audio_event_meta_get_param(GstGVAAudioEventMeta *meta, const gchar *name);
 

@@ -206,6 +206,11 @@ PostProcessor::PostProcessor(InferenceImpl *inference_impl, GvaBaseInference *ba
     } else if (inference_type == InferenceType::GST_GVA_INFERENCE_TYPE) {
         initializer.converter_type = ConverterType::RAW;
     }
+
+    if (base_inference->custom_postproc_lib) {
+        initializer.custom_postproc_lib = base_inference->custom_postproc_lib;
+    }
+
     // This won't be converted to shared ptr because of memory placement
     new (&post_proc_impl) PostProcessorImpl(initializer);
 }

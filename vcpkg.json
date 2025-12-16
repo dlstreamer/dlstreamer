@@ -1,0 +1,15 @@
+{
+    "dependencies": [
+        "opencv",
+        "pkgconf",
+        "opencl",
+        "dlfcn-win32",
+        "fmt"
+    ],
+    "overrides": [
+    {
+        "name": "fmt",
+        "version": "10.2.1"
+    }
+]
+}

@@ -24,7 +24,7 @@ class CLIPTokenConverter : public BlobToTensorConverter {
     CLIPTokenConverter(BlobToMetaConverter::Initializer initializer) : BlobToTensorConverter(std::move(initializer)) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    TensorsTable convert(const OutputBlobs &output_blobs) override;
 
     static std::string getName() {
         return "clip_token";

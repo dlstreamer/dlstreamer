@@ -64,14 +64,22 @@ class BlobToMetaConverter {
         return labels.at(label_id);
     }
 
+    size_t getIdByLabel(const std::string &label) const {
+        const auto &labels = getLabels();
+        auto it = std::find(labels.begin(), labels.end(), label);
+        if (it == labels.end())
+            return 0;
+        return std::distance(labels.begin(), it);
+    }
+
   public:
     BlobToMetaConverter(Initializer initializer);
 
-    virtual TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
+    virtual TensorsTable convert(const OutputBlobs &output_blobs) = 0;
 
     using Ptr = std::unique_ptr<BlobToMetaConverter>;
     static Ptr create(Initializer initializer, ConverterType converter_type,
-                      const std::string &displayed_layer_name_in_meta);
+                      const std::string &displayed_layer_name_in_meta, const std::string &custom_postproc_lib);
 
     const std::vector<std::string> &getLabels() const {
         return labels;
