@@ -42,6 +42,7 @@ ExternalProject_Add(
                         -DWITH_FFMPEG=OFF
                         -DWITH_TBB=ON
                         -DWITH_OPENMP=OFF
+                        -DWITH_IPP=OFF
 )
 
 if (INSTALL_DLSTREAMER)
