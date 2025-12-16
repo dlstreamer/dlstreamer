@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -43,7 +43,7 @@ class BoxesLabelsScoresConverter : public BlobToROIConverter {
         : BlobToROIConverter(std::move(initializer), confidence_threshold, false, 0.0) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    TensorsTable convert(const OutputBlobs &output_blobs) override;
 
     static bool isValidModelBoxesOutput(const std::map<std::string, std::vector<size_t>> &model_outputs_info);
     static bool isValidModelAdditionalOutput(const std::map<std::string, std::vector<size_t>> &model_outputs_info,

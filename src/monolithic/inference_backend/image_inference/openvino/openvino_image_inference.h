@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -34,6 +34,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
 
     const std::string &GetModelName() const override;
 
+    size_t GetBatchSize() const override;
     size_t GetNireq() const override;
 
     void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
@@ -42,7 +43,8 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::map<std::string, std::vector<size_t>> GetModelInputsInfo() const override;
     std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const override;
     std::map<std::string, GstStructure *> GetModelInfoPostproc() const override;
-    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file);
+    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file,
+                                                                     const gchar *pre_proc_config);
 
     bool IsQueueFull() override;
 
@@ -74,7 +76,7 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     std::string model_name;
     std::string image_layer;
 
-    const int batch_size;
+    int batch_size;
     int nireq;
     SafeQueue<std::shared_ptr<BatchRequest>> freeRequests;
 

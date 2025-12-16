@@ -37,6 +37,8 @@ The command-line parameter INPUT_VIDEO allows to change input video and supports
 > **NOTE**: You may need the following dependencies to build the sample:
 ```sh
 sudo apt install cmake make build-essential
+## On ubuntu24 you may also need libopencv-dev to build the sample
+sudo apt install libopencv-dev
 ```
 
 ## Sample Output

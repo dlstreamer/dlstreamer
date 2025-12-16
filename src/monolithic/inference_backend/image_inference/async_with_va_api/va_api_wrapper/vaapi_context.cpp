@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2019-2022 Intel Corporation
+ * Copyright (C) 2019-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,7 +13,6 @@
 #include <vector>
 
 #include <fcntl.h>
-#include <unistd.h>
 
 using namespace InferenceBackend;
 

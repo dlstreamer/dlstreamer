@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -50,7 +50,7 @@ class YOLOxConverter : public BlobToROIConverter {
         : BlobToROIConverter(std::move(initializer), confidence_threshold, true, iou_threshold), NUM_CLASSES(classes) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) const override;
+    TensorsTable convert(const OutputBlobs &output_blobs) override;
 
     static std::string getName() {
         return "yolo_x";

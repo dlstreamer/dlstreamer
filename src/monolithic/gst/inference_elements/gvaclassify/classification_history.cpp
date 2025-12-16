@@ -5,6 +5,7 @@
  ******************************************************************************/
 
 #include "classification_history.h"
+#include "gmutex_lock_guard.h"
 #include "gva_utils.h"
 #include "inference_backend/logger.h"
 #include "inference_impl.h"
@@ -29,6 +30,7 @@ bool ClassificationHistory::IsROIClassificationNeeded(GstVideoRegionOfInterestMe
         bool result = false;
         gint id;
         if (NEW_METADATA && roi->id >= 0) {
+            GMutexLockGuard guard(&gva_classify->base_inference.meta_mutex);
             GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
             if (!relation_meta) {
                 throw std::runtime_error("Failed to get GstAnalyticsRelationMeta from buffer");

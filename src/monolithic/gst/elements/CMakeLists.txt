@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2024 Intel Corporation
+# Copyright (C) 2018-2025 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -92,6 +92,12 @@ if(${ENABLE_VAAPI})
         target_link_libraries(${TARGET_NAME} PRIVATE image_inference_async)
 endif()
 
+add_subdirectory(gvaattachroi)
 add_subdirectory(gvametapublish)
 add_subdirectory(gvapython)
 add_subdirectory(gvatrack)
+add_subdirectory(gvadeskew)
+add_subdirectory(gvawatermark3d)
+if(ENABLE_GENAI)
+    add_subdirectory(gvagenai)
+endif()

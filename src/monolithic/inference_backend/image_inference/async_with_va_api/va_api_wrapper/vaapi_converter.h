@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2022 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,9 +21,9 @@ class VaApiConverter {
     VaApiContext *_context;
 
   protected:
-    void SetupPipelineRegionsWithCustomParams(const InputImageLayerDesc::Ptr &pre_proc_info, uint16_t dst_width,
-                                              uint16_t dst_height, VARectangle &src_surface_region,
-                                              VARectangle &dst_surface_region,
+    void SetupPipelineRegionsWithCustomParams(const InputImageLayerDesc::Ptr &pre_proc_info, uint16_t src_width,
+                                              uint16_t src_height, uint16_t dst_width, uint16_t dst_height,
+                                              VARectangle &src_surface_region, VARectangle &dst_surface_region,
                                               VAProcPipelineParameterBuffer &pipeline_param,
                                               const ImageTransformationParams::Ptr &image_transform_info);
 

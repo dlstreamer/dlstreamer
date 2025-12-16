@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2024 Intel Corporation
+ * Copyright (C) 2018-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -37,6 +37,7 @@ class ImageInferenceAsync : public ImageInference {
 
     const std::string &GetModelName() const override;
 
+    size_t GetBatchSize() const override;
     size_t GetNireq() const override;
 
     void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,

@@ -18,7 +18,7 @@ This sample builds GStreamer pipeline of the following elements
 ## Models
 
 The samples use YOLO models from different repositories as listed in a table below. The model preparation and conversion method depends on the model source.
-The instructions assume Intel® DL Streamer framework is installed on the local system along with Intel® OpenVINO™ model downloader and converter tools,
+The instructions assume DL Streamer framework is installed on the local system along with Intel® OpenVINO™ model downloader and converter tools,
 as described here: [Tutorial](https://dlstreamer.github.io/get_started/tutorial.html#tutorial-setup).
 
 For yolov5su, yolov8s (8n-obb,8n-seg), yolov9c, yolov10s and yolo11s (yolo11s-seg, yolo11s-obb) models it is also necessary to install the ultralytics python package:
@@ -26,7 +26,7 @@ For yolov5su, yolov8s (8n-obb,8n-seg), yolov9c, yolov10s and yolo11s (yolo11s-se
 ```sh
 pip install ultralytics
 ```
-The samples demonstrate deployment and inference with GStreamer command line tool `gst-launch-1.0` and Intel® DL Streamer components for the following set of models:
+The samples demonstrate deployment and inference with GStreamer command line tool `gst-launch-1.0` and DL Streamer components for the following set of models:
 
 | Model        | Model Preparation                                                                                         | Model pipeline (model-proc)       |
 | ------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------------|
@@ -50,7 +50,7 @@ The samples demonstrate deployment and inference with GStreamer command line too
 The sample `yolo_detect.sh` script can be used to build and run an object detection pipeline.
 
 ```sh
-./yolo_detect.sh <MODEL> <DEVICE> <INPUT> <OUTPUT_TYPE>
+./yolo_detect.sh <MODEL> <DEVICE> <INPUT> <OUTPUT_TYPE> <PRECISION>
 ```
 > **NOTE**: Prior to running `yolo_detect.sh`, ensure that you execute the `download_public_models.sh` script found in the top-level `samples` directory. This will allow you to download the full suite of YOLO models or select an individual model from the options presented above.
 
@@ -73,7 +73,28 @@ Yet antoher example run of `yolo11s` model with GPU device on your own mp4 video
 ./yolo_detect.sh yolov9c CPU path/to/your/video.mp4 display
 ```
 
-Please examine `yolo_detect.sh` script to see how to source data from input camera and how to generate other types of the output. 
+Example run of `yolo11s-obb` model with FP32 precision with GPU device on online video with VAAPI acceleration, saving results to file:
+
+```sh
+./yolo_detect.sh yolo11s-obb GPU https://videos.pexels.com/video-files/3150382/3150382-sd_640_338_25fps.mp4 file va FP32
+```
+
+Sample output for `yolo11s-obb` model:
+
+![Sample Output](yolo11s-obb_sample_output.jpeg)
+
+Example run of `yolo11s-seg` model with FP32 precision with GPU device on online video with VAAPI acceleration, saving results to file:
+
+```sh
+./yolo_detect.sh yolo11s-seg GPU https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4 file va FP32
+```
+
+Sample output for `yolo11s-seg` model:
+
+![Sample Output](yolo11s-seg_sample_output.jpeg)
+
+Please examine `yolo_detect.sh` script to see how to source data from input camera and how to generate other types of the output.
 
 ## See also
+
 * [Samples overview](../../README.md)

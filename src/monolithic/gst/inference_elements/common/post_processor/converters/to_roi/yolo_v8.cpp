@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024 Intel Corporation
+ * Copyright (C) 2024-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,6 +11,7 @@
 #include "inference_backend/logger.h"
 #include "safe_arithmetic.hpp"
 
+#include <dlstreamer/gst/videoanalytics/tensor.h>
 #include <gst/gst.h>
 
 #include <map>
@@ -61,7 +62,7 @@ void YOLOv8Converter::parseOutputBlob(const float *data, const std::vector<size_
     }
 }
 
-TensorsTable YOLOv8Converter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8Converter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
@@ -90,7 +91,7 @@ TensorsTable YOLOv8Converter::convert(const OutputBlobs &output_blobs) const {
     return TensorsTable{};
 }
 
-TensorsTable YOLOv8ObbConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8ObbConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
@@ -119,7 +120,7 @@ TensorsTable YOLOv8ObbConverter::convert(const OutputBlobs &output_blobs) const 
     return TensorsTable{};
 }
 
-TensorsTable YOLOv8PoseConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8PoseConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();
@@ -193,64 +194,33 @@ void YOLOv8PoseConverter::parseOutputBlob(const float *data, const std::vector<s
 
             // create relative keypoint positions within bounding box
             cv::Mat positions(keypoint_count, 2, CV_32F);
+            std::vector<float> confidences(keypoint_count, 0.0f);
             for (size_t k = 0; k < keypoint_count; k++) {
                 float position_x = output_data[YOLOV8_OFFSET_CS + 1 + k * 3 + 0];
                 float position_y = output_data[YOLOV8_OFFSET_CS + 1 + k * 3 + 1];
                 positions.at<float>(k, 0) = (position_x - x) / w;
                 positions.at<float>(k, 1) = (position_y - y) / h;
+                confidences[k] = output_data[YOLOV8_OFFSET_CS + 1 + k * 3 + 2];
             }
 
             // create tensor with keypoints
-            GstStructure *tensor = gst_structure_copy(getModelProcOutputInfo().get());
-            gst_structure_set_name(tensor, "keypoints");
-            gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
-            gst_structure_set(tensor, "format", G_TYPE_STRING, "keypoints", NULL);
+            GstStructure *gst_structure = gst_structure_copy(getModelProcOutputInfo().get());
+            GVA::Tensor tensor(gst_structure);
 
-            GValueArray *data = g_value_array_new(2);
-            GValue gvalue = G_VALUE_INIT;
-            g_value_init(&gvalue, G_TYPE_UINT);
-            g_value_set_uint(&gvalue, safe_convert<uint32_t>(keypoint_count));
-            g_value_array_append(data, &gvalue);
-            g_value_set_uint(&gvalue, 2);
-            g_value_array_append(data, &gvalue);
-            gst_structure_set_array(tensor, "dims", data);
-            g_value_array_free(data);
+            tensor.set_name("keypoints");
+            tensor.set_format("keypoints");
 
-            copy_buffer_to_structure(tensor, reinterpret_cast<const void *>(positions.data),
-                                     keypoint_count * 2 * sizeof(float));
+            // set tensor data (positions)
+            tensor.set_dims({static_cast<uint32_t>(keypoint_count), 2});
+            tensor.set_data(reinterpret_cast<const void *>(positions.data), keypoint_count * 2 * sizeof(float));
+            tensor.set_precision(GVA::Tensor::Precision::FP32);
 
-            data = g_value_array_new(keypoint_count);
-            gvalue = G_VALUE_INIT;
-            g_value_init(&gvalue, G_TYPE_FLOAT);
-            for (size_t k = 0; k < keypoint_count; k++) {
-                g_value_set_float(&gvalue, output_data[YOLOV8_OFFSET_CS + 1 + k * 3 + 2]);
-                g_value_array_append(data, &gvalue);
-            }
-            gst_structure_set_array(tensor, "confidence", data);
-            g_value_array_free(data);
+            // set additional tensor properties as vectors: confidence, point names and point connections
+            tensor.set_vector<float>("confidence", confidences);
+            tensor.set_vector<std::string>("point_names", point_names);
+            tensor.set_vector<std::string>("point_connections", point_connections);
 
-            data = g_value_array_new(point_names.size());
-            gvalue = G_VALUE_INIT;
-            g_value_init(&gvalue, G_TYPE_STRING);
-            for (size_t i = 0; i < point_names.size(); i++) {
-                g_value_set_string(&gvalue, point_names[i].c_str());
-                g_value_array_append(data, &gvalue);
-            }
-            gst_structure_set_array(tensor, "point_names", data);
-            g_value_array_free(data);
-
-            data = g_value_array_new(point_connections.size());
-            gvalue = G_VALUE_INIT;
-            g_value_init(&gvalue, G_TYPE_STRING);
-            for (size_t i = 0; i < point_connections.size(); i++) {
-                g_value_set_string(&gvalue, point_connections[i].c_str());
-                g_value_array_append(data, &gvalue);
-            }
-            gst_structure_set_array(tensor, "point_connections", data);
-            g_value_array_free(data);
-
-            detected_object.tensors.push_back(tensor);
-
+            detected_object.tensors.push_back(tensor.gst_structure());
             objects.push_back(detected_object);
         }
         output_data += object_size;
@@ -324,25 +294,19 @@ void YOLOv8SegConverter::parseOutputBlob(const float *boxes_data, const std::vec
             });
 
             // create segmentation mask tensor
-            GstStructure *tensor = gst_structure_copy(getModelProcOutputInfo().get());
-            gst_structure_set_name(tensor, "mask_yolov8");
-            gst_structure_set(tensor, "precision", G_TYPE_INT, GVA_PRECISION_FP32, NULL);
-            gst_structure_set(tensor, "format", G_TYPE_STRING, "segmentation_mask", NULL);
+            GstStructure *gst_structure = gst_structure_copy(getModelProcOutputInfo().get());
+            GVA::Tensor tensor(gst_structure);
+            tensor.set_name("mask_yolov8");
+            tensor.set_format("segmentation_mask");
 
-            GValueArray *data = g_value_array_new(2);
-            GValue gvalue = G_VALUE_INIT;
-            g_value_init(&gvalue, G_TYPE_UINT);
-            g_value_set_uint(&gvalue, safe_convert<uint32_t>(cropped_mask.cols));
-            g_value_array_append(data, &gvalue);
-            g_value_set_uint(&gvalue, safe_convert<uint32_t>(cropped_mask.rows));
-            g_value_array_append(data, &gvalue);
-            gst_structure_set_array(tensor, "dims", data);
-            g_value_array_free(data);
+            // set tensor data
+            tensor.set_dims({safe_convert<uint32_t>(cropped_mask.cols), safe_convert<uint32_t>(cropped_mask.rows)});
+            tensor.set_precision(GVA::Tensor::Precision::FP32);
+            tensor.set_data(reinterpret_cast<const void *>(cropped_mask.data),
+                            cropped_mask.rows * cropped_mask.cols * sizeof(float));
 
-            copy_buffer_to_structure(tensor, reinterpret_cast<const void *>(cropped_mask.data),
-                                     cropped_mask.rows * cropped_mask.cols * sizeof(float));
-            detected_object.tensors.push_back(tensor);
-
+            // add tensor to the list of detected objects
+            detected_object.tensors.push_back(tensor.gst_structure());
             objects.push_back(detected_object);
         }
         output_data += object_size;
@@ -351,7 +315,7 @@ void YOLOv8SegConverter::parseOutputBlob(const float *boxes_data, const std::vec
     }
 }
 
-TensorsTable YOLOv8SegConverter::convert(const OutputBlobs &output_blobs) const {
+TensorsTable YOLOv8SegConverter::convert(const OutputBlobs &output_blobs) {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

@@ -13,13 +13,14 @@
 #include "converters/to_roi/yolo_v2.h"
 #include "converters/to_roi/yolo_v3.h"
 #include "converters/to_roi/yolo_v8.h"
+#include "converters/to_tensor/blob_to_tensor_converter.h"
 #include "converters/to_tensor/clip_token_converter.h"
 #include "converters/to_tensor/keypoints_3d.h"
 #include "converters/to_tensor/keypoints_hrnet.h"
 #include "converters/to_tensor/keypoints_openpose.h"
 #include "converters/to_tensor/label.h"
+#include "converters/to_tensor/paddle_ocr.h"
 #include "converters/to_tensor/raw_data_copy.h"
-#include "converters/to_tensor/semantic_mask.h"
 #include "converters/to_tensor/text.h"
 
 #include "gva_base_inference.h"
@@ -102,15 +103,15 @@ std::string checkOnNameDeprecation(const std::string &converter_name) {
     const std::string YOLOv8OBB = "YOLOv8-OBB";
     const std::string YOLOv8SEG = "YOLOv8-SEG";
     const std::unordered_map<std::string, std::string> deprecatedNameToName = {
-        {DetectionOutputConverter::getDepricatedName(), DetectionOutputConverter::getName()},
-        {BoxesLabelsConverter::getDepricatedName(), BoxesLabelsConverter::getName()},
-        {YOLOv2Converter::getDepricatedName(), YOLOv2Converter::getName()},
-        {YOLOv3Converter::getDepricatedName(), YOLOv3Converter::getName()},
-        {LabelConverter::getDepricatedName(), LabelConverter::getName()},
-        {TextConverter::getDepricatedName(), TextConverter::getName()},
-        {KeypointsHRnetConverter::getDepricatedName(), KeypointsHRnetConverter::getName()},
-        {Keypoints3DConverter::getDepricatedName(), Keypoints3DConverter::getName()},
-        {KeypointsOpenPoseConverter::getDepricatedName(), KeypointsOpenPoseConverter::getName()},
+        {DetectionOutputConverter::getDeprecatedName(), DetectionOutputConverter::getName()},
+        {BoxesLabelsConverter::getDeprecatedName(), BoxesLabelsConverter::getName()},
+        {YOLOv2Converter::getDeprecatedName(), YOLOv2Converter::getName()},
+        {YOLOv3Converter::getDeprecatedName(), YOLOv3Converter::getName()},
+        {LabelConverter::getDeprecatedName(), LabelConverter::getName()},
+        {TextConverter::getDeprecatedName(), TextConverter::getName()},
+        {KeypointsHRnetConverter::getDeprecatedName(), KeypointsHRnetConverter::getName()},
+        {Keypoints3DConverter::getDeprecatedName(), Keypoints3DConverter::getName()},
+        {KeypointsOpenPoseConverter::getDeprecatedName(), KeypointsOpenPoseConverter::getName()},
         {GetiDetection, BoxesLabelsConverter::getName()},
         {GetiClassification, LabelConverter::getName()},
         {GetiInstanceSegmentation, MaskRCNNConverter::getName()},
@@ -137,7 +138,8 @@ BlobToMetaConverter::BlobToMetaConverter(Initializer initializer)
 }
 
 BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, ConverterType converter_type,
-                                                     const std::string &displayed_layer_name_in_meta) {
+                                                     const std::string &displayed_layer_name_in_meta,
+                                                     const std::string &custom_postproc_lib) {
     GstStructureUniquePtr &tensor = initializer.model_proc_output_info;
 
     const std::string converter_name = checkOnNameDeprecation(getConverterType(tensor.get()));
@@ -162,25 +164,14 @@ BlobToMetaConverter::Ptr BlobToMetaConverter::create(Initializer initializer, Co
             throw std::runtime_error("Unsupported converter '" + converter_name + "' for type RAW");
         break;
     case ConverterType::TO_ROI:
-        return BlobToROIConverter::create(std::move(initializer), converter_name);
+        return BlobToROIConverter::create(std::move(initializer), converter_name, custom_postproc_lib);
     case ConverterType::TO_TENSOR:
-        if (converter_name == RawDataCopyConverter::getName())
-            return std::make_unique<RawDataCopyConverter>(std::move(initializer));
-        else if (converter_name == KeypointsHRnetConverter::getName())
-            return std::make_unique<KeypointsHRnetConverter>(std::move(initializer));
-        else if (converter_name == Keypoints3DConverter::getName())
-            return std::make_unique<Keypoints3DConverter>(std::move(initializer));
-        else if (converter_name == KeypointsOpenPoseConverter::getName()) {
+        if (converter_name == KeypointsOpenPoseConverter::getName()) {
             auto keypoints_number = getKeypointsNumber(tensor.get());
             return std::make_unique<KeypointsOpenPoseConverter>(std::move(initializer), keypoints_number);
-        } else if (converter_name == LabelConverter::getName())
-            return std::make_unique<LabelConverter>(std::move(initializer));
-        else if (converter_name == TextConverter::getName())
-            return std::make_unique<TextConverter>(std::move(initializer));
-        else if (converter_name == SemanticMaskConverter::getName())
-            return std::make_unique<SemanticMaskConverter>(std::move(initializer));
-        else
-            throw std::runtime_error("Unsupported converter: " + converter_name);
+        } else {
+            return BlobToTensorConverter::create(std::move(initializer), converter_name, custom_postproc_lib);
+        }
     default:
         throw std::runtime_error("Invalid converter type.");
     }

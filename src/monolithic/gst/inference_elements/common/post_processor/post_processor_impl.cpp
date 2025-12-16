@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -94,7 +94,7 @@ PostProcessorImpl::PostProcessorImpl(Initializer initializer) {
 
             converters.emplace_back(layer_names, model_proc_outputs.cbegin()->second, initializer.converter_type,
                                     initializer.attach_type, initializer.image_info, initializer.model_outputs,
-                                    initializer.model_name, labels);
+                                    initializer.model_name, labels, initializer.custom_postproc_lib);
         } else {
             for (const auto &model_proc_output : initializer.output_processors) {
                 if (model_proc_output.second == nullptr) {
@@ -113,7 +113,7 @@ PostProcessorImpl::PostProcessorImpl(Initializer initializer) {
 
                 converters.emplace_back(model_proc_output.second, initializer.converter_type, initializer.attach_type,
                                         initializer.image_info, initializer.model_outputs, initializer.model_name,
-                                        labels);
+                                        labels, initializer.custom_postproc_lib);
             }
         }
     } catch (const std::exception &e) {

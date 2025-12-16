@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2024 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -360,3 +360,13 @@ static void gst_gva_meta_aggregate_init(GstGvaMetaAggregate *gvametaaggregate, G
     g_mutex_init(&gvametaaggregate->mutex);
     gst_gva_meta_aggregate_reset(gvametaaggregate);
 }
+
+static gboolean plugin_init(GstPlugin *plugin) {
+    if (!gst_element_register(plugin, "gvametaaggregate", GST_RANK_NONE, GST_TYPE_GVA_META_AGGREGATE))
+        return FALSE;
+
+    return TRUE;
+}
+
+GST_PLUGIN_DEFINE(GST_VERSION_MAJOR, GST_VERSION_MINOR, gvametaaggregate, PRODUCT_FULL_NAME " gvametaaggregate element",
+                  plugin_init, PLUGIN_VERSION, PLUGIN_LICENSE, PACKAGE_NAME, GST_PACKAGE_ORIGIN)

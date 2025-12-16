@@ -1,3 +1,9 @@
-[submodule "thirdparty/spdlog"]
-	path = thirdparty/spdlog
+[submodule "libraries/dl-streamer/thirdparty/spdlog"]
+	path = libraries/dl-streamer/thirdparty/spdlog
 	url = https://github.com/gabime/spdlog.git
+[submodule "libraries/dl-streamer/thirdparty/googletest"]
+	path = libraries/dl-streamer/thirdparty/googletest
+	url = https://github.com/google/googletest.git
+[submodule "thirdparty/googletest"]
+	path = thirdparty/googletest
+	url = https://github.com/google/googletest.git

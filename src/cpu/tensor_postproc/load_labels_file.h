@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2022 Intel Corporation
+ * Copyright (C) 2021-2025 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,7 +11,7 @@
 // Reads labels from file into vector
 inline std::vector<std::string> load_labels_file(const std::filesystem::path &file_path) {
     if (!std::filesystem::exists(file_path))
-        throw std::invalid_argument("Labels file '" + file_path.native() + "' does not exist");
+        throw std::invalid_argument("Labels file '" + file_path.generic_string() + "' does not exist");
 
     std::vector<std::string> res;
     std::ifstream fstream(file_path);
