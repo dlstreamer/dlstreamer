@@ -11,12 +11,13 @@
 #include "dlstreamer/dma/context.h"
 #include "dlstreamer/gst/mappers/gst_to_cpu.h"
 #include "dlstreamer/gst/mappers/gst_to_opencl.h"
-#include "dlstreamer/gst/mappers/gst_to_vaapi.h"
 #include "dlstreamer/gst/utils.h"
 #include "dlstreamer/utils.h"
-#ifdef _MSC_VER
+#ifndef _MSC_VER
+#include "dlstreamer/gst/mappers/gst_to_vaapi.h"
+#else
 #define GST_USE_UNSTABLE_API
-#include <gst/d3d11/gstd3d11device.h>
+#include "dlstreamer/gst/mappers/gst_to_d3d11.h"
 #endif
 
 namespace dlstreamer {
@@ -49,6 +50,7 @@ class GSTContextQuery : public BaseContext {
 
     handle_t handle(std::string_view key) const noexcept override {
         handle_t value = 0;
+#ifndef _MSC_VER
         if (key == BaseContext::key::va_display) {
             GstObject *display_obj = nullptr;
             if (gst_structure_get(_structure, VAAPI_DISPLAY_FIELD_NAME, GST_TYPE_OBJECT, &display_obj, NULL)) {
@@ -61,20 +63,20 @@ class GSTContextQuery : public BaseContext {
                 gst_object_unref(display_obj);
                 GST_INFO("Got VADisplay from VA context: %p", value);
             }
+            return value;
         }
-#ifdef _MSC_VER
-        else if (key == BaseContext::key::d3d_device) {
+#else
+        if (key == BaseContext::key::d3d_device) {
             GstD3D11Device *d3d11_device = NULL;
             if (gst_structure_get(_structure, "device", GST_TYPE_D3D11_DEVICE, &d3d11_device, NULL)) {
                 value = reinterpret_cast<handle_t>(d3d11_device);
                 // gst_clear_object(&d3d11_device);
             }
+            return value;
         }
 #endif
-        else {
-            if (!gst_structure_get(_structure, key.data(), G_TYPE_POINTER, &value, NULL)) {
-                GST_ERROR("Invalid gst_structure_get() method field(s) requested");
-            }
+        if (!gst_structure_get(_structure, key.data(), G_TYPE_POINTER, &value, NULL)) {
+            GST_ERROR("Invalid gst_structure_get() method field(s) requested");
         }
         return value;
     }
@@ -94,23 +96,24 @@ class GSTContextQuery : public BaseContext {
     static constexpr auto D3D11_CONTEXT_NAME = "gst.d3d11.device.handle";
 
     const char *get_context_name(MemoryType memory_type) {
+#ifndef _MSC_VER
         if (memory_type == MemoryType::VA) {
             // Load GST-VA and reuse VAAPI path.
             set_memory_type(MemoryType::VAAPI);
             return VA_CONTEXT_NAME;
         }
-#ifdef _MSC_VER
+        if (memory_type == MemoryType::VAAPI) {
+            GST_ELEMENT_WARNING(_context, LIBRARY, INIT, ("VASurface and Gst-VAAPI is deprecated."),
+                                ("%s", "Please use VAMemory na Gst-VA instead."));
+            return VAAPI_CONTEXT_NAME;
+        }
+#else
         if (memory_type == MemoryType::D3D11) {
             set_memory_type(MemoryType::D3D11);
             return D3D11_CONTEXT_NAME;
         }
 #endif
-        if (memory_type == MemoryType::VAAPI) {
-            GST_ELEMENT_WARNING(_context, LIBRARY, INIT, ("VASurface and Gst-VAAPI is deprecated."),
-                                ("%s", "Please use VAMemory na Gst-VA instead."));
-            return VAAPI_CONTEXT_NAME;
-        } else
-            return memory_type_to_string(memory_type);
+        return memory_type_to_string(memory_type);
     }
 
     void query_context(GstPad *pad, const gchar *context_name) {
@@ -164,8 +167,13 @@ class GSTContext : public BaseContext {
         auto output_type = output_context ? output_context->memory_type() : MemoryType::CPU;
         if (input_type == MemoryType::GST && output_type == MemoryType::CPU)
             mapper = std::make_shared<MemoryMapperGSTToCPU>(input_context, output_context);
+#ifndef _MSC_VER
         if (input_type == MemoryType::GST && output_type == MemoryType::VAAPI)
             mapper = std::make_shared<MemoryMapperGSTToVAAPI>(input_context, output_context);
+#else
+        if (input_type == MemoryType::GST && output_type == MemoryType::D3D11)
+            mapper = std::make_shared<MemoryMapperGSTToD3D11>(input_context, output_context);
+#endif
         if (input_type == MemoryType::GST && output_type == MemoryType::OpenCL)
             mapper = std::make_shared<MemoryMapperGSTToOpenCL>(input_context, output_context);
 
