@@ -219,24 +219,28 @@ std::string OpenVINOGenAIContext::get_last_result() const {
 std::string OpenVINOGenAIContext::create_json_metadata(GstClockTime timestamp, bool include_metrics) {
     auto round_2dp = [](double value) { return std::round(value * 100.0) / 100.0; };
 
-    nlohmann::json json_obj = {{"result", last_result}};
+    nlohmann::ordered_json json_obj = {{"result", last_result}};
     if (include_metrics) {
-        nlohmann::json metrics_obj = {
+        nlohmann::ordered_json metrics_obj = {
             {"load_time", round_2dp(metrics.get_load_time())},
             {"num_generated_tokens", metrics.get_num_generated_tokens()},
             {"num_input_tokens", metrics.get_num_input_tokens()},
-            {"generate_time_mean", round_2dp(metrics.get_generate_duration().mean)},
-            {"generate_time_std", round_2dp(metrics.get_generate_duration().std)},
-            {"tokenization_time_mean", round_2dp(metrics.get_tokenization_duration().mean)},
-            {"tokenization_time_std", round_2dp(metrics.get_tokenization_duration().std)},
-            {"detokenization_time_mean", round_2dp(metrics.get_detokenization_duration().mean)},
-            {"detokenization_time_std", round_2dp(metrics.get_detokenization_duration().std)},
-            {"embeddings_prep_time_mean", round_2dp(metrics.get_prepare_embeddings_duration().mean)},
-            {"embeddings_prep_time_std", round_2dp(metrics.get_prepare_embeddings_duration().std)},
+            {"inference_duration_mean", round_2dp(metrics.get_inference_duration().mean)},
+            {"inference_duration_std", round_2dp(metrics.get_inference_duration().std)},
+            {"generate_duration_mean", round_2dp(metrics.get_generate_duration().mean)},
+            {"generate_duration_std", round_2dp(metrics.get_generate_duration().std)},
+            {"tokenization_duration_mean", round_2dp(metrics.get_tokenization_duration().mean)},
+            {"tokenization_duration_std", round_2dp(metrics.get_tokenization_duration().std)},
+            {"detokenization_duration_mean", round_2dp(metrics.get_detokenization_duration().mean)},
+            {"detokenization_duration_std", round_2dp(metrics.get_detokenization_duration().std)},
+            {"prepare_embeddings_duration_mean", round_2dp(metrics.get_prepare_embeddings_duration().mean)},
+            {"prepare_embeddings_duration_std", round_2dp(metrics.get_prepare_embeddings_duration().std)},
             {"ttft_mean", round_2dp(metrics.get_ttft().mean)},
             {"ttft_std", round_2dp(metrics.get_ttft().std)},
             {"tpot_mean", round_2dp(metrics.get_tpot().mean)},
             {"tpot_std", round_2dp(metrics.get_tpot().std)},
+            {"ipot_mean", round_2dp(metrics.get_ipot().mean)},
+            {"ipot_std", round_2dp(metrics.get_ipot().std)},
             {"throughput_mean", round_2dp(metrics.get_throughput().mean)},
             {"throughput_std", round_2dp(metrics.get_throughput().std)}};
         json_obj["metrics"] = metrics_obj;
