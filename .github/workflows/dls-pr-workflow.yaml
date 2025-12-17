@@ -4,18 +4,6 @@ on:
   push:
     branches:
       - 'nsz-workflows-modifications'
-    paths:
-      -'*'
-      - '.github/**'
-      - 'cmake/**'
-      - 'docker/**'
-      - 'include/**'
-      - 'python/**'
-      - 'samples/**'
-      - 'scripts/**'
-      - 'src/**'
-      - 'tests/**'
-      - 'thirdparty/**'
   pull_request:
     paths:
       - 'cmake/**'
