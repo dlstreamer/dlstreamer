@@ -36,9 +36,9 @@ jobs:
 
     - name: Init submodules
       run: |
-        cd edge-ai-libraries-repo
-        git submodule update --init dlstreamer-repo/thirdparty/spdlog
-        git submodule update --init dlstreamer-repo/thirdparty/googletest
+        cd dlstreamer-repo
+        git submodule update --init thirdparty/spdlog
+        git submodule update --init thirdparty/googletest
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 #3.11.1
