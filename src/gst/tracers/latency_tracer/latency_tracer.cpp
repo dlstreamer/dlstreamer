@@ -26,6 +26,8 @@ using BufferListArgs = tuple<LatencyTracer *, guint64, GstPad *>;
 static GQuark data_string = g_quark_from_static_string("latency_tracer");
 
 static void latency_tracer_constructed(GObject *object) {
+    if (object == nullptr)
+        return;
     LatencyTracer *lt = LATENCY_TRACER(object);
     gchar *params, *tmp;
     GstStructure *params_struct = NULL;
@@ -62,6 +64,8 @@ static void latency_tracer_constructed(GObject *object) {
 }
 
 static void latency_tracer_class_init(LatencyTracerClass *klass) {
+    if (klass == nullptr)
+        return;
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);
     gobject_class->constructed = latency_tracer_constructed;
     tr_pipeline = gst_tracer_record_new(
@@ -243,6 +247,9 @@ struct ElementStats {
 };
 
 static bool is_parent_pipeline(LatencyTracer *lt, GstElement *elem) {
+    if (lt == nullptr || elem == nullptr)
+        return false;
+
     GstElement *parent_elm = GST_ELEMENT_PARENT(elem);
     if (parent_elm != lt->pipeline)
         return false;
@@ -250,6 +257,8 @@ static bool is_parent_pipeline(LatencyTracer *lt, GstElement *elem) {
 }
 
 static void reset_pipeline_interval(LatencyTracer *lt, GstClockTime now) {
+    if (lt == nullptr)
+        return;
     lt->interval_total = 0;
     lt->interval_min = G_MAXUINT;
     lt->interval_max = 0;
@@ -258,6 +267,8 @@ static void reset_pipeline_interval(LatencyTracer *lt, GstClockTime now) {
 }
 
 static void cal_log_pipeline_interval(LatencyTracer *lt, guint64 ts, gdouble frame_latency) {
+    if (lt == nullptr)
+        return;
     lt->interval_frame_count += 1;
     lt->interval_total += frame_latency;
     if (frame_latency < lt->interval_min)
@@ -276,6 +287,8 @@ static void cal_log_pipeline_interval(LatencyTracer *lt, guint64 ts, gdouble fra
 }
 
 static void cal_log_pipeline_latency(LatencyTracer *lt, guint64 ts, LatencyTracerMeta *meta) {
+    if (lt == nullptr || meta == nullptr)
+        return;
     GST_OBJECT_LOCK(lt);
     lt->frame_count += 1;
     gdouble frame_latency = (gdouble)GST_CLOCK_DIFF(meta->init_ts, ts) / ns_to_ms;
@@ -299,6 +312,8 @@ static void cal_log_pipeline_latency(LatencyTracer *lt, guint64 ts, LatencyTrace
 
 static void add_latency_meta(LatencyTracer *lt, LatencyTracerMeta *meta, guint64 ts, GstBuffer *buffer,
                              GstElement *elem) {
+    if (lt == nullptr || buffer == nullptr || elem == nullptr)
+        return;
     if (!gst_buffer_is_writable(buffer)) {
         GST_ERROR_OBJECT(lt, "buffer not writable, unable to add LatencyTracerMeta at element=%s, ts=%ld, buffer=%p",
                          GST_ELEMENT_NAME(elem), ts, buffer);
@@ -314,6 +329,8 @@ static void add_latency_meta(LatencyTracer *lt, LatencyTracerMeta *meta, guint64
 }
 
 static void do_push_buffer_pre(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBuffer *buffer) {
+    if (lt == nullptr || pad == nullptr || buffer == nullptr)
+        return;
     GstElement *elem = get_real_pad_parent(pad);
     if (!is_parent_pipeline(lt, elem))
         return;
@@ -336,6 +353,8 @@ static void do_push_buffer_pre(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBu
 }
 
 static void do_pull_range_post(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBuffer *buffer) {
+    if (lt == nullptr || pad == nullptr || buffer == nullptr)
+        return;
     GstElement *elem = get_real_pad_parent(pad);
     if (!is_parent_pipeline(lt, elem))
         return;
@@ -344,6 +363,8 @@ static void do_pull_range_post(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBu
 }
 
 static void do_push_buffer_list_pre(LatencyTracer *lt, guint64 ts, GstPad *pad, GstBufferList *list) {
+    if (lt == nullptr || pad == nullptr || list == nullptr)
+        return;
     BufferListArgs args{lt, ts, pad};
     gst_buffer_list_foreach(
         list,
@@ -358,6 +379,8 @@ static void do_push_buffer_list_pre(LatencyTracer *lt, guint64 ts, GstPad *pad, 
 static void on_element_change_state_post(LatencyTracer *lt, guint64 ts, GstElement *elem, GstStateChange change,
                                          GstStateChangeReturn result) {
     UNUSED(result);
+    if (lt == nullptr || elem == nullptr)
+        return;
     if (GST_STATE_TRANSITION_NEXT(change) == GST_STATE_PLAYING && elem == lt->pipeline) {
         GstIterator *iter = gst_bin_iterate_elements(GST_BIN_CAST(elem));
         while (true) {
@@ -387,6 +410,8 @@ static void on_element_change_state_post(LatencyTracer *lt, guint64 ts, GstEleme
 }
 static void on_element_new(LatencyTracer *lt, guint64 ts, GstElement *elem) {
     UNUSED(ts);
+    if (lt == nullptr || elem == nullptr)
+        return;
     if (GST_IS_PIPELINE(elem)) {
         if (!lt->pipeline)
             lt->pipeline = elem;
@@ -397,6 +422,8 @@ static void on_element_new(LatencyTracer *lt, guint64 ts, GstElement *elem) {
 }
 
 static void latency_tracer_init(LatencyTracer *lt) {
+    if (lt == nullptr)
+        return;
     GST_OBJECT_LOCK(lt);
     lt->toal_latency = 0;
     lt->frame_count = 0;
@@ -415,6 +442,8 @@ static void latency_tracer_init(LatencyTracer *lt) {
 }
 
 static gboolean plugin_init(GstPlugin *plugin) {
+    if (plugin == nullptr)
+        return false;
     if (!gst_tracer_register(plugin, "latency_tracer", latency_tracer_get_type()))
         return false;
     latency_tracer_meta_get_info();
