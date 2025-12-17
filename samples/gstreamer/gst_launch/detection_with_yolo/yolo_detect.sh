@@ -11,32 +11,23 @@
 set -euo pipefail
 
 if [ -z "${MODELS_PATH:-}" ]; then
-  echo "Error: MODELS_PATH is not set." >&2
+  echo "Error: MODELS_PATH is not set." >&2 
   exit 1
-else
+else 
   echo "MODELS_PATH: $MODELS_PATH"
 fi
 
-MODEL=${1:-"yolox_s"}   # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s, yolo11s, yolo11s-obb, yolo11s-seg, yolo11s-pose
-DEVICE=${2:-"GPU"}      # Supported values: CPU, GPU, NPU
+MODEL=${1:-"yolox_s"} # Supported values: yolo_all, yolox-tiny, yolox_s, yolov7, yolov8s, yolov8n-obb, yolov8n-seg, yolov9c, yolov10s, yolo11s, yolo11s-obb, yolo11s-seg, yolo11s-pose
+DEVICE=${2:-"CPU"}    # Supported values: CPU, GPU, NPU
 INPUT=${3:-"https://videos.pexels.com/video-files/1192116/1192116-sd_640_360_30fps.mp4"}
-OUTPUT=${4:-"file"}     # Supported values: file, display, fps, json, display-and-json
-PPBKEND=${5:-""}        # Supported values: ie, opencv, va, va-surface-sharing
-PRECISION=${6:-"INT8"}  # Supported values: INT8, FP32, FP16
+OUTPUT=${4:-"file"}   # Supported values: file, display, fps, json, display-and-json
+PPBKEND=${5:-""}      # Supported values: ie, opencv, va, va-surface-sharing
 
 cd "$(dirname "$0")"
 
 if [[ "$MODEL" == "yolov10s" ]] && [[ "$DEVICE" == "NPU" ]]; then
     echo "Error - No support of Yolov10s for NPU."
-    exit 1
-fi
-
-if [[ `uname` != "MINGW64"* ]]; then
-    GPUS=$(find /dev/dri/ -name "render*")
-    if [ -z $GPUS ]; then
-        echo "WARN: No GPU detected, switching to CPU"
-        DEVICE=CPU
-    fi
+    exit
 fi
 
 IE_CONFIG=""
@@ -73,17 +64,12 @@ fi
 
 cd - 1>/dev/null
 
-if [[ $PRECISION != "INT8" ]] && [[ $PRECISION != "FP32" ]] && [[ $PRECISION != "FP16" ]]; then
-  echo "Unsupported model precision: $PRECISION" >&2
-  exit 1
-fi
-
-MODEL_PATH="${MODELS_PATH}/public/$MODEL/$PRECISION/$MODEL.xml"
+MODEL_PATH="${MODELS_PATH}/public/$MODEL/FP32/$MODEL.xml"
 
 # check if model exists in local directory
 if [ ! -f $MODEL_PATH ]; then
   echo "Model not found: ${MODEL_PATH}"
-  exit 1
+  exit 
 fi
 
 if [[ "$INPUT" == "/dev/video"* ]]; then
@@ -109,7 +95,7 @@ else
     PREPROC_BACKEND=${PPBKEND}
   else
     echo "Error wrong value for PREPROC_BACKEND parameter. Supported values: ie | opencv | va | va-surface-sharing".
-    exit 1
+    exit 
   fi
 fi
 
@@ -122,7 +108,7 @@ if [[ "$OUTPUT" == "file" ]]; then
     ENCODER="vah264lpenc"
   else
     echo "Error - VA-API H.264 encoder not found."
-    exit 1
+    exit
   fi
   SINK_ELEMENT="gvawatermark ! gvafpscounter ! ${ENCODER} ! h264parse ! mp4mux ! filesink location=yolo_${FILE}_${MODEL}_${DEVICE}.mp4"
 elif [[ "$OUTPUT" == "display" ]] || [[ -z $OUTPUT ]]; then
@@ -138,7 +124,7 @@ elif [[ "$OUTPUT" == "display-and-json" ]]; then
 else
   echo Error wrong value for SINK_ELEMENT parameter
   echo Valid values: "file" - render to file, "display" - render to screen, "fps" - print FPS, "json" - write to output.json, "display-and-json" - render to screen and write to output.json
-  exit 1
+  exit
 fi
 
 PIPELINE="gst-launch-1.0 $SOURCE_ELEMENT $DECODE_ELEMENT \

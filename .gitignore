@@ -3,6 +3,7 @@ CMakeFiles
 CMakeFiles.txt.user
 CMakeScripts
 Testing
+Makefile
 cmake_install.cmake
 install_manifest.txt
 compile_commands.json
@@ -22,6 +23,8 @@ cmake-build-*/
 # Compiled Dynamic libraries
 *.so
 
+# Compiled Static libraries
+*.a
 # Python's Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

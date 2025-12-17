@@ -1,12 +1,10 @@
 # ==============================================================================
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 set (TARGET_NAME "dlstreamer_gst")
-
-pkg_search_module(VA va libva REQUIRED)
 
 add_library(${TARGET_NAME} SHARED allocator.cpp transform_element.cpp)
 set_compile_flags(${TARGET_NAME})
@@ -18,7 +16,6 @@ PUBLIC
         ${GLIB2_INCLUDE_DIRS}
 PRIVATE
         ${GSTALLOC_INCLUDE_DIRS}
-        ${VA_INCLUDE_DIRS}
         )
 
 target_link_libraries(${TARGET_NAME}

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -45,13 +45,13 @@ class YOLOv7Converter : public BlobToROIConverter {
         : BlobToROIConverter(std::move(initializer), confidence_threshold, true, iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "yolo_v7";
     }
 
-    static std::string getDeprecatedName() {
+    static std::string getDepricatedName() {
         return "tensor_to_bbox_yolo_v7";
     }
 };

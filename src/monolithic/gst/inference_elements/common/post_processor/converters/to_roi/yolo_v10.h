@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -47,7 +47,7 @@ class YOLOv10Converter : public BlobToROIConverter {
 
     const float *parseOutputBlob(const OutputBlobs &output_blobs, const std::string &key, size_t batch_size,
                                  size_t batch_number) const;
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "yolo_v10";

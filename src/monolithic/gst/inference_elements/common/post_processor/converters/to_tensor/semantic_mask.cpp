@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -13,7 +13,7 @@
 
 using namespace post_processing;
 
-TensorsTable SemanticMaskConverter::convert(const OutputBlobs &output_blobs) {
+TensorsTable SemanticMaskConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
     try {

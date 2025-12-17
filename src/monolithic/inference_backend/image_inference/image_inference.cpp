@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,51 +21,42 @@ ImagePreprocessorType getPreProcType(const std::map<std::string, std::string> &b
 
 } // namespace
 
-std::map<std::string, GstStructure *> ImageInference::GetModelInfoPreproc(const std::string model_file,
-                                                                          const gchar *preproc_config) {
-    return OpenVINOImageInference::GetModelInfoPreproc(model_file, preproc_config);
+std::map<std::string, GstStructure *> ImageInference::GetModelInfoPreproc(const std::string model_file) {
+    return OpenVINOImageInference::GetModelInfoPreproc(model_file);
 }
 
-ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType input_image_memory_type,
-                                                                 const InferenceConfig &config, Allocator *allocator,
-                                                                 CallbackFunc callback, ErrorHandlingFunc error_handler,
-                                                                 dlstreamer::ContextPtr context) {
-    // Flag to determine if asynchronous mode is required
+ImageInference::Ptr ImageInference::make_shared(MemoryType input_image_memory_type, const InferenceConfig &config,
+                                                Allocator *allocator, CallbackFunc callback,
+                                                ErrorHandlingFunc error_handler, dlstreamer::ContextPtr context) {
     bool async_mode = false;
-
-    // Determine the memory type to be used for inference
+    // Resulted memory type that will be used for inference
     MemoryType memory_type_to_use = MemoryType::ANY;
 
     switch (input_image_memory_type) {
     case MemoryType::SYSTEM:
-        // Use system memory directly
+        // Nothing special for system memory.
         memory_type_to_use = input_image_memory_type;
         break;
 
     case MemoryType::DMA_BUFFER:
     case MemoryType::VAAPI: {
-        // Enable asynchronous mode for DMA_BUFFER and VAAPI
         async_mode = true;
 
-        // Ensure context is provided for VAAPI
-        if (!context) {
+        // The display must present.
+        if (!context)
             throw std::invalid_argument("Null context provided (VaApiContext is expected)");
-        }
 
-        // Determine the preprocessor type based on configuration
         ImagePreprocessorType preproc_type = getPreProcType(config.at(KEY_BASE));
         switch (preproc_type) {
         case ImagePreprocessorType::VAAPI_SYSTEM:
-            // Use system memory for VAAPI_SYSTEM preprocessor type
             memory_type_to_use = MemoryType::SYSTEM;
+            // For OV instance VADisplay is not needed in this case.
             break;
         case ImagePreprocessorType::VAAPI_SURFACE_SHARING:
-            // Use VAAPI memory for VAAPI_SURFACE_SHARING preprocessor type
             memory_type_to_use = MemoryType::VAAPI;
             break;
-
         default:
-            throw std::runtime_error("Incorrect pre-process-backend, should be vaapi or vaapi-surface-sharing");
+            throw std::runtime_error("Incorrect pre-process-backend, should be equal vaapi or vaapi-surface-sharing");
         }
         break;
     }
@@ -74,18 +65,15 @@ ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType inpu
         throw std::invalid_argument("Unsupported memory type");
     }
 
-    // Create an OpenVINOImageInference instance with the determined memory type
     auto ov_inference = std::make_shared<OpenVINOImageInference>(config, allocator, context, callback, error_handler,
                                                                  memory_type_to_use);
 
     ImageInference::Ptr result_inference;
     if (async_mode) {
 #ifdef ENABLE_VAAPI
-        // Wrap the inference in an asynchronous handler if async mode is enabled
         result_inference = std::make_shared<ImageInferenceAsync>(config, context, std::move(ov_inference));
 #endif
     } else {
-        // Use the OpenVINO inference directly if not in async mode
         result_inference = std::move(ov_inference);
     }
 

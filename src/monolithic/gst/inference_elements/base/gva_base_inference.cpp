@@ -21,7 +21,6 @@
 
 #define DEFAULT_MODEL nullptr
 #define DEFAULT_MODEL_INSTANCE_ID nullptr
-#define DEFAULT_SCHEDULING_POLICY "throughput"
 #define DEFAULT_MODEL_PROC nullptr
 #define DEFAULT_DEVICE "CPU"
 #define DEFAULT_PRE_PROC "" // empty = autoselection
@@ -68,10 +67,6 @@
 
 #define DEFAULT_ALLOCATOR_NAME nullptr
 
-#define DEFAULT_CUSTOM_PREPROC_LIB nullptr
-
-#define DEFAULT_CUSTOM_POSTPROC_LIB nullptr
-
 G_DEFINE_TYPE_WITH_PRIVATE(GvaBaseInference, gva_base_inference, GST_TYPE_BASE_TRANSFORM);
 
 GST_DEBUG_CATEGORY_STATIC(gva_base_inference_debug_category);
@@ -91,7 +86,6 @@ enum {
     PROP_NO_BLOCK,
     PROP_NIREQ,
     PROP_MODEL_INSTANCE_ID,
-    PROP_SCHEDULING_POLICY,
     PROP_PRE_PROC_BACKEND,
     PROP_MODEL_PROC,
     PROP_CPU_THROUGHPUT_STREAMS,
@@ -102,9 +96,7 @@ enum {
     PROP_OBJECT_CLASS,
     PROP_LABELS,
     PROP_LABELS_FILE,
-    PROP_SCALE_METHOD,
-    PROP_CUSTOM_PREPROC_LIB,
-    PROP_CUSTOM_POSTPROC_LIB
+    PROP_SCALE_METHOD
 };
 
 GType gst_gva_base_inference_get_inf_region(void) {
@@ -187,35 +179,12 @@ void gva_base_inference_class_init(GvaBaseInferenceClass *klass) {
         g_param_spec_string("model", "Model", "Path to inference model network file", DEFAULT_MODEL, param_flags));
 
     g_object_class_install_property(
-        gobject_class, PROP_CUSTOM_PREPROC_LIB,
-        g_param_spec_string("custom-preproc-lib", "Custom Pre-processing Library",
-                            "Path to the .so file defining custom input image pre-processing",
-                            DEFAULT_CUSTOM_PREPROC_LIB, param_flags));
-
-    g_object_class_install_property(
-        gobject_class, PROP_CUSTOM_POSTPROC_LIB,
-        g_param_spec_string("custom-postproc-lib", "Custom Post-processing Library",
-                            "Path to the .so file defining custom model output converter. "
-                            "The library must implement the Convert function: "
-                            "void Convert(GstTensorMeta *outputTensors, const GstStructure *network, "
-                            "const GstStructure *params, GstAnalyticsRelationMeta *relationMeta);",
-                            DEFAULT_CUSTOM_POSTPROC_LIB, param_flags));
-
-    g_object_class_install_property(
         gobject_class, PROP_MODEL_INSTANCE_ID,
         g_param_spec_string(
             "model-instance-id", "Model Instance Id",
             "Identifier for sharing a loaded model instance between elements of the same type. Elements with the "
             "same model-instance-id will share all model and inference engine related properties",
             DEFAULT_MODEL_INSTANCE_ID, param_flags));
-
-    g_object_class_install_property(
-        gobject_class, PROP_SCHEDULING_POLICY,
-        g_param_spec_string(
-            "scheduling-policy", "Scheduling Policy",
-            "Scheduling policy across streams sharing same model instance: "
-            "throughput (select first incoming frame), latency (select frames with earliest presentation time)",
-            DEFAULT_SCHEDULING_POLICY, (GParamFlags)(param_flags)));
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_PROC_BACKEND,
@@ -397,23 +366,25 @@ void gva_base_inference_cleanup(GvaBaseInference *base_inference) {
     base_inference->num_skipped_frames = UINT_MAX - 1; // always run inference on first frame
     base_inference->frame_num = DEFAULT_FIRST_FRAME_NUM;
 
-    g_free(base_inference->object_class);
-    base_inference->object_class = nullptr;
+    if (base_inference->object_class) {
+        g_free(base_inference->object_class);
+        base_inference->object_class = nullptr;
+    }
 
-    g_free(base_inference->labels);
-    base_inference->labels = nullptr;
+    if (base_inference->labels) {
+        g_free(base_inference->labels);
+        base_inference->labels = nullptr;
+    }
 
-    releasePostProcessor(base_inference->post_proc);
-    base_inference->post_proc = nullptr;
+    if (base_inference->post_proc) {
+        releasePostProcessor(base_inference->post_proc);
+        base_inference->post_proc = nullptr;
+    }
 
-    g_free(base_inference->scale_method);
-    base_inference->scale_method = nullptr;
-
-    g_free(base_inference->custom_preproc_lib);
-    base_inference->custom_preproc_lib = nullptr;
-
-    g_free(base_inference->custom_postproc_lib);
-    base_inference->custom_postproc_lib = nullptr;
+    if (base_inference->scale_method) {
+        g_free(base_inference->scale_method);
+        base_inference->scale_method = nullptr;
+    }
 }
 
 void gva_base_inference_init(GvaBaseInference *base_inference) {
@@ -440,7 +411,6 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->no_block = DEFAULT_NO_BLOCK;
     base_inference->nireq = DEFAULT_NIREQ;
     base_inference->model_instance_id = g_strdup(DEFAULT_MODEL_INSTANCE_ID);
-    base_inference->scheduling_policy = g_strdup(DEFAULT_SCHEDULING_POLICY);
     base_inference->pre_proc_type = g_strdup(DEFAULT_PRE_PROC);
     // TODO: make one property for streams
     base_inference->cpu_streams = DEFAULT_CPU_THROUGHPUT_STREAMS;
@@ -465,8 +435,6 @@ void gva_base_inference_init(GvaBaseInference *base_inference) {
     base_inference->object_class = DEFAULT_OBJECT_CLASS;
     base_inference->labels = DEFAULT_LABELS;
     base_inference->scale_method = nullptr;
-    base_inference->custom_preproc_lib = g_strdup(DEFAULT_MODEL_PROC);
-    base_inference->custom_postproc_lib = g_strdup(DEFAULT_CUSTOM_POSTPROC_LIB);
 }
 
 GstStateChangeReturn gva_base_inference_change_state(GstElement *element, GstStateChange transition) {
@@ -578,10 +546,6 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
         g_free(base_inference->model_instance_id);
         base_inference->model_instance_id = g_value_dup_string(value);
         break;
-    case PROP_SCHEDULING_POLICY:
-        g_free(base_inference->scheduling_policy);
-        base_inference->scheduling_policy = g_value_dup_string(value);
-        break;
     case PROP_PRE_PROC_BACKEND:
         g_free(base_inference->pre_proc_type);
         base_inference->pre_proc_type = g_value_dup_string(value);
@@ -644,16 +608,6 @@ void gva_base_inference_set_property(GObject *object, guint property_id, const G
             base_inference->pre_proc_config = g_strdup("VAAPI_FAST_SCALE_LOAD_FACTOR=1");
         } else
             GST_ERROR_OBJECT(base_inference, "Unsupported scale-method=%s", g_value_get_string(value));
-        break;
-    case PROP_CUSTOM_PREPROC_LIB:
-        g_free(base_inference->custom_preproc_lib);
-        base_inference->custom_preproc_lib = g_value_dup_string(value);
-        GST_INFO_OBJECT(base_inference, "custom-preproc-lib: %s", base_inference->custom_preproc_lib);
-        break;
-    case PROP_CUSTOM_POSTPROC_LIB:
-        g_free(base_inference->custom_postproc_lib);
-        base_inference->custom_postproc_lib = g_value_dup_string(value);
-        GST_INFO_OBJECT(base_inference, "custom-postproc-lib: %s", base_inference->custom_postproc_lib);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);
@@ -729,12 +683,6 @@ void gva_base_inference_get_property(GObject *object, guint property_id, GValue 
         break;
     case PROP_SCALE_METHOD:
         g_value_set_string(value, base_inference->scale_method);
-        break;
-    case PROP_CUSTOM_PREPROC_LIB:
-        g_value_set_string(value, base_inference->custom_preproc_lib);
-        break;
-    case PROP_CUSTOM_POSTPROC_LIB:
-        g_value_set_string(value, base_inference->custom_postproc_lib);
         break;
     default:
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, property_id, pspec);

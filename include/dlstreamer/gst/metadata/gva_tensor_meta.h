@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,12 +18,6 @@
 #define GVA_TENSOR_META_IMPL_NAME "GstGVATensorMeta"
 
 #define GVA_TENSOR_MAX_RANK 8
-
-#if _MSC_VER
-#define DLS_EXPORT __declspec(dllexport)
-#else
-#define DLS_EXPORT __attribute__((visibility("default")))
-#endif
 
 G_BEGIN_DECLS
 
@@ -92,14 +86,14 @@ struct _GstGVATensorMeta {
  * @brief This function registers, if needed, and returns GstMetaInfo for _GstGVATensorMeta
  * @return GstMetaInfo* for registered type
  */
-DLS_EXPORT const GstMetaInfo *gst_gva_tensor_meta_get_info(void);
+const GstMetaInfo *gst_gva_tensor_meta_get_info(void);
 
 /**
  * @brief This function registers, if needed, and returns a GType for api "GstGVATensorMetaAPI" and associate it with
  * GVA_TENSOR_META_TAG tag
  * @return GType type
  */
-DLS_EXPORT GType gst_gva_tensor_meta_api_get_type(void);
+GType gst_gva_tensor_meta_api_get_type(void);
 
 /**
  * @def GST_GVA_TENSOR_META_INFO

@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2022 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -13,14 +13,13 @@ import numpy
 from contextlib import contextmanager
 from typing import List
 from warnings import warn
-import json
 
 import gi
 gi.require_version('Gst', '1.0')
 gi.require_version("GstVideo", "1.0")
 gi.require_version('GObject', '2.0')
 
-from gi.repository import Gst, GstVideo
+from gi.repository import GObject, Gst, GstVideo
 from .util import VideoRegionOfInterestMeta
 from .util import GVATensorMeta
 from .util import GVAJSONMeta
@@ -89,8 +88,7 @@ class VideoFrame:
     #  @param normalized if True, input coordinates are assumed to be normalized (in [0,1] interval).
     # If False, input coordinates are assumed to be expressed in pixels (this is behavior by default)
     #  @return new RegionOfInterest instance
-
-    def add_region(self, x, y, w, h, label: str = "", confidence: float = 0.0, normalized: bool = False, extra_params = None) -> RegionOfInterest:
+    def add_region(self, x, y, w, h, label: str = "", confidence: float = 0.0, normalized: bool = False) -> RegionOfInterest:
         if normalized:
             x = int(x * self.video_info().width)
             y = int(y * self.video_info().height)
@@ -113,11 +111,6 @@ class VideoFrame:
         tensor['x_max'] = float((x + w) / self.video_info().width)
         tensor['y_min'] = float(y / self.video_info().height)
         tensor['y_max'] = float((y + h) / self.video_info().height)
-
-        # Add additional parameters if provided
-        if extra_params is not None:
-            # Serialize as JSON and store as a string field
-            tensor['extra_params_json'] = json.dumps(extra_params)
 
         return roi
 

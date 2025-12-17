@@ -100,8 +100,7 @@ class InferenceImpl {
                                      std::vector<std::shared_ptr<InferenceBackend::ImageInference::IFrameBase>> frames);
     void UpdateOutputFrames(std::shared_ptr<InferenceFrame> &inference_roi);
     Model CreateModel(GvaBaseInference *gva_base_inference, const std::string &model_file,
-                      const std::string &model_proc_path, const std::string &labels_str,
-                      const std::string &custom_preproc_lib);
+                      const std::string &model_proc_path, const std::string &labels_str);
     void UpdateModelReshapeInfo(GvaBaseInference *gva_base_inference);
 
     GstFlowReturn SubmitImages(GvaBaseInference *gva_base_inference,

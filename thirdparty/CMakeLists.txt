@@ -1,33 +1,12 @@
 # ==============================================================================
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 
 add_subdirectory(itt)
 
-if(${ENABLE_TESTS})
-    if (EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/googletest/CMakeLists.txt)
-        message("Using thirdparty/googletest")
-        add_subdirectory(googletest)
-    else()
-        find_package(GTest) # sudo apt install libgtest-dev libgmock-dev
-        if (GTest_FOUND AND GTest_VERSION VERSION_GREATER_EQUAL "1.10")
-            message(STATUS "Found GTest: version ${GTest_VERSION}")
-            include_directories(${GTEST_INCLUDE_DIRS})
-        else()
-            message("GTest library not found, skipping tests build")
-            SET(ENABLE_TESTS OFF CACHE BOOL "Parameter to enable tests building" FORCE)
-        endif()
-    endif()
-    
-    add_subdirectory(fff)
-    set(FFF_SOURCE "https://raw.githubusercontent.com/meekrosoft/fff/v1.0/fff.h")
-    set(FFF_PATH "${CMAKE_CURRENT_SOURCE_DIR}/fff/include/")
-    set(FFF_HEADER "${FFF_PATH}/fff.h")
 
-    download_and_verify(${FFF_SOURCE} ${FFF_HEADER} "fff header")
-endif()
 
 # Populate thirdparty/json dependency
 set(JSONCONVERT_SOURCE "https://github.com/nlohmann/json/releases/download/v3.7.3/json.hpp")

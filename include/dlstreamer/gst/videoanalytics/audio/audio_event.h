@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -48,7 +48,7 @@ class AudioEvent {
      * @brief Get Segment of AudioEvent as start and end timestamps, timestamps are presentation time.
      * @return Start and end time of AudioEvent
      */
-    Segment<guint64> segment() const {
+    Segment<gulong> segment() const {
         return {_gst_meta->start_timestamp, _gst_meta->end_timestamp};
     }
 

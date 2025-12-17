@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -25,12 +25,12 @@ class LabelConverter : public BlobToTensorConverter {
 
     LabelConverter(BlobToMetaConverter::Initializer initializer);
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "label";
     }
-    static std::string getDeprecatedName() {
+    static std::string getDepricatedName() {
         return "tensor_to_label";
     }
 

@@ -6,14 +6,6 @@
 # ==============================================================================
 
 MODEL=${1:-"all"} # Supported values listed in SUPPORTED_MODELS below.
-QUANTIZE=${2:-""} # Supported values listed in SUPPORTED_MODELS below.
-
-# Changing the config dir for the duration of the script to prevent potential conflics with
-# previous installations of ultralytics' tools. Quantization datasets could install
-# incorrectly without this.
-DOWNLOAD_CONFIG_DIR=$(mktemp -d /tmp/tmp.XXXXXXXXXXXXXXXXXXXXXXXXXXX)
-QUANTIZE_CONFIG_DIR=$(mktemp -d /tmp/tmp.XXXXXXXXXXXXXXXXXXXXXXXXXXX)
-YOLO_CONFIG_DIR=$DOWNLOAD_CONFIG_DIR
 
 SUPPORTED_MODELS=(
   "all"
@@ -56,7 +48,6 @@ SUPPORTED_MODELS=(
   "yolov8m-seg"
   "yolov8l-seg"
   "yolov8x-seg"
-  "yolov8_license_plate_detector"
   "yolov9t"
   "yolov9s"
   "yolov9m"
@@ -92,16 +83,6 @@ SUPPORTED_MODELS=(
   "hsemotion"
   "deeplabv3"
   "clip-vit-large-patch14"
-  "clip-vit-base-patch16"
-  "clip-vit-base-patch32"
-  "ch_PP-OCRv4_rec_infer" # PaddlePaddle OCRv4 multilingual model
-)
-
-# Corresponds to files in 'datasets' directory
-declare -A SUPPORTED_QUANTIZATION_DATASETS
-SUPPORTED_QUANTIZATION_DATASETS=(
-  ["coco"]="https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco.yaml"
-  ["coco128"]="https://raw.githubusercontent.com/ultralytics/ultralytics/v8.1.0/ultralytics/cfg/datasets/coco128.yaml"
 )
 
 # Function to display text in a given color
@@ -145,11 +126,6 @@ else
   echo "Installing $MODEL..."
 fi
 
-if ! [[ "${!SUPPORTED_QUANTIZATION_DATASETS[*]}" =~ $QUANTIZE ]]; then
-  echo "Unsupported quantization dataset: $QUANTIZE" >&2
-  exit 1
-fi
-
 set +u  # Disable nounset option: treat any unset variable as an empty string
 if [ -z "$MODELS_PATH" ]; then
   echo "MODELS_PATH is not specified"
@@ -162,35 +138,6 @@ if [ ! -e "$MODELS_PATH" ]; then
 fi
 
 set -u  # Re-enable nounset option: treat any attempt to use an unset variable as an error
-
-# Set the name of the virtual environment directory
-VENV_DIR_QUANT="$HOME/.virtualenvs/dlstreamer-quantization"
-
-# Create a Python virtual environment if it doesn't exist
-if [ ! -d "$VENV_DIR_QUANT" ]; then
-  echo "Creating virtual environment in $VENV_DIR_QUANT..."
-  python3 -m venv "$VENV_DIR_QUANT" || handle_error $VENV_DIR_QUANT
-fi
-
-# Activate the virtual environment
-echo "Activating virtual environment in $VENV_DIR_QUANT..."
-source "$VENV_DIR_QUANT/bin/activate"
-
-# Upgrade pip in the virtual environment
-pip install --no-cache-dir --upgrade pip
-
-# Install OpenVINO module
-pip install --no-cache-dir openvino==2025.2.0 || handle_error $LINENO
-
-pip install --no-cache-dir onnx || handle_error $LINENO
-pip install --no-cache-dir seaborn || handle_error $LINENO
-# Install or upgrade NNCF
-pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
-
-# Check and upgrade ultralytics if necessary
-if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
-fi
 
 # Set the name of the virtual environment directory
 VENV_DIR="$HOME/.virtualenvs/dlstreamer"
@@ -206,144 +153,33 @@ echo "Activating virtual environment in $VENV_DIR..."
 source "$VENV_DIR/bin/activate"
 
 # Upgrade pip in the virtual environment
-pip install --no-cache-dir --upgrade pip
+pip install --upgrade pip
 
 # Install OpenVINO module
-pip install --no-cache-dir openvino==2024.6.0 || handle_error $LINENO
-pip install --no-cache-dir openvino-dev==2024.6.0 || handle_error $LINENO
+pip install openvino==2024.6.0 || handle_error $LINENO
+pip install openvino-dev || handle_error $LINENO
 
-pip install --no-cache-dir onnx || handle_error $LINENO
-pip install --no-cache-dir seaborn || handle_error $LINENO
+pip install onnx || handle_error $LINENO
+
 # Install or upgrade NNCF
-pip install --no-cache-dir --upgrade nncf || handle_error $LINENO
+pip install nncf --upgrade || handle_error $LINENO
 
 # Check and upgrade ultralytics if necessary
 if [[ "${MODEL:-}" =~ yolo.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu ultralytics==8.3.153 || handle_error $LINENO
+  pip install ultralytics --upgrade || handle_error $LINENO
 fi
 
 # Install dependencies for CLIP models
 if [[ "${MODEL:-}" =~ clip.* || "${MODEL:-}" == "all" ]]; then
-  pip install --no-cache-dir --upgrade torch torchaudio torchvision || handle_error $LINENO
-  pip install --no-cache-dir transformers || handle_error $LINENO
-  pip install --no-cache-dir pillow || handle_error $LINENO
+  pip install torch torchaudio torchvision --upgrade || handle_error $LINENO
+  pip install transformers || handle_error $LINENO
+  pip install pillow || handle_error $LINENO
 fi
 
 echo Downloading models to folder "$MODELS_PATH".
 
 set -euo pipefail
 # -------------- YOLOx
-
-
-# Function for quantization of YOLO models
-quantize_yolo_model() {
-  local MODEL_NAME=$1
-  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE="$MODEL_DIR/INT8/$MODEL_NAME.xml"
-
-
-  if [[ ! -f "$DST_FILE" ]]; then
-    YOLO_CONFIG_DIR=$QUANTIZE_CONFIG_DIR
-    export YOLO_CONFIG_DIR
-
-    mkdir -p "$MODELS_PATH/datasets"
-    local DATASET_MANIFEST="$MODELS_PATH/datasets/$QUANTIZE.yaml"
-
-    curl -L -o "$DATASET_MANIFEST" ${SUPPORTED_QUANTIZATION_DATASETS[$QUANTIZE]}
-    echo "Quantizing: ${MODEL_DIR}"
-    mkdir -p "$MODEL_DIR"
-
-    source "$VENV_DIR_QUANT/bin/activate"
-    cd "$MODELS_PATH"
-    python3 - <<EOF "$MODEL_NAME" "$DATASET_MANIFEST"
-import openvino as ov
-import nncf
-import torch
-import sys
-from rich.progress import track
-from ultralytics.cfg import get_cfg
-from ultralytics.models.yolo.detect import DetectionValidator
-from ultralytics.data.converter import coco80_to_coco91_class
-from ultralytics.data.utils import check_det_dataset
-from ultralytics.utils import DATASETS_DIR
-from ultralytics.utils import DEFAULT_CFG
-from ultralytics.utils.metrics import ConfusionMatrix
-
-def validate(
-    model: ov.Model, data_loader: torch.utils.data.DataLoader, validator: DetectionValidator, num_samples: int = None
-) -> tuple[dict, int, int]:
-    validator.seen = 0
-    validator.jdict = []
-    validator.stats = dict(tp=[], conf=[], pred_cls=[], target_cls=[], target_img=[])
-    validator.end2end = False
-    validator.confusion_matrix = ConfusionMatrix(validator.data["nc"])
-    compiled_model = ov.compile_model(model, device_name="CPU")
-    output_layer = compiled_model.output(0)
-    for batch_i, batch in enumerate(track(data_loader, description="Validating")):
-        if num_samples is not None and batch_i == num_samples:
-            break
-        batch = validator.preprocess(batch)
-        preds = torch.from_numpy(compiled_model(batch["img"])[output_layer])
-        preds = validator.postprocess(preds)
-        validator.update_metrics(preds, batch)
-    stats = validator.get_stats()
-    return stats, validator.seen, validator.nt_per_class.sum()
-
-def print_statistics(stats: dict[str, float], total_images: int, total_objects: int) -> None:
-    mp, mr, map50, mean_ap = (
-        stats["metrics/precision(B)"],
-        stats["metrics/recall(B)"],
-        stats["metrics/mAP50(B)"],
-        stats["metrics/mAP50-95(B)"],
-    )
-    s = ("%20s" + "%12s" * 6) % ("Class", "Images", "Labels", "Precision", "Recall", "mAP@.5", "mAP@.5:.95")
-    print(s)
-    pf = "%20s" + "%12i" * 2 + "%12.3g" * 4  # print format
-    print(pf % ("all", total_images, total_objects, mp, mr, map50, mean_ap))
-
-model_name = sys.argv[1]
-dataset_file = sys.argv[2]
-
-
-validator = DetectionValidator()
-validator.data = check_det_dataset(dataset_file)
-validator.stride = 32
-validator.is_coco = True
-validator.class_map = coco80_to_coco91_class
-
-data_loader = validator.get_dataloader(validator.data["path"], 1)
-
-def transform_fn(data_item: dict):
-    input_tensor = validator.preprocess(data_item)["img"].numpy()
-    return input_tensor
-    # images, _ = data_item
-    # return images.numpy()
-
-calibration_dataset = nncf.Dataset(data_loader, transform_fn)
-
-model = ov.Core().read_model("./public/" + model_name + "/FP32/" + model_name + ".xml")
-quantized_model = nncf.quantize(model, calibration_dataset, subset_size = len(data_loader))
-
-# Validate FP32 model
-fp_stats, total_images, total_objects = validate(model, data_loader, validator)
-print("Floating-point model validation results:")
-print_statistics(fp_stats, total_images, total_objects)
-
-# Validate quantized model
-q_stats, total_images, total_objects = validate(quantized_model, data_loader, validator)
-print("Quantized model validation results:")
-print_statistics(q_stats, total_images, total_objects)
-
-quantized_model.set_rt_info(ov.get_version(), "Runtime_version")
-ov.save_model(quantized_model, "./public/" + model_name + "/INT8/" + model_name + ".xml", compress_to_fp16=False)
-EOF
-
-  source "$VENV_DIR/bin/activate"
-  YOLO_CONFIG_DIR=$DOWNLOAD_CONFIG_DIR
-  else
-    echo_color "\nModel already quantized: $MODEL_DIR.\n" "yellow"
-  fi
-}
 
 # check if model exists in local directory, download as needed
 if [ "$MODEL" == "yolox-tiny" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
@@ -377,7 +213,7 @@ if [ "$MODEL" == "yolox_s" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all
     mkdir -p "$MODEL_DIR/FP16"
     mkdir -p "$MODEL_DIR/FP32"
     cd "$MODEL_DIR"
-    curl -O -L https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
+    wget https://github.com/Megvii-BaseDetection/YOLOX/releases/download/0.1.1rc0/yolox_s.onnx
     ovc yolox_s.onnx --compress_to_fp16=True
     mv yolox_s.xml "$MODEL_DIR/FP16"
     mv yolox_s.bin "$MODEL_DIR/FP16"
@@ -444,10 +280,6 @@ EOF
   else
     echo_color "\nModel already exists: $model_path.\n" "yellow"
   fi
-
-  if [[ $QUANTIZE != "" ]]; then
-    quantize_yolo_model "$MODEL_NAME"
-  fi
 }
 
 # Model yolov5 FP32 & FP16
@@ -475,8 +307,6 @@ done
 REPO_DIR="$MODELS_PATH/yolov5_repo"
 if [ "$MODEL_IN_LISTv5" = true ] && [ ! -d "$REPO_DIR" ]; then
   git clone https://github.com/ultralytics/yolov5 "$REPO_DIR"
-  pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch torchvision torchaudio
-  pip install --no-cache-dir -r "$REPO_DIR"/requirements.txt
 fi
 
 for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
@@ -488,7 +318,7 @@ for MODEL_NAME in "${YOLOv5_MODELS[@]}"; do
       cd "$MODEL_DIR"
       cp -r "$REPO_DIR" yolov5
       cd yolov5
-      curl -L -O "https://github.com/ultralytics/yolov5/releases/download/v7.0/${MODEL_NAME}.pt"
+      wget "https://github.com/ultralytics/yolov5/releases/download/v7.0/${MODEL_NAME}.pt"
 
       python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic
       python3 - <<EOF "${MODEL_NAME}"
@@ -507,24 +337,23 @@ EOF
       mv "${MODEL_NAME}_openvino_model/${MODEL_NAME}.xml" "$MODEL_DIR/FP32/${MODEL_NAME}.xml"
       mv "${MODEL_NAME}_openvino_model/${MODEL_NAME}.bin" "$MODEL_DIR/FP32/${MODEL_NAME}.bin"
 
-# # Quantization to INT8 temporarily disabled - causes error which breaks execution
-#       mkdir -p "$MODEL_DIR/INT8"
-#       python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic --int8
-#       python3 - <<EOF "${MODEL_NAME}"
-# import sys, os
-# from openvino.runtime import Core
-# from openvino.runtime import save_model
-# model_name = sys.argv[1]
-# core = Core()
-# os.rename(f"{model_name}_int8_openvino_model", f"{model_name}_int8_openvino_modelD")
-# model = core.read_model(f"{model_name}_int8_openvino_modelD/{model_name}.xml")
-# model.reshape([-1, 3, 640, 640])
-# save_model(model, f"{model_name}_int8_openvino_model/{model_name}.xml")
-# EOF
+      mkdir -p "$MODEL_DIR/INT8"
+      python3 export.py --weights "${MODEL_NAME}.pt" --include openvino --img-size 640 --dynamic --int8
+      python3 - <<EOF "${MODEL_NAME}"
+import sys, os
+from openvino.runtime import Core
+from openvino.runtime import save_model
+model_name = sys.argv[1]
+core = Core()
+os.rename(f"{model_name}_int8_openvino_model", f"{model_name}_int8_openvino_modelD")
+model = core.read_model(f"{model_name}_int8_openvino_modelD/{model_name}.xml")
+model.reshape([-1, 3, 640, 640])
+save_model(model, f"{model_name}_int8_openvino_model/{model_name}.xml")
+EOF
 
 
-#       mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.xml" "$MODEL_DIR/INT8/${MODEL_NAME}.xml"
-#       mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.bin" "$MODEL_DIR/INT8/${MODEL_NAME}.bin"
+      mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.xml" "$MODEL_DIR/INT8/${MODEL_NAME}.xml"
+      mv "${MODEL_NAME}_int8_openvino_model/${MODEL_NAME}.bin" "$MODEL_DIR/INT8/${MODEL_NAME}.bin"
 
       cd ..
       rm -rf yolov5
@@ -548,8 +377,8 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
 
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
-    pip install --no-cache-dir onnx
-    pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1  || handle_error $LINENO
+    pip install onnx
+    pip install torch==2.5.1 torchvision==0.20.1 torchaudio==2.5.1 --index-url https://download.pytorch.org/whl/cpu || handle_error $LINENO
     mkdir -p "$MODEL_DIR"
     mkdir -p "$MODEL_DIR/FP16"
     mkdir -p "$MODEL_DIR/FP32"
@@ -566,7 +395,7 @@ if [ "$MODEL" == "yolov7" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all"
     mv yolov7.bin "$MODEL_DIR/FP32"
     cd ..
     rm -rf yolov7
-    pip install --no-cache-dir --upgrade torch torchaudio torchvision || handle_error $LINENO
+    pip install torch torchaudio torchvision --upgrade || handle_error $LINENO
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
@@ -576,7 +405,6 @@ fi
 export_yolo_model() {
   local MODEL_NAME=$1
   local MODEL_TYPE=$2
-  local QUANTIZE=$3
   MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
   DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
@@ -616,10 +444,6 @@ EOF
     cd ../..
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
-  fi
-
-  if [[ $QUANTIZE != "" ]]; then
-    quantize_yolo_model "$MODEL_NAME"
   fi
 }
 
@@ -677,45 +501,10 @@ YOLO_MODELS=(
 # Iterate over the models and export them
 for MODEL_NAME in "${!YOLO_MODELS[@]}"; do
   if [ "$MODEL" == "$MODEL_NAME" ] || [ "$MODEL" == "yolo_all" ] || [ "$MODEL" == "all" ]; then
-    MODEL_NAME_UPPER=$(echo "$MODEL_NAME" | tr '[:lower:]' '[:upper:]')
-    if [[ $MODEL_NAME_UPPER == *"OBB"* || $MODEL_NAME_UPPER == *"POSE"* || $MODEL_NAME_UPPER == *"SEG"* ]]; then
-      export_yolo_model "$MODEL_NAME" "${YOLO_MODELS[$MODEL_NAME]}" ""
-    else
-      export_yolo_model "$MODEL_NAME" "${YOLO_MODELS[$MODEL_NAME]}" "$QUANTIZE"
-    fi
+    export_yolo_model "$MODEL_NAME" "${YOLO_MODELS[$MODEL_NAME]}"
   fi
 done
 
-
-if [[ "$MODEL" == "yolov8_license_plate_detector" ]] || [[ "$MODEL" == "all" ]]; then
-  MODEL_NAME="yolov8_license_plate_detector"
-  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE1="$MODEL_DIR/FP32/$MODEL_NAME.xml"
-
-  if [[ ! -f "$DST_FILE1" ]]; then
-    echo "Downloading and converting: ${MODEL_DIR}"
-    mkdir -p "$MODEL_DIR"
-    cd "$MODEL_DIR"
-
-    curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
-    python3 -c "
-import zipfile
-import os
-with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
-    zip_ref.extractall('.')
-os.remove('${MODEL_NAME}.zip')
-"
-
-    mkdir -p FP32 
-    cp license-plate-reader/models/yolov8n/yolov8n_retrained.bin FP32/${MODEL_NAME}.bin
-    cp license-plate-reader/models/yolov8n/yolov8n_retrained.xml FP32/${MODEL_NAME}.xml
-    chmod -R u+w license-plate-reader
-    rm -rf license-plate-reader
-    cd ..
-  else
-    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
-  fi
-fi
 
 if [[ "$MODEL" == "centerface" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="centerface"
@@ -777,49 +566,29 @@ if [ "$MODEL" == "hsemotion" ] || [ "$MODEL" == "all" ]; then
 
     ovc enet_b0_8_va_mtl.onnx --input "[16,3,224,224]"
     mkdir "$MODEL_DIR/FP16/"
-    mv enet_b0_8_va_mtl.xml "$MODEL_DIR/$MODEL_NAME.xml"
-    mv enet_b0_8_va_mtl.bin "$MODEL_DIR/$MODEL_NAME.bin"
+    mv enet_b0_8_va_mtl.xml "$MODEL_DIR/FP16/$MODEL_NAME.xml"
+    mv enet_b0_8_va_mtl.bin "$MODEL_DIR/FP16/$MODEL_NAME.bin"
     cd ../../../..
     rm -rf face-emotion-recognition
-    python3 - <<EOF
-import openvino
-import sys, os
-
-core = openvino.Core()
-ov_model = core.read_model(model='hsemotion.xml')
-
-ov_model.set_rt_info("anger contempt disgust fear happiness neutral sadness surprise", ['model_info', 'labels'])
-ov_model.set_rt_info("label", ['model_info', 'model_type'])
-ov_model.set_rt_info("True", ['model_info', 'output_raw_scores'])
-ov_model.set_rt_info("fit_to_window_letterbox", ['model_info', 'resize_type'])
-ov_model.set_rt_info("255", ['model_info', 'scale_values'])
-
-print(ov_model)
-
-openvino.save_model(ov_model, './FP16/' + 'hsemotion.xml')
-os.remove('hsemotion.xml')
-os.remove('hsemotion.bin')
-EOF
   else
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
 fi
 
-mapfile -t CLIP_MODELS < <(printf "%s\n" "${SUPPORTED_MODELS[@]}" | grep '^clip-vit-')
-for MODEL_NAME in "${CLIP_MODELS[@]}"; do
-  if [ "$MODEL" == "$MODEL_NAME" ] || [ "$MODEL" == "all" ]; then
-    MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-    DST_FILE="$MODEL_DIR/FP32/$MODEL_NAME.xml"
+if [ "$MODEL" == "clip-vit-large-patch14" ] || [ "$MODEL" == "all" ]; then
+  MODEL_NAME="clip-vit-large-patch14"
+  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
+  DST_FILE="$MODEL_DIR/FP32/$MODEL_NAME.xml"
 
-    if [ ! -f "$DST_FILE" ]; then
-      echo "Downloading and converting: ${MODEL_DIR}"
-      mkdir -p "$MODEL_DIR/FP32"
-      cd "$MODEL_DIR/FP32"
-      IMAGE_URL="https://storage.openvinotoolkit.org/data/test_data/images/car.png"
-      IMAGE_PATH=car.png
-      curl -L -o $IMAGE_PATH $IMAGE_URL
-      echo "Image downloaded to $IMAGE_PATH"
-      python3 - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
+  if [ ! -f "$DST_FILE" ]; then
+    echo "Downloading and converting: ${MODEL_DIR}"
+    mkdir -p "$MODEL_DIR/FP32"
+    cd "$MODEL_DIR/FP32"
+    IMAGE_URL="https://storage.openvinotoolkit.org/data/test_data/images/car.png"
+    IMAGE_PATH=car.png
+    wget -O $IMAGE_PATH $IMAGE_URL
+    echo "Image downloaded to $IMAGE_PATH"
+    python3 - <<EOF "$MODEL_NAME" "$IMAGE_PATH"
 from transformers import CLIPProcessor, CLIPVisionModel
 import PIL
 import openvino as ov
@@ -851,18 +620,17 @@ for input in ov_model.inputs:
 ov_model.set_rt_info("clip_token", ['model_info', 'model_type'])
 ov_model.set_rt_info("68.500,66.632,70.323", ['model_info', 'scale_values'])
 ov_model.set_rt_info("122.771,116.746,104.094", ['model_info', 'mean_values'])
-ov_model.set_rt_info("RGB", ['model_info', 'color_space'])
+ov_model.set_rt_info("True", ['model_info', 'reverse_input_channels'])
 ov_model.set_rt_info("crop", ['model_info', 'resize_type'])
 
 ov.save_model(ov_model, MODEL + ".xml")
 
 os.remove(img_path)
 EOF
-    else
-      echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
-    fi
+  else
+    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
-done
+fi
 
 if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
   MODEL_NAME="deeplabv3"
@@ -870,7 +638,7 @@ if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
   DST_FILE1="$MODEL_DIR/FP32/$MODEL_NAME.xml"
   DST_FILE2="$MODEL_DIR/FP16/$MODEL_NAME.xml"
 
-  pip install --no-cache-dir tensorflow || handle_error $LINENO
+  pip install tensorflow || handle_error $LINENO
 
   if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
     cd "$MODELS_PATH"
@@ -878,7 +646,7 @@ if [[ "$MODEL" == "deeplabv3" ]] || [[ "$MODEL" == "all" ]]; then
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
     cd "$MODEL_DIR"
-    python3 - <<EOF "$DST_FILE1"
+    python3 - "$DST_FILE1" <<EOF
 import openvino
 import sys, os, shutil
 
@@ -900,41 +668,3 @@ EOF
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
   fi
 fi
-
-# PaddlePaddle OCRv4 multilingual model
-if [[ "$MODEL" == "ch_PP-OCRv4_rec_infer" ]] || [[ "$MODEL" == "all" ]]; then
-  MODEL_NAME="ch_PP-OCRv4_rec_infer"
-  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
-  DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
-
-  if [[ ! -f "$DST_FILE1" ]]; then
-    echo "Downloading and converting: ${MODEL_DIR}"
-    mkdir -p "$MODEL_DIR"
-    cd "$MODEL_DIR"
-
-    curl -L -k -o ${MODEL_NAME}.zip 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
-    python3 -c "
-import zipfile
-import os
-with zipfile.ZipFile('${MODEL_NAME}.zip', 'r') as zip_ref:
-    zip_ref.extractall('.')
-os.remove('${MODEL_NAME}.zip')
-"
-
-    mkdir -p FP32 
-    cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.bin FP32/${MODEL_NAME}.bin
-    cp license-plate-reader/models/ch_PP-OCRv4_rec_infer/ch_PP-OCRv4_rec_infer.xml FP32/${MODEL_NAME}.xml
-    chmod -R u+w license-plate-reader
-    rm -rf license-plate-reader
-    cd ..
-  else
-    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
-  fi
-fi
-
-# Deactivate and remove venvs
-echo "Removing Python virtual environments..."
-deactivate
-rm -r $VENV_DIR
-rm -r $VENV_DIR_QUANT
-echo "Removed"

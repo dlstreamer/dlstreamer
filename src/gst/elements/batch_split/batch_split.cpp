@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2022-2025 Intel Corporation
+ * Copyright (C) 2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -112,12 +112,8 @@ static GstFlowReturn batch_split_transform_ip(GstBaseTransform *base, GstBuffer 
             GSTFrame dst_buff_dls(dst_buff, info);
             auto &metadata = dst_buff_dls.metadata();
             // Remove all SourceIdentifierMetadata
-            metadata.erase(std::remove_if(metadata.begin(), metadata.end(),
-                                          [](const DictionaryPtr &dict) {
-                                              return dict->name() == SourceIdentifierMetadata::name;
-                                          }),
-                           metadata.end());
-
+            std::remove_if(metadata.begin(), metadata.end(),
+                           [](const DictionaryPtr &dict) { return dict->name() == SourceIdentifierMetadata::name; });
             // Add only one SourceIdentifierMetadata
             auto dst_meta = metadata.add(SourceIdentifierMetadata::name);
             for (auto &key : meta->keys()) {
