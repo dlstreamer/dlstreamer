@@ -21,7 +21,7 @@ jobs:
         include:
           - path_dockerfile: ./dlstreamer-repo/docker/ubuntu/ubuntu22.Dockerfile
             ubuntu_version: ubuntu22
-          - path_dockerfile: ./dlstreamer-repo/libraries/dl-streamer/docker/ubuntu/ubuntu24.Dockerfile
+          - path_dockerfile: ./dlstreamer-repo/docker/ubuntu/ubuntu24.Dockerfile
             ubuntu_version: ubuntu24
     steps:
     - name: Clean before
