@@ -5,6 +5,7 @@ on:
     branches:
       - 'nsz-workflows-modifications'
     paths:
+      - '.github/**'
       - 'cmake/**'
       - 'docker/**'
       - 'include/**'
