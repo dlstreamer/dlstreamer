@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -169,10 +169,6 @@ void ImageInferenceAsync::SubmitImage(IFrameBase::Ptr frame,
 
 const std::string &ImageInferenceAsync::GetModelName() const {
     return _inference->GetModelName();
-}
-
-size_t ImageInferenceAsync::GetBatchSize() const {
-    return _inference->GetBatchSize();
 }
 
 size_t ImageInferenceAsync::GetNireq() const {

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -43,11 +43,10 @@ class ConverterFacade {
     ConverterFacade(std::unordered_set<std::string> all_layer_names, GstStructure *model_proc_output_info,
                     ConverterType converter_type, AttachType attach_type, const ModelImageInputInfo &input_image_info,
                     const ModelOutputsInfo &outputs_info, const std::string &model_name,
-                    const std::vector<std::string> &labels, const std::string &custom_postproc_lib);
+                    const std::vector<std::string> &labels);
     ConverterFacade(GstStructure *model_proc_output_info, ConverterType converter_type, AttachType attach_type,
                     const ModelImageInputInfo &input_image_info, const ModelOutputsInfo &outputs_info,
-                    const std::string &model_name, const std::vector<std::string> &labels,
-                    const std::string &custom_postproc_lib);
+                    const std::string &model_name, const std::vector<std::string> &labels);
 
     void convert(const OutputBlobs &all_output_blobs, FramesWrapper &frames) const;
 

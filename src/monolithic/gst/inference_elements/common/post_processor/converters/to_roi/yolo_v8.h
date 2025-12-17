@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -49,13 +49,13 @@ class YOLOv8Converter : public BlobToROIConverter {
         : BlobToROIConverter(std::move(initializer), confidence_threshold, true, iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "yolo_v8";
     }
 
-    static std::string getDeprecatedName() {
+    static std::string getDepricatedName() {
         return "tensor_to_bbox_yolo_v8";
     }
 };
@@ -66,7 +66,7 @@ class YOLOv8ObbConverter : public YOLOv8Converter {
         : YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "yolo_v8_obb";
@@ -94,7 +94,7 @@ class YOLOv8PoseConverter : public YOLOv8Converter {
         : YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "yolo_v8_pose";
@@ -111,7 +111,7 @@ class YOLOv8SegConverter : public YOLOv8Converter {
         : YOLOv8Converter(std::move(initializer), confidence_threshold, iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "yolo_v8_seg";

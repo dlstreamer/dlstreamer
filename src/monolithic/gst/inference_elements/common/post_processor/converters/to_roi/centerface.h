@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -38,7 +38,7 @@ class CenterfaceConverter : public BlobToROIConverter {
     const float *parseOutputBlob(const OutputBlobs &output_blobs, const std::string &key, size_t batch_size,
                                  size_t batch_number) const;
     void addLandmarksTensor(DetectedObject &detected_object, const float *landmarks, int num_of_landmarks) const;
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static std::string getName() {
         return "centerface";

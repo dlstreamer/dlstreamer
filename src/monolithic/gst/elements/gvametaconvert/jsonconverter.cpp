@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -188,23 +188,6 @@ json convert_roi_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
                         detection.push_back({"label", label});
                     }
                     jobject.push_back(json::object_t::value_type("detection", detection));
-
-                    // Handle extra_params_json if present
-                    if (gst_structure_has_field(s, "extra_params_json")) {
-                        const GValue *val = gst_structure_get_value(s, "extra_params_json");
-                        if (G_VALUE_HOLDS_STRING(val)) {
-                            const gchar *json_str = g_value_get_string(val);
-                            if (json_str && strlen(json_str) > 0) {
-                                try {
-                                    jobject.push_back(
-                                        json::object_t::value_type("extra_params", nlohmann::json::parse(json_str)));
-                                } catch (const std::exception &e) {
-                                    GST_WARNING("Failed to parse extra_params_json: %s", e.what());
-                                    // Do not add the field if parsing fails
-                                }
-                            }
-                        }
-                    }
                 }
             } else {
                 char *label;

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2020 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -10,7 +10,7 @@
 
 #define UNUSED(x) (void)(x)
 
-DLS_EXPORT GType gst_gva_tensor_meta_api_get_type(void) {
+GType gst_gva_tensor_meta_api_get_type(void) {
     static GType type;
     static const gchar *tags[] = {NULL};
 
@@ -61,7 +61,7 @@ gboolean gst_gva_tensor_meta_transform(GstBuffer *dest_buf, GstMeta *src_meta, G
     return TRUE;
 }
 
-DLS_EXPORT const GstMetaInfo *gst_gva_tensor_meta_get_info(void) {
+const GstMetaInfo *gst_gva_tensor_meta_get_info(void) {
     static const GstMetaInfo *meta_info = NULL;
 
     if (g_once_init_enter(&meta_info)) {

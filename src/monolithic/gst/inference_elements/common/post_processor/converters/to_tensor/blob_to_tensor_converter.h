@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -18,8 +18,6 @@
 
 namespace post_processing {
 
-const std::string DEFAULT_ANOMALY_DETECTION_TASK = "classification";
-
 class BlobToTensorConverter : public BlobToMetaConverter {
   protected:
     std::unique_ptr<FeatureToggling::Runtime::RuntimeFeatureToggler> raw_tensor_copying;
@@ -33,10 +31,7 @@ class BlobToTensorConverter : public BlobToMetaConverter {
   public:
     BlobToTensorConverter(BlobToMetaConverter::Initializer initializer);
 
-    virtual TensorsTable convert(const OutputBlobs &output_blobs) = 0;
-
-    static BlobToMetaConverter::Ptr create(BlobToMetaConverter::Initializer initializer,
-                                           const std::string &converter_name, const std::string &custom_postproc_lib);
+    TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
 };
 
 } // namespace post_processing

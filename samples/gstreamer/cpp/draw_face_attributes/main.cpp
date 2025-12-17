@@ -22,11 +22,6 @@
 
 #include <iostream>
 
-#if _MSC_VER
-#define popen _popen
-#define pclose _pclose
-#endif
-
 using namespace std;
 
 #define UNUSED(x) (void)(x)

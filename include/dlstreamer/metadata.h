@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -31,13 +31,6 @@ class Metadata {
     virtual DictionaryPtr add(std::string_view name) = 0;
 
     virtual iterator erase(iterator pos) = 0;
-
-    virtual iterator erase(iterator first, iterator last) {
-        while (first != last) {
-            first = erase(first);
-        }
-        return last;
-    }
 
     virtual void clear() noexcept = 0;
 };

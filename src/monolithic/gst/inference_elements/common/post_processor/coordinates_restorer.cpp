@@ -7,7 +7,6 @@
 #include "coordinates_restorer.h"
 
 #include "copy_blob_to_gststruct.h"
-#include "gmutex_lock_guard.h"
 #include "gva_utils.h"
 #include "processor_types.h"
 
@@ -120,7 +119,6 @@ void ROICoordinatesRestorer::updateCoordinatesToFullFrame(double &x_min, double 
     if (attach_type == AttachType::TO_ROI) {
 
         if (NEW_METADATA) {
-            GMutexLockGuard guard(frame.meta_mutex);
             GstAnalyticsODMtd od_meta;
             if (findObjectDetectionMeta(frame, &od_meta)) {
                 gint od_meta_x;

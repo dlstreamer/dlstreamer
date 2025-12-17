@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -45,10 +45,10 @@ json convert_event_detection(GstGvaMetaConvert *converter, GstBuffer *buffer) {
             const gchar *s_name = gst_structure_get_name(s);
             if (strcmp(s_name, "detection") == 0) {
 
-                guint64 start_timestamp;
-                guint64 end_timestamp;
-                if (gst_structure_get(s, "start_timestamp", G_TYPE_UINT64, &start_timestamp, "end_timestamp",
-                                      G_TYPE_UINT64, &end_timestamp, NULL)) {
+                long start_timestamp;
+                long end_timestamp;
+                if (gst_structure_get(s, "start_timestamp", G_TYPE_LONG, &start_timestamp, "end_timestamp", G_TYPE_LONG,
+                                      &end_timestamp, NULL)) {
                     json detection = {
                         {"segment", {{"start_timestamp", start_timestamp}, {"end_timestamp", end_timestamp}}}};
 

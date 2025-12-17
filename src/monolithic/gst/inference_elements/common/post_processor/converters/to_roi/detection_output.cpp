@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -101,7 +101,7 @@ void DetectionOutputConverter::parseOutputBlob(const InferenceBackend::OutputBlo
     }
 }
 
-TensorsTable DetectionOutputConverter::convert(const OutputBlobs &output_blobs) {
+TensorsTable DetectionOutputConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

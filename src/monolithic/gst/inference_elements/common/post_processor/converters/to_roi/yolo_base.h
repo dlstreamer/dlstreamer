@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -101,7 +101,7 @@ class YOLOBaseConverter : public BlobToROIConverter {
     }
     virtual ~YOLOBaseConverter() = default;
 
-    TensorsTable convert(const OutputBlobs &output_blobs);
+    TensorsTable convert(const OutputBlobs &output_blobs) const;
 
     static bool tryAutomaticConfig(const ModelImageInputInfo &input_info, const ModelOutputsInfo &outputs_info,
                                    OutputDimsLayout dims_layout, size_t classes, const std::vector<float> &anchors,

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -11,10 +11,6 @@
 #include <gst/analytics/gstanalyticsclassificationmtd.h>
 #include <gst/analytics/gstanalyticsmeta.h>
 #include <gst/gst.h>
-
-#if _MSC_VER
-#define GST_ANALYTICS_META_API GST_API_EXPORT
-#endif
 
 G_BEGIN_DECLS
 

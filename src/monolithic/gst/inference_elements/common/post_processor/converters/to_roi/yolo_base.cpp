@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -356,7 +356,7 @@ BlobToMetaConverter::Ptr YOLOBaseConverter::create(BlobToMetaConverter::Initiali
     return nullptr;
 }
 
-TensorsTable YOLOBaseConverter::convert(const OutputBlobs &output_blobs) {
+TensorsTable YOLOBaseConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -98,10 +98,10 @@ class BlobToROIConverter : public BlobToMetaConverter {
           iou_threshold(iou_threshold) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) = 0;
+    TensorsTable convert(const OutputBlobs &output_blobs) const = 0;
 
     static BlobToMetaConverter::Ptr create(BlobToMetaConverter::Initializer initializer,
-                                           const std::string &converter_name, const std::string &custom_postproc_lib);
+                                           const std::string &converter_name);
     static const size_t min_dims_size = 2;
 };
 

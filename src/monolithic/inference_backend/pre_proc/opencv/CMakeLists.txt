@@ -1,5 +1,5 @@
 # ==============================================================================
-# Copyright (C) 2018-2025 Intel Corporation
+# Copyright (C) 2018-2024 Intel Corporation
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
@@ -43,9 +43,3 @@ PUBLIC
 PRIVATE
         ${OpenCV_LIBS}
 )
-
-if(WIN32)
-    find_package(dlfcn-win32 REQUIRED)
-    target_include_directories(${TARGET_NAME} PRIVATE ${dlfcn-win32_INCLUDE_DIRS})
-    target_link_libraries(${TARGET_NAME} PRIVATE ${dlfcn-win32_LIBRARIES})
-endif()

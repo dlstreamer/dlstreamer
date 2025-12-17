@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -30,7 +30,7 @@ class DetectionOutputConverter : public BlobToROIConverter {
         : BlobToROIConverter(std::move(initializer), confidence_threshold, false, 0.0) {
     }
 
-    TensorsTable convert(const OutputBlobs &output_blobs) override;
+    TensorsTable convert(const OutputBlobs &output_blobs) const override;
 
     static const size_t model_object_size = 7; // SSD DetectionOutput format
 
@@ -54,7 +54,7 @@ class DetectionOutputConverter : public BlobToROIConverter {
     static std::string getName() {
         return "detection_output";
     }
-    static std::string getDeprecatedName() {
+    static std::string getDepricatedName() {
         return "tensor_to_bbox_ssd";
     }
 };

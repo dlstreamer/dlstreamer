@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2024-2025 Intel Corporation
+ * Copyright (C) 2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -49,7 +49,7 @@ static gboolean gst_analytics_keypoint_mtd_meta_transform(GstBuffer *transbuf, G
     return TRUE;
 }
 
-static const GstAnalyticsMtdImpl keypoint_impl = {"keypoint", gst_analytics_keypoint_mtd_meta_transform, NULL, {NULL}};
+static const GstAnalyticsMtdImpl keypoint_impl = {"keypoint", gst_analytics_keypoint_mtd_meta_transform, {NULL}};
 
 /**
  * gst_analytics_keypoint_mtd_get_mtd_type:
@@ -133,7 +133,7 @@ gboolean gst_analytics_relation_meta_add_keypoint_mtd(GstAnalyticsRelationMeta *
  * Since: 1.26
  */
 
-static const GstAnalyticsMtdImpl keypoint_skeleton_impl = {"keypoint_skeleton", NULL, NULL, {NULL}};
+static const GstAnalyticsMtdImpl keypoint_skeleton_impl = {"keypoint_skeleton", NULL, {NULL}};
 
 typedef struct _GstAnalyticsKeypointSkeletonData GstAnalyticsKeypointSkeletonData;
 
@@ -260,7 +260,7 @@ struct _GstAnalyticsKeypointGroupData {
     guint ids[]; /* must be last */
 };
 
-static const GstAnalyticsMtdImpl keypoint_group_impl = {"keypoint_group", NULL, NULL, {NULL}};
+static const GstAnalyticsMtdImpl keypoint_group_impl = {"keypoint_group", NULL, {NULL}};
 
 /**
  * gst_analytics_keypointgroup_mtd_get_mtd_type:

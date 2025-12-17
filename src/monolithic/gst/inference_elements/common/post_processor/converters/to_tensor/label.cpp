@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -27,7 +27,6 @@ using namespace InferenceBackend;
 
 namespace {
 
-// Function to find the maximum element in the data and set the corresponding label, label_id, and confidence.
 template <typename DataType>
 void max_method(const DataType *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
     auto max_elem = std::max_element(data, data + size);
@@ -37,7 +36,6 @@ void max_method(const DataType *data, size_t size, const std::vector<std::string
     result.set_double("confidence", *max_elem);
 }
 
-// Function to apply softmax to the data and set the label with the highest probability.
 template <typename DataType>
 void soft_max_method(const DataType *data, size_t size, const std::vector<std::string> &labels, GVA::Tensor &result) {
     auto max_confidence = std::max_element(data, data + size);
@@ -59,7 +57,6 @@ void soft_max_method(const DataType *data, size_t size, const std::vector<std::s
     result.set_double("confidence", *max_elem);
 }
 
-// Function to select compound labels based on a confidence threshold.
 template <typename DataType>
 void compound_method(const DataType *data, size_t size, const std::vector<std::string> &labels, double threshold,
                      GVA::Tensor &result) {
@@ -84,7 +81,6 @@ void compound_method(const DataType *data, size_t size, const std::vector<std::s
     result.set_double("confidence", confidence);
 }
 
-// Function to select multiple labels based on a confidence threshold.
 template <typename DataType>
 void multi_method(const DataType *data, size_t size, const std::vector<std::string> &labels, double threshold,
                   GVA::Tensor &result) {
@@ -107,7 +103,6 @@ void multi_method(const DataType *data, size_t size, const std::vector<std::stri
     result.set_double("confidence", confidence);
 }
 
-// Function to apply softmax and select multiple labels based on a confidence threshold.
 template <typename DataType>
 void softmax_multi_method(const DataType *data, size_t size, const std::vector<std::string> &labels, double threshold,
                           GVA::Tensor &result) {
@@ -127,13 +122,13 @@ void softmax_multi_method(const DataType *data, size_t size, const std::vector<s
     delete[] sftm_arr;
 }
 
-// Function to use integer indices from the data to select labels.
 template <typename DataType>
 void index_method([[maybe_unused]] const DataType *data, size_t size, const std::vector<std::string> &labels,
                   GVA::Tensor &result) {
     std::string result_label;
     int max_value = 0;
     for (size_t j = 0; j < size; j++) {
+
         int value = 0;
         if constexpr (std::is_same<int, DataType>::value)
             value = data[j];
@@ -150,7 +145,6 @@ void index_method([[maybe_unused]] const DataType *data, size_t size, const std:
     }
 }
 
-// Function to map a string representation of a method to its corresponding enum value.
 LabelConverter::Method method_from_string(const std::string &method_string) {
     const std::map<std::string, LabelConverter::Method> method_to_string_map = {
         {"max", LabelConverter::Method::Max},
@@ -168,7 +162,6 @@ LabelConverter::Method method_from_string(const std::string &method_string) {
 }
 } // namespace
 
-// Constructor for LabelConverter, initializes the converter with configuration details.
 LabelConverter::LabelConverter(BlobToMetaConverter::Initializer initializer)
     : BlobToTensorConverter(std::move(initializer)) {
     if (!raw_tensor_copying->enabled(RawTensorCopyingToggle::id))
@@ -185,7 +178,6 @@ LabelConverter::LabelConverter(BlobToMetaConverter::Initializer initializer)
     gst_structure_get_double(s, "confidence_threshold", &_confidence_threshold);
 }
 
-// Template function to execute the selected post-processing method on the model's output data.
 template <typename T>
 void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name, InferenceBackend::OutputBlob::Ptr blob,
                                    TensorsTable &tensors_table) const {
@@ -249,8 +241,7 @@ void LabelConverter::ExecuteMethod(const T *data, const std::string &layer_name,
     }
 }
 
-// Function to convert output blobs from the model into tensors that can be used by GStreamer.
-TensorsTable LabelConverter::convert(const OutputBlobs &output_blobs) {
+TensorsTable LabelConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
 
@@ -267,7 +258,7 @@ TensorsTable LabelConverter::convert(const OutputBlobs &output_blobs) {
         if (blob->GetData() == nullptr)
             throw std::invalid_argument("Output blob data is nullptr");
 
-        // Determine the data type and execute the appropriate method.
+        // get buffer and its size from classification_result
         if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP32)
             ExecuteMethod<float>(reinterpret_cast<const float *>(blob->GetData()), layer_name, blob, tensors_table);
         else if (blob->GetPrecision() == InferenceBackend::Blob::Precision::FP64)

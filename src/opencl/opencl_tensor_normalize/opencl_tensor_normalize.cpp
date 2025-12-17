@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -209,7 +209,6 @@ class OpenclTensorNormalize : public BaseTransform {
 };
 
 extern "C" {
-
 DLS_EXPORT ElementDesc opencl_tensor_normalize = {.name = "opencl_tensor_normalize",
                                                   .description =
                                                       "Convert U8 tensor to U8 or F32 tensor with normalization",

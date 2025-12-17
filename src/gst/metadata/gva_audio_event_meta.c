@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2021 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -8,7 +8,7 @@
 #include <string.h>
 #define UNUSED(x) (void)(x)
 
-DLS_EXPORT GType gst_gva_audio_event_meta_api_get_type(void) {
+GType gst_gva_audio_event_meta_api_get_type(void) {
     static GType type;
     static const gchar *tags[] = {NULL};
 
@@ -109,8 +109,8 @@ GstGVAAudioEventMeta *gst_gva_buffer_get_audio_event_meta_id(GstBuffer *buffer, 
  *
  * Returns: (transfer none): the #GstGVAAudioEventMeta on @buffer.
  */
-DLS_EXPORT GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta(GstBuffer *buffer, const gchar *event_type,
-                                                                     gulong start_timestamp, gulong end_timestamp) {
+GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta(GstBuffer *buffer, const gchar *event_type,
+                                                          gulong start_timestamp, gulong end_timestamp) {
     return gst_gva_buffer_add_audio_event_meta_id(buffer, g_quark_from_string(event_type), start_timestamp,
                                                   end_timestamp);
 }
@@ -151,7 +151,7 @@ GstGVAAudioEventMeta *gst_gva_buffer_add_audio_event_meta_id(GstBuffer *buffer, 
  * elements which may handle this event.
  * The name of @structure is used to identify the element these parameters are meant for.
  */
-DLS_EXPORT void gst_gva_audio_event_meta_add_param(GstGVAAudioEventMeta *meta, GstStructure *structure) {
+void gst_gva_audio_event_meta_add_param(GstGVAAudioEventMeta *meta, GstStructure *structure) {
     g_return_if_fail(meta);
     g_return_if_fail(structure);
 

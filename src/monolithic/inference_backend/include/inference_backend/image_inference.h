@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2018-2025 Intel Corporation
+ * Copyright (C) 2018-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -52,15 +52,13 @@ class ImageInference {
         CallbackFunc;
     typedef std::function<void(std::vector<IFrameBase::Ptr> frames)> ErrorHandlingFunc;
 
-    static Ptr createImageInferenceInstance(MemoryType input_image_memory_type, const InferenceConfig &config,
-                                            Allocator *allocator, CallbackFunc callback,
-                                            ErrorHandlingFunc error_handler, dlstreamer::ContextPtr context);
+    static Ptr make_shared(MemoryType type, const InferenceConfig &config, Allocator *allocator, CallbackFunc callback,
+                           ErrorHandlingFunc error_handler, dlstreamer::ContextPtr context);
 
     virtual void SubmitImage(IFrameBase::Ptr frame,
                              const std::map<std::string, std::shared_ptr<InputLayerDesc>> &input_preprocessors) = 0;
 
     virtual const std::string &GetModelName() const = 0;
-    virtual size_t GetBatchSize() const = 0;
     virtual size_t GetNireq() const = 0;
     virtual void GetModelImageInputInfo(size_t &width, size_t &height, size_t &batch_size, int &format,
                                         int &memory_type) const = 0;
@@ -70,8 +68,7 @@ class ImageInference {
     // TODO: return map<OutputLayerDesc>
     virtual std::map<std::string, std::vector<size_t>> GetModelOutputsInfo() const = 0;
     virtual std::map<std::string, GstStructure *> GetModelInfoPostproc() const = 0;
-    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file,
-                                                                     const gchar *pre_proc_config);
+    static std::map<std::string, GstStructure *> GetModelInfoPreproc(const std::string model_file);
 
     virtual bool IsQueueFull() = 0;
     virtual void Flush() = 0;
@@ -163,7 +160,6 @@ __DECLARE_CONFIG_KEY(INPUT_LAYER_PRECISION);
 __DECLARE_CONFIG_KEY(FORMAT);
 __DECLARE_CONFIG_KEY(DEVICE);
 __DECLARE_CONFIG_KEY(MODEL); // Path to model
-__DECLARE_CONFIG_KEY(CUSTOM_PREPROC_LIB);
 __DECLARE_CONFIG_KEY(NIREQ);
 __DECLARE_CONFIG_KEY(DEVICE_EXTENSIONS);
 __DECLARE_CONFIG_KEY(CPU_THROUGHPUT_STREAMS); // number inference requests running in parallel

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2021-2025 Intel Corporation
+ * Copyright (C) 2021-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -21,7 +21,7 @@
 using namespace post_processing;
 using namespace InferenceBackend;
 
-TensorsTable TextConverter::convert(const OutputBlobs &output_blobs) {
+TensorsTable TextConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     TensorsTable tensors_table;
     try {
@@ -53,16 +53,14 @@ TensorsTable TextConverter::convert(const OutputBlobs &output_blobs) {
                 const float *item_data = item.first;
                 const size_t item_size = item.second;
 
-                // Convert the data to a comma-separated string with fixed precision.
                 std::stringstream stream;
-                stream << std::fixed << std::setprecision(precision); // Set fixed precision for the stream.
+                stream << std::fixed << std::setprecision(precision);
                 for (size_t i = 0; i < item_size; ++i) {
                     if (i)
-                        stream << ", ";             // Add a comma separator between values.
-                    stream << item_data[i] * scale; // Scale the data and add it to the stream.
+                        stream << ", ";
+                    stream << item_data[i] * scale;
                 }
-                classification_result.set_string(
-                    "label", stream.str()); // Set the label in the tensor as the string representation.
+                classification_result.set_string("label", stream.str());
 
                 /* tensor_id - In different GStreamer versions tensors_batch are attached to the buffer in a different
                  * order. */

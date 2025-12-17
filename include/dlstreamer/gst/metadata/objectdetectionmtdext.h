@@ -13,18 +13,12 @@
 
 const int NEW_METADATA = 0;
 
-#if _MSC_VER
-#define DLS_EXPORT __declspec(dllexport)
-#else
-#define DLS_EXPORT __attribute__((visibility("default")))
-#endif
-
 G_BEGIN_DECLS
 
 typedef struct _GstAnalyticsMtd GstAnalyticsODExtMtd;
 
 GST_ANALYTICS_META_API
-DLS_EXPORT GstAnalyticsMtdType gst_analytics_od_ext_mtd_get_mtd_type(void);
+GstAnalyticsMtdType gst_analytics_od_ext_mtd_get_mtd_type(void);
 
 GST_ANALYTICS_META_API
 gboolean gst_analytics_od_ext_mtd_get_rotation(const GstAnalyticsODExtMtd *handle, gdouble *rotation);
@@ -33,7 +27,7 @@ GST_ANALYTICS_META_API
 gboolean gst_analytics_od_ext_mtd_get_class_id(const GstAnalyticsODExtMtd *handle, gint *class_id);
 
 GST_ANALYTICS_META_API
-DLS_EXPORT GList *gst_analytics_od_ext_mtd_get_params(const GstAnalyticsODExtMtd *handle);
+GList *gst_analytics_od_ext_mtd_get_params(const GstAnalyticsODExtMtd *handle);
 
 GST_ANALYTICS_META_API
 gboolean gst_analytics_od_ext_mtd_add_param(const GstAnalyticsODExtMtd *handle, GstStructure *s);

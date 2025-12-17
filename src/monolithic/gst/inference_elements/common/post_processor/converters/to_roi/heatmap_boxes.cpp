@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (C) 2023-2025 Intel Corporation
+ * Copyright (C) 2023-2024 Intel Corporation
  *
  * SPDX-License-Identifier: MIT
  ******************************************************************************/
@@ -74,7 +74,7 @@ void HeatMapBoxesConverter::parseOutputBlob(const float *data, const std::vector
     }
 }
 
-TensorsTable HeatMapBoxesConverter::convert(const OutputBlobs &output_blobs) {
+TensorsTable HeatMapBoxesConverter::convert(const OutputBlobs &output_blobs) const {
     ITT_TASK(__FUNCTION__);
     try {
         const auto &model_input_image_info = getModelInputImageInfo();

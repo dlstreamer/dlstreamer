@@ -19,8 +19,4 @@ if(${ENABLE_AUDIO_INFERENCE_ELEMENTS})
     add_subdirectory(audio_inference_elements)
 endif()
 
-# [INTERNAL-ANCHOR-BEGIN]
-if(${ENABLE_MTCNN})
-    add_subdirectory(gvamtcnn)
-endif()
-# [INTERNAL-ANCHOR-END]
+
