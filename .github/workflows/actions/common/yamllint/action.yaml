@@ -1,0 +1,113 @@
+name: Run Yamllint
+description: Lint YAML files using yamllint
+
+inputs:
+  path:
+    description: Path to YAML files or folder
+    required: true
+  output-file:
+    description: Path to store the yamllint output
+    required: true
+  name:
+    description: Name of the artifact
+    required: true
+  enable-reviewdog:
+    description: Enable ReviewDog PR comments
+    required: false
+    default: "false"
+  github_token:
+    description: GitHub token for ReviewDog
+    required: false
+  fail-on-findings:
+    description: "Whether to fail the action if issues are found"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Yamllint
+      run: sudo apt-get install -y yamllint
+      shell: bash
+
+    - name: Run Yamllint
+      id: run-yamllint
+      env:
+        path: ${{ inputs.path }}
+        output_file: ${{ inputs.output-file }}
+      run: |
+        yamllint ${path} 2>&1 | tee ${output_file} || true
+        if [ ! -f "${output_file}" ]; then
+          echo "No YAML files found or yamllint produced no output" > ${output_file}
+        fi
+        echo "✅ Report created at: $(pwd)/${output_file}"
+        ls -lh ${output_file}
+      shell: bash
+
+    - name: Analyze Yamllint results
+      if: always()
+      env:
+        output_file: ${{ inputs.output-file }}
+        name: ${{ inputs.name }}
+      run: |
+        if [ -f "${output_file}" ]; then
+          # Count issues by severity (yamllint uses ::error and ::warning in GitHub Actions format)
+          error_count=$(grep "::error" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          warning_count=$(grep "::warning" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          # Ensure counts are valid integers, default to 0 if empty
+          error_count=${error_count:-0}
+          warning_count=${warning_count:-0}
+          # Additional safety check - ensure numeric (use case to validate)
+          case "$error_count" in ''|*[!0-9]*) error_count=0 ;; esac || true
+          case "$warning_count" in ''|*[!0-9]*) warning_count=0 ;; esac || true
+          total=$((error_count + warning_count)) || total=0
+
+          echo "### Yamllint Results for ${name}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Issues**: $total" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$error_count" -gt 0 ]; then
+            echo "- ❌ **Errors**: $error_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$warning_count" -gt 0 ]; then
+            echo "- ⚠️ **Warnings**: $warning_count" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$total" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Please review the Yamllint report artifact and consider fixing the issues.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **No issues found!**" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+      shell: bash
+
+    - name: Upload Yamllint report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: yamllint-report-${{ inputs.name }}
+        path: ${{ inputs.output-file }}
+
+    - name: Run ReviewDog (Yamllint)
+      if: ${{ inputs.enable-reviewdog == 'true' }}
+      uses: reviewdog/action-yamllint@f01d8a48fd8d89f89895499fca2cff09f9e9e8c0 # 1.21.0
+      with:
+        github_token: ${{ inputs.github_token }}
+        reporter: github-pr-review
+        level: warning
+
+    - name: Fail if Yamllint found issues
+      if: inputs.fail-on-findings == 'true'
+      shell: bash
+      env:
+        output_file: ${{ inputs.output-file }}
+      run: |
+        if [ -f "${output_file}" ]; then
+          issue_count=$(grep -E "::error|::warning" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          if [ "$issue_count" -gt 0 ]; then
+            echo "❌ Yamllint found $issue_count issue(s). Failing the job."
+            exit 1
+          fi
+        fi

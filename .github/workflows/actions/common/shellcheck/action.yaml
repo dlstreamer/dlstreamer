@@ -1,0 +1,123 @@
+name: Run ShellCheck
+description: Lint shell scripts using shellcheck
+
+inputs:
+  path:
+    description: Path to shell scripts or folder
+    required: true
+  output-file:
+    description: Path to store the shellcheck output
+    required: true
+  name:
+    description: Name of the artifact
+    required: true
+  enable-reviewdog:
+    description: Enable ReviewDog PR comments
+    required: false
+    default: "false"
+  github_token:
+    description: GitHub token for ReviewDog
+    required: false
+  fail-on-findings:
+    description: "Whether to fail the action if issues are found"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install ShellCheck
+      run: sudo apt-get install -y shellcheck
+      shell: bash
+
+    - name: Run ShellCheck
+      id: run-shellcheck
+      env:
+        path: ${{ inputs.path }}
+        output_file: ${{ inputs.output-file }}
+      run: |
+        find ${path} -name "*.sh" -exec shellcheck {} \; 2>&1 | tee ${output_file} || true
+        if [ ! -f "${output_file}" ]; then
+          echo "No shell scripts found or shellcheck produced no output" > ${output_file}
+        fi
+      shell: bash
+
+    - name: Analyze ShellCheck results
+      if: always()
+      env:
+        output_file: ${{ inputs.output-file }}
+        name: ${{ inputs.name }}
+      run: |
+        if [ -f "${output_file}" ]; then
+          # Count issues by severity - shellcheck format is "SC#### (level):"
+          error_count=$(grep -E "SC[0-9]+ \(error\):" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          warning_count=$(grep -E "SC[0-9]+ \(warning\):" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          info_count=$(grep -E "SC[0-9]+ \(info\):" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          note_count=$(grep -E "SC[0-9]+ \(note\):" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          # Ensure counts are valid integers, default to 0 if empty
+          error_count=${error_count:-0}
+          warning_count=${warning_count:-0}
+          info_count=${info_count:-0}
+          note_count=${note_count:-0}
+          # Additional safety check - ensure numeric (use case to validate)
+          case "$error_count" in ''|*[!0-9]*) error_count=0 ;; esac || true
+          case "$warning_count" in ''|*[!0-9]*) warning_count=0 ;; esac || true
+          case "$info_count" in ''|*[!0-9]*) info_count=0 ;; esac || true
+          case "$note_count" in ''|*[!0-9]*) note_count=0 ;; esac || true
+          total=$((error_count + warning_count + info_count + note_count)) || total=0
+
+          echo "### ShellCheck Results for ${name}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Issues**: $total" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$error_count" -gt 0 ]; then
+            echo "- 🔴 **Errors**: $error_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$warning_count" -gt 0 ]; then
+            echo "- ⚠️ **Warnings**: $warning_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$info_count" -gt 0 ]; then
+            echo "- ℹ️ **Info**: $info_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$note_count" -gt 0 ]; then
+            echo "- 📝 **Notes**: $note_count" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$total" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Please review the ShellCheck report artifact and consider fixing the issues.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **No issues found!**" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+      shell: bash
+
+    - name: Upload ShellCheck report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: shellcheck-report-${{ inputs.name }}
+        path: ${{ inputs.output-file }}
+
+    - name: Run ReviewDog (ShellCheck)
+      if: ${{ inputs.enable-reviewdog == 'true' }}
+      uses: reviewdog/action-shellcheck@4c07458293ac342d477251099501a718ae5ef86e # 1.32.0
+      with:
+        github_token: ${{ inputs.github_token }}
+        reporter: github-pr-review
+        level: warning
+
+    - name: Fail if ShellCheck found issues
+      if: inputs.fail-on-findings == 'true'
+      shell: bash
+      env:
+        output_file: ${{ inputs.output-file }}
+      run: |
+        if [ -f "${output_file}" ]; then
+          issue_count=$(grep -E "SC[0-9]+" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          if [ "$issue_count" -gt 0 ]; then
+            echo "❌ ShellCheck found $issue_count issue(s). Failing the job."
+            exit 1
+          fi
+        fi

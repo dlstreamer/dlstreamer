@@ -1,0 +1,108 @@
+name: 'License and Namespace Checker'
+description: 'Checks license headers and namespace usage in headers'
+inputs:
+  name:
+    description: 'Name for the output artifact'
+    required: false
+    default: 'license-namespace-check-report'
+  path:
+    description: 'Path to the repository root'
+    required: false
+    default: '.'
+  fail-on-findings:
+    description: "Whether to fail the action if issues are found"
+    required: false
+    default: "true"
+runs:
+  using: 'composite'
+  steps:
+    - name: Get list of changed files
+      shell: bash
+      id: discover-changes
+      env:
+        REPO_PATH: ${{ inputs.path }}
+      run: |
+        cd "${REPO_PATH}"
+        if [ "$(git rev-parse --abbrev-ref HEAD)" != "main" ]; then
+          git fetch origin main:main
+          echo "Fetched main branch"
+        fi
+        changed_files=$(git diff --name-only main...$GITHUB_SHA -- '*.h' '*.hpp' '*.c' '*.cpp' '*.sh' '*.py' '*.txt' | grep -E '.*\.(h|hpp|c|cpp|sh|py|txt)$' || true)
+        echo "Performed git diff"
+        if [ -n "$changed_files" ]; then
+          # Add changed files list to the GITHUB_OUTPUT separated by spaces
+          echo "changed_files=$(echo $changed_files)" >> $GITHUB_OUTPUT
+          echo "Changed files:"
+          echo "$changed_files"
+        else
+          # No changed files, explicitly set the exit code to 0
+          echo "No changed files detected."
+          exit 0
+        fi
+
+    - name: Check License header and namespace usage in headers
+      id: license-check
+      shell: bash
+      env:
+        CHANGED_FILES: ${{ steps.discover-changes.outputs.changed_files }}
+        REPO_PATH: ${{ inputs.path }}
+        output_file: license-check-report.txt
+      run: |
+        if [ -z "${CHANGED_FILES}" ]; then
+          echo "No new files to scan." | tee "${output_file}"
+          echo "ISSUES_FOUND=false" >> $GITHUB_OUTPUT
+        else
+          if "${GITHUB_ACTION_PATH}/run.sh" "${REPO_PATH}" $CHANGED_FILES 2>&1 | tee "${output_file}"; then
+            echo "ISSUES_FOUND=false" >> $GITHUB_OUTPUT
+          else
+            echo "ISSUES_FOUND=true" >> $GITHUB_OUTPUT
+          fi
+        fi
+
+    - name: Upload License Check report
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: ${{ inputs.name }}
+        path: license-check-report.txt
+        if-no-files-found: warn
+
+    - name: Analyze License Check results
+      if: always()
+      shell: bash
+      env:
+        output_file: license-check-report.txt
+      run: |
+        if [ "${{ steps.license-check.outputs.ISSUES_FOUND }}" == "true" ]; then
+          # Count files with issues
+          if [ -f "${output_file}" ]; then
+            error_count=$(grep -c "Error:" "${output_file}" 2>/dev/null || echo "0")
+            echo "### License & Namespace Check Results" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- ❌ **Status**: Issues found" >> $GITHUB_STEP_SUMMARY
+            echo "- 🔍 **Total errors**: ${error_count}" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "📄 **See job logs for detailed error messages.**" >> $GITHUB_STEP_SUMMARY
+          fi
+        elif [ "${{ steps.discover-changes.outputs.changed_files }}" != "" ]; then
+          echo "### License & Namespace Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **All checked files have correct license headers and namespace usage!**" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### License & Namespace Check Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ **No relevant files changed - check skipped**" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Fail if license/namespace issues found
+      if: inputs.fail-on-findings == 'true' && steps.license-check.outputs.ISSUES_FOUND == 'true'
+      shell: bash
+      run: |
+        echo "❌ License or namespace issues found. Failing the job."
+        exit 1
+
+    - name: Clean up
+      if: always()
+      shell: bash
+      run: |
+        rm -f license-check-report.txt

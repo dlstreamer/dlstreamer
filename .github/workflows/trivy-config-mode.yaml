@@ -1,0 +1,159 @@
+name: "[SCANS] Trivy Dockerfile Config Scan"
+run-name: "[SCANS] Trivy Dockerfile Config Scan (by @${{ github.actor }} via ${{ github.event_name }})"
+on:
+  workflow_dispatch:
+    inputs:
+      dockerfile-path:
+        description: 'Path to the Dockerfile to scan'
+        required: true
+        type: string
+      trivy-report-format:
+        description: 'Trivy report format (e.g. json, table, sarif)'
+        required: false
+        default: 'json'
+        type: string
+      trivy-config-path:
+        description: 'Path to custom Trivy config file'
+        required: false
+        type: string
+      severity-levels:
+        description: 'Severity levels to check (comma-separated, e.g. LOW,MEDIUM,HIGH,CRITICAL)'
+        required: false
+        default: 'HIGH,CRITICAL'
+        type: string
+      output-report-path:
+        description: 'Path to save the Trivy output report (e.g. reports/trivy.json)'
+        required: true
+        type: string
+      name:
+        description: 'Additional part of scan name'
+        required: false
+        type: string
+        default: '1'
+  workflow_call:
+    inputs:
+      dockerfile-path:
+        description: 'Path to the Dockerfile to scan'
+        required: true
+        type: string
+      trivy-report-format:
+        description: 'Trivy report format (e.g. json, table, sarif)'
+        required: false
+        default: 'json'
+        type: string
+      trivy-config-path:
+        description: 'Path to custom Trivy config file'
+        required: false
+        type: string
+      severity-levels:
+        description: 'Severity levels to check (comma-separated, e.g. LOW,MEDIUM,HIGH,CRITICAL)'
+        required: false
+        default: 'HIGH,CRITICAL'
+        type: string
+      output-report-path:
+        description: 'Path to save the Trivy output report (e.g. reports/trivy.json)'
+        required: true
+        type: string
+      name:
+        description: 'Additional part of scan name'
+        required: false
+        type: string
+        default: '1'
+permissions: {}
+
+jobs:
+  trivy-config-scan:
+    name: Trivy Dockerfile Config Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+
+      - name: Install Trivy from Aqua Security APT repo
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gnupg lsb-release wget apt-transport-https curl jq
+          curl -fsSL https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo gpg --dearmor -o /usr/share/keyrings/trivy.gpg
+          echo "deb [signed-by=/usr/share/keyrings/trivy.gpg] https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -cs) main" | \
+          sudo tee /etc/apt/sources.list.d/trivy.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y trivy
+
+      - name: Create report directory if needed
+        env:
+          output_report_path: ${{ inputs.output-report-path }}
+        run: |
+          mkdir -p "$(dirname "${output_report_path}")"
+
+      - name: Run Trivy config scan and save output
+        env:
+          dockerfile_path: ${{ inputs.dockerfile-path }}
+          output_report_path: ${{ inputs.output-report-path }}
+          severity_levels: ${{ inputs.severity-levels }}
+          trivy_report_format: ${{ inputs.trivy-report-format }}
+          trivy_config_path: ${{ inputs.trivy-config-path }}
+        run: |
+          echo "🔍 Scanning: ${dockerfile_path}"
+          echo "📁 Saving report to: ${output_report_path}"
+          trivy_cmd="trivy config \
+            --severity \"${severity_levels}\" \
+            --format \"${trivy_report_format}\" \
+            --output \"${output_report_path}\" \
+            \"${dockerfile_path}\""
+
+          # Add Trivy config path if provided
+          if [ -n "$trivy_config_path" ]; then
+            trivy_cmd="$trivy_cmd --config \"$trivy_config_path\""
+          fi
+
+          eval $trivy_cmd
+
+          echo "📄 Report preview:"
+          head -n 100 "${output_report_path}"
+
+      - name: Check Trivy scan failures
+        env:
+          output_report_path: ${{ inputs.output-report-path }}
+          trivy_report_format: ${{ inputs.trivy-report-format }}
+        run: |
+          if [ "${trivy_report_format}" = "json" ]; then
+            echo "📊 Parsing JSON report..."
+
+            # Check if file contains valid JSON
+            if ! jq empty "${output_report_path}" 2>/dev/null; then
+              echo "⚠️ Warning: Report is not valid JSON. Skipping failure count check."
+              exit 0
+            fi
+
+            # Extract failure count, handle null/missing fields
+            FAILURE_COUNT=$(jq '[.Results[]? | .MisconfSummary?.Failures? // 0] | add // 0' "${output_report_path}")
+            echo "Failures found: $FAILURE_COUNT"
+
+            if [ "$FAILURE_COUNT" -gt 0 ]; then
+              echo "❌ Found $FAILURE_COUNT failures! Failing the job."
+              cat "${output_report_path}"
+              exit 1
+            else
+              echo "✅ No failures found. Passing."
+            fi
+          else
+            echo "ℹ️ Non-JSON format (${trivy_report_format}) detected. Skipping automated failure count."
+            echo "Please review the report artifact manually."
+          fi
+
+      - name: Upload Trivy report as artifact
+        if: always ()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 #4.6.2
+        with:
+          name: trivy-config-report-${{ inputs.name }}
+          path: ${{ inputs.output-report-path }}
+
+      - name: Clean up
+        env:
+          output_report_path: ${{ inputs.output-report-path }}
+        run: rm -rf "${output_report_path}"
