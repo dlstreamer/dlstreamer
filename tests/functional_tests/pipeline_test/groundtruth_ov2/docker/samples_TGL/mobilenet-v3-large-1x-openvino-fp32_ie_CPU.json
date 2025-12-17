@@ -1,2 +1,0 @@
-{"objects":[{"classification_layer_name:output1":{"confidence":0.5061623454093933,"label":"Spades","label_id":2,"model":{"name":"Model3"}},"h":1152,"tensors":[{"confidence":0.5061623454093933,"data":[-0.057280246168375015,-0.4013454020023346,0.8514712452888489,-0.39706459641456604],"dims":[1,4],"label":"Spades","label_id":2,"layer_name":"output1","layout":"ANY","model_name":"Model3","name":"classification_layer_name:output1","precision":"FP32"}],"w":864,"x":0,"y":0}],"resolution":{"height":1152,"width":864},"timestamp":0}
-
