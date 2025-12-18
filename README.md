@@ -1,4 +1,5 @@
-# Deep Learning Streamer (DL Streamer) Pipeline Framework
+# Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework
+## DL Streamer is now part of Open Edge Platform
 
 ### Overview
 <div align="center"><img src="intro.gif" width=900/></div>
@@ -45,3 +46,8 @@ These models include object detection, object classification, human pose detecti
 
 ---
 \* Other names and brands may be claimed as the property of others.
+
+## License
+
+The **DL Streamer** project is licensed under the [MIT License](./LICENSE) license.
+

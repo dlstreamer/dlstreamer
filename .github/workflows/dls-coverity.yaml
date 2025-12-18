@@ -1,0 +1,143 @@
+name: "[DLS] Coverity (C/C++)"
+run-name: "[DLS] Coverity (C/C++)"
+on:
+  workflow_call:
+    secrets:
+      DLS_COVERITY_TOKEN:
+        required: true
+      DLS_COVERITY_EMAIL:
+        required: true
+      DLS_COVERITY_PROJECT:
+        required: true
+  workflow_dispatch:
+permissions: {}
+
+jobs:
+  detect-languages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      run-analysis: ${{ steps.detect-langs.outputs.run-analysis }}
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+          fetch-depth: 0
+
+      - name: Detect changed languages and projects
+        id: detect-langs
+        run: |
+          cd dlstreamer-repo
+          if [ "$(git rev-parse --abbrev-ref HEAD)" != "master" ]; then
+            git fetch origin master:master
+            echo "Fetched master branch"
+          fi
+          changed_files=$(git diff --name-only master...$GITHUB_SHA -- '*.h' '*.hpp' '*.c' '*.cpp' || true)
+          echo "Performed git diff"
+
+          if [ -z "$changed_files" ]; then
+            echo "No relevant changed files detected."
+            echo "run-analysis=false" >> $GITHUB_OUTPUT
+            exit 0
+          else
+            run_analysis=true
+          fi
+
+
+          echo "Changed files:"
+          echo "$changed_files"
+          echo "Run analysis:"
+          echo "$run_analysis"
+          echo "run-analysis=$run_analysis" >> $GITHUB_OUTPUT
+
+  coverity-scan:
+    needs: detect-languages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: needs.detect-languages.outputs.run-analysis == 'true'
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+
+      - name: Init submodules
+        run: |
+          cd dlstreamer-repo
+          git submodule update --init thirdparty/spdlog
+
+      - name: Build code manually for dlstreamer
+        run: |
+          echo "Installing dependencies"
+          sudo apt-get update
+          sudo apt-get install -y wget vainfo xz-utils python3-pip python3-gi gcc-multilib libglib2.0-dev \
+          flex bison autoconf automake libtool libogg-dev make g++ libva-dev yasm libglx-dev libdrm-dev \
+          python-gi-dev python3-dev unzip libgflags-dev libcurl4-openssl-dev \
+          libgirepository1.0-dev libx265-dev libx264-dev libde265-dev gudev-1.0 libusb-1.0 nasm python3-venv \
+          libcairo2-dev libxt-dev libgirepository1.0-dev libgles2-mesa-dev wayland-protocols \
+          libssh2-1-dev cmake git valgrind numactl libvpx-dev libopus-dev libsrtp2-dev libxv-dev \
+          linux-libc-dev libpmix2t64 libhwloc15 libhwloc-plugins libxcb1-dev libx11-xcb-dev \
+          ffmpeg librdkafka-dev libpaho-mqtt-dev libopencv-dev libpostproc-dev libavfilter-dev libavdevice-dev \
+          libswscale-dev libswresample-dev libavutil-dev libavformat-dev libavcodec-dev libtbb12
+
+          echo "Setting up a Python environment"
+          python3 -m venv python3venv
+          source python3venv/bin/activate
+          pip install --upgrade pip==24.0
+          pip install meson==1.4.1 ninja==1.11.1.1
+
+          echo "Build gstreamer"
+          git clone https://gitlab.freedesktop.org/gstreamer/gstreamer.git
+          cd gstreamer
+          git checkout tags/1.26.1 -b 1.26.1
+          export PKG_CONFIG_PATH=/usr/local/lib/pkgconfig
+          meson setup -Dexamples=disabled -Dtests=disabled -Dvaapi=enabled -Dgst-examples=disabled --buildtype=release --prefix=/opt/intel/dlstreamer/gstreamer --libdir=lib/ --libexecdir=bin/ build/
+          ninja -C build
+          sudo env PATH="$PWD/../python3venv/bin:$PATH" meson install -C build/
+          cd ..
+
+          echo "Install OpenVINO"
+          echo "deb https://apt.repos.intel.com/openvino/2025 ubuntu24 main" | sudo tee /etc/apt/sources.list.d/intel-openvino-2025.list
+          curl -sSL -O https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-get update && sudo apt-get install --no-install-recommends -y openvino-2025.2.0
+          sudo apt-get clean
+
+      - name: Download Coverity Scan Tool
+        run: |
+          cd dlstreamer-repo
+          wget --quiet https://scan.coverity.com/download/linux64 \
+            --post-data "token=${{ secrets.DLS_COVERITY_TOKEN }}&project=${{ secrets.DLS_COVERITY_PROJECT }}" \
+            -O coverity_tool.tgz
+          mkdir cov-analysis
+          tar xzf coverity_tool.tgz --strip-components=1 -C cov-analysis
+
+      - name: Build with Coverity Analysis
+        run: |
+          cd dlstreamer-repo
+          mkdir build && cd build
+          export PKG_CONFIG_PATH="/opt/intel/dlstreamer/gstreamer/lib/pkgconfig:${PKG_CONFIG_PATH}"
+          ../cov-analysis/bin/cov-build --dir cov-int cmake -DENABLE_PAHO_INSTALLATION=ON -DENABLE_RDKAFKA_INSTALLATION=ON -DENABLE_VAAPI=ON -DENABLE_SAMPLES=ON ..
+          ../cov-analysis/bin/cov-build --dir cov-int make -j$(nproc)
+
+      - name: Create tarball for upload
+        run: |
+          cd dlstreamer-repo
+          tar czf coverity-output.tgz -C build cov-int
+
+      - name: Upload to Coverity Scan
+        env:
+          GIT_BRANCH: ${{ github.ref_name }}
+        run: |
+          cd dlstreamer-repo
+          curl --form token=${{ secrets.DLS_COVERITY_TOKEN }} \
+               --form email=${{ secrets.DLS_COVERITY_EMAIL }} \
+               --form file=@coverity-output.tgz \
+               --form version="$GIT_BRANCH-`date +%Y%m%d%H%M%S`" \
+               --form description="GA scan $GIT_BRANCH-`date +%Y%m%d%H%M%S`" \
+               https://scan.coverity.com/builds?project=${{ secrets.DLS_COVERITY_PROJECT }}

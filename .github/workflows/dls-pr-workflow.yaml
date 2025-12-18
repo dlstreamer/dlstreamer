@@ -1,0 +1,394 @@
+name: "[DLS] PR workflow"
+run-name: "[DLS] PR  workflow (by @${{ github.actor }} via ${{ github.event_name }})"
+on:
+  push:
+    branches:
+      - 'master'
+    paths:
+      - 'cmake/**'
+      - 'docker/**'
+      - 'include/**'
+      - 'python/**'
+      - 'samples/**'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'thirdparty/**'
+  pull_request:
+    paths:
+      - 'cmake/**'
+      - 'docker/**'
+      - 'include/**'
+      - 'python/**'
+      - 'samples/**'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'thirdparty/**'
+  workflow_call:
+    inputs:
+      test-repo-branch:
+        description: "Branch in dl-streamer-tests repo (default is main)"
+        required: false
+        type: string
+        default: "main"
+  workflow_dispatch:
+    inputs:
+      test-repo-branch:
+        description: "Branch in dl-streamer-tests repo (default is main)"
+        required: false
+        type: string
+        default: "main"
+permissions: {}
+
+jobs:
+  # ------------------------------------------------------------- SCANs -------------------------------------------------------------
+  dls-code-style:
+    permissions:
+      contents: read
+    name: "DLS SCAN: code-style"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Remove thirdparty folder
+        run: rm -rf thirdparty
+
+      - name: Code-style action
+        uses: ./.github/actions/common/code-style
+        with:
+          target_dir: "."
+          name: 'DLS_code-style-check-report'
+          fail-on-findings: true
+
+  dls-check-license-headers:
+    permissions:
+      contents: read
+    name: "DLS SCAN: check license headers"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out dlstreamer repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+      with:
+        persist-credentials: false
+        fetch-depth: 0
+
+    - name: Check license headers
+      uses: ./.github/actions/common/license-namespace-checker
+      with:
+        name: 'DLS_license-check-report'
+        path: '.'
+        fail-on-findings: true
+
+  # dls-static-code-analysis:
+  #   permissions:
+  #     security-events: write
+  #     actions: read
+  #     contents: read
+  #     packages: read
+  #   name: "DLS SCAN: static code analysis"
+  #   uses: ./.github/workflows/codeql.yaml
+
+  dls-static-code-analysis-for-c-cpp:
+    permissions:
+      security-events: write
+      actions: read
+      contents: read
+      packages: read
+    name: "DLS SCAN: static C/C++ code analysis"
+    uses: ./.github/workflows/dls-coverity.yaml
+    secrets:
+      DLS_COVERITY_TOKEN: ${{ secrets.DLS_COVERITY_TOKEN }}
+      DLS_COVERITY_EMAIL: ${{ secrets.DLS_COVERITY_EMAIL }}
+      DLS_COVERITY_PROJECT: ${{ secrets.DLS_COVERITY_PROJECT }}
+
+  dls-filter-docker-related-changes:
+    permissions:
+      contents: read
+    name: "DLS SCAN: detect changes in docker dir"
+    runs-on: ubuntu-latest
+    outputs:
+      docker_changed: ${{ steps.check.outputs.docker_changed }}
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Fetch main branch for comparison
+        run: |
+          git fetch origin master
+
+      - name: Detect changes in docker directory
+        id: check
+        run: |
+          echo "🔍 Checking for changes in 'docker/'..."
+          CHANGED_FILES=$(git diff --name-only origin/master...HEAD -- 'docker/')
+
+          if [ -n "${CHANGED_FILES}" ]; then
+            echo "📄 Changed Docker-related files:"
+            echo "${CHANGED_FILES}"
+            echo "docker_changed=true" >> "$GITHUB_OUTPUT"
+            echo "🟡 Docker-related changes detected."
+          else
+            echo "✅ No docker-related changes."
+            echo "docker_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  dls-trivy-config-scan:
+    permissions:
+      contents: read
+    needs: [dls-filter-docker-related-changes]
+    if: needs.dls-filter-docker-related-changes.outputs.docker_changed == 'true'
+    name: "DLS SCAN: Trivy ${{ matrix.name }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dlstreamer_ubuntu22
+            path: dlstreamer-repo/docker/ubuntu/ubuntu22.Dockerfile
+            output: reports/trivy-DLS_ubuntu22.json
+          - name: dlstreamer_ubuntu24
+            path: dlstreamer-repo/docker/ubuntu/ubuntu24.Dockerfile
+            output: reports/trivy-DLS_ubuntu24.json
+          - name: dlstreamer_fedora41
+            path: dlstreamer-repo/docker/fedora41/fedora41.Dockerfile
+            output: reports/trivy-DLS_fedora41.json
+          - name: dlstreamer-testing-ubuntu
+            path: dlstreamer-repo/docker/ubuntu/ubuntu-testing.Dockerfile
+            output: reports/trivy-DLS-testing-ubuntu.json
+    uses: ./.github/workflows/trivy-config-mode.yaml
+    with:
+      dockerfile-path: ${{ matrix.path }}
+      trivy-report-format: 'json'
+      severity-levels: 'HIGH,CRITICAL'
+      output-report-path: ${{ matrix.output }}
+      name: DLS_${{ matrix.name }}
+
+  dls-hadolint:
+    permissions:
+      contents: read
+      pull-requests: write
+    needs: [dls-filter-docker-related-changes]
+    if: needs.dls-filter-docker-related-changes.outputs.docker_changed == 'true'
+    name: "DLS SCAN: Hadolint"
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: dlstreamer_ubuntu22
+            dockerfile: dlstreamer-repo/docker/ubuntu/ubuntu22.Dockerfile
+            output-file: hadolint-dlstreamer_ubuntu22.json
+          - name: dlstreamer_ubuntu24
+            dockerfile: dlstreamer-repo/docker/ubuntu/ubuntu24.Dockerfile
+            output-file: hadolint-dlstreamer_ubuntu24.json
+          - name: dlstreamer_fedora41
+            dockerfile: dlstreamer-repo/docker/fedora41/fedora41.Dockerfile
+            output-file: hadolint-dlstreamer_fedora41.json
+          - name: dlstreamer-testing-ubuntu
+            dockerfile: dlstreamer-repo/docker/ubuntu/ubuntu-testing.Dockerfile
+            output-file: hadolint-dlstreamer-testing-ubuntu.json
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+
+      - name: Run Hadolint Action
+        uses: ./dlstreamer-repo/.github/actions/common/hadolint
+        with:
+          dockerfile: ${{ matrix.dockerfile }}
+          output-file: ${{ matrix.output-file }}
+          name: DLS_${{ matrix.name }}
+          enable-reviewdog: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-findings: true
+
+  dls-pylint:
+    permissions:
+      contents: read
+      pull-requests: write
+    name: "DLS SCAN: pylint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+
+      - name: Run pylint
+        uses: ./dlstreamer-repo/.github/actions/common/pylint
+        with:
+          path: dlstreamer-repo
+          output-file: pylint-report.txt
+          name: DLS_pylint
+          enable-reviewdog: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-findings: true
+
+  dls-shellcheck:
+    permissions:
+      contents: read
+      pull-requests: write
+    name: "DLS SCAN: shellcheck"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+          fetch-depth: 0
+
+      - name: Run shellcheck
+        uses: ./dlstreamer-repo/.github/actions/common/shellcheck
+        with:
+          path: dlstreamer-repo
+          output-file: shellcheck-report.txt
+          name: DLS_shellcheck
+          enable-reviewdog: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-findings: true
+
+      - name: Clean up
+        run: |
+          sudo rm -rf dlstreamer-repo
+
+  dls-yamllint:
+    permissions:
+      contents: read
+      pull-requests: write
+    name: "DLS SCAN: yamllint"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+
+      - name: Run yamlint
+        uses: ./dlstreamer-repo/.github/actions/common/yamllint
+        with:
+          path: dlstreamer-repo
+          output-file: yamllint-report.txt
+          name: DLS_yamlint
+          enable-reviewdog: true
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fail-on-findings: true
+
+      - name: Clean up
+        run: |
+          sudo rm -rf dlstreamer-repo
+
+  dls-clamav:
+    permissions:
+      contents: read
+    name: "DLS SCAN: ClamAV antivirus"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out dlstreamer repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+      with:
+        persist-credentials: false
+        path: dlstreamer-repo
+
+    - name: ClamAV scan
+      id: clamav-dls-scan
+      uses: open-edge-platform/orch-ci/.github/actions/security/clamav@76700c2fb6d547733b9218d9638dca43f5296399 # 0.1.52
+      with:
+        scan-scope: all
+        paths: dlstreamer-repo
+        report_suffix: "DLS_ClamAV_antivirus_report"
+        fail-on-findings: true
+
+    - name: Analyze ClamAV results
+      if: always()
+      env:
+        REPORT_PATH: ${{ steps.clamav-dls-scan.outputs.report_path }}
+      run: |
+        if [ -n "$REPORT_PATH" ] && [ -f "$REPORT_PATH" ]; then
+          echo "📄 Found ClamAV report: $REPORT_PATH"
+
+          # Extract scan summary using jq
+          files_scanned=$(jq -r '.scan_summary.files_scanned // 0' "$REPORT_PATH" 2>/dev/null || echo "0")
+          threats_found=$(jq -r '.scan_summary.threats_found // 0' "$REPORT_PATH" 2>/dev/null || echo "0")
+
+          echo "### ClamAV Antivirus Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 **Files scanned**: $files_scanned" >> $GITHUB_STEP_SUMMARY
+          echo "- 🦠 **Threats found**: $threats_found" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$threats_found" -gt 0 ]; then
+            echo "❌ **Security Alert**: Malware or threats detected!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Action Required**: Review the ClamAV report artifact for details." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All files are clean - no threats detected!**" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "### ClamAV Antivirus Scan Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ **ClamAV report not found at path: ${REPORT_PATH:-not provided}**" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Clean up
+      if: always()
+      run: |
+        sudo rm -rf dlstreamer-repo
+
+  dls-bandit:
+    permissions:
+      contents: read
+    name: "DLS SCAN: Bandit"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out dlstreamer repository
+      uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
+      with:
+        persist-credentials: false
+
+    - name: Run Bandit scan
+      uses: open-edge-platform/orch-ci/.github/actions/security/bandit@76700c2fb6d547733b9218d9638dca43f5296399 # 0.1.52
+      with:
+        scan-scope: "changed"
+        severity-level: "HIGH"
+        confidence-level: "HIGH"
+        output-format: "txt"
+        fail-on-findings: true
+        paths: .
+        report_suffix: dlstreamer
+
+  # -------------------------------------------------------- BUILDS & TESTS ---------------------------------------------------------
+  dls-build-dev-images-and-run-unit-tests:
+    permissions:
+      contents: read
+      packages: read
+    name: "DLS BUILD: dev imgs & run unit tests"
+    uses: ./.github/workflows/dls-build-dev-docker-images-and-run-unit.yaml
+
+  dls-build-and-test-deb-and-deb_img:
+    permissions:
+      contents: read
+      packages: read
+    name: "DLS BUILD & TEST: .deb pkgs & img"
+    uses: ./.github/workflows/dls-build-and-test-deb_pkgs-and-deb_imgs.yaml
+    with:
+      test-repo-branch: ${{ inputs.test-repo-branch }}
+
+  dls-build-and-test-windows:
+    permissions:
+      contents: read
+      packages: read
+    name: "DLS BUILD & TEST: Windows DLLs"
+    uses: ./.github/workflows/dls-build-and-test-windows.yaml
+    with:
+      test-repo-branch: ${{ inputs.test-repo-branch }}

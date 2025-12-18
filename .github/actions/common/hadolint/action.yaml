@@ -1,0 +1,130 @@
+name: Run Hadolint
+description: Lint Dockerfiles using Hadolint
+
+inputs:
+  dockerfile:
+    description: Path to Dockerfile
+    required: true
+  output-file:
+    description: Path to output file for lint results
+    required: true
+  name:
+    description: Name for the artifact
+    required: true
+  enable-reviewdog:
+    description: Enable ReviewDog PR comments
+    required: false
+    default: "false"
+  github_token:
+    description: GitHub token for ReviewDog
+    required: false
+  fail-on-findings:
+    description: "Whether to fail the action if issues are found"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Hadolint
+      run: |
+        curl -sSL -o hadolint https://github.com/hadolint/hadolint/releases/download/v2.12.0/hadolint-Linux-x86_64
+        chmod +x hadolint
+        sudo mv hadolint /usr/local/bin/
+      shell: bash
+
+    - name: Run Hadolint
+      id: run-hadolint
+      env:
+        dockerfile: ${{ inputs.dockerfile }}
+        output_file: ${{ inputs.output-file }}
+      run: |
+        hadolint ${dockerfile} \
+          --format tty \
+          2>&1 | tee ${output_file} || true
+        if [ ! -f "${output_file}" ]; then
+          echo "No Dockerfile found or hadolint produced no output" > ${output_file}
+        fi
+      shell: bash
+
+    - name: Analyze Hadolint results
+      if: always()
+      env:
+        output_file: ${{ inputs.output-file }}
+        name: ${{ inputs.name }}
+      run: |
+        if [ -f "${output_file}" ]; then
+          # Count issues by severity (hadolint format: DL#### or SC#### followed by colored severity)
+          # Pattern matches: DL3008 or SC1091 (hadolint and shellcheck codes)
+          error_count=$(grep -E "(DL|SC)[0-9]+" "${output_file}" 2>/dev/null | grep -i "error" | wc -l | tr -d '[:space:]' || echo "0")
+          warning_count=$(grep -E "(DL|SC)[0-9]+" "${output_file}" 2>/dev/null | grep -i "warning" | wc -l | tr -d '[:space:]' || echo "0")
+          info_count=$(grep -E "(DL|SC)[0-9]+" "${output_file}" 2>/dev/null | grep -i "info" | wc -l | tr -d '[:space:]' || echo "0")
+          style_count=$(grep -E "(DL|SC)[0-9]+" "${output_file}" 2>/dev/null | grep -i "style" | wc -l | tr -d '[:space:]' || echo "0")
+          # Ensure counts are valid integers, default to 0 if empty
+          error_count=${error_count:-0}
+          warning_count=${warning_count:-0}
+          info_count=${info_count:-0}
+          style_count=${style_count:-0}
+          # Additional safety check - ensure numeric (use case to validate)
+          case "$error_count" in ''|*[!0-9]*) error_count=0 ;; esac || true
+          case "$warning_count" in ''|*[!0-9]*) warning_count=0 ;; esac || true
+          case "$info_count" in ''|*[!0-9]*) info_count=0 ;; esac || true
+          case "$style_count" in ''|*[!0-9]*) style_count=0 ;; esac || true
+          total=$((error_count + warning_count + info_count + style_count)) || total=0
+
+          echo "### Hadolint Results for ${name}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Total Issues**: $total" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$error_count" -gt 0 ]; then
+            echo "- ❌ **Errors**: $error_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$warning_count" -gt 0 ]; then
+            echo "- ⚠️ **Warnings**: $warning_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$info_count" -gt 0 ]; then
+            echo "- ℹ️ **Info**: $info_count" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "$style_count" -gt 0 ]; then
+            echo "- 🎨 **Style**: $style_count" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          if [ "$total" -gt 0 ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Please review the Hadolint report artifact and consider fixing the issues.**" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **No issues found!**" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+      shell: bash
+
+    - name: Upload Hadolint report as artifact
+      if: always()
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: hadolint-report-${{ inputs.name }}
+        path: ${{ inputs.output-file }}
+
+    - name: Run ReviewDog (Hadolint)
+      if: ${{ inputs.enable-reviewdog == 'true' }}
+      uses: reviewdog/action-hadolint@fc7ee4a9f71e521bc43e370819247b70e5327540 # 1.50.2
+      with:
+        github_token: ${{ inputs.github_token }}
+        reporter: github-pr-review
+        level: warning
+        hadolint_flags: ${{ inputs.dockerfile }}
+
+    - name: Fail if Hadolint found issues
+      if: inputs.fail-on-findings == 'true'
+      shell: bash
+      env:
+        output_file: ${{ inputs.output-file }}
+      run: |
+        if [ -f "${output_file}" ]; then
+          issue_count=$(grep -E "(DL|SC)[0-9]+" "${output_file}" 2>/dev/null | wc -l | tr -d '[:space:]' || echo "0")
+          if [ "$issue_count" -gt 0 ]; then
+            echo "❌ Hadolint found $issue_count issue(s). Failing the job."
+            exit 1
+          fi
+        fi
