@@ -48,7 +48,7 @@ jobs:
         run: rm -rf thirdparty
 
       - name: Code-style action
-        uses: /.github/actions/common/code-style
+        uses: ./.github/actions/common/code-style
         with:
           target_dir: "."
           name: 'DLS_code-style-check-report'
