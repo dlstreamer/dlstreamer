@@ -323,6 +323,6 @@ jobs:
       run: |
         rm -rf $HOME/.virtualenvs
         docker rmi ${deb_final_img} || true
-        sudo rm -f $HOME/dl-streamer
+        sudo rm -f $HOME/dlstreamer-repo
         rm -rf dlstreamer-repo
         rm -rf $HOME/dl-streamer-tests-repo

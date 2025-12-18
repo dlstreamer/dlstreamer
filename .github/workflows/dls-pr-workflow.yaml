@@ -43,15 +43,14 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
         with:
           persist-credentials: false
-          path: dlstreamer-repo
 
       - name: Remove thirdparty folder
-        run: rm -rf dlstreamer-repo/thirdparty
+        run: rm -rf thirdparty
 
       - name: Code-style action
-        uses: ./dlstreamer-repo/.github/actions/common/code-style
+        uses: /.github/actions/common/code-style
         with:
-          target_dir: "dlstreamer-repo"
+          target_dir: "."
           name: 'DLS_code-style-check-report'
           fail-on-findings: true
 
@@ -68,10 +67,10 @@ jobs:
         fetch-depth: 0
 
     - name: Check license headers
-      uses: ./dlstreamer-repo/.github/actions/common/license-namespace-checker
+      uses: ./.github/actions/common/license-namespace-checker
       with:
         name: 'DLS_license-check-report'
-        path: 'dlstreamer-repo'
+        path: '.'
         fail-on-findings: true
 
   # dls-static-code-analysis:
@@ -120,7 +119,7 @@ jobs:
         id: check
         run: |
           echo "🔍 Checking for changes in 'dlstreamer-repo/docker/'..."
-          CHANGED_FILES=$(git diff --name-only origin/main...HEAD -- 'dlstreamer-repo/docker/')
+          CHANGED_FILES=$(git diff --name-only origin/master...HEAD -- 'dlstreamer-repo/docker/')
 
           if [ -n "${CHANGED_FILES}" ]; then
             echo "📄 Changed Docker-related files:"
@@ -348,7 +347,6 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
       with:
         persist-credentials: false
-        path: dlstreamer-repo
 
     - name: Run Bandit scan
       uses: open-edge-platform/orch-ci/.github/actions/security/bandit@76700c2fb6d547733b9218d9638dca43f5296399 # 0.1.52
@@ -358,7 +356,7 @@ jobs:
         confidence-level: "HIGH"
         output-format: "txt"
         fail-on-findings: true
-        paths: dlstreamer-repo
+        paths: .
         report_suffix: dlstreamer
 
   # -------------------------------------------------------- BUILDS & TESTS ---------------------------------------------------------
