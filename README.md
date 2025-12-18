@@ -45,3 +45,8 @@ These models include object detection, object classification, human pose detecti
 
 ---
 \* Other names and brands may be claimed as the property of others.
+
+## License
+
+The **dlstreamer** project is licensed under the [MIT License](./LICENSE) license.
+
