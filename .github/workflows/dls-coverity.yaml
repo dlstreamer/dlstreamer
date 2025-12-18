@@ -68,7 +68,8 @@ jobs:
 
       - name: Init submodules
         run: |
-          git submodule update --init dlstreamer-repo/thirdparty/spdlog
+          cd dlstreamer-repo
+          git submodule update --init thirdparty/spdlog
 
       - name: Build code manually for dlstreamer
         run: |
