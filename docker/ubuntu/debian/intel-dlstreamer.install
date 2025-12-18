@@ -1,4 +1,5 @@
 opt/intel/dlstreamer/ /opt/intel/
 opt/opencv/ /opt/
+opt/rdkafka/ /opt/
 usr/lib/ /usr
 opt/librealsense/ /opt/
