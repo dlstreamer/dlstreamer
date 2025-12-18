@@ -3,7 +3,17 @@ run-name: "[DLS] PR  workflow (by @${{ github.actor }} via ${{ github.event_name
 on:
   push:
     branches:
-      - 'nsz-workflows-modifications'
+      - 'master'
+    paths:
+      - 'cmake/**'
+      - 'docker/**'
+      - 'include/**'
+      - 'python/**'
+      - 'samples/**'
+      - 'scripts/**'
+      - 'src/**'
+      - 'tests/**'
+      - 'thirdparty/**'
   pull_request:
     paths:
       - 'cmake/**'

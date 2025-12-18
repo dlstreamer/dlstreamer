@@ -173,7 +173,7 @@ jobs:
 
   build-dls-dev-img:
     name: Build DLS ${{ matrix.ubuntu_version }} dev debug img
-    runs-on: ubuntu-24.04-16core-64GB
+    runs-on: [dls, ubuntu]
     permissions:
       contents: read
       packages: write
