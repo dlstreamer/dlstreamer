@@ -307,8 +307,8 @@ FROM builder AS kafka-builder
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
 # Build librdkafka
-RUN curl -sSL https://github.com/edenhill/librdkafka/archive/v2.3.0.tar.gz | tar -xz
-WORKDIR /librdkafka-2.3.0
+RUN curl -sSL https://github.com/edenhill/librdkafka/archive/v2.12.1.tar.gz | tar -xz
+WORKDIR /librdkafka-2.12.1
 RUN ./configure &&\
     make && make install
 
@@ -398,8 +398,8 @@ ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C
-ENV C_INCLUDE_PATH=${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${C_INCLUDE_PATH}
-ENV CPLUS_INCLUDE_PATH=${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${CPLUS_INCLUDE_PATH}
+ENV C_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${C_INCLUDE_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${CPLUS_INCLUDE_PATH}
 ENV GST_PLUGIN_SCANNER=${GSTREAMER_DIR}/bin/gstreamer-1.0/gst-plugin-scanner
 ENV GI_TYPELIB_PATH=${GSTREAMER_DIR}/lib/girepository-1.0
 ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/python:${PYTHONPATH}
@@ -452,8 +452,7 @@ RUN \
     cp -rT "${GSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer/gstreamer && \
     cp -a /usr/local/lib/libopencv*.so* /deb-pkg/opt/opencv/ && \
     cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
-    cp /usr/local/lib/librdkafka++.so /deb-pkg/opt/rdkafka/librdkafka++.so.1 && \
-    cp /usr/local/lib/librdkafka.so /deb-pkg/opt/rdkafka/librdkafka.so.1 && \
+    cp -a /usr/local/lib/librdkafka*.so* /deb-pkg/opt/rdkafka/ && \
     cp -a /usr/local/lib/librealsense* /deb-pkg/opt/librealsense/ && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
@@ -475,9 +474,7 @@ WORKDIR /deb-pkg
 
 RUN \
     rm ./debian/control &&\
-    rm ./debian/intel-dlstreamer.install && \
-    mv ./debian/control-ubuntu22 ./debian/control && \
-    mv ./debian/intel-dlstreamer.install-ubuntu22 ./debian/intel-dlstreamer.install
+    mv ./debian/control-ubuntu22 ./debian/control
 
 RUN \
     debuild -z1 -us -uc && \

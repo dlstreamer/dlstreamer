@@ -10,17 +10,17 @@
 #                     |
 #                     |
 #                     V
-#                  builder --------------------------
-#                 /       \                         |
-#                /         \                        |
-#               V           |                       V
-#      gstreamer-builder  opencv-builder      realsense-builder
-#               |           |                       |
-#               |           |                       |
-#    (copy libs) \          | (copy libs)           |
-#                 \         |                       |
-#                  V        V        (copy libs)    |
-#                dlstreamer-dev <-------------------|
+#                  builder -----------------------------------------------
+#                 /       \                         |                    |
+#                /         \                        |                    |
+#               V           V                       |                    |
+#      gstreamer-builder   opencv-builder           V                    V
+#               |              |                kafka-builder    realsense-builder
+#               |              |                    |                    |
+#    (copy libs) \            / (copy libs)         |                    |
+#                 \          /                      |                    |
+#                  V        V       (copy libs)     |                    |
+#                dlstreamer-dev <-------------------|--------------------|
 #                      |
 #                      |
 #                      V
@@ -96,7 +96,7 @@ RUN \
     libcairo2-dev=\* libxt-dev=\* libgirepository1.0-dev=\* libgles2-mesa-dev=\* wayland-protocols=\* \
     libssh2-1-dev=\* cmake=\* git=\* valgrind=\* numactl=\* libvpx-dev=\* libopus-dev=\* libsrtp2-dev=\* libxv-dev=\* \
     linux-libc-dev=\* libpmix2t64=\* libhwloc15=\* libhwloc-plugins=\* libxcb1-dev=\* libx11-xcb-dev=\* \
-    ffmpeg=\* librdkafka-dev=\* libpaho-mqtt-dev=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
+    ffmpeg=\* libpaho-mqtt-dev=\* libpostproc-dev=\* libavfilter-dev=\* libavdevice-dev=\* \
     libswscale-dev=\* libswresample-dev=\* libavutil-dev=\* libavformat-dev=\* libavcodec-dev=\* libxml2-dev=\* libsoup-3.0-0=\* &&  \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -306,6 +306,20 @@ RUN \
     strip -g "${GSTREAMER_DIR}"/lib/gstreamer-1.0/libgstrs*.so
 
 # ==============================================================================
+FROM builder AS kafka-builder
+
+SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+# Build librdkafka
+RUN curl -sSL https://github.com/edenhill/librdkafka/archive/v2.12.1.tar.gz | tar -xz
+WORKDIR /librdkafka-2.12.1
+RUN ./configure &&\
+    make && make install
+
+WORKDIR /copy_libs
+RUN cp -a /usr/local/lib/librdkafka* ./
+
+# ==============================================================================
 
 FROM builder AS realsense-builder
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -342,10 +356,12 @@ FROM builder AS dlstreamer-dev
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
 
+COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
 COPY --from=opencv-builder /copy_libs/ /usr/local/lib/
 COPY --from=opencv-builder /usr/local/lib/cmake/opencv4 /usr/local/lib/cmake/opencv4
-COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
+COPY --from=kafka-builder /usr/local/include/librdkafka /usr/local/include/librdkafka
+COPY --from=kafka-builder /copy_libs/ /usr/local/lib/
 COPY --from=realsense-builder /copy_libs/ /usr/local/lib/
 COPY --from=realsense-builder /usr/local/include/librealsense2 /usr/local/include/librealsense2
 
@@ -389,8 +405,8 @@ ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:/usr/lib/x86_64-linux-gnu/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C
-ENV C_INCLUDE_PATH=${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${C_INCLUDE_PATH}
-ENV CPLUS_INCLUDE_PATH=${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${CPLUS_INCLUDE_PATH}
+ENV C_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${C_INCLUDE_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${CPLUS_INCLUDE_PATH}
 ENV GST_PLUGIN_SCANNER=${GSTREAMER_DIR}/bin/gstreamer-1.0/gst-plugin-scanner
 ENV GI_TYPELIB_PATH=${GSTREAMER_DIR}/lib/girepository-1.0
 ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/python:${PYTHONPATH}
@@ -435,6 +451,7 @@ RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
     mkdir -p /deb-pkg/opt/opencv/include && \
+    mkdir -p /deb-pkg/opt/rdkafka && \
     mkdir -p /deb-pkg/opt/librealsense/ && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
@@ -446,6 +463,7 @@ RUN \
     cp -rT "${GSTREAMER_DIR}" /deb-pkg/opt/intel/dlstreamer/gstreamer && \
     cp -a /usr/local/lib/libopencv*.so* /deb-pkg/opt/opencv/ && \
     cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
+    cp -a /usr/local/lib/librdkafka*.so* /deb-pkg/opt/rdkafka/ && \
     cp -a /usr/local/lib/librealsense* /deb-pkg/opt/librealsense/ && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
@@ -537,7 +555,7 @@ RUN \
 # DL Streamer environment variables
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/opt/librealsense:/usr/lib:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/opt/rdkafka:/opt/librealsense:/usr/local/lib/gstreamer-1.0:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc
