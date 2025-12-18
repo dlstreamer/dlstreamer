@@ -60,6 +60,7 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
       with:
         persist-credentials: false
+        path: dlstreamer-repo
 
     - name: Init submodules
       run: |
@@ -206,6 +207,7 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
       with:
         persist-credentials: false
+        path: dlstreamer-repo
 
     - name: Init submodules
       run: |
@@ -234,7 +236,7 @@ jobs:
           --cache-to=type=registry,ref=${dev_debug_img_cached},mode=max \
           --build-arg BUILD_ARG=${{ matrix.build_arg }} \
           -f ${{ matrix.path_dockerfile }} \
-          ./dlstreamer-repo
+          ${{ env.DLS_REL_PATH }}
 
     # ======================================================== SCANNING PART ========================================================
     - name: Scan Docker image with Trivy

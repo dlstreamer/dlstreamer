@@ -1,9 +1,6 @@
 name: "[DLS] Models update on self-hosted runners"
 run-name: "[DLS] Models update on self-hosted runners (by @${{ github.actor }} via ${{ github.event_name }})"
 on:
-  push:
-    branches:
-      - 'nsz-workflows-modifications'
   schedule:
     - cron: '0 5 * * MON' # 5:00 UTC each Monday
   workflow_dispatch:
