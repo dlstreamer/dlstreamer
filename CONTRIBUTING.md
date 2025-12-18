@@ -1,5 +1,5 @@
 
-# Dlstreamer Contributor Guide
+# DL streamer Contributor Guide
 
 The following are guidelines for contributing to the Dlstreamer project, including the code of conduct, submitting issues, and contributing code.  
 
