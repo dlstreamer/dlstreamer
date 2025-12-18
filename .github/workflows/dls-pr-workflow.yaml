@@ -107,19 +107,17 @@ jobs:
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
         with:
           persist-credentials: false
-          path: dlstreamer-repo
           fetch-depth: 0
 
       - name: Fetch main branch for comparison
         run: |
-          cd dlstreamer-repo
           git fetch origin master
 
       - name: Detect changes in docker directory
         id: check
         run: |
-          echo "🔍 Checking for changes in 'dlstreamer-repo/docker/'..."
-          CHANGED_FILES=$(git diff --name-only origin/master...HEAD -- 'dlstreamer-repo/docker/')
+          echo "🔍 Checking for changes in 'docker/'..."
+          CHANGED_FILES=$(git diff --name-only origin/master...HEAD -- 'docker/')
 
           if [ -n "${CHANGED_FILES}" ]; then
             echo "📄 Changed Docker-related files:"
