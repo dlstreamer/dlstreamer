@@ -49,9 +49,9 @@ jobs:
         run: rm -rf dlstreamer-repo/thirdparty
 
       - name: Code-style action
-        uses: ./.github/actions/common/code-style
+        uses: ./dlstreamer-repo/.github/actions/common/code-style
         with:
-          target_dir: "."
+          target_dir: "dlstreamer-repo"
           name: 'DLS_code-style-check-report'
           fail-on-findings: true
 
@@ -65,14 +65,13 @@ jobs:
       uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #5.0.0
       with:
         persist-credentials: false
-        path: dlstreamer-repo
         fetch-depth: 0
 
     - name: Check license headers
-      uses: ./.github/actions/common/license-namespace-checker
+      uses: ./dlstreamer-repo/.github/actions/common/license-namespace-checker
       with:
         name: 'DLS_license-check-report'
-        path: '.'
+        path: 'dlstreamer-repo'
         fail-on-findings: true
 
   # dls-static-code-analysis:
@@ -113,7 +112,9 @@ jobs:
           fetch-depth: 0
 
       - name: Fetch main branch for comparison
-        run: git fetch origin master
+        run: |
+          cd dlstreamer-repo
+          git fetch origin master
 
       - name: Detect changes in docker directory
         id: check
@@ -193,7 +194,7 @@ jobs:
           path: dlstreamer-repo
 
       - name: Run Hadolint Action
-        uses: ./.github/actions/common/hadolint
+        uses: ./dlstreamer-repo/.github/actions/common/hadolint
         with:
           dockerfile: ${{ matrix.dockerfile }}
           output-file: ${{ matrix.output-file }}
@@ -216,7 +217,7 @@ jobs:
           path: dlstreamer-repo
 
       - name: Run pylint
-        uses: ./.github/actions/common/pylint
+        uses: ./dlstreamer-repo/.github/actions/common/pylint
         with:
           path: dlstreamer-repo
           output-file: pylint-report.txt
