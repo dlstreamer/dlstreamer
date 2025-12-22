@@ -80,7 +80,7 @@ jobs:
         Copy-Item -Path "$source\*" -Destination $target -Recurse -Force
 
         # Copy script
-        $scriptSource = "$PWD\dlstreamer-repo\dl-streamer\scripts\setup_dls_env.ps1"
+        $scriptSource = "$PWD\dlstreamer-repo\scripts\setup_dls_env.ps1"
         $scriptDest = Join-Path $target "setup_dls_env.ps1"
         Copy-Item -Path $scriptSource -Destination $scriptDest -Force
 
