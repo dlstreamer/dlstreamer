@@ -390,7 +390,7 @@ jobs:
         confidence-level: "HIGH"
         output-format: "txt"
         fail-on-findings: true
-        paths: dlstreamer-repo
+        paths: ./dlstreamer-repo
         report_suffix: dlstreamer
 
   # -------------------------------------------------------- BUILDS & TESTS ---------------------------------------------------------
