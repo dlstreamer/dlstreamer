@@ -56,7 +56,9 @@ jobs:
           path: dlstreamer-repo
 
       - name: Remove thirdparty folder
-        run: rm -rf thirdparty
+        run: |
+          rm -rf dlstreamer-repo/thirdparty
+          rm -rf thirdparty
 
       - name: Code-style action
         uses: ./dlstreamer-repo/.github/actions/common/code-style
