@@ -65,7 +65,7 @@ jobs:
           name: 'DLS_code-style-check-report'
           fail-on-findings: true
 
-      - Cleanup:
+      - name: Clean up
         run: |
           sudo rm -rf dlstreamer-repo
 
