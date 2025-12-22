@@ -132,6 +132,7 @@ jobs:
 
       - name: Fetch main branch for comparison
         run: |
+          cd dlstreamer-repo
           git fetch origin master
 
       - name: Detect changes in docker directory
