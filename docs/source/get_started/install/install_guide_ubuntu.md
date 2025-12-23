@@ -270,7 +270,7 @@ xhost local:root
 setfacl -m user:1000:r ~/.Xauthority
 ```
 
-> **NOTE**: If you want to build Docker image from DLStreamer Dockerfiles, please
+> **NOTE**: If you want to build Docker image from DL Streamer Dockerfiles, please
 > follow [the instructions](../../dev_guide/advanced_install/advanced_build_docker_image.md).
 
 ### Step 4: Pull the Deep Learning Streamer Docker image from Docker Hub
