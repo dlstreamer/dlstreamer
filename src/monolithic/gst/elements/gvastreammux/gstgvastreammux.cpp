@@ -348,8 +348,13 @@ static void gst_gva_streammux_finalize(GObject *object) {
 }
 
 /* Property set/get */
+/* Properties can be set at any time, from a thread that is not the one
+ * batching or answering queries, so every assignment here is made under the
+ * lock and every reader either holds it or takes a snapshot under it. */
 static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
+
+    g_mutex_lock(&mux->lock);
 
     switch (prop_id) {
     case PROP_MAX_FPS:
@@ -379,10 +384,14 @@ static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
     }
+
+    g_mutex_unlock(&mux->lock);
 }
 
 static void gst_gva_streammux_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
+
+    g_mutex_lock(&mux->lock);
 
     switch (prop_id) {
     case PROP_MAX_FPS:
@@ -407,6 +416,8 @@ static void gst_gva_streammux_get_property(GObject *object, guint prop_id, GValu
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
     }
+
+    g_mutex_unlock(&mux->lock);
 }
 
 /* Normalize buffer PTS based on sync-mode. Caller must ensure buf is writable. */
@@ -1122,10 +1133,17 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
 static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, GstBuffer *buf) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(parent);
 
-    /* Making the buffer writable does not touch the pad data, so it can stay
-     * outside the lock; normalize_buffer_pts reads and writes that data and so
-     * has to move inside it. */
-    if (mux->sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
+    /* Snapshot the sync mode rather than reading it twice: it decides both
+     * whether the buffer has to be made writable, which is done outside the
+     * lock because it does not touch the pad data, and whether to normalize,
+     * which is done inside because it does. Reading the field twice could see
+     * a set_property in between and make the buffer writable without
+     * normalizing it, or worse the other way round. */
+    g_mutex_lock(&mux->lock);
+    GvaStreammuxSyncMode sync_mode = mux->sync_mode;
+    g_mutex_unlock(&mux->lock);
+
+    if (sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
         buf = gst_buffer_make_writable(buf);
 
     g_mutex_lock(&mux->lock);
@@ -1144,7 +1162,7 @@ static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, Gst
         return GST_FLOW_FLUSHING;
     }
 
-    if (mux->sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
+    if (sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
         normalize_buffer_pts(mux, pdata, buf);
 
     /* Back-pressure: block if queue is full.
@@ -1294,9 +1312,13 @@ static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQ
         }
         g_list_free_full(pads_copy, gst_object_unref);
 
-        min_latency += mux->max_wait_time;
+        g_mutex_lock(&mux->lock);
+        GstClockTime max_wait_time = mux->max_wait_time;
+        g_mutex_unlock(&mux->lock);
+
+        min_latency += max_wait_time;
         if (GST_CLOCK_TIME_IS_VALID(max_latency))
-            max_latency += mux->max_wait_time;
+            max_latency += max_wait_time;
 
         gst_query_set_latency(query, live, min_latency, max_latency);
         return TRUE;
@@ -1364,9 +1386,14 @@ static gboolean gst_gva_streammux_src_event(GstPad *pad, GstObject *parent, GstE
     }
 }
 
-/* Apply max-fps throttling */
+/* Apply max-fps throttling. Called with the lock released, since it sleeps. */
 static void gst_gva_streammux_apply_fps_throttle(GstGvaStreammux *mux) {
-    if (!GST_CLOCK_TIME_IS_VALID(mux->max_fps_duration))
+    g_mutex_lock(&mux->lock);
+    GstClockTime max_fps_duration = mux->max_fps_duration;
+    GstClockTime last_output_time = mux->last_output_time;
+    g_mutex_unlock(&mux->lock);
+
+    if (!GST_CLOCK_TIME_IS_VALID(max_fps_duration))
         return;
 
     GstClock *clock = gst_element_get_clock(GST_ELEMENT(mux));
@@ -1376,22 +1403,28 @@ static void gst_gva_streammux_apply_fps_throttle(GstGvaStreammux *mux) {
     GstClockTime now = gst_clock_get_time(clock);
     gst_object_unref(clock);
 
-    if (GST_CLOCK_TIME_IS_VALID(mux->last_output_time)) {
-        GstClockTime elapsed = now - mux->last_output_time;
-        if (elapsed < mux->max_fps_duration) {
-            GstClockTime wait = mux->max_fps_duration - elapsed;
+    if (GST_CLOCK_TIME_IS_VALID(last_output_time)) {
+        GstClockTime elapsed = now - last_output_time;
+        if (elapsed < max_fps_duration) {
+            GstClockTime wait = max_fps_duration - elapsed;
             GST_LOG_OBJECT(mux, "FPS throttle: waiting %" GST_TIME_FORMAT, GST_TIME_ARGS(wait));
             g_usleep(GST_TIME_AS_USECONDS(wait));
         }
     }
 }
 
+/* Called with the lock released, like the throttle that reads this back. */
 static void gst_gva_streammux_update_output_time(GstGvaStreammux *mux) {
     GstClock *clock = gst_element_get_clock(GST_ELEMENT(mux));
-    if (clock) {
-        mux->last_output_time = gst_clock_get_time(clock);
-        gst_object_unref(clock);
-    }
+    if (!clock)
+        return;
+
+    GstClockTime now = gst_clock_get_time(clock);
+    gst_object_unref(clock);
+
+    g_mutex_lock(&mux->lock);
+    mux->last_output_time = now;
+    g_mutex_unlock(&mux->lock);
 }
 
 /* Batch output data for pushing outside the lock */
