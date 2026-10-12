@@ -353,6 +353,7 @@ static void gst_gva_streammux_finalize(GObject *object) {
  * lock and every reader either holds it or takes a snapshot under it. */
 static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
+    gboolean latency_changed = FALSE;
 
     g_mutex_lock(&mux->lock);
 
@@ -369,9 +370,11 @@ static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const
         mux->pts_tolerance = g_value_get_uint64(value);
         break;
     case PROP_MAX_WAIT_TIME:
+        latency_changed = (mux->max_wait_time != g_value_get_uint64(value));
         mux->max_wait_time = g_value_get_uint64(value);
         break;
     case PROP_MAX_QUEUE_SIZE:
+        latency_changed = (mux->max_queue_size != g_value_get_uint(value));
         mux->max_queue_size = g_value_get_uint(value);
         break;
     case PROP_SYNC_MODE:
@@ -386,6 +389,14 @@ static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const
     }
 
     g_mutex_unlock(&mux->lock);
+
+    /* max-wait-time and max-queue-size are both part of the latency this
+     * element reports, so changing either one invalidates what the pipeline
+     * distributed to its sinks. Ask for it to be recalculated; posting the
+     * message outside the lock, since it reaches the bus and from there
+     * arbitrary application code. */
+    if (latency_changed)
+        gst_element_post_message(GST_ELEMENT(mux), gst_message_new_latency(GST_OBJECT(mux)));
 }
 
 static void gst_gva_streammux_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
@@ -1275,6 +1286,26 @@ static gboolean gst_gva_streammux_sink_query(GstPad *pad, GstObject *parent, Gst
     }
 }
 
+/* Worst-case time a buffer can sit in a sink pad's queue before it is batched,
+ * or GST_CLOCK_TIME_NONE when that cannot be worked out.
+ *
+ * The queues are bounded in buffers, not in time, so the answer needs a frame
+ * duration: the negotiated caps supply one in PASSTHROUGH mode, where every
+ * pad carries the same framerate. CONTAINER mode deliberately allows the pads
+ * to disagree -- that is the point of it -- so there is no single duration to
+ * use and nothing is claimed. Must be called with mux->lock held. */
+static GstClockTime queueing_latency(GstGvaStreammux *mux) {
+    if (!mux->current_caps || mux->max_queue_size == 0)
+        return GST_CLOCK_TIME_NONE;
+
+    const GstStructure *st = gst_caps_get_structure(mux->current_caps, 0);
+    gint fps_n = 0, fps_d = 0;
+    if (!st || !gst_structure_get_fraction(st, "framerate", &fps_n, &fps_d) || fps_n <= 0 || fps_d <= 0)
+        return GST_CLOCK_TIME_NONE;
+
+    return gst_util_uint64_scale_int(mux->max_queue_size * GST_SECOND, fps_d, fps_n);
+}
+
 /* Source pad query handler */
 static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQuery *query) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(parent);
@@ -1314,11 +1345,22 @@ static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQ
 
         g_mutex_lock(&mux->lock);
         GstClockTime max_wait_time = mux->max_wait_time;
+        GstClockTime queueing = queueing_latency(mux);
         g_mutex_unlock(&mux->lock);
 
+        /* Every batch can be held for up to max-wait-time, whether or not the
+         * queues are busy, so that goes on both bounds. The queues only delay
+         * a buffer when they are backed up, which is a worst case, so that
+         * goes on the upper bound alone. */
         min_latency += max_wait_time;
-        if (GST_CLOCK_TIME_IS_VALID(max_latency))
+        if (GST_CLOCK_TIME_IS_VALID(max_latency)) {
             max_latency += max_wait_time;
+            if (GST_CLOCK_TIME_IS_VALID(queueing))
+                max_latency += queueing;
+        }
+
+        GST_DEBUG_OBJECT(mux, "Reporting latency: live=%d min=%" GST_TIME_FORMAT " max=%" GST_TIME_FORMAT, live,
+                         GST_TIME_ARGS(min_latency), GST_TIME_ARGS(max_latency));
 
         gst_query_set_latency(query, live, min_latency, max_latency);
         return TRUE;
