@@ -894,10 +894,10 @@ if array_contains "colorcls2" "${MODELS_TO_PROCESS[@]}"; then
     cd "$MODEL_DIR"
 
     download_binary_file \
-      "https://github.com/open-edge-platform/metro-ai-suite/raw/a7b2967fccc259c56093d0526d25e2afe10144ab/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.bin" \
+      "https://github.com/open-edge-platform/metro-ai-suite/raw/41485929ec29c05c4f37f3d840117aed9f98b85c/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.bin" \
       "colorcls2.bin" || handle_error "failed to download colorcls2.bin"
     download_binary_file \
-      "https://github.com/open-edge-platform/metro-ai-suite/raw/a7b2967fccc259c56093d0526d25e2afe10144ab/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.xml" \
+      "https://github.com/open-edge-platform/metro-ai-suite/raw/41485929ec29c05c4f37f3d840117aed9f98b85c/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.xml" \
       "colorcls2.xml" || handle_error "failed to download colorcls2.xml"
 
     cd ..
