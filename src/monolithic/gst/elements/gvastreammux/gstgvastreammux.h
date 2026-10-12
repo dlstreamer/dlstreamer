@@ -74,9 +74,21 @@ struct _GvaStreammuxPadData {
      * for room that will never be made. */
     gboolean released;
 
-    /* PTS normalization state (used by sync-mode) */
+    /* PTS normalization state (used by sync-mode).
+     *
+     * sync-mode=first-pts reports raw_pts - pts_offset. The offset starts as
+     * the pad's first PTS, so the pad starts at zero, and is re-derived if the
+     * source's timeline restarts -- an RTSP feed coming back after a reconnect
+     * begins from zero again. It is signed because the new offset can be
+     * negative once the restarted timeline is behind the normalized one.
+     *
+     * last_raw_pts / last_norm_pts are what the previous buffer carried before
+     * and after normalization, which is what a restart is detected against and
+     * what the normalized timeline resumes from. */
     gboolean first_pts_set;
-    GstClockTime first_pts;
+    gint64 pts_offset;
+    GstClockTime last_raw_pts;
+    GstClockTime last_norm_pts;
     GstClockTime segment_start;
 
     /* Caps negotiated on this pad (own ref). In CONTAINER mode each stream

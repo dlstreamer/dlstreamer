@@ -129,13 +129,21 @@ single-stream). `sync-mode` selects the normalization policy.
 | Mode        | What it does                                                                 | Typical use case |
 |-------------|------------------------------------------------------------------------------|------------------|
 | `none`      | Use buffer PTS as-is. Default; preserves legacy behavior.                    | Single source, or upstream already aligned (e.g. `videorate`). |
-| `first-pts` | Subtract each pad's first observed PTS so every pad starts at 0.             | Multiple file sources whose PTS bases differ. |
+| `first-pts` | Subtract each pad's first observed PTS so every pad starts at 0. Survives a source restarting its timeline (see below). | Multiple file sources whose PTS bases differ; RTSP sources that reconnect. |
 | `segment`   | Subtract each pad's `GST_EVENT_SEGMENT` start.                               | Standard GStreamer pipelines, including seek/trick mode. |
 | `pipeline`  | Overwrite PTS with `clock.now() - base_time` (pipeline running time).        | Single-machine multi-live source where source PTS are unreliable. |
 | `ntp`       | Replace PTS with `GstReferenceTimestampMeta.timestamp` if the buffer carries one. | Cross-device cameras synchronized via NTP/PTP, paired with `rtspsrc add-reference-timestamp-meta=true`. |
 
 Per-pad normalization state (first PTS, segment start) is reset on `FLUSH_STOP` and on
 `PAUSED → READY`, so seek and pipeline restart establish fresh baselines.
+
+`first-pts` additionally handles a source whose timeline restarts mid-run, which is what an
+RTSP feed does when it reconnects: PTS begins from zero again, with `DISCONT` set. The pad's
+baseline is re-derived so its normalized time **continues from where it left off** rather than
+restarting at zero — a pad that went back to zero while the others were seconds ahead would
+have every buffer discarded as a late frame and would never recover. A restart is recognised
+only when a buffer is flagged `DISCONT` *and* its PTS jumps by more than a second; either
+signal alone (a dropped frame, a sparse source) leaves the baseline untouched.
 
 The segment on the `src` pad follows from the mode. `first-pts`, `segment` and `pipeline`
 rewrite every PTS onto a zero-based timeline, so the muxer sends a zero-based segment to match.

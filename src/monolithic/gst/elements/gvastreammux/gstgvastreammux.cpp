@@ -79,6 +79,11 @@ GType gst_gva_streammux_output_mode_get_type(void) {
  * whose streams hold the per-source buffers and their original caps. */
 #define STREAMMUX_BATCH_CAPS "multistream/x-analytics-batch(meta:GstAnalyticsBatchMeta)"
 
+/* How far a pad's PTS has to jump, on a buffer already flagged DISCONT, before
+ * sync-mode=first-pts treats it as the source's timeline having restarted
+ * rather than a gap in an otherwise continuous one. */
+#define GVA_STREAMMUX_TIMELINE_RESTART (GST_SECOND)
+
 /* Sink accepts both video and non-video sources.
  * Note: STREAMMUX_VIDEO_CAPS already ends with "; ", so concatenate directly. */
 static GstStaticPadTemplate gva_streammux_sink_template = GST_STATIC_PAD_TEMPLATE(
@@ -409,18 +414,45 @@ static void normalize_buffer_pts(GstGvaStreammux *mux, GvaStreammuxPadData *pdat
     GstClockTime raw_pts = GST_BUFFER_PTS(buf);
 
     switch (mux->sync_mode) {
-    case GVA_STREAMMUX_SYNC_MODE_FIRST_PTS:
+    case GVA_STREAMMUX_SYNC_MODE_FIRST_PTS: {
         if (!GST_CLOCK_TIME_IS_VALID(raw_pts))
             return;
+
         if (!pdata->first_pts_set) {
-            pdata->first_pts = raw_pts;
+            pdata->pts_offset = (gint64)raw_pts;
             pdata->first_pts_set = TRUE;
-            GST_INFO_OBJECT(mux, "Pad sink_%u first_pts captured = %" GST_TIME_FORMAT, pdata->pad_index,
-                            GST_TIME_ARGS(raw_pts));
+            pdata->last_norm_pts = 0;
+            GST_INFO_OBJECT(mux, "Pad sink_%u starts at %" GST_TIME_FORMAT, pdata->pad_index, GST_TIME_ARGS(raw_pts));
+        } else if (GST_BUFFER_IS_DISCONT(buf) && GST_CLOCK_TIME_IS_VALID(pdata->last_raw_pts) &&
+                   pts_abs_diff(raw_pts, pdata->last_raw_pts) > GVA_STREAMMUX_TIMELINE_RESTART) {
+            /* The source's timeline restarted -- this is what an RTSP feed
+             * looks like once it reconnects. Resume the normalized timeline
+             * where it left off instead of starting it over: a pad that goes
+             * back to zero while the others are seconds ahead has every buffer
+             * discarded by the late-frame filter and never recovers.
+             *
+             * Both conditions are needed. DISCONT alone is set for an ordinary
+             * dropped frame, and a gap alone can be a sparse source; together
+             * they mean the timeline itself changed. The threshold is coarse on
+             * purpose: inter-frame gaps and jitter are orders of magnitude
+             * smaller, a reconnect is orders of magnitude larger. */
+            gint64 offset = (gint64)raw_pts - (gint64)pdata->last_norm_pts;
+            GST_INFO_OBJECT(mux,
+                            "Pad sink_%u timeline restarted (%" GST_TIME_FORMAT " after %" GST_TIME_FORMAT
+                            "); resuming normalized time from %" GST_TIME_FORMAT,
+                            pdata->pad_index, GST_TIME_ARGS(raw_pts), GST_TIME_ARGS(pdata->last_raw_pts),
+                            GST_TIME_ARGS(pdata->last_norm_pts));
+            pdata->pts_offset = offset;
         }
-        if (raw_pts >= pdata->first_pts)
-            GST_BUFFER_PTS(buf) = raw_pts - pdata->first_pts;
+
+        pdata->last_raw_pts = raw_pts;
+        gint64 normalized = (gint64)raw_pts - pdata->pts_offset;
+        if (normalized < 0)
+            normalized = 0;
+        pdata->last_norm_pts = (GstClockTime)normalized;
+        GST_BUFFER_PTS(buf) = (GstClockTime)normalized;
         break;
+    }
 
     case GVA_STREAMMUX_SYNC_MODE_SEGMENT:
         if (!GST_CLOCK_TIME_IS_VALID(raw_pts) || !GST_CLOCK_TIME_IS_VALID(pdata->segment_start))
@@ -521,7 +553,9 @@ static GstPad *gst_gva_streammux_request_new_pad(GstElement *element, GstPadTemp
     pdata->flushing = FALSE;
     pdata->released = FALSE;
     pdata->first_pts_set = FALSE;
-    pdata->first_pts = GST_CLOCK_TIME_NONE;
+    pdata->pts_offset = 0;
+    pdata->last_raw_pts = GST_CLOCK_TIME_NONE;
+    pdata->last_norm_pts = 0;
     pdata->segment_start = GST_CLOCK_TIME_NONE;
     pdata->caps = NULL;
 
@@ -693,7 +727,9 @@ static GstStateChangeReturn gst_gva_streammux_change_state(GstElement *element, 
             if (pd) {
                 pd->flushing = FALSE;
                 pd->first_pts_set = FALSE;
-                pd->first_pts = GST_CLOCK_TIME_NONE;
+                pd->pts_offset = 0;
+                pd->last_raw_pts = GST_CLOCK_TIME_NONE;
+                pd->last_norm_pts = 0;
                 pd->segment_start = GST_CLOCK_TIME_NONE;
                 /* Drop cached caps so a restart re-negotiates the src caps
                  * from freshly delivered caps events. */
@@ -1036,7 +1072,9 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
                 if (pd) {
                     pd->eos = FALSE;
                     pd->first_pts_set = FALSE;
-                    pd->first_pts = GST_CLOCK_TIME_NONE;
+                    pd->pts_offset = 0;
+                    pd->last_raw_pts = GST_CLOCK_TIME_NONE;
+                    pd->last_norm_pts = 0;
                 }
             }
             mux->batch_anchor_pts = GST_CLOCK_TIME_NONE;
