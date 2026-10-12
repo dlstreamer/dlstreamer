@@ -36,9 +36,10 @@ Key design points:
 - **Sparse src indices** — names like `demux.src_5` work even if `src_0..src_4` were never
   created, mirroring the mux side. Indices must be in `[0, 256)`.
 - **No strict count match** — the upstream `n_streams` and the number of requested `src_*` pads
-  do not have to match. A stream with no matching `src_*` pad is skipped with a `GST_WARNING`
-  and the remaining streams are still delivered, so you can request only the branches you care
-  about. Match the indices to the mux indices to receive every frame.
+  do not have to match, in either output mode. A source with no matching `src_*` pad is dropped
+  with a `GST_WARNING` and the remaining sources are still delivered, so you can request only
+  the branches you care about, and you can add or remove branches while the pipeline runs.
+  Match the indices to the mux indices to receive every frame.
 
 > **Important**: as with `gvastreammux`, downstream `gvadetect` should keep
 > `inference-interval=1` (default). Higher values would skip whole batches in arrival order,
@@ -55,7 +56,9 @@ Key design points:
    - **PASSTHROUGH:** read `streams[0].index` and push the buffer to `src_<index>`.
    - **CONTAINER:** for each `streams[i]`, forward that stream's caps to `src_<index>` the first
      time the pad is used, then push `objects[0]` (the source's buffer) to that pad.
-   If no matching `src_<index>` pad exists, that stream is skipped with a `GST_WARNING`.
+   If no matching `src_<index>` pad exists, that stream is dropped with a `GST_WARNING` and
+   the others are delivered as usual. The warning is issued once per source; later drops are
+   logged at debug level, since an unrouted source arrives at its full frame rate.
 4. EOS on the sink pad is forwarded to all source pads.
 
 Each branch needs its own `queue`. The demuxer pushes to every branch from the sink pad's
@@ -169,8 +172,7 @@ reads depend on the input mode:
 | Condition                             | Behavior |
 |---------------------------------------|----------|
 | Buffer missing `GstAnalyticsBatchMeta`| `GST_FLOW_ERROR` (pipeline stops). |
-| `streams[0].index` out of range (PASSTHROUGH) | Buffer dropped with `GST_FLOW_ERROR`. |
-| No `src_<index>` pad created (CONTAINER) | That stream is skipped with a `GST_WARNING`; the other streams in the batch are still delivered. Add the missing pad to receive frames from that source. |
+| No `src_<index>` pad created | That source's buffers are dropped with a `GST_WARNING`; every other source keeps flowing. Add the missing pad to receive its frames. Identical in both output modes. |
 | Every branch unlinked or finished     | The combined flow return goes upstream. A single such branch does not. |
 | Pad index ≥ 256 on request            | `request_new_pad` returns `NULL` (rejected by the element). |
 

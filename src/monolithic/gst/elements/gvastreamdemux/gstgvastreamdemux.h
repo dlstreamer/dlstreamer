@@ -71,6 +71,12 @@ struct _GstGvaStreamdemux {
     GArray *last_output_times;
     GstClockTime last_batch_output_time;
     GstClockTime max_fps_duration;
+
+    /* Per source id: whether the "no src pad for this source" warning has
+     * already been issued. A batch carrying a source nobody requested a branch
+     * for arrives at the full frame rate, so without this it would be a
+     * warning per buffer. Cleared when a pad is requested for that id. */
+    GArray *unrouted_warned;
 };
 
 struct _GstGvaStreamdemuxClass {

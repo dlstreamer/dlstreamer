@@ -105,6 +105,7 @@ static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
 
     demux->srcpads = g_ptr_array_new();
     demux->last_output_times = g_array_new(FALSE, FALSE, sizeof(GstClockTime));
+    demux->unrouted_warned = g_array_new(FALSE, TRUE, sizeof(gboolean));
     demux->flow_combiner = gst_flow_combiner_new();
 
     g_mutex_init(&demux->lock);
@@ -123,6 +124,7 @@ static void gst_gva_streamdemux_finalize(GObject *object) {
     g_mutex_clear(&demux->lock);
     g_ptr_array_free(demux->srcpads, TRUE);
     g_array_free(demux->last_output_times, TRUE);
+    g_array_free(demux->unrouted_warned, TRUE);
     gst_flow_combiner_free(demux->flow_combiner);
 
     G_OBJECT_CLASS(gst_gva_streamdemux_parent_class)->finalize(object);
@@ -192,6 +194,9 @@ static GstPad *gst_gva_streamdemux_request_new_pad(GstElement *element, GstPadTe
 
     srcpad = gst_pad_new_from_static_template(&gva_streamdemux_src_template, name);
     gst_pad_use_fixed_caps(srcpad);
+    if (pad_index < demux->unrouted_warned->len)
+        g_array_index(demux->unrouted_warned, gboolean, pad_index) = FALSE;
+
     gst_element_add_pad(element, srcpad);
 
     /* Ensure srcpads array can hold this index */
@@ -267,6 +272,40 @@ static void gva_streamdemux_reset_output_times(GstGvaStreamdemux *demux) {
     demux->last_batch_output_time = GST_CLOCK_TIME_NONE;
     for (guint i = 0; i < demux->last_output_times->len; i++)
         g_array_index(demux->last_output_times, GstClockTime, i) = GST_CLOCK_TIME_NONE;
+}
+
+/* TRUE the first time a source turns out to have no branch to go to, FALSE
+ * afterwards, so the caller can warn once and then stay quiet. Must be called
+ * with demux->lock held. */
+static gboolean gva_streamdemux_first_unrouted(GstGvaStreamdemux *demux, guint source_id) {
+    if (source_id >= GST_GVA_STREAMDEMUX_MAX_PAD_INDEX)
+        return FALSE;
+    while (demux->unrouted_warned->len <= source_id) {
+        gboolean unset = FALSE;
+        g_array_append_val(demux->unrouted_warned, unset);
+    }
+    gboolean *seen = &g_array_index(demux->unrouted_warned, gboolean, source_id);
+    if (*seen)
+        return FALSE;
+    *seen = TRUE;
+    return TRUE;
+}
+
+/* Report a source that has no branch. Separated from the two chain functions
+ * so both modes say the same thing, at the same volume. */
+static void gva_streamdemux_report_unrouted(GstGvaStreamdemux *demux, guint source_id) {
+    g_mutex_lock(&demux->lock);
+    gboolean first = gva_streamdemux_first_unrouted(demux, source_id);
+    guint n_pads = demux->num_src_pads;
+    g_mutex_unlock(&demux->lock);
+
+    if (first)
+        GST_WARNING_OBJECT(demux,
+                           "No src pad for source %u (%u src pad(s) requested); dropping its buffers. "
+                           "Request src_%u to receive them. Further occurrences are logged at debug level.",
+                           source_id, n_pads, source_id);
+    else
+        GST_DEBUG_OBJECT(demux, "Dropping a buffer for unrouted source %u", source_id);
 }
 
 /* The slot holding the last output time a given push is throttled against.
@@ -648,7 +687,7 @@ static GstFlowReturn gst_gva_streamdemux_chain_container(GstGvaStreamdemux *demu
              * carry a source this demuxer has no pad for, because the
              * application only requested the branches it cares about. Failing
              * the whole buffer would stop every other source as well. */
-            GST_WARNING_OBJECT(demux, "No src pad for source_id %u, skipping that stream", source_id);
+            gva_streamdemux_report_unrouted(demux, source_id);
             continue;
         }
 
@@ -721,9 +760,12 @@ static GstFlowReturn gst_gva_streamdemux_chain(GstPad *pad, GstObject *parent, G
 
     GstPad *srcpad = gva_streamdemux_ref_srcpad(demux, source_id);
     if (G_UNLIKELY(!srcpad)) {
-        GST_ERROR_OBJECT(demux, "No src pad for source_id %u (have %u src pads)", source_id, demux->num_src_pads);
+        /* Drop, like CONTAINER mode skips such a stream: a batch may carry a
+         * source the application never asked for a branch for, and failing the
+         * buffer would take down every other source with it. */
+        gva_streamdemux_report_unrouted(demux, source_id);
         gst_buffer_unref(buf);
-        return GST_FLOW_ERROR;
+        return GST_FLOW_OK;
     }
 
     /* The sink event handler announces caps to the pads that exist when the
