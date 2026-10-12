@@ -47,7 +47,7 @@ enum {
     PROP_HTTP_TIMEOUT,
     PROP_VISION_MODE,
     PROP_TRIGGER_OBJ_CLASSES,
-    PROP_TRIGGER_MODE
+    PROP_TRIGGER_MODE,
     PROP_MODEL_INSTANCE_ID
 };
 
@@ -285,7 +285,7 @@ static void gst_gvagenai_class_init(GstGvaGenAIClass *klass) {
                             "unshared instance. Ignored by the 'openai-http' backend.",
                             NULL, G_PARAM_READWRITE));
 
-    GST_DEBUG_CATEGORY_INIT(gst_gvagenai_debug, "gvagenai", 0, "OpenVINO™ GenAI Inference");
+        GST_DEBUG_CATEGORY_INIT(gst_gvagenai_debug, "gvagenai", 0, "OpenVINO™ GenAI Inference");
 }
 
 /* Initialize the instance */
