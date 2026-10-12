@@ -55,7 +55,10 @@ Key design points:
    before EOS are still batched (so the last frames of a stream, or a single-frame source, are
    not lost). A pad with no remaining buffers and EOS set is excluded from future batches. When
    all pads are EOS and all queues are drained, the src pad emits EOS and the task pauses.
-5. Per-pad `FLUSH_START` / `FLUSH_STOP` events are coalesced — the downstream flush, task
+5. The muxer presents a single stream assembled from several, so it emits exactly one
+   `stream-start` with its own stream id. Each sink pad's upstream `stream-start` is consumed
+   rather than forwarded.
+6. Per-pad `FLUSH_START` / `FLUSH_STOP` events are coalesced — the downstream flush, task
    pause, queue reset and task restart each happen exactly once per flush cycle no matter
    how many sink pads receive the events. A flush removes the sticky segment from the `src`
    pad, so the muxer sends a replacement immediately afterwards.

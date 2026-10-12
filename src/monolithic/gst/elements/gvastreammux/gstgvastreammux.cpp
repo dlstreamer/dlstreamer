@@ -955,6 +955,16 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
         ret = TRUE;
         break;
     }
+    case GST_EVENT_STREAM_START:
+        /* Consume it. The muxer presents one stream assembled from several, and
+         * sends its own stream-start with its own id when it negotiates.
+         * Letting the default handler forward each sink pad's as well stacks
+         * them on the source pad -- four of them for two sources -- and leaves
+         * downstream with whichever id happened to arrive last. */
+        GST_DEBUG_OBJECT(mux, "Consuming stream-start from %s", GST_PAD_NAME(pad));
+        gst_event_unref(event);
+        ret = TRUE;
+        break;
     case GST_EVENT_SEGMENT: {
         GstSegment seg;
         GstSegment src_segment;
