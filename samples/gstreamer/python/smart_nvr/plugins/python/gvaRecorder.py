@@ -14,7 +14,8 @@ import gi
 gi.require_version("Gst", "1.0")
 gi.require_version("GstAnalytics", "1.0")
 from gi.repository import Gst, GObject, GLib, GstAnalytics  # pylint: disable=no-name-in-module
-Gst.init_python()
+# Gst.init_python() segfaults libgstpython.so when scanned in-process (GST_REGISTRY_FORK=no)
+Gst.init([])
 
 class Recorder(Gst.Bin):
     """DLStreamer custom Recorder element to split video stream into chunks
