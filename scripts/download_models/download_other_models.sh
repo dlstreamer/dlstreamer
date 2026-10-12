@@ -504,7 +504,7 @@ if array_contains "yolov8_license_plate_detector" "${MODELS_TO_PROCESS[@]}"; the
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
 
-    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
+    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/948b6efb686df9668b633a11c40b006db1fc1e1d/models/license-plate-reader.zip'
     python3 -c "
 import zipfile
 import os
@@ -710,7 +710,7 @@ if array_contains "ch_PP-OCRv4_rec_infer" "${MODELS_TO_PROCESS[@]}"; then
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
 
-    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
+    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/948b6efb686df9668b633a11c40b006db1fc1e1d/models/license-plate-reader.zip'
     python3 -c "
 import zipfile
 import os
@@ -855,7 +855,7 @@ if array_contains "pallet_defect_detection" "${MODELS_TO_PROCESS[@]}"; then
     cd "$MODEL_DIR"
 
     download_binary_file \
-      "https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/INT8/pallet_defect_detection.zip" \
+      "https://github.com/open-edge-platform/edge-ai-resources/raw/06bb0d621cb14a1791672552a538beddddcc4066/models/INT8/pallet_defect_detection.zip" \
       "${MODEL_NAME}.zip" || handle_error "failed to download ${MODEL_NAME}.zip"
 
     python3 -c "
@@ -894,10 +894,10 @@ if array_contains "colorcls2" "${MODELS_TO_PROCESS[@]}"; then
     cd "$MODEL_DIR"
 
     download_binary_file \
-      "https://github.com/open-edge-platform/edge-ai-suites/raw/main/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.bin" \
+      "https://github.com/open-edge-platform/edge-ai-suites/raw/a7b2967fccc259c56093d0526d25e2afe10144ab/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.bin" \
       "colorcls2.bin" || handle_error "failed to download colorcls2.bin"
     download_binary_file \
-      "https://github.com/open-edge-platform/edge-ai-suites/raw/main/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.xml" \
+      "https://github.com/open-edge-platform/edge-ai-suites/raw/a7b2967fccc259c56093d0526d25e2afe10144ab/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.xml" \
       "colorcls2.xml" || handle_error "failed to download colorcls2.xml"
 
     cd ..
