@@ -252,6 +252,7 @@ static void gst_gva_streammux_init(GstGvaStreammux *mux) {
     mux->caps_negotiated = FALSE;
     mux->events_pushed = FALSE;
     mux->caps_change_error_posted = FALSE;
+    mux->anchor_regression_warned = FALSE;
     mux->segment_sent = FALSE;
     mux->segment_adopted = FALSE;
     mux->last_output_time = GST_CLOCK_TIME_NONE;
@@ -705,6 +706,7 @@ static GstStateChangeReturn gst_gva_streammux_change_state(GstElement *element, 
         mux->caps_negotiated = FALSE;
         mux->events_pushed = FALSE;
         mux->caps_change_error_posted = FALSE;
+        mux->anchor_regression_warned = FALSE;
         if (mux->current_caps) {
             gst_caps_unref(mux->current_caps);
             mux->current_caps = NULL;
@@ -1461,9 +1463,13 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
     /* Phase 2: Wait for other pads to contribute within timeout */
     gint64 deadline = mux->batch_start_real_time + (gint64)(mux->max_wait_time / 1000);
 
+    guint contributing_count = 0;
+    guint eligible_pads = 0;
+    gboolean timed_out = FALSE;
+
     while (!mux->flushing) {
-        guint contributing_count = 0;
-        guint eligible_pads = 0;
+        contributing_count = 0;
+        eligible_pads = 0;
 
         for (guint i = 0; i < mux->pad_data->len; i++) {
             GvaStreammuxPadData *pdata = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
@@ -1488,7 +1494,7 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
 
         gint64 now = g_get_monotonic_time();
         if (now >= deadline) {
-            GST_LOG_OBJECT(mux, "Batch timeout: got %u/%u pads", contributing_count, eligible_pads);
+            timed_out = TRUE;
             break;
         }
 
@@ -1529,6 +1535,46 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
     }
 
     GstClockTime batch_pts = mux->batch_anchor_pts;
+
+    /* One line per batch, with everything needed to explain why it looks the
+     * way it does: the anchor the batch was built around, how many of the
+     * eligible pads actually made it in, and how many sink pads exist at all.
+     * A partial batch is the interesting case -- it means a pad was eligible
+     * but had nothing within pts-tolerance of the anchor before the wait ran
+     * out -- so say so explicitly rather than leaving it to be inferred from
+     * two numbers differing. */
+    GST_DEBUG_OBJECT(mux, "Batch anchor=%" GST_TIME_FORMAT " size=%u/%u eligible, %u pad(s) total%s%s",
+                     GST_TIME_ARGS(batch_pts), batch_size, eligible_pads, mux->num_sink_pads,
+                     batch_size < eligible_pads ? " [PARTIAL]" : "", timed_out ? " [TIMEOUT]" : "");
+
+    /* The anchor is the earliest queue head each round, so a source that goes
+     * quiet and then delivers a burst can pull it back behind the batch just
+     * pushed: while that source had nothing queued the anchor followed the
+     * others, and its older buffers become the anchor once they arrive. In
+     * CONTAINER mode the anchor is the output buffer's PTS, so this reaches
+     * downstream as time going backwards.
+     *
+     * The chain function drops a buffer more than pts-tolerance behind the
+     * last batch, but it checks that on arrival, not when the buffer is
+     * finally batched -- a buffer queued while the last batch was still older
+     * passes the check and can regress the anchor by more than the tolerance.
+     * Measured at 33 ms with a 20 ms tolerance and a source stalling for
+     * 60 ms every tenth buffer. */
+    if (GST_CLOCK_TIME_IS_VALID(batch_pts) && GST_CLOCK_TIME_IS_VALID(mux->last_pushed_batch_pts) &&
+        batch_pts < mux->last_pushed_batch_pts) {
+        GstClockTime regression = mux->last_pushed_batch_pts - batch_pts;
+        if (!mux->anchor_regression_warned) {
+            mux->anchor_regression_warned = TRUE;
+            GST_WARNING_OBJECT(
+                mux,
+                "Batch anchor went backwards by %" GST_TIME_FORMAT " (%" GST_TIME_FORMAT " after %" GST_TIME_FORMAT
+                "): a source is delivering in bursts. Further occurrences are logged at debug level.",
+                GST_TIME_ARGS(regression), GST_TIME_ARGS(batch_pts), GST_TIME_ARGS(mux->last_pushed_batch_pts));
+        } else {
+            GST_DEBUG_OBJECT(mux, "Batch anchor went backwards by %" GST_TIME_FORMAT, GST_TIME_ARGS(regression));
+        }
+    }
+
     mux->last_pushed_batch_pts = mux->batch_anchor_pts;
     mux->batch_anchor_pts = GST_CLOCK_TIME_NONE;
 

@@ -135,6 +135,11 @@ struct _GstGvaStreammux {
      * so an upstream element that retries per buffer cannot flood the bus. */
     gboolean caps_change_error_posted;
 
+    /* Set once the batch anchor has been reported as moving backwards, so a
+     * persistently bursty source warns once instead of several times a second.
+     * Later occurrences are logged at debug level. */
+    gboolean anchor_regression_warned;
+
     /* Segment tracking */
     gboolean segment_sent;
     GstSegment segment;
