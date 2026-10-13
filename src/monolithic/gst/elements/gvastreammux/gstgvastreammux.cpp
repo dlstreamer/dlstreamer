@@ -1545,6 +1545,14 @@ static guint gva_streammux_drop_stale_head(GstGvaStreammux *mux, GvaStreammuxPad
     return dropped;
 }
 
+/* A state change worth telling the application about. Collected under the
+ * lock and posted after it is released, because posting reaches the bus and
+ * from there whatever the application connected to it. */
+typedef struct {
+    guint pad_index;
+    GvaStreammuxPadState state;
+} GvaStreammuxPadTransition;
+
 static const gchar *pad_state_name(GvaStreammuxPadState state) {
     switch (state) {
     case GVA_STREAMMUX_PAD_STALLED:
@@ -1566,7 +1574,7 @@ static const gchar *pad_state_name(GvaStreammuxPadState state) {
  * current again.
  *
  * Must be called with mux->lock held. */
-static void gva_streammux_update_pad_states(GstGvaStreammux *mux) {
+static void gva_streammux_update_pad_states(GstGvaStreammux *mux, GArray *transitions) {
     for (guint i = 0; i < mux->pad_data->len; i++) {
         GvaStreammuxPadData *pdata = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
         if (!pdata)
@@ -1594,14 +1602,40 @@ static void gva_streammux_update_pad_states(GstGvaStreammux *mux) {
                 pdata->state = GVA_STREAMMUX_PAD_LATE;
         }
 
-        if (pdata->state != before)
+        if (pdata->state != before) {
             GST_INFO_OBJECT(mux, "Pad sink_%u is now %s (was %s)", pdata->pad_index, pad_state_name(pdata->state),
                             pad_state_name(before));
+            GvaStreammuxPadTransition transition = {pdata->pad_index, pdata->state};
+            g_array_append_val(transitions, transition);
+        }
 
         pdata->delivered = FALSE;
         pdata->contributed = FALSE;
         pdata->stale_dropped = FALSE;
     }
+}
+
+/* How many sink pads are currently delivering normally. Must be called with
+ * mux->lock held. */
+static guint count_active_pads(GstGvaStreammux *mux) {
+    guint active = 0;
+    for (guint i = 0; i < mux->pad_data->len; i++) {
+        GvaStreammuxPadData *pdata = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
+        if (pdata && pdata->state == GVA_STREAMMUX_PAD_ACTIVE)
+            active++;
+    }
+    return active;
+}
+
+/* Tell the application that a source changed state. An element message rather
+ * than a signal: it reaches gst-launch and any application that watches the
+ * bus, without adding API. Posted outside mux->lock. */
+static void gva_streammux_post_stream_state(GstGvaStreammux *mux, const GvaStreammuxPadTransition *transition,
+                                            guint active_pads, guint total_pads) {
+    GstStructure *s = gst_structure_new("gva-streammux-stream-state", "pad-index", G_TYPE_UINT, transition->pad_index,
+                                        "state", G_TYPE_STRING, pad_state_name(transition->state), "active-pads",
+                                        G_TYPE_UINT, active_pads, "total-pads", G_TYPE_UINT, total_pads, NULL);
+    gst_element_post_message(GST_ELEMENT(mux), gst_message_new_element(GST_OBJECT(mux), s));
 }
 
 /* Batch output data for pushing outside the lock */
@@ -1806,7 +1840,10 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
 
     GstClockTime batch_pts = mux->batch_anchor_pts;
 
-    gva_streammux_update_pad_states(mux);
+    GArray *transitions = g_array_new(FALSE, FALSE, sizeof(GvaStreammuxPadTransition));
+    gva_streammux_update_pad_states(mux, transitions);
+    guint active_pads = count_active_pads(mux);
+    guint total_pads = mux->num_sink_pads;
 
     /* One line per batch, with everything needed to explain why it looks the
      * way it does: the anchor the batch was built around, how many of the
@@ -1854,6 +1891,11 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
     g_cond_broadcast(&mux->cond);
 
     g_mutex_unlock(&mux->lock);
+
+    for (guint i = 0; i < transitions->len; i++)
+        gva_streammux_post_stream_state(mux, &g_array_index(transitions, GvaStreammuxPadTransition, i), active_pads,
+                                        total_pads);
+    g_array_free(transitions, TRUE);
 
     /* Phase 4: Push buffers downstream (outside lock) */
     if (batch_size == 0) {
