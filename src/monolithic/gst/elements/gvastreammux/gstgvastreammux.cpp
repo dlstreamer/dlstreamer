@@ -1075,8 +1075,14 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
         g_mutex_unlock(&mux->lock);
 
         if (first_flush) {
-            gst_pad_pause_task(mux->srcpad);
+            /* Forward before pausing, not after. Pausing waits for the output
+             * task's current iteration to finish, and that iteration may be
+             * blocked inside a downstream element -- on a full queue, a
+             * throttle, a slow sink. FLUSH_START is what unblocks it, so
+             * holding the event back until the task has stopped means waiting
+             * for the very thing the event would have released. */
             ret = gst_pad_push_event(mux->srcpad, event);
+            gst_pad_pause_task(mux->srcpad);
         } else {
             gst_event_unref(event);
             ret = TRUE;
