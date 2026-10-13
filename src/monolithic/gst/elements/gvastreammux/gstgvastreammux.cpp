@@ -311,6 +311,11 @@ static void gst_gva_streammux_flush_pad_queues(GstGvaStreammux *mux) {
 static void gst_gva_streammux_finalize(GObject *object) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
 
+    /* The last reference is gone, so nothing can reach the object any more, but
+     * tearing it down under the lock keeps every access to these fields on one
+     * path, the way the constructor does. */
+    g_mutex_lock(&mux->lock);
+
     gst_gva_streammux_flush_pad_queues(mux);
 
     for (guint i = 0; i < mux->pad_data->len; i++) {
@@ -330,13 +335,15 @@ static void gst_gva_streammux_finalize(GObject *object) {
     g_list_free(mux->sinkpads);
     mux->sinkpads = NULL;
 
-    g_mutex_clear(&mux->lock);
-    g_cond_clear(&mux->cond);
-
     if (mux->current_caps) {
         gst_caps_unref(mux->current_caps);
         mux->current_caps = NULL;
     }
+
+    g_mutex_unlock(&mux->lock);
+
+    g_mutex_clear(&mux->lock);
+    g_cond_clear(&mux->cond);
 
     G_OBJECT_CLASS(gst_gva_streammux_parent_class)->finalize(object);
 }

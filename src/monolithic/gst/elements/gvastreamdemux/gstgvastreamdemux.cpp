@@ -125,10 +125,16 @@ static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
 static void gst_gva_streamdemux_finalize(GObject *object) {
     GstGvaStreamdemux *demux = GST_GVA_STREAMDEMUX(object);
 
-    g_mutex_clear(&demux->lock);
+    /* The last reference is gone, so nothing can reach the object any more, but
+     * tearing it down under the lock keeps every access to these fields on one
+     * path, the way the constructor does. */
+    g_mutex_lock(&demux->lock);
     g_ptr_array_free(demux->srcpads, TRUE);
     g_array_free(demux->last_output_times, TRUE);
     gst_flow_combiner_free(demux->flow_combiner);
+    g_mutex_unlock(&demux->lock);
+
+    g_mutex_clear(&demux->lock);
 
     G_OBJECT_CLASS(gst_gva_streamdemux_parent_class)->finalize(object);
 }
