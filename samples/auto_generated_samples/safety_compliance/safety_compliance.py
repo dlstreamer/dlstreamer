@@ -221,14 +221,10 @@ def _pre_watermark_cb(pad, info, tracker):
 
 
 def setup_gst_plugins():
-    # Keep the default (forked) scanner: loading libgstpython.so in an isolated process
-    # avoids the segfault that occurs when GST_REGISTRY_FORK=no forces it to load inside
-    # this live interpreter.
     plugins_dir = str(SCRIPT_DIR / "plugins")
     if plugins_dir not in os.environ.get("GST_PLUGIN_PATH", ""):
         existing = os.environ.get("GST_PLUGIN_PATH", "")
         os.environ["GST_PLUGIN_PATH"] = f"{existing}:{plugins_dir}" if existing else plugins_dir
-    # The forked scanner needs the plugin dir on PYTHONPATH to import the element modules.
     if plugins_dir not in os.environ.get("PYTHONPATH", ""):
         existing_pp = os.environ.get("PYTHONPATH", "")
         os.environ["PYTHONPATH"] = f"{plugins_dir}:{existing_pp}" if existing_pp else plugins_dir
