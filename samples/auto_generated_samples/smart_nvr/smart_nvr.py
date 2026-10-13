@@ -186,13 +186,17 @@ def run_pipeline(pipeline, loop_count=1):
 def main():
     args = parse_args()
 
-    # Register custom Python GStreamer elements
+    # Register custom Python GStreamer elements. Keep the default (forked) scanner:
+    # loading libgstpython.so in an isolated process avoids the segfault that occurs
+    # when GST_REGISTRY_FORK=no forces it to load inside this live interpreter.
     plugins_dir = str(SCRIPT_DIR / "plugins")
     if plugins_dir not in os.environ.get("GST_PLUGIN_PATH", ""):
         os.environ["GST_PLUGIN_PATH"] = (
             f"{os.environ.get('GST_PLUGIN_PATH', '')}:{plugins_dir}"
         )
-    os.environ.setdefault("GST_REGISTRY_FORK", "no")
+    # The forked scanner needs the plugin dir on PYTHONPATH to import the element modules.
+    if plugins_dir not in os.environ.get("PYTHONPATH", ""):
+        os.environ["PYTHONPATH"] = f"{plugins_dir}:{os.environ.get('PYTHONPATH', '')}"
 
     Gst.init([])
     reg = Gst.Registry.get()

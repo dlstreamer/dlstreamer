@@ -505,7 +505,9 @@ Add before `Gst.init([])`. Only needed when the app uses custom Python elements:
 plugins_dir = str(Path(__file__).resolve().parent / "plugins")
 if plugins_dir not in os.environ.get("GST_PLUGIN_PATH", ""):
     os.environ["GST_PLUGIN_PATH"] = f"{os.environ.get('GST_PLUGIN_PATH', '')}:{plugins_dir}"
-os.environ.setdefault("GST_REGISTRY_FORK", "no")  # required for Python elements
+# The forked gst-plugin-scanner imports the element modules from here.
+if plugins_dir not in os.environ.get("PYTHONPATH", ""):
+    os.environ["PYTHONPATH"] = f"{plugins_dir}:{os.environ.get('PYTHONPATH', '')}"
 
 Gst.init([])
 reg = Gst.Registry.get()
@@ -515,8 +517,10 @@ if not reg.find_plugin("python"):
                        "~/.cache/gstreamer-1.0/registry.*.bin if needed.")
 ```
 
-> Do not set `GST_REGISTRY_FORK=no` in apps without custom Python elements —
-> it produces noisy `undefined symbol` warnings on stderr.
+> Do NOT set `GST_REGISTRY_FORK=no` in a Python app. It forces `libgstpython.so`
+> to load inside the already-running interpreter, which segfaults the plugin scan
+> (observed on Python 3.14). Keep the default forked `gst-plugin-scanner` and put
+> the plugin dir on `PYTHONPATH` so the scanner subprocess can import the modules.
 >
 > If custom elements are not found after registration, clear only the GStreamer
 > registry cache files in `~/.cache/gstreamer-1.0/` (for example
