@@ -180,7 +180,12 @@ static GstPad *gst_gva_streamdemux_request_new_pad(GstElement *element, GstPadTe
         pad_index = (guint)parsed_index;
         name = g_strdup(req_name);
     } else {
-        pad_index = demux->num_src_pads;
+        /* First free slot, not the pad count: with src_0..src_2 created and
+         * src_1 released the count is 2, so this used to name the new pad
+         * src_2, on top of the one already using that index. */
+        pad_index = 0;
+        while (pad_index < demux->srcpads->len && g_ptr_array_index(demux->srcpads, pad_index) != NULL)
+            pad_index++;
         name = g_strdup_printf("src_%u", pad_index);
     }
 
@@ -192,20 +197,32 @@ static GstPad *gst_gva_streamdemux_request_new_pad(GstElement *element, GstPadTe
         return NULL;
     }
 
+    if (pad_index < demux->srcpads->len && g_ptr_array_index(demux->srcpads, pad_index) != NULL) {
+        GST_ERROR_OBJECT(demux, "Pad index %u is already in use by %s", pad_index, name);
+        g_free(name);
+        g_mutex_unlock(&demux->lock);
+        return NULL;
+    }
+
     srcpad = gst_pad_new_from_static_template(&gva_streamdemux_src_template, name);
     gst_pad_use_fixed_caps(srcpad);
     if (pad_index < demux->unrouted_warned->len)
         g_array_index(demux->unrouted_warned, gboolean, pad_index) = FALSE;
 
-    gst_element_add_pad(element, srcpad);
-
     /* Ensure srcpads array can hold this index */
     while (demux->srcpads->len <= pad_index)
         g_ptr_array_add(demux->srcpads, NULL);
+
+    if (!gst_element_add_pad(element, srcpad)) {
+        GST_ERROR_OBJECT(demux, "Failed to add pad %s", name);
+        gst_object_unref(srcpad);
+        g_free(name);
+        g_mutex_unlock(&demux->lock);
+        return NULL;
+    }
+
     demux->srcpads->pdata[pad_index] = srcpad;
-
     gst_flow_combiner_add_pad(demux->flow_combiner, srcpad);
-
     demux->num_src_pads++;
 
     GST_INFO_OBJECT(demux, "Created src pad %s (index=%u), total src pads=%u", name, pad_index, demux->num_src_pads);
@@ -229,13 +246,17 @@ static void gst_gva_streamdemux_release_pad(GstElement *element, GstPad *pad) {
         }
     }
     gst_flow_combiner_remove_pad(demux->flow_combiner, pad);
-    demux->num_src_pads--;
-
-    gst_element_remove_pad(element, pad);
+    if (demux->num_src_pads > 0)
+        demux->num_src_pads--;
 
     GST_INFO_OBJECT(demux, "Released pad, remaining src pads=%u", demux->num_src_pads);
 
     g_mutex_unlock(&demux->lock);
+
+    /* Outside the lock: removing a pad emits pad-removed, which runs whatever
+     * the application connected to it, and that must not happen with this
+     * element's lock held. */
+    gst_element_remove_pad(element, pad);
 }
 
 /* State changes */
