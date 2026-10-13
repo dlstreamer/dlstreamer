@@ -1485,6 +1485,35 @@ static void gst_gva_streammux_update_output_time(GstGvaStreammux *mux) {
     g_mutex_unlock(&mux->lock);
 }
 
+/* Drop buffers at the head of a pad's queue that are further behind the last
+ * batch than pts-tolerance allows, so the next anchor cannot be taken from one
+ * of them. Returns how many were dropped. Must be called with mux->lock held. */
+static guint gva_streammux_drop_stale_head(GstGvaStreammux *mux, GvaStreammuxPadData *pdata) {
+    if (!GST_CLOCK_TIME_IS_VALID(mux->last_pushed_batch_pts))
+        return 0;
+
+    guint dropped = 0;
+    for (;;) {
+        GvaStreammuxQueueItem *head = (GvaStreammuxQueueItem *)g_queue_peek_head(&pdata->buffer_queue);
+        if (!head)
+            break;
+        GstClockTime pts = GST_BUFFER_PTS(head->buffer);
+        if (!GST_CLOCK_TIME_IS_VALID(pts) || pts >= mux->last_pushed_batch_pts)
+            break;
+
+        GST_DEBUG_OBJECT(mux,
+                         "Dropping stale buffer from sink_%u (pts=%" GST_TIME_FORMAT
+                         " is behind the last batch at %" GST_TIME_FORMAT ")",
+                         pdata->pad_index, GST_TIME_ARGS(pts), GST_TIME_ARGS(mux->last_pushed_batch_pts));
+        queue_item_free((GvaStreammuxQueueItem *)g_queue_pop_head(&pdata->buffer_queue));
+        dropped++;
+    }
+
+    if (dropped)
+        g_cond_broadcast(&mux->cond); /* the queue has room again */
+    return dropped;
+}
+
 /* Batch output data for pushing outside the lock */
 typedef struct {
     GstBuffer *buf;
@@ -1561,6 +1590,21 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
              * queued before EOS must still be batched, not discarded. */
             if (!pdata || (pdata->eos && g_queue_is_empty(&pdata->buffer_queue)))
                 continue;
+
+            /* Discard queue heads that the batches already pushed have left
+             * behind. The chain function applies the same rule, but it applies
+             * it when a buffer arrives: one queued while the last batch was
+             * still older passes that check and then sits in the queue until
+             * it is picked up here, by which time it is stale. Taking it as
+             * the anchor would move batch time backwards -- and in CONTAINER
+             * mode the anchor is the output buffer's PTS, so downstream would
+             * see time going backwards.
+             *
+             * This doubles as the catch-up path for a source returning from a
+             * stall with a backlog: its arrears are dropped until what it is
+             * delivering is current again. */
+            gva_streammux_drop_stale_head(mux, pdata);
+
             GvaStreammuxQueueItem *head = (GvaStreammuxQueueItem *)g_queue_peek_head(&pdata->buffer_queue);
             if (head) {
                 any_buffer = TRUE;
