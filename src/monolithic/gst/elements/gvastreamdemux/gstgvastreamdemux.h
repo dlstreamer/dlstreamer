@@ -52,6 +52,12 @@ struct _GstGvaStreamdemux {
 
     /* Synchronization */
     GMutex lock;
+    /* Signalled when a flush starts, so a thread waiting out its max-fps
+     * interval gives up. FLUSH_STOP is a serialized event, so it waits for the
+     * stream lock that the waiting chain function holds, and nothing
+     * downstream restarts until it has been through. */
+    GCond fps_cond;
+    gboolean flushing;
 
     /* Src pads array (indexed by source_id) */
     GPtrArray *srcpads;

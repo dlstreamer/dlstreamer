@@ -287,6 +287,7 @@ static GstStateChangeReturn gst_gva_streamdemux_change_state(GstElement *element
         g_mutex_lock(&demux->lock);
         gst_flow_combiner_reset(demux->flow_combiner);
         gva_streamdemux_reset_output_times(demux);
+        demux->flushing = FALSE;
         g_mutex_unlock(&demux->lock);
         break;
     default:
@@ -356,31 +357,37 @@ static GstClockTime *gva_streamdemux_output_time_slot(GstGvaStreamdemux *demux, 
     return &g_array_index(demux->last_output_times, GstClockTime, index);
 }
 
-/* Hold this push back until max-fps allows it. Called with the lock released,
- * since it sleeps, so both the interval and the last output time are taken as
- * one snapshot under the lock. */
+/* Hold this push back until max-fps allows it.
+ *
+ * The wait is on a condition variable rather than a plain sleep so that a
+ * flush can cut it short. The chain function holds the sink pad's stream lock
+ * while it waits, and FLUSH_STOP is a serialized event needing that same
+ * lock, so an uninterruptible sleep delays everything downstream of this
+ * element by up to a full interval after every seek. */
 static void gst_gva_streamdemux_apply_fps_throttle(GstGvaStreamdemux *demux, gint source_id) {
-    g_mutex_lock(&demux->lock);
-    GstClockTime max_fps_duration = demux->max_fps_duration;
-    GstClockTime last = GST_CLOCK_TIME_IS_VALID(max_fps_duration) ? *gva_streamdemux_output_time_slot(demux, source_id)
-                                                                  : GST_CLOCK_TIME_NONE;
-    g_mutex_unlock(&demux->lock);
-
-    if (!GST_CLOCK_TIME_IS_VALID(max_fps_duration))
-        return;
-
     GstClock *clock = gst_element_get_clock(GST_ELEMENT(demux));
     if (!clock)
         return;
 
     GstClockTime now = gst_clock_get_time(clock);
     gst_object_unref(clock);
+    if (!GST_CLOCK_TIME_IS_VALID(now))
+        return;
 
-    if (GST_CLOCK_TIME_IS_VALID(last) && now - last < max_fps_duration) {
-        GstClockTime wait = max_fps_duration - (now - last);
-        GST_LOG_OBJECT(demux, "FPS throttle on source %d: waiting %" GST_TIME_FORMAT, source_id, GST_TIME_ARGS(wait));
-        g_usleep(GST_TIME_AS_USECONDS(wait));
+    g_mutex_lock(&demux->lock);
+    GstClockTime max_fps_duration = demux->max_fps_duration;
+    if (GST_CLOCK_TIME_IS_VALID(max_fps_duration) && !demux->flushing) {
+        GstClockTime last = *gva_streamdemux_output_time_slot(demux, source_id);
+        if (GST_CLOCK_TIME_IS_VALID(last) && now - last < max_fps_duration) {
+            GstClockTime wait = max_fps_duration - (now - last);
+            GST_LOG_OBJECT(demux, "FPS throttle on source %d: waiting %" GST_TIME_FORMAT, source_id,
+                           GST_TIME_ARGS(wait));
+            gint64 deadline = g_get_monotonic_time() + (gint64)GST_TIME_AS_USECONDS(wait);
+            while (!demux->flushing && g_cond_wait_until(&demux->fps_cond, &demux->lock, deadline))
+                ;
+        }
     }
+    g_mutex_unlock(&demux->lock);
 }
 
 static void gst_gva_streamdemux_update_output_time(GstGvaStreamdemux *demux, gint source_id) {
@@ -492,12 +499,24 @@ static gboolean gst_gva_streamdemux_sink_event(GstPad *pad, GstObject *parent, G
         gst_event_unref(event);
         return TRUE;
     }
+    case GST_EVENT_FLUSH_START: {
+        /* Release anyone waiting out a max-fps interval before forwarding.
+         * FLUSH_START is not serialized, so it arrives while the chain
+         * function is still waiting; FLUSH_STOP, which is serialized, would
+         * otherwise sit behind that wait and hold up the whole restart. */
+        g_mutex_lock(&demux->lock);
+        demux->flushing = TRUE;
+        g_cond_broadcast(&demux->fps_cond);
+        g_mutex_unlock(&demux->lock);
+        return gst_pad_event_default(pad, parent, event);
+    }
     case GST_EVENT_FLUSH_STOP: {
         /* Forward first, then drop the flow returns the flushed-out run left
          * behind -- a branch that had gone EOS or NOT_LINKED must not keep
          * vetoing the combined return after the flush. */
         gboolean ret = gst_pad_event_default(pad, parent, event);
         g_mutex_lock(&demux->lock);
+        demux->flushing = FALSE;
         gst_flow_combiner_reset(demux->flow_combiner);
         gva_streamdemux_reset_output_times(demux);
         g_mutex_unlock(&demux->lock);
