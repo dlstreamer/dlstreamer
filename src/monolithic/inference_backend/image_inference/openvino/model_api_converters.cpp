@@ -714,7 +714,7 @@ bool convertThirdPartyModelConfig(const std::string model_file, ov::AnyMap &mode
     bool updated = false;
 
     if (!modelConfig.empty()) {
-        if (modelConfig["model_type"] == "YOLO") {
+        if (modelConfig["model_type"].as<std::string>().starts_with("YOLO")) {
             updated = convertYoloMeta2ModelApi(model_file, modelConfig);
         }
     }
@@ -795,6 +795,19 @@ std::map<std::string, GstStructure *> get_model_info_preproc(const std::shared_p
     std::setlocale(LC_ALL, "C");
 
     for (auto &element : modelConfig) {
+        if (element.first == "intensity_mode" && element.second.as<std::string>() == "scale_to_unit") {
+            GValue range = G_VALUE_INIT;
+            g_value_init(&range, GST_TYPE_ARRAY);
+            for (double bound : {0.0, 1.0}) {
+                GValue value = G_VALUE_INIT;
+                g_value_init(&value, G_TYPE_DOUBLE);
+                g_value_set_double(&value, bound);
+                gst_value_array_append_value(&range, &value);
+                g_value_unset(&value);
+            }
+            gst_structure_set_value(s, "range", &range);
+            g_value_unset(&range);
+        }
         if (element.first == "scale_values") {
             std::vector<std::string> values = extractNumbers(element.second.as<std::string>());
             if (values.size() == 1) {
@@ -990,6 +1003,13 @@ std::map<std::string, GstStructure *> get_model_info_preproc(const std::shared_p
         }
     }
 
+    // Model API defaults resize_type to "standard"; without a resize, frames not matching the input size fail.
+    if (s != nullptr && gst_structure_n_fields(s) > 0 && !gst_structure_has_field(s, "resize") &&
+        !gst_structure_has_field(s, "crop")) {
+        gst_structure_set(s, "resize", G_TYPE_STRING, "no-aspect-ratio", NULL);
+        GST_INFO("[get_model_info_preproc] resize_type not set, defaulting to standard (no-aspect-ratio)");
+    }
+
     // restore system locale
     std::setlocale(LC_ALL, oldlocale.c_str());
 
@@ -1050,8 +1070,7 @@ std::map<std::string, GstStructure *> get_model_info_postproc(const std::shared_
             GST_INFO("[get_model_info_postproc] method: %s", g_value_get_string(&gvalue));
             g_value_unset(&gvalue);
         }
-        // Model API uses the standardized output_raw_scores key for classification logits.
-        // In dlstreamer this means the label converter should apply softmax-based postprocessing.
+        // In Model API this flag only adds raw_scores to results; kept as a softmax request for compatibility.
         if ((element.first.find("output_raw_scores") != std::string::npos) &&
             (element.second.as<std::string>().find("True") != std::string::npos)) {
             GValue gvalue = G_VALUE_INIT;
@@ -1081,6 +1100,12 @@ std::map<std::string, GstStructure *> get_model_info_postproc(const std::shared_
             gst_structure_set_value(s, "iou_threshold", &gvalue);
             GST_INFO("[get_model_info_postproc] iou_threshold: %f", element.second.as<double>());
             g_value_unset(&gvalue);
+        }
+        // Model API semantics: True means NMS must run in post-processing (not that the model already did it).
+        if (element.first == "nms_execute") {
+            const gboolean nms_execute = element.second.as<std::string>().find("True") != std::string::npos;
+            gst_structure_set(s, "nms_execute", G_TYPE_BOOLEAN, nms_execute, NULL);
+            GST_INFO("[get_model_info_postproc] nms_execute: %d", nms_execute);
         }
         if (element.first.find("image_threshold") != std::string::npos) {
             GValue gvalue = G_VALUE_INIT;
@@ -1152,6 +1177,15 @@ std::map<std::string, GstStructure *> get_model_info_postproc(const std::shared_
             gst_structure_set_value(s, "character_dict", &gvalue);
             GST_INFO("[get_model_info_postproc] character_dict: %zu characters", char_dict.size());
             g_value_unset(&gvalue);
+        }
+    }
+
+    // Model API softmaxes single-label classification output unless it is already softmaxed.
+    if (s != nullptr && !gst_structure_has_field(s, "method")) {
+        const gchar *converter = gst_structure_get_string(s, "converter");
+        if (converter != nullptr && strcmp(converter, "Classification") == 0) {
+            gst_structure_set(s, "method", G_TYPE_STRING, "softmax", NULL);
+            GST_INFO("[get_model_info_postproc] method: softmax (Classification default)");
         }
     }
 
