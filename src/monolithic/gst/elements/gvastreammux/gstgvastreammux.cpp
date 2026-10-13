@@ -345,6 +345,10 @@ static void gst_gva_streammux_finalize(GObject *object) {
 static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
 
+    /* Properties can be set while the element is running, so the streaming
+     * threads that read them under the lock have to see one consistent value. */
+    g_mutex_lock(&mux->lock);
+
     switch (prop_id) {
     case PROP_MAX_FPS:
         mux->max_fps = g_value_get_double(value);
@@ -373,10 +377,14 @@ static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
     }
+
+    g_mutex_unlock(&mux->lock);
 }
 
 static void gst_gva_streammux_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
+
+    g_mutex_lock(&mux->lock);
 
     switch (prop_id) {
     case PROP_MAX_FPS:
@@ -401,6 +409,8 @@ static void gst_gva_streammux_get_property(GObject *object, guint prop_id, GValu
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
     }
+
+    g_mutex_unlock(&mux->lock);
 }
 
 /* Normalize buffer PTS based on sync-mode. Caller must ensure buf is writable. */
@@ -818,6 +828,8 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
         gboolean caps_mismatch = FALSE;
         GstCaps *caps_to_push = NULL;
         GstCaps *negotiated_caps = NULL;
+        GstSegment segment_to_push;
+        gst_segment_init(&segment_to_push, GST_FORMAT_TIME);
 
         g_mutex_lock(&mux->lock);
         GvaStreammuxPadData *pdata = get_pad_data(mux, pad);
@@ -837,6 +849,9 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
          * its caps (so a passthrough caps-equality check sees all of them). */
         if (!mux->caps_negotiated && all_live_pads_have_caps(mux)) {
             caps_to_push = negotiate_src_caps(mux, &need_stream_start, &need_segment, &caps_mismatch);
+            /* Copied out because the events are pushed after the lock is
+             * dropped, while another pad's streaming thread may update it. */
+            segment_to_push = mux->segment;
         } else if (mux->caps_negotiated && !mux->caps_change_error_posted &&
                    mux->output_mode == GVA_STREAMMUX_OUTPUT_PASSTHROUGH && mux->current_caps &&
                    !gst_caps_is_equal(mux->current_caps, caps)) {
@@ -881,7 +896,7 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
             GST_INFO_OBJECT(mux, "Set output caps: %" GST_PTR_FORMAT, caps_to_push);
             gst_caps_unref(caps_to_push);
             if (need_segment) {
-                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&mux->segment));
+                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&segment_to_push));
                 GST_INFO_OBJECT(mux, "Sent segment event");
             }
             /* The events are on the pad now, so open the output gate. */
@@ -1232,6 +1247,7 @@ static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQ
         g_mutex_lock(&mux->lock);
         for (l = mux->sinkpads; l; l = l->next)
             pads_copy = g_list_prepend(pads_copy, gst_object_ref(GST_PAD(l->data)));
+        GstClockTime max_wait_time = mux->max_wait_time;
         g_mutex_unlock(&mux->lock);
 
         for (l = pads_copy; l; l = l->next) {
@@ -1254,9 +1270,9 @@ static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQ
         }
         g_list_free_full(pads_copy, gst_object_unref);
 
-        min_latency += mux->max_wait_time;
+        min_latency += max_wait_time;
         if (GST_CLOCK_TIME_IS_VALID(max_latency))
-            max_latency += mux->max_wait_time;
+            max_latency += max_wait_time;
 
         gst_query_set_latency(query, live, min_latency, max_latency);
         return TRUE;
@@ -1326,7 +1342,12 @@ static gboolean gst_gva_streammux_src_event(GstPad *pad, GstObject *parent, GstE
 
 /* Apply max-fps throttling */
 static void gst_gva_streammux_apply_fps_throttle(GstGvaStreammux *mux) {
-    if (!GST_CLOCK_TIME_IS_VALID(mux->max_fps_duration))
+    g_mutex_lock(&mux->lock);
+    GstClockTime max_fps_duration = mux->max_fps_duration;
+    GstClockTime last_output_time = mux->last_output_time;
+    g_mutex_unlock(&mux->lock);
+
+    if (!GST_CLOCK_TIME_IS_VALID(max_fps_duration))
         return;
 
     GstClock *clock = gst_element_get_clock(GST_ELEMENT(mux));
@@ -1336,10 +1357,10 @@ static void gst_gva_streammux_apply_fps_throttle(GstGvaStreammux *mux) {
     GstClockTime now = gst_clock_get_time(clock);
     gst_object_unref(clock);
 
-    if (GST_CLOCK_TIME_IS_VALID(mux->last_output_time)) {
-        GstClockTime elapsed = now - mux->last_output_time;
-        if (elapsed < mux->max_fps_duration) {
-            GstClockTime wait = mux->max_fps_duration - elapsed;
+    if (GST_CLOCK_TIME_IS_VALID(last_output_time)) {
+        GstClockTime elapsed = now - last_output_time;
+        if (elapsed < max_fps_duration) {
+            GstClockTime wait = max_fps_duration - elapsed;
             GST_LOG_OBJECT(mux, "FPS throttle: waiting %" GST_TIME_FORMAT, GST_TIME_ARGS(wait));
             g_usleep(GST_TIME_AS_USECONDS(wait));
         }
@@ -1348,10 +1369,15 @@ static void gst_gva_streammux_apply_fps_throttle(GstGvaStreammux *mux) {
 
 static void gst_gva_streammux_update_output_time(GstGvaStreammux *mux) {
     GstClock *clock = gst_element_get_clock(GST_ELEMENT(mux));
-    if (clock) {
-        mux->last_output_time = gst_clock_get_time(clock);
-        gst_object_unref(clock);
-    }
+    if (!clock)
+        return;
+
+    GstClockTime now = gst_clock_get_time(clock);
+    gst_object_unref(clock);
+
+    g_mutex_lock(&mux->lock);
+    mux->last_output_time = now;
+    g_mutex_unlock(&mux->lock);
 }
 
 /* Batch output data for pushing outside the lock */
