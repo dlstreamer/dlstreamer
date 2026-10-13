@@ -230,6 +230,14 @@ static void gst_gva_streammux_class_init(GstGvaStreammuxClass *klass) {
 }
 
 static void gst_gva_streammux_init(GstGvaStreammux *mux) {
+    g_mutex_init(&mux->lock);
+    g_cond_init(&mux->cond);
+
+    /* No other thread can reach an object still under construction, but taking
+     * the lock anyway keeps every access to these fields on one path, so none
+     * of them has to be argued about (or annotated) individually. */
+    g_mutex_lock(&mux->lock);
+
     mux->max_fps = DEFAULT_MAX_FPS;
     mux->pts_tolerance = DEFAULT_PTS_TOLERANCE;
     mux->max_wait_time = DEFAULT_MAX_WAIT_TIME;
@@ -238,14 +246,8 @@ static void gst_gva_streammux_init(GstGvaStreammux *mux) {
     mux->output_mode = DEFAULT_OUTPUT_MODE;
 
     mux->num_sink_pads = 0;
-    /* Object is under construction; no other thread can reference it yet, and
-     * mux->lock is not initialised until below. The same applies to the
-     * lock-protected fields set further down. */
-    // coverity[missing_lock]
     mux->send_stream_start = TRUE;
-    // coverity[missing_lock]
     mux->flushing = FALSE;
-    // coverity[missing_lock]
     mux->flushing_pads_count = 0;
     mux->sinkpads = NULL;
     mux->current_caps = NULL;
@@ -256,20 +258,18 @@ static void gst_gva_streammux_init(GstGvaStreammux *mux) {
     mux->segment_adopted = FALSE;
     mux->last_output_time = GST_CLOCK_TIME_NONE;
     mux->max_fps_duration = GST_CLOCK_TIME_NONE;
-    // coverity[missing_lock]
     mux->batch_anchor_pts = GST_CLOCK_TIME_NONE;
     mux->batch_start_real_time = 0;
     mux->last_pushed_batch_pts = GST_CLOCK_TIME_NONE;
-    // coverity[missing_lock]
-
-    g_mutex_init(&mux->lock);
-    g_cond_init(&mux->cond);
 
     gst_segment_init(&mux->segment, GST_FORMAT_TIME);
 
     mux->pad_data = g_ptr_array_new();
 
-    /* Create source pad */
+    g_mutex_unlock(&mux->lock);
+
+    /* Create source pad: adding it emits signals and takes the element's own
+     * locks, so it stays outside mux->lock. */
     mux->srcpad = gst_pad_new_from_static_template(&gva_streammux_src_template, "src");
     gst_pad_set_query_function(mux->srcpad, GST_DEBUG_FUNCPTR(gst_gva_streammux_src_query));
     gst_pad_set_event_function(mux->srcpad, GST_DEBUG_FUNCPTR(gst_gva_streammux_src_event));

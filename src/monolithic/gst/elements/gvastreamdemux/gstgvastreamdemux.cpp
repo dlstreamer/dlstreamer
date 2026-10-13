@@ -93,10 +93,14 @@ static void gst_gva_streamdemux_class_init(GstGvaStreamdemuxClass *klass) {
 }
 
 static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
+    g_mutex_init(&demux->lock);
+
+    /* No other thread can reach an object still under construction, but taking
+     * the lock anyway keeps every access to these fields on one path, so none
+     * of them has to be argued about (or annotated) individually. */
+    g_mutex_lock(&demux->lock);
+
     demux->max_fps = DEFAULT_MAX_FPS;
-    /* Object is under construction; no other thread can reference it yet,
-     * and demux->lock is not initialised until below. */
-    // coverity[missing_lock]
     demux->num_src_pads = 0;
     demux->validated = FALSE;
     demux->container_mode = FALSE;
@@ -107,9 +111,10 @@ static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
     demux->last_output_times = g_array_new(FALSE, FALSE, sizeof(GstClockTime));
     demux->flow_combiner = gst_flow_combiner_new();
 
-    g_mutex_init(&demux->lock);
+    g_mutex_unlock(&demux->lock);
 
-    /* Create sink pad (always) */
+    /* Create sink pad (always): adding it emits signals and takes the element's
+     * own locks, so it stays outside demux->lock. */
     demux->sinkpad = gst_pad_new_from_static_template(&gva_streamdemux_sink_template, "sink");
     gst_pad_set_chain_function(demux->sinkpad, GST_DEBUG_FUNCPTR(gst_gva_streamdemux_chain));
     gst_pad_set_event_function(demux->sinkpad, GST_DEBUG_FUNCPTR(gst_gva_streamdemux_sink_event));
@@ -240,13 +245,13 @@ static GstStateChangeReturn gst_gva_streamdemux_change_state(GstElement *element
 
     switch (transition) {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
-        demux->validated = FALSE;
-        demux->container_mode = FALSE;
         /* Nothing to clear for the "already started" state: deactivating the
          * pads dropped their sticky events, which is what that state is read
          * from. The flow returns left over from the previous run do have to go,
          * or a branch that ended NOT_LINKED stays NOT_LINKED forever. */
         g_mutex_lock(&demux->lock);
+        demux->validated = FALSE;
+        demux->container_mode = FALSE;
         gst_flow_combiner_reset(demux->flow_combiner);
         gva_streamdemux_reset_output_times(demux);
         g_mutex_unlock(&demux->lock);
@@ -721,7 +726,10 @@ static GstFlowReturn gst_gva_streamdemux_chain(GstPad *pad, GstObject *parent, G
 
     GstPad *srcpad = gva_streamdemux_ref_srcpad(demux, source_id);
     if (G_UNLIKELY(!srcpad)) {
-        GST_ERROR_OBJECT(demux, "No src pad for source_id %u (have %u src pads)", source_id, demux->num_src_pads);
+        g_mutex_lock(&demux->lock);
+        guint num_src_pads = demux->num_src_pads;
+        g_mutex_unlock(&demux->lock);
+        GST_ERROR_OBJECT(demux, "No src pad for source_id %u (have %u src pads)", source_id, num_src_pads);
         gst_buffer_unref(buf);
         return GST_FLOW_ERROR;
     }
