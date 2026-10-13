@@ -81,7 +81,9 @@ ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType inpu
             // The heap access is probed here (not later, per-surface) so the whole pipeline stays
             // consistent: a partial fallback would leave the pool/OpenVINO instance in DMA_BUFFER mode
             // while individual surfaces are SYSTEM, which deadlocks inference.
-            {
+
+            // Enable zero-copy for NPU on PTL series CPUs
+            if (Utils::isCPUPTLHSeries(false)) {
                 // Enabled by default; opt-out via env var.
                 const char *zc_env = std::getenv("NPU_ZERO_COPY");
                 bool zero_copy_enabled = !zc_env || !(std::string(zc_env) == "0" || std::string(zc_env) == "false");
