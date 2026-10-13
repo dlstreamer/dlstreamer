@@ -1833,9 +1833,15 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
 
             GstAnalyticsBatchMeta *meta = gst_buffer_add_analytics_batch_meta(buf);
             if (meta) {
-                meta->streams = g_new0(GstAnalyticsBatchStream, batch_size);
+                /* One stream: this buffer carries one source. n_streams used to
+                 * be set to the batch size, with only streams[0] filled in, so
+                 * every consumer that walks streams[0..n_streams) -- which is
+                 * all of them -- saw batch_size-1 zeroed entries per buffer.
+                 * How many sources were in the batch is a different fact and
+                 * does not belong in this field. */
+                meta->streams = g_new0(GstAnalyticsBatchStream, 1);
                 meta->streams[0].index = entry->pad_index;
-                meta->n_streams = batch_size;
+                meta->n_streams = 1;
             }
 
             GST_LOG_OBJECT(mux, "Push buffer from source %u (pts=%" GST_TIME_FORMAT "), batch_size=%u",
