@@ -130,9 +130,15 @@ static void gst_gva_streamdemux_finalize(GObject *object) {
     G_OBJECT_CLASS(gst_gva_streamdemux_parent_class)->finalize(object);
 }
 
-/* Property set/get */
+/* Property set/get.
+ *
+ * max-fps can be set at any time, from a thread that is neither the one
+ * routing buffers nor the one answering queries, so it is assigned under the
+ * lock and every reader either holds it or takes a snapshot under it. */
 static void gst_gva_streamdemux_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
     GstGvaStreamdemux *demux = GST_GVA_STREAMDEMUX(object);
+
+    g_mutex_lock(&demux->lock);
 
     switch (prop_id) {
     case PROP_MAX_FPS:
@@ -147,10 +153,14 @@ static void gst_gva_streamdemux_set_property(GObject *object, guint prop_id, con
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
     }
+
+    g_mutex_unlock(&demux->lock);
 }
 
 static void gst_gva_streamdemux_get_property(GObject *object, guint prop_id, GValue *value, GParamSpec *pspec) {
     GstGvaStreamdemux *demux = GST_GVA_STREAMDEMUX(object);
+
+    g_mutex_lock(&demux->lock);
 
     switch (prop_id) {
     case PROP_MAX_FPS:
@@ -160,6 +170,8 @@ static void gst_gva_streamdemux_get_property(GObject *object, guint prop_id, GVa
         G_OBJECT_WARN_INVALID_PROPERTY_ID(object, prop_id, pspec);
         break;
     }
+
+    g_mutex_unlock(&demux->lock);
 }
 
 /* Request pad creation: pipeline requests src_0, src_1, etc. */
@@ -344,9 +356,17 @@ static GstClockTime *gva_streamdemux_output_time_slot(GstGvaStreamdemux *demux, 
     return &g_array_index(demux->last_output_times, GstClockTime, index);
 }
 
-/* Hold this push back until max-fps allows it. */
+/* Hold this push back until max-fps allows it. Called with the lock released,
+ * since it sleeps, so both the interval and the last output time are taken as
+ * one snapshot under the lock. */
 static void gst_gva_streamdemux_apply_fps_throttle(GstGvaStreamdemux *demux, gint source_id) {
-    if (!GST_CLOCK_TIME_IS_VALID(demux->max_fps_duration))
+    g_mutex_lock(&demux->lock);
+    GstClockTime max_fps_duration = demux->max_fps_duration;
+    GstClockTime last = GST_CLOCK_TIME_IS_VALID(max_fps_duration) ? *gva_streamdemux_output_time_slot(demux, source_id)
+                                                                  : GST_CLOCK_TIME_NONE;
+    g_mutex_unlock(&demux->lock);
+
+    if (!GST_CLOCK_TIME_IS_VALID(max_fps_duration))
         return;
 
     GstClock *clock = gst_element_get_clock(GST_ELEMENT(demux));
@@ -356,12 +376,8 @@ static void gst_gva_streamdemux_apply_fps_throttle(GstGvaStreamdemux *demux, gin
     GstClockTime now = gst_clock_get_time(clock);
     gst_object_unref(clock);
 
-    g_mutex_lock(&demux->lock);
-    GstClockTime last = *gva_streamdemux_output_time_slot(demux, source_id);
-    g_mutex_unlock(&demux->lock);
-
-    if (GST_CLOCK_TIME_IS_VALID(last) && now - last < demux->max_fps_duration) {
-        GstClockTime wait = demux->max_fps_duration - (now - last);
+    if (GST_CLOCK_TIME_IS_VALID(last) && now - last < max_fps_duration) {
+        GstClockTime wait = max_fps_duration - (now - last);
         GST_LOG_OBJECT(demux, "FPS throttle on source %d: waiting %" GST_TIME_FORMAT, source_id, GST_TIME_ARGS(wait));
         g_usleep(GST_TIME_AS_USECONDS(wait));
     }
@@ -604,10 +620,14 @@ static gboolean gst_gva_streamdemux_sink_query(GstPad *pad, GstObject *parent, G
 
         /* max-fps holds each buffer back by up to one frame interval, which is
          * latency this element adds and has to declare. */
-        if (GST_CLOCK_TIME_IS_VALID(demux->max_fps_duration)) {
-            min_latency += demux->max_fps_duration;
+        g_mutex_lock(&demux->lock);
+        GstClockTime max_fps_duration = demux->max_fps_duration;
+        g_mutex_unlock(&demux->lock);
+
+        if (GST_CLOCK_TIME_IS_VALID(max_fps_duration)) {
+            min_latency += max_fps_duration;
             if (GST_CLOCK_TIME_IS_VALID(max_latency))
-                max_latency += demux->max_fps_duration;
+                max_latency += max_fps_duration;
         }
 
         gst_query_set_latency(query, live, min_latency, max_latency);
@@ -760,19 +780,20 @@ static GstFlowReturn gst_gva_streamdemux_chain(GstPad *pad, GstObject *parent, G
         return GST_FLOW_ERROR;
     }
 
-    /* Validate on first buffer */
+    /* The caps event decides the mode, on the same streaming thread that runs
+     * this function, but it is written under the lock so read it under the
+     * lock too, together with the one-time validation log. */
+    g_mutex_lock(&demux->lock);
+    gboolean container_mode = demux->container_mode;
     if (G_UNLIKELY(!demux->validated)) {
-        g_mutex_lock(&demux->lock);
-        if (!demux->validated) {
-            demux->validated = TRUE;
-            GST_INFO_OBJECT(demux, "Validated: %u src pads configured, batch n_streams=%u, container_mode=%d",
-                            demux->num_src_pads, (guint)meta->n_streams, demux->container_mode);
-        }
-        g_mutex_unlock(&demux->lock);
+        demux->validated = TRUE;
+        GST_INFO_OBJECT(demux, "Validated: %u src pads configured, batch n_streams=%u, container_mode=%d",
+                        demux->num_src_pads, (guint)meta->n_streams, container_mode);
     }
+    g_mutex_unlock(&demux->lock);
 
     /* CONTAINER mode: one buffer holds all sources (each with its own caps). */
-    if (demux->container_mode)
+    if (container_mode)
         return gst_gva_streamdemux_chain_container(demux, buf, meta);
 
     /* PASSTHROUGH mode: the buffer itself is one source's video frame, tagged
