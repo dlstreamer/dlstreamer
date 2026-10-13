@@ -958,6 +958,8 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
         gboolean need_segment = FALSE;
         gboolean caps_mismatch = FALSE;
         GstCaps *caps_to_push = NULL;
+        GstSegment segment_to_push;
+        gst_segment_init(&segment_to_push, GST_FORMAT_TIME);
 
         g_mutex_lock(&mux->lock);
         GvaStreammuxPadData *pdata = get_pad_data(mux, pad);
@@ -971,6 +973,9 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
          * to avoid the output loop waiting forever for caps to be decided. */
         if (!mux->caps_negotiated && all_live_pads_have_caps(mux)) {
             caps_to_push = negotiate_src_caps(mux, &need_stream_start, &need_segment, &caps_mismatch);
+            /* Copied out because the events are pushed after the lock is
+             * dropped, while another pad's streaming thread may update it. */
+            segment_to_push = mux->segment;
         }
         g_cond_signal(&mux->cond);
         g_mutex_unlock(&mux->lock);
@@ -992,7 +997,7 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
             gst_pad_push_event(mux->srcpad, gst_event_new_caps(caps_to_push));
             gst_caps_unref(caps_to_push);
             if (need_segment)
-                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&mux->segment));
+                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&segment_to_push));
             /* The events are on the pad now, so open the output gate. */
             g_mutex_lock(&mux->lock);
             mux->events_pushed = TRUE;
@@ -1097,10 +1102,17 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
 static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, GstBuffer *buf) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(parent);
 
+    /* One snapshot drives both decisions below, so a concurrent property change
+     * cannot leave normalize_buffer_pts writing into a buffer that was not made
+     * writable. */
+    g_mutex_lock(&mux->lock);
+    GvaStreammuxSyncMode sync_mode = mux->sync_mode;
+    g_mutex_unlock(&mux->lock);
+
     /* Making the buffer writable does not touch the pad data, so it can stay
      * outside the lock; normalize_buffer_pts reads and writes that data and so
      * has to move inside it. */
-    if (mux->sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
+    if (sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
         buf = gst_buffer_make_writable(buf);
 
     g_mutex_lock(&mux->lock);
@@ -1119,7 +1131,7 @@ static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, Gst
         return GST_FLOW_FLUSHING;
     }
 
-    if (mux->sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
+    if (sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
         normalize_buffer_pts(mux, pdata, buf);
 
     /* Back-pressure: block if queue is full.
