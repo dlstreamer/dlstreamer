@@ -509,6 +509,10 @@ if plugins_dir not in os.environ.get("GST_PLUGIN_PATH", ""):
 if plugins_dir not in os.environ.get("PYTHONPATH", ""):
     os.environ["PYTHONPATH"] = f"{plugins_dir}:{os.environ.get('PYTHONPATH', '')}"
 
+# Drop any stale/blacklisted cache so this run always gets a fresh plugin scan.
+for cache_file in (Path.home() / ".cache" / "gstreamer-1.0").glob("registry.*.bin"):
+    cache_file.unlink(missing_ok=True)
+
 Gst.init([])
 reg = Gst.Registry.get()
 if not reg.find_plugin("python"):
@@ -522,9 +526,9 @@ if not reg.find_plugin("python"):
 > (observed on Python 3.14). Keep the default forked `gst-plugin-scanner` and put
 > the plugin dir on `PYTHONPATH` so the scanner subprocess can import the modules.
 >
-> If custom elements are not found after registration, clear only the GStreamer
-> registry cache files in `~/.cache/gstreamer-1.0/` (for example
-> `registry.x86_64.bin`) and then restart the application.
+> Always clear the registry cache before `Gst.init([])` (as shown above), not just
+> on error: a crash from a previous run can leave the plugin blacklisted in the
+> cache, so later runs fail immediately without even retrying the scan.
 
 #### Elements That Modify Pixel Data
 

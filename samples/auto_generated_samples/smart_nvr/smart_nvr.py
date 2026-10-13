@@ -195,6 +195,10 @@ def main():
     if plugins_dir not in os.environ.get("PYTHONPATH", ""):
         os.environ["PYTHONPATH"] = f"{plugins_dir}:{os.environ.get('PYTHONPATH', '')}"
 
+    # Drop any stale/blacklisted cache so this run always gets a fresh plugin scan.
+    for cache_file in (Path.home() / ".cache" / "gstreamer-1.0").glob("registry.*.bin"):
+        cache_file.unlink(missing_ok=True)
+
     Gst.init([])
     reg = Gst.Registry.get()
     if not reg.find_plugin("python"):
