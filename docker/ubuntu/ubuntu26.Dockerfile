@@ -117,15 +117,10 @@ RUN \
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
-# Force uv to build gst-python against the apt-installed system python3 instead of
-# silently downloading/using a different managed Python ABI (caused libgstpython.so
-# to be built against a Python version that didn't match the runtime image's python3).
-ENV UV_PYTHON_PREFERENCE=only-system
-
 USER dlstreamer
 
 RUN \
-    uv venv --python python3 /python3venv && \
+    uv venv /python3venv && \
     VIRTUAL_ENV=/python3venv uv pip install --no-cache-dir --no-deps \
     meson==1.4.1 \
     ninja==1.11.1.1 \
