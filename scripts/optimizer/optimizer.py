@@ -5,6 +5,7 @@
 # SPDX-License-Identifier: MIT
 # ==============================================================================
 import time
+import heapq
 import logging
 import itertools
 import os
@@ -19,7 +20,7 @@ from preprocess import preprocess_pipeline
 from processors.device import DeviceGenerator
 from processors.batch import BatchGenerator
 from processors.nireq import NireqGenerator
-from processors.utils import add_instance_ids
+from utils import add_instance_ids
 from optimization_targets import FpsTarget, PowerTarget
 
 import gi
@@ -61,6 +62,7 @@ class DLSOptimizer:
         self._detections_error_threshold = 0.95
         self._paused = False
         self._metrics_url = None
+        self._candidate_limit = 5
 
         # internal fields
         self._initial_pipeline = []
@@ -105,6 +107,9 @@ class DLSOptimizer:
 
     def set_detections_error_threshold(self, threshold): # pylint: disable=missing-function-docstring
         self._detections_error_threshold = threshold
+
+    def set_streams_candidate_limit(self, limit): # pylint: disable=missing-function-docstring
+        self._candidate_limit = limit
 
     def set_metrics_url(self, url): # pylint: disable=missing-function-docstring
         metrics_url = urljoin(url, "metrics")
@@ -211,6 +216,7 @@ class DLSOptimizer:
         # iterate over candidates and find the best one
         for streams in range(1, max_streams + 1): # high end in range function is non-inclusive
             has_not_changed = True
+            evaluated = 0
             for (pipeline, result) in self._evaluate_candidates(initial_pipeline, target, streams):
                 if result:
                     if self._maximize_streams:
@@ -225,6 +231,10 @@ class DLSOptimizer:
                         self._optimal_pipeline = pipeline.copy()
 
                 yield "!".join(pipeline), result
+
+                evaluated += 1
+                if self._maximize_streams and evaluated >= self._candidate_limit:
+                    break
             if has_not_changed:
                 break
 
@@ -277,7 +287,11 @@ class DLSOptimizer:
         for generator in self._generators.values():
             generator.generate_candidates(candidates)
 
-        for pipeline in candidates:
+        # most promising candidates according to the target are evaluated first
+        scored_candidates = target.sort_candidates(candidates)
+
+        while scored_candidates:
+            (_, _, pipeline) = heapq.heappop(scored_candidates)
             try:
                 pipelines = []
                 for _ in range(0, streams):

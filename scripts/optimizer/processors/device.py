@@ -10,7 +10,7 @@ import heapq
 import itertools
 import os
 
-from processors.utils import parse_element_parameters, assemble_parameters
+from utils import parse_element_parameters, assemble_parameters
 
 from openvino import Core
 from openvino.properties.device import Type
@@ -45,7 +45,6 @@ class DeviceGenerator: # pylint: disable=missing-class-docstring
                 logger.info(f"{str(current_devices)}, {str(list(combination))}")
                 # skip if the generated combination equals the original pipeline
                 if list(combination) == current_devices:
-                    logger.info("skipping")
                     continue
 
                 # prepare the pipeline as well as score info

@@ -7,7 +7,7 @@
 import logging
 import itertools
 
-from processors.utils import parse_element_parameters, assemble_parameters
+from utils import parse_element_parameters, assemble_parameters
 
 logger = logging.getLogger(__name__)
 
