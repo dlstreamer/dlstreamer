@@ -277,6 +277,7 @@ static void gst_gvagenai_class_init(GstGvaGenAIClass *klass) {
                           "detected, 'all' requires every listed class to be detected in the same frame.",
                           GST_TYPE_GVAGENAI_TRIGGER_MODE, GVAGENAI_TRIGGER_MODE_ANY, G_PARAM_READWRITE));
 
+    g_object_class_install_property(
         gobject_class, PROP_MODEL_INSTANCE_ID,
         g_param_spec_string("model-instance-id", "Model Instance Id",
                             "Identifier for sharing a loaded model instance between gvagenai elements of the same "
