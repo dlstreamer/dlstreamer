@@ -62,6 +62,22 @@ struct _GvaStreammuxQueueItem {
     GstCaps *caps; /* own ref, may be NULL if the pad had no caps yet */
 };
 
+/* How a sink pad is currently behaving, which decides whether a batch waits
+ * for it. Only an ACTIVE pad is waited for; the other two still have their
+ * buffers batched whenever they happen to match, they just stop holding
+ * everyone else up.
+ *
+ * The two unhealthy states are distinct on purpose. STALLED means nothing is
+ * arriving at all -- a dead feed. LATE means buffers are arriving but are too
+ * far behind to be batched, which is what a source looks like while it works
+ * through a backlog after a network stall. An operator needs to tell those
+ * apart, and they recover differently. */
+typedef enum {
+    GVA_STREAMMUX_PAD_ACTIVE = 0,
+    GVA_STREAMMUX_PAD_STALLED,
+    GVA_STREAMMUX_PAD_LATE,
+} GvaStreammuxPadState;
+
 struct _GvaStreammuxPadData {
     GstPad *pad;
     guint pad_index;
@@ -73,6 +89,25 @@ struct _GvaStreammuxPadData {
      * parked on this pad's back-pressure knows to give up instead of waiting
      * for room that will never be made. */
     gboolean released;
+
+    /* Liveness tracking.
+     *
+     * state is what the batching loop acts on. delivered says whether a buffer
+     * arrived since the last batch was assembled, and is deliberately about
+     * arrival rather than about being batched: a source returning from a stall
+     * delivers a backlog that is too old to batch, and if recovery depended on
+     * contributing, that source could never leave STALLED.
+     *
+     * idle_windows counts batches that went out with nothing delivered here;
+     * late_rounds counts batches whose head had to be discarded as stale. */
+    GvaStreammuxPadState state;
+    gboolean delivered;
+    guint idle_windows;
+    guint late_rounds;
+
+    /* Per-batch scratch, reset once the batch has been assembled. */
+    gboolean contributed;
+    gboolean stale_dropped;
 
     /* PTS normalization state (used by sync-mode).
      *

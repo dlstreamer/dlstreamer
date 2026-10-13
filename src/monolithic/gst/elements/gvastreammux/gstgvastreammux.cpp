@@ -84,6 +84,18 @@ GType gst_gva_streammux_output_mode_get_type(void) {
  * rather than a gap in an otherwise continuous one. */
 #define GVA_STREAMMUX_TIMELINE_RESTART (GST_SECOND)
 
+/* How many batches may go out with nothing delivered on a pad before it stops
+ * being waited for, and how many consecutive batches may discard that pad's
+ * head as stale before the same happens.
+ *
+ * Counted in batches rather than in milliseconds so the thresholds scale with
+ * max-wait-time, which is already the user's statement of how long they are
+ * willing to wait for a straggler. Erring early is cheap: a pad that stops
+ * being waited for still has its buffers batched whenever they match, so the
+ * cost of a false positive is a frame landing in a later batch. */
+#define GVA_STREAMMUX_STALL_WINDOWS 5
+#define GVA_STREAMMUX_LATE_ROUNDS 3
+
 /* Sink accepts both video and non-video sources.
  * Note: STREAMMUX_VIDEO_CAPS already ends with "; ", so concatenate directly. */
 static GstStaticPadTemplate gva_streammux_sink_template = GST_STATIC_PAD_TEMPLATE(
@@ -574,6 +586,12 @@ static GstPad *gst_gva_streammux_request_new_pad(GstElement *element, GstPadTemp
     pdata->eos = FALSE;
     pdata->flushing = FALSE;
     pdata->released = FALSE;
+    pdata->state = GVA_STREAMMUX_PAD_ACTIVE;
+    pdata->delivered = FALSE;
+    pdata->idle_windows = 0;
+    pdata->late_rounds = 0;
+    pdata->contributed = FALSE;
+    pdata->stale_dropped = FALSE;
     pdata->first_pts_set = FALSE;
     pdata->pts_offset = 0;
     pdata->last_raw_pts = GST_CLOCK_TIME_NONE;
@@ -748,6 +766,12 @@ static GstStateChangeReturn gst_gva_streammux_change_state(GstElement *element, 
             GvaStreammuxPadData *pd = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
             if (pd) {
                 pd->flushing = FALSE;
+                pd->state = GVA_STREAMMUX_PAD_ACTIVE;
+                pd->delivered = FALSE;
+                pd->idle_windows = 0;
+                pd->late_rounds = 0;
+                pd->contributed = FALSE;
+                pd->stale_dropped = FALSE;
                 pd->first_pts_set = FALSE;
                 pd->pts_offset = 0;
                 pd->last_raw_pts = GST_CLOCK_TIME_NONE;
@@ -1109,6 +1133,12 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
                 GvaStreammuxPadData *pd = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
                 if (pd) {
                     pd->eos = FALSE;
+                    pd->state = GVA_STREAMMUX_PAD_ACTIVE;
+                    pd->delivered = FALSE;
+                    pd->idle_windows = 0;
+                    pd->late_rounds = 0;
+                    pd->contributed = FALSE;
+                    pd->stale_dropped = FALSE;
                     pd->first_pts_set = FALSE;
                     pd->pts_offset = 0;
                     pd->last_raw_pts = GST_CLOCK_TIME_NONE;
@@ -1235,6 +1265,7 @@ static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, Gst
      * the batch is assembled would instead tag already-queued buffers with the
      * caps of a later, mid-stream caps change. */
     g_queue_push_tail(&pdata->buffer_queue, queue_item_new(buf, pdata->caps));
+    pdata->delivered = TRUE;
     g_cond_signal(&mux->cond);
 
     g_mutex_unlock(&mux->lock);
@@ -1514,6 +1545,65 @@ static guint gva_streammux_drop_stale_head(GstGvaStreammux *mux, GvaStreammuxPad
     return dropped;
 }
 
+static const gchar *pad_state_name(GvaStreammuxPadState state) {
+    switch (state) {
+    case GVA_STREAMMUX_PAD_STALLED:
+        return "stalled";
+    case GVA_STREAMMUX_PAD_LATE:
+        return "late";
+    default:
+        return "active";
+    }
+}
+
+/* Fold what the batch just assembled says about each pad into its state.
+ *
+ * Liveness is judged on arrival, not on contribution. A source coming back
+ * from a stall delivers a backlog too old to be batched, so a recovery
+ * condition of "contributed to a batch" would never fire for it and it would
+ * stay excluded for good -- while the stale-head discard quietly ate the
+ * entire stream. Arrival says the source is alive; the discard is what gets it
+ * current again.
+ *
+ * Must be called with mux->lock held. */
+static void gva_streammux_update_pad_states(GstGvaStreammux *mux) {
+    for (guint i = 0; i < mux->pad_data->len; i++) {
+        GvaStreammuxPadData *pdata = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
+        if (!pdata)
+            continue;
+
+        GvaStreammuxPadState before = pdata->state;
+
+        if (pdata->delivered) {
+            pdata->idle_windows = 0;
+            if (pdata->state == GVA_STREAMMUX_PAD_STALLED)
+                pdata->state = GVA_STREAMMUX_PAD_ACTIVE;
+        } else if (!pdata->eos) {
+            pdata->idle_windows++;
+            if (pdata->idle_windows >= GVA_STREAMMUX_STALL_WINDOWS)
+                pdata->state = GVA_STREAMMUX_PAD_STALLED;
+        }
+
+        if (pdata->contributed) {
+            pdata->late_rounds = 0;
+            if (pdata->state == GVA_STREAMMUX_PAD_LATE)
+                pdata->state = GVA_STREAMMUX_PAD_ACTIVE;
+        } else if (pdata->stale_dropped) {
+            pdata->late_rounds++;
+            if (pdata->late_rounds >= GVA_STREAMMUX_LATE_ROUNDS && pdata->state != GVA_STREAMMUX_PAD_STALLED)
+                pdata->state = GVA_STREAMMUX_PAD_LATE;
+        }
+
+        if (pdata->state != before)
+            GST_INFO_OBJECT(mux, "Pad sink_%u is now %s (was %s)", pdata->pad_index, pad_state_name(pdata->state),
+                            pad_state_name(before));
+
+        pdata->delivered = FALSE;
+        pdata->contributed = FALSE;
+        pdata->stale_dropped = FALSE;
+    }
+}
+
 /* Batch output data for pushing outside the lock */
 typedef struct {
     GstBuffer *buf;
@@ -1603,7 +1693,8 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
              * This doubles as the catch-up path for a source returning from a
              * stall with a backlog: its arrears are dropped until what it is
              * delivering is current again. */
-            gva_streammux_drop_stale_head(mux, pdata);
+            if (gva_streammux_drop_stale_head(mux, pdata) > 0)
+                pdata->stale_dropped = TRUE;
 
             GvaStreammuxQueueItem *head = (GvaStreammuxQueueItem *)g_queue_peek_head(&pdata->buffer_queue);
             if (head) {
@@ -1649,6 +1740,11 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
             /* A drained EOS pad is no longer eligible; an EOS pad that still has
              * queued buffers must be waited on like any live pad. */
             if (!pdata || (pdata->eos && g_queue_is_empty(&pdata->buffer_queue)))
+                continue;
+            /* A pad that is not delivering, or is delivering only arrears, is
+             * still collected below whenever it has something that matches --
+             * it just stops the batch waiting on it. */
+            if (pdata->state != GVA_STREAMMUX_PAD_ACTIVE)
                 continue;
             eligible_pads++;
             GvaStreammuxQueueItem *head = (GvaStreammuxQueueItem *)g_queue_peek_head(&pdata->buffer_queue);
@@ -1703,11 +1799,14 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
                 g_free(head);
                 g_array_append_val(batch, entry);
                 batch_size++;
+                pdata->contributed = TRUE;
             }
         }
     }
 
     GstClockTime batch_pts = mux->batch_anchor_pts;
+
+    gva_streammux_update_pad_states(mux);
 
     /* One line per batch, with everything needed to explain why it looks the
      * way it does: the anchor the batch was built around, how many of the
