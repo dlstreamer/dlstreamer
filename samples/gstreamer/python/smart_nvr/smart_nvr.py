@@ -98,12 +98,17 @@ def main():
     """Entry point: build and run the Smart NVR pipeline."""
     args = parse_args()
 
-    # Register custom Python elements
+    # Register custom Python elements. Keep the default (forked) gst-plugin-scanner:
+    # loading libgstpython.so in an isolated scanner process avoids the segfault that
+    # occurs when GST_REGISTRY_FORK=no forces it to load inside this live interpreter.
     plugins_dir = str(SCRIPT_DIR / "plugins")
     if plugins_dir not in os.environ.get("GST_PLUGIN_PATH", ""):
         existing = os.environ.get("GST_PLUGIN_PATH", "")
         os.environ["GST_PLUGIN_PATH"] = f"{existing}:{plugins_dir}" if existing else plugins_dir
-    os.environ.setdefault("GST_REGISTRY_FORK", "no")
+    # The forked scanner needs the plugin dir on PYTHONPATH to import the element modules.
+    if plugins_dir not in os.environ.get("PYTHONPATH", ""):
+        existing_pp = os.environ.get("PYTHONPATH", "")
+        os.environ["PYTHONPATH"] = f"{plugins_dir}:{existing_pp}" if existing_pp else plugins_dir
 
     Gst.init([])
     reg = Gst.Registry.get()
