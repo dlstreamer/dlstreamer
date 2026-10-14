@@ -10,7 +10,7 @@ flowchart LR
 	subgraph Sample pipeline for gvaroiscale element
 		direction LR
 		A[Input video] --> B[Decode and convert]
-		B --> C[gvadetect<br/>CPU, person detections]
+		B --> C[gvadetect<br/>person detections]
 		C --> D[gvaframeselect<br/>900 frames per block<br/>budget 8]
 		D -->|save selected frames| E[selected_frames/*.jpg]
 		D --> F[videoconvert<br/>RGB]
@@ -58,7 +58,7 @@ Override pipeline settings as needed:
 	/path/to/video.mp4 /path/to/model.xml /path/to/output
 ```
 
-The script runs inference on the CPU. It converts selected frames to RGB before `gvaroiscale`, which requires RGB input. The `target-classes=person` setting ensures only person detections are used for ROI cropping.
+The pipeline converts selected frames to RGB before `gvaroiscale`, which requires RGB input. The `target-classes=person` setting ensures only person detections are used for ROI cropping.
 
 ## Output
 
