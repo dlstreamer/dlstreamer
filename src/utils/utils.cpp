@@ -229,7 +229,7 @@ bool isCPUPTLHSeries(bool checkForHSeries) {
         return false;
 
     // Match "3xxH" (e.g. "358H") for H-series; otherwise match any "3xx" model
-    const std::regex model_regex(checkForHSeries ? "\\b3\\d{2}H\\b" : "\\b3\\d{2}\\b");
+    const std::regex model_regex(checkForHSeries ? "\\b3\\d{2}H\\b" : "\\b3\\d{2}");
     return std::regex_search(brand_str, model_regex);
 }
 
