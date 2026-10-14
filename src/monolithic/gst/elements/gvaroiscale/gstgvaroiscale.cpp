@@ -45,8 +45,8 @@ static GstStaticPadTemplate src_template = GST_STATIC_PAD_TEMPLATE(
     "src", GST_PAD_SRC, GST_PAD_ALWAYS,
     GST_STATIC_CAPS("video/x-raw, format=(string)RGB, width=(int)[1,8192], height=(int)[1,8192]"));
 
-static GstCaps *gst_gva_roi_scale_transform_caps(GstBaseTransform *transform, GstPadDirection direction,
-                                                 GstCaps *caps, GstCaps *filter) {
+static GstCaps *gst_gva_roi_scale_transform_caps(GstBaseTransform *transform, GstPadDirection direction, GstCaps *caps,
+                                                 GstCaps *filter) {
     auto *self = reinterpret_cast<GstGvaRoiScale *>(transform);
     GstCaps *result = gst_caps_copy(caps);
     for (guint i = 0; i < gst_caps_get_size(result); ++i) {
@@ -106,16 +106,14 @@ static GArray *parse_target_classes(const gchar *csv) {
 
 static void save_jpeg(GstGvaRoiScale *self, GstBuffer *buffer, const gchar *output_dir, guint64 frame_number) {
     if (g_mkdir_with_parents(output_dir, 0755) != 0) {
-        GST_ELEMENT_WARNING(self, RESOURCE, OPEN_WRITE, ("Could not create output directory '%s'", output_dir),
-                            (NULL));
+        GST_ELEMENT_WARNING(self, RESOURCE, OPEN_WRITE, ("Could not create output directory '%s'", output_dir), (NULL));
         return;
     }
 
     GstCaps *caps = gst_pad_get_current_caps(GST_BASE_TRANSFORM_SRC_PAD(self));
     if (!caps) {
-        GST_ELEMENT_WARNING(self, STREAM, ENCODE, ("Could not get output caps for frame %" G_GUINT64_FORMAT,
-                                                  frame_number),
-                            (NULL));
+        GST_ELEMENT_WARNING(self, STREAM, ENCODE,
+                            ("Could not get output caps for frame %" G_GUINT64_FORMAT, frame_number), (NULL));
         return;
     }
     GstSample *sample = gst_sample_new(buffer, caps, nullptr, nullptr);
@@ -126,7 +124,8 @@ static void save_jpeg(GstGvaRoiScale *self, GstBuffer *buffer, const gchar *outp
     gst_caps_unref(jpeg_caps);
     gst_sample_unref(sample);
     if (!jpeg) {
-        GST_ELEMENT_WARNING(self, STREAM, ENCODE, ("Could not encode frame %" G_GUINT64_FORMAT " to JPEG", frame_number),
+        GST_ELEMENT_WARNING(self, STREAM, ENCODE,
+                            ("Could not encode frame %" G_GUINT64_FORMAT " to JPEG", frame_number),
                             ("%s", error ? error->message : "unknown error"));
         g_clear_error(&error);
         return;
@@ -158,7 +157,7 @@ static GstFlowReturn gst_gva_roi_scale_transform(GstBaseTransform *transform, Gs
     GArray *target_classes = g_array_ref(self->target_classes);
     GST_OBJECT_UNLOCK(self);
     const auto result = gvaroiscale::roi_scale_buffer(input, self->input_info, self->out_width, self->out_height,
-                                                       target_classes, &scaled, &scaled_info);
+                                                      target_classes, &scaled, &scaled_info);
     g_array_unref(target_classes);
     if (result == gvaroiscale::RoiScaleResult::NoRoi)
         return GST_BASE_TRANSFORM_FLOW_DROPPED;

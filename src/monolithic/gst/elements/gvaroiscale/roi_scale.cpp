@@ -27,12 +27,11 @@ bool first_valid_roi(GstBuffer *buffer, const GArray *target_classes, gint &x, g
 
     gpointer state = nullptr;
     GstAnalyticsODMtd detection;
-    while (gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(),
-                                               &detection)) {
+    while (
+        gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &detection)) {
         if (!is_target_class(gst_analytics_od_mtd_get_obj_type(&detection), target_classes))
             continue;
-        if (gst_analytics_od_mtd_get_location(&detection, &x, &y, &width, &height, nullptr) && width > 0 &&
-            height > 0)
+        if (gst_analytics_od_mtd_get_location(&detection, &x, &y, &width, &height, nullptr) && width > 0 && height > 0)
             return true;
     }
     return false;
@@ -56,10 +55,8 @@ RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &inp
 
     const gint64 left = std::max<gint64>(roi_x, 0);
     const gint64 top = std::max<gint64>(roi_y, 0);
-    const gint64 right = std::min<gint64>(static_cast<gint64>(roi_x) + roi_width,
-                                          GST_VIDEO_INFO_WIDTH(&input_info));
-    const gint64 bottom = std::min<gint64>(static_cast<gint64>(roi_y) + roi_height,
-                                           GST_VIDEO_INFO_HEIGHT(&input_info));
+    const gint64 right = std::min<gint64>(static_cast<gint64>(roi_x) + roi_width, GST_VIDEO_INFO_WIDTH(&input_info));
+    const gint64 bottom = std::min<gint64>(static_cast<gint64>(roi_y) + roi_height, GST_VIDEO_INFO_HEIGHT(&input_info));
     if (right <= left || bottom <= top)
         return RoiScaleResult::NoRoi;
 
@@ -70,12 +67,12 @@ RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &inp
     guint resized_width, resized_height;
     if (width_limited <= height_limited) {
         resized_width = output_width;
-        resized_height = static_cast<guint>((static_cast<guint64>(crop_height) * output_width + crop_width / 2) /
-                                            crop_width);
+        resized_height =
+            static_cast<guint>((static_cast<guint64>(crop_height) * output_width + crop_width / 2) / crop_width);
     } else {
         resized_height = output_height;
-        resized_width = static_cast<guint>((static_cast<guint64>(crop_width) * output_height + crop_height / 2) /
-                                           crop_height);
+        resized_width =
+            static_cast<guint>((static_cast<guint64>(crop_width) * output_height + crop_height / 2) / crop_height);
     }
     resized_width = std::max(1u, std::min(resized_width, output_width));
     resized_height = std::max(1u, std::min(resized_height, output_height));
@@ -110,10 +107,10 @@ RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &inp
     const guint offset_y = (output_height - resized_height) / 2;
     for (guint row = 0; row < resized_height; ++row) {
         const guint source_y = static_cast<guint>((static_cast<guint64>(row) * crop_height) / resized_height);
-        const guint8 *source_row = input_pixels + (static_cast<gssize>(top) + source_y) * input_stride +
-                                   static_cast<gssize>(left) * 3;
-        guint8 *destination_row = output_pixels + static_cast<gssize>(offset_y + row) * output_stride +
-                                  static_cast<gssize>(offset_x) * 3;
+        const guint8 *source_row =
+            input_pixels + (static_cast<gssize>(top) + source_y) * input_stride + static_cast<gssize>(left) * 3;
+        guint8 *destination_row =
+            output_pixels + static_cast<gssize>(offset_y + row) * output_stride + static_cast<gssize>(offset_x) * 3;
         for (guint column = 0; column < resized_width; ++column) {
             const guint source_x = static_cast<guint>((static_cast<guint64>(column) * crop_width) / resized_width);
             std::memcpy(destination_row + static_cast<gsize>(column) * 3,

@@ -12,7 +12,7 @@ G_BEGIN_DECLS
 
 #define GST_TYPE_GVAEVENTRECORDER (gst_gvaeventrecorder_get_type())
 #define GST_GVAEVENTRECORDER(obj) (G_TYPE_CHECK_INSTANCE_CAST((obj), GST_TYPE_GVAEVENTRECORDER, GstGvaEventRecorder))
-#define GST_GVAEVENTRECORDER_CLASS(klass)                                                                             \
+#define GST_GVAEVENTRECORDER_CLASS(klass)                                                                              \
     (G_TYPE_CHECK_CLASS_CAST((klass), GST_TYPE_GVAEVENTRECORDER, GstGvaEventRecorderClass))
 #define GST_IS_GVAEVENTRECORDER(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_GVAEVENTRECORDER))
 #define GST_IS_GVAEVENTRECORDER_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_GVAEVENTRECORDER))
@@ -21,7 +21,10 @@ typedef struct _GstGvaEventRecorder GstGvaEventRecorder;
 typedef struct _GstGvaEventRecorderClass GstGvaEventRecorderClass;
 
 // Cooldown unit, mirrors gvaeventrecorder::CooldownUnit (property enum needs its own GType).
-typedef enum { GST_GVAEVENTRECORDER_COOLDOWN_FRAMES = 0, GST_GVAEVENTRECORDER_COOLDOWN_TIME = 1 } GstGvaEventRecorderCooldownUnit;
+typedef enum {
+    GST_GVAEVENTRECORDER_COOLDOWN_FRAMES = 0,
+    GST_GVAEVENTRECORDER_COOLDOWN_TIME = 1
+} GstGvaEventRecorderCooldownUnit;
 
 // Encoder backend for the video dump, mirrors gvaeventrecorder::EncoderMode.
 typedef enum {
@@ -31,7 +34,10 @@ typedef enum {
 } GstGvaEventRecorderEncoderMode;
 
 // Output container, mirrors gvaeventrecorder::ContainerFormat.
-typedef enum { GST_GVAEVENTRECORDER_CONTAINER_MP4 = 0, GST_GVAEVENTRECORDER_CONTAINER_MKV = 1 } GstGvaEventRecorderContainer;
+typedef enum {
+    GST_GVAEVENTRECORDER_CONTAINER_MP4 = 0,
+    GST_GVAEVENTRECORDER_CONTAINER_MKV = 1
+} GstGvaEventRecorderContainer;
 
 struct _GstGvaEventRecorder {
     GstBaseTransform element;

@@ -27,8 +27,8 @@ std::string pick_encoder(EncoderMode mode) {
     };
 
     // x264enc lives in gst-plugins-ugly and is often not installed; openh264enc is the fallback.
-    const std::string software = factory_available("x264enc") ? "x264enc tune=zerolatency speed-preset=ultrafast"
-                                                              : "openh264enc";
+    const std::string software =
+        factory_available("x264enc") ? "x264enc tune=zerolatency speed-preset=ultrafast" : "openh264enc";
 
     switch (mode) {
     case EncoderMode::VaApi:
@@ -197,9 +197,9 @@ bool VideoDumpWriter::write_job(const DumpJob &job, std::string &error_out) {
         return false;
     }
 
-    const guint64 duration_per_frame = (job.video_info.fps_n > 0)
-                                           ? gst_util_uint64_scale(GST_SECOND, job.video_info.fps_d, job.video_info.fps_n)
-                                           : GST_SECOND / 30;
+    const guint64 duration_per_frame =
+        (job.video_info.fps_n > 0) ? gst_util_uint64_scale(GST_SECOND, job.video_info.fps_d, job.video_info.fps_n)
+                                   : GST_SECOND / 30;
 
     guint64 pts = 0;
     bool push_failed = false;

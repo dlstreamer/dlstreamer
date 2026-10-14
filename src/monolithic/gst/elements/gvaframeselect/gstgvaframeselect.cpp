@@ -99,8 +99,7 @@ static gboolean gst_gva_frame_select_start(GstBaseTransform *transform) {
 
 static void save_jpeg(GstGvaFrameSelect *self, GstBuffer *buffer, const gchar *output_dir, guint64 frame_number) {
     if (g_mkdir_with_parents(output_dir, 0755) != 0) {
-        GST_ELEMENT_WARNING(self, RESOURCE, OPEN_WRITE, ("Could not create output directory '%s'", output_dir),
-                            (NULL));
+        GST_ELEMENT_WARNING(self, RESOURCE, OPEN_WRITE, ("Could not create output directory '%s'", output_dir), (NULL));
         return;
     }
 
@@ -115,7 +114,8 @@ static void save_jpeg(GstGvaFrameSelect *self, GstBuffer *buffer, const gchar *o
         gst_caps_unref(caps);
 
     if (!jpeg) {
-        GST_ELEMENT_WARNING(self, STREAM, ENCODE, ("Could not encode frame %" G_GUINT64_FORMAT " to JPEG", frame_number),
+        GST_ELEMENT_WARNING(self, STREAM, ENCODE,
+                            ("Could not encode frame %" G_GUINT64_FORMAT " to JPEG", frame_number),
                             ("%s", error ? error->message : "unknown error"));
         g_clear_error(&error);
         return;
@@ -200,7 +200,8 @@ static void gst_gva_frame_select_class_init(GstGvaFrameSelectClass *klass) {
     gst_element_class_add_static_pad_template(element_class, &sink_template);
     gst_element_class_add_static_pad_template(element_class, &src_template);
     gst_element_class_set_static_metadata(element_class, "Frame Select", "Video/Filter",
-                                          "Selects a fixed frame budget from each event sub-stream", "Intel Corporation");
+                                          "Selects a fixed frame budget from each event sub-stream",
+                                          "Intel Corporation");
 
     object_class->set_property = gst_gva_frame_select_set_property;
     object_class->get_property = gst_gva_frame_select_get_property;

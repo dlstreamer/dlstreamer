@@ -81,15 +81,13 @@ TriggerEngine::FrameOutcome TriggerEngine::process_frame(uint64_t tick, const st
         if (!is_target_class(d.label) || d.confidence < config_.confidence_threshold)
             continue;
 
-        const bool session_exists = std::any_of(sessions_.begin(), sessions_.end(), [&d](const Session &s) {
-            return s.class_label == d.label;
-        });
+        const bool session_exists = std::any_of(sessions_.begin(), sessions_.end(),
+                                                [&d](const Session &s) { return s.class_label == d.label; });
         if (session_exists)
             continue;
 
         CooldownState &cd = cooldowns_[d.label];
-        const bool cooldown_active =
-            cd.has_triggered && (tick - cd.first_trigger_tick) < config_.cooldown_value;
+        const bool cooldown_active = cd.has_triggered && (tick - cd.first_trigger_tick) < config_.cooldown_value;
         if (cooldown_active)
             continue; // suppressed repeat trigger, cooldown window not restarted
 

@@ -16,8 +16,9 @@ namespace gvaeventrecorder {
 // Fixed-capacity sliding window, continuously fed and never reset by triggers (see
 // PreEventRing::snapshot). Generic over T so it can be unit tested with plain values;
 // the element uses T = GstBuffer* with an on_evict callback that unrefs evicted buffers.
-template <typename T> class PreEventRing {
-public:
+template <typename T>
+class PreEventRing {
+  public:
     using EvictFn = std::function<void(T &)>;
 
     explicit PreEventRing(std::size_t capacity, EvictFn on_evict = nullptr)
@@ -47,7 +48,7 @@ public:
         return capacity_;
     }
 
-private:
+  private:
     void trim() {
         while (frames_.size() > capacity_) {
             if (on_evict_)

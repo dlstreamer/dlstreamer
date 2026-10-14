@@ -36,7 +36,7 @@ struct DumpJob {
 // by how fast sessions finish (itself bounded upstream by max-concurrent-events) rather
 // than by one thread per session.
 class VideoDumpWriter {
-public:
+  public:
     VideoDumpWriter();
     ~VideoDumpWriter();
 
@@ -50,7 +50,7 @@ public:
 
     void enqueue(DumpJob job);
 
-private:
+  private:
     void worker_main();
     bool write_job(const DumpJob &job, std::string &error_out);
 

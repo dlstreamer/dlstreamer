@@ -15,7 +15,7 @@ namespace gvaeventrecorder {
 // drops does not flood the log. Caller decides what to do with the returned count
 // (typically GST_WARNING with "<n> event(s) dropped since last log").
 class DropLogThrottle {
-public:
+  public:
     explicit DropLogThrottle(uint64_t interval_ms) : interval_ms_(interval_ms) {
     }
 
@@ -49,7 +49,7 @@ public:
         return n;
     }
 
-private:
+  private:
     uint64_t interval_ms_;
     uint64_t pending_ = 0;
     uint64_t last_flush_ms_ = 0;

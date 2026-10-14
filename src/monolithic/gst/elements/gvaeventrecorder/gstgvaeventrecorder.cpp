@@ -101,10 +101,9 @@ static GType gst_gvaeventrecorder_encoder_mode_get_type(void) {
 static GType gst_gvaeventrecorder_container_get_type(void) {
     static GType type = 0;
     if (g_once_init_enter(&type)) {
-        static const GEnumValue values[] = {
-            {GST_GVAEVENTRECORDER_CONTAINER_MP4, "MP4 container", "mp4"},
-            {GST_GVAEVENTRECORDER_CONTAINER_MKV, "Matroska container", "mkv"},
-            {0, NULL, NULL}};
+        static const GEnumValue values[] = {{GST_GVAEVENTRECORDER_CONTAINER_MP4, "MP4 container", "mp4"},
+                                            {GST_GVAEVENTRECORDER_CONTAINER_MKV, "Matroska container", "mkv"},
+                                            {0, NULL, NULL}};
         GType t = g_enum_register_static("GstGvaEventRecorderContainer", values);
         g_once_init_leave(&type, t);
     }
@@ -278,7 +277,7 @@ static void finish_session(GstGvaEventRecorder *self, GvaEventRecorderRuntime *r
 static TriggerEngine::Config make_engine_config(GstGvaEventRecorder *self) {
     TriggerEngine::Config cfg;
     cfg.target_classes = parse_target_classes(self->target_classes);
- 
+
     cfg.confidence_threshold = static_cast<float>(self->confidence_threshold);
     cfg.cooldown_unit = (self->cooldown_unit == GST_GVAEVENTRECORDER_COOLDOWN_FRAMES)
                             ? gvaeventrecorder::CooldownUnit::Frames
@@ -341,11 +340,10 @@ static void gst_gvaeventrecorder_class_init(GstGvaEventRecorderClass *klass) {
                             "Comma-separated detection labels that trigger a recording (e.g. \"person,vehicle\")",
                             DEFAULT_TARGET_CLASSES, G_PARAM_READWRITE));
 
-    g_object_class_install_property(
-        gobject_class, PROP_CONFIDENCE_THRESHOLD,
-        g_param_spec_double("confidence-threshold", "Confidence Threshold",
-                            "Minimum detection confidence required to trigger", 0.0, 1.0,
-                            DEFAULT_CONFIDENCE_THRESHOLD, G_PARAM_READWRITE));
+    g_object_class_install_property(gobject_class, PROP_CONFIDENCE_THRESHOLD,
+                                    g_param_spec_double("confidence-threshold", "Confidence Threshold",
+                                                        "Minimum detection confidence required to trigger", 0.0, 1.0,
+                                                        DEFAULT_CONFIDENCE_THRESHOLD, G_PARAM_READWRITE));
 
     g_object_class_install_property(
         gobject_class, PROP_PRE_EVENT_FRAMES,
@@ -361,15 +359,16 @@ static void gst_gvaeventrecorder_class_init(GstGvaEventRecorderClass *klass) {
 
     g_object_class_install_property(
         gobject_class, PROP_EVENT_GAP_FRAMES,
-        g_param_spec_uint("event-gap-frames", "Event Gap Frames",
-                          "Consecutive frames without a matching detection tolerated before the event is considered ended",
-                          0, G_MAXUINT, DEFAULT_EVENT_GAP_FRAMES, G_PARAM_READWRITE));
+        g_param_spec_uint(
+            "event-gap-frames", "Event Gap Frames",
+            "Consecutive frames without a matching detection tolerated before the event is considered ended", 0,
+            G_MAXUINT, DEFAULT_EVENT_GAP_FRAMES, G_PARAM_READWRITE));
 
-    g_object_class_install_property(
-        gobject_class, PROP_COOLDOWN_UNIT,
-        g_param_spec_enum("cooldown-unit", "Cooldown Unit", "Unit used to measure the per-class cooldown window",
-                          GST_TYPE_GVAEVENTRECORDER_COOLDOWN_UNIT, GST_GVAEVENTRECORDER_COOLDOWN_TIME,
-                          G_PARAM_READWRITE));
+    g_object_class_install_property(gobject_class, PROP_COOLDOWN_UNIT,
+                                    g_param_spec_enum("cooldown-unit", "Cooldown Unit",
+                                                      "Unit used to measure the per-class cooldown window",
+                                                      GST_TYPE_GVAEVENTRECORDER_COOLDOWN_UNIT,
+                                                      GST_GVAEVENTRECORDER_COOLDOWN_TIME, G_PARAM_READWRITE));
 
     g_object_class_install_property(
         gobject_class, PROP_COOLDOWN_VALUE,
@@ -384,11 +383,10 @@ static void gst_gvaeventrecorder_class_init(GstGvaEventRecorderClass *klass) {
                           "limit are dropped (and throttle-logged)",
                           1, G_MAXUINT, DEFAULT_MAX_CONCURRENT_EVENTS, G_PARAM_READWRITE));
 
-    g_object_class_install_property(
-        gobject_class, PROP_FULL_CLIP_OUTPUT_DIR,
-        g_param_spec_string("full-clip-output-dir", "Full Clip Output Directory",
-                    "Directory where full PRE/EVENT/POST clips are written",
-                    DEFAULT_FULL_CLIP_OUTPUT_DIR, G_PARAM_READWRITE));
+    g_object_class_install_property(gobject_class, PROP_FULL_CLIP_OUTPUT_DIR,
+                                    g_param_spec_string("full-clip-output-dir", "Full Clip Output Directory",
+                                                        "Directory where full PRE/EVENT/POST clips are written",
+                                                        DEFAULT_FULL_CLIP_OUTPUT_DIR, G_PARAM_READWRITE));
 
     g_object_class_install_property(
         gobject_class, PROP_DOWNSTREAM_OUTPUT_DIR,
@@ -402,11 +400,11 @@ static void gst_gvaeventrecorder_class_init(GstGvaEventRecorderClass *klass) {
                             "Output filename template; supports %class%, %timestamp% and %counter% placeholders",
                             DEFAULT_LOCATION_TEMPLATE, G_PARAM_READWRITE));
 
-    g_object_class_install_property(
-        gobject_class, PROP_ENCODER_MODE,
-        g_param_spec_enum("encoder-mode", "Encoder Mode", "Video encoder backend used to write triggered clips",
-                          GST_TYPE_GVAEVENTRECORDER_ENCODER_MODE, GST_GVAEVENTRECORDER_ENCODER_SOFTWARE,
-                          G_PARAM_READWRITE));
+    g_object_class_install_property(gobject_class, PROP_ENCODER_MODE,
+                                    g_param_spec_enum("encoder-mode", "Encoder Mode",
+                                                      "Video encoder backend used to write triggered clips",
+                                                      GST_TYPE_GVAEVENTRECORDER_ENCODER_MODE,
+                                                      GST_GVAEVENTRECORDER_ENCODER_SOFTWARE, G_PARAM_READWRITE));
 
     g_object_class_install_property(
         gobject_class, PROP_CONTAINER,
@@ -584,10 +582,11 @@ static gboolean gst_gvaeventrecorder_start(GstBaseTransform *base) {
     rt->writer.start();
     self->priv = rt;
 
-    GST_INFO_OBJECT(self, "Started: target-classes=%s confidence-threshold=%.2f pre-event-frames=%u "
-                         "post-event-frames=%u max-concurrent-events=%u",
-                    self->target_classes, self->confidence_threshold, self->pre_event_frames,
-                    self->post_event_frames, self->max_concurrent_events);
+    GST_INFO_OBJECT(self,
+                    "Started: target-classes=%s confidence-threshold=%.2f pre-event-frames=%u "
+                    "post-event-frames=%u max-concurrent-events=%u",
+                    self->target_classes, self->confidence_threshold, self->pre_event_frames, self->post_event_frames,
+                    self->max_concurrent_events);
     return TRUE;
 }
 
@@ -654,7 +653,7 @@ static std::vector<DetectionInput> collect_detections(GstBuffer *buf) {
 }
 
 static nlohmann::ordered_json build_json_meta(const std::vector<gvaeventrecorder::TriggerResult> &triggers,
-                                             const GvaEventRecorderRuntime *rt, const std::string &event_id) {
+                                              const GvaEventRecorderRuntime *rt, const std::string &event_id) {
     nlohmann::ordered_json root;
     auto &er = root["gvaeventrecorder"];
     er["event_active"] = true;
@@ -732,8 +731,8 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
         return GST_FLOW_ERROR;
     }
     if (!rt->video_info_valid) {
-        GST_ELEMENT_ERROR(self, STREAM, FORMAT, ("No caps negotiated"), ("set_caps was not called before the first buffer"));
-        return GST_FLOW_ERROR;
+        GST_ELEMENT_ERROR(self, STREAM, FORMAT, ("No caps negotiated"),
+                          ("set_caps was not called before the first buffer"));
     }
 
     self->frame_counter++;
@@ -774,13 +773,13 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
         }
         const std::string full_clip_output_dir =
             self->full_clip_output_dir ? self->full_clip_output_dir : DEFAULT_FULL_CLIP_OUTPUT_DIR;
-        session.output_path =
-            build_output_path(self, full_clip_output_dir, trig.class_label, trigger_timestamp.filename,
-                              rt->file_counter);
+        session.output_path = build_output_path(self, full_clip_output_dir, trig.class_label,
+                                                trigger_timestamp.filename, rt->file_counter);
+
         if (self->downstream_output_dir && self->downstream_output_dir[0] != '\0')
-            session.downstream_output_path = build_output_path(self, self->downstream_output_dir, trig.class_label,
-                                                               trigger_timestamp.filename, rt->file_counter,
-                                                               "_downstream");
+            session.downstream_output_path =
+                build_output_path(self, self->downstream_output_dir, trig.class_label, trigger_timestamp.filename,
+                                  rt->file_counter, "_downstream");
         ++rt->file_counter;
         rt->active_sessions.emplace(trig.session_id, std::move(session));
     }
@@ -795,8 +794,8 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
         const bool first = to_push.buffer == nullptr;
         if (first) {
             std::ostringstream id;
-                id << "event_" << outcome.new_triggers.front().class_label << '_'
-                    << make_event_timestamp().filename << '_' << std::setw(6) << std::setfill('0') << rt->event_counter++;
+            id << "event_" << outcome.new_triggers.front().class_label << '_' << make_event_timestamp().filename << '_'
+               << std::setw(6) << std::setfill('0') << rt->event_counter++;
             rt->event_id = id.str();
         }
         rt->pending.buffer = gst_buffer_ref(buf);

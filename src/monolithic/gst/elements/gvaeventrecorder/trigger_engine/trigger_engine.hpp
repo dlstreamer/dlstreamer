@@ -47,10 +47,10 @@ public:
     };
 
     struct FrameOutcome {
-        bool forward = false;                     // true while any accepted event is active on this frame
-        std::vector<TriggerResult> new_triggers;   // sessions started on this frame
-        std::vector<uint64_t> finished_sessions;   // session ids whose post-event window just completed
-        uint32_t dropped_by_overflow = 0;          // new triggers rejected due to max_concurrent_events
+        bool forward = false;                    // true while any accepted event is active on this frame
+        std::vector<TriggerResult> new_triggers; // sessions started on this frame
+        std::vector<uint64_t> finished_sessions; // session ids whose post-event window just completed
+        uint32_t dropped_by_overflow = 0;        // new triggers rejected due to max_concurrent_events
     };
 
     explicit TriggerEngine(Config config);
@@ -69,9 +69,11 @@ public:
     bool is_event_active(uint64_t session_id) const;
 
     void set_config(Config config);
-    const Config &config() const { return config_; }
+    const Config &config() const {
+        return config_;
+    }
 
-private:
+  private:
     bool is_target_class(const std::string &label) const;
 
     struct CooldownState {
