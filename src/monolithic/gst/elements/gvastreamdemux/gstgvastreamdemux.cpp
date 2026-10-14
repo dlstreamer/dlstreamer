@@ -93,11 +93,17 @@ static void gst_gva_streamdemux_class_init(GstGvaStreamdemuxClass *klass) {
 }
 
 static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
+    g_mutex_init(&demux->lock);
+    g_cond_init(&demux->fps_cond);
+
+    /* No other thread can reach an object still under construction, but taking
+     * the lock anyway keeps every access to these fields on one path, so none
+     * of them has to be argued about (or annotated) individually. */
+    g_mutex_lock(&demux->lock);
+
     demux->max_fps = DEFAULT_MAX_FPS;
-    /* Object is under construction; no other thread can reference it yet,
-     * and demux->lock is not initialised until below. */
-    // coverity[missing_lock]
     demux->num_src_pads = 0;
+    demux->flushing = FALSE;
     demux->validated = FALSE;
     demux->container_mode = FALSE;
     demux->last_batch_output_time = GST_CLOCK_TIME_NONE;
@@ -108,9 +114,10 @@ static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
     demux->unrouted_warned = g_array_new(FALSE, TRUE, sizeof(gboolean));
     demux->flow_combiner = gst_flow_combiner_new();
 
-    g_mutex_init(&demux->lock);
+    g_mutex_unlock(&demux->lock);
 
-    /* Create sink pad (always) */
+    /* Create sink pad (always): adding it emits signals and takes the element's
+     * own locks, so it stays outside demux->lock. */
     demux->sinkpad = gst_pad_new_from_static_template(&gva_streamdemux_sink_template, "sink");
     gst_pad_set_chain_function(demux->sinkpad, GST_DEBUG_FUNCPTR(gst_gva_streamdemux_chain));
     gst_pad_set_event_function(demux->sinkpad, GST_DEBUG_FUNCPTR(gst_gva_streamdemux_sink_event));
@@ -121,11 +128,18 @@ static void gst_gva_streamdemux_init(GstGvaStreamdemux *demux) {
 static void gst_gva_streamdemux_finalize(GObject *object) {
     GstGvaStreamdemux *demux = GST_GVA_STREAMDEMUX(object);
 
-    g_mutex_clear(&demux->lock);
+    /* The last reference is gone, so nothing can reach the object any more, but
+     * tearing it down under the lock keeps every access to these fields on one
+     * path, the way the constructor does. */
+    g_mutex_lock(&demux->lock);
     g_ptr_array_free(demux->srcpads, TRUE);
     g_array_free(demux->last_output_times, TRUE);
     g_array_free(demux->unrouted_warned, TRUE);
     gst_flow_combiner_free(demux->flow_combiner);
+    g_mutex_unlock(&demux->lock);
+
+    g_mutex_clear(&demux->lock);
+    g_cond_clear(&demux->fps_cond);
 
     G_OBJECT_CLASS(gst_gva_streamdemux_parent_class)->finalize(object);
 }
@@ -138,6 +152,8 @@ static void gst_gva_streamdemux_finalize(GObject *object) {
 static void gst_gva_streamdemux_set_property(GObject *object, guint prop_id, const GValue *value, GParamSpec *pspec) {
     GstGvaStreamdemux *demux = GST_GVA_STREAMDEMUX(object);
 
+    /* Properties can be set while the element is running, so the streaming
+     * threads that read them under the lock have to see one consistent value. */
     g_mutex_lock(&demux->lock);
 
     switch (prop_id) {
@@ -278,13 +294,13 @@ static GstStateChangeReturn gst_gva_streamdemux_change_state(GstElement *element
 
     switch (transition) {
     case GST_STATE_CHANGE_READY_TO_PAUSED:
-        demux->validated = FALSE;
-        demux->container_mode = FALSE;
         /* Nothing to clear for the "already started" state: deactivating the
          * pads dropped their sticky events, which is what that state is read
          * from. The flow returns left over from the previous run do have to go,
          * or a branch that ended NOT_LINKED stays NOT_LINKED forever. */
         g_mutex_lock(&demux->lock);
+        demux->validated = FALSE;
+        demux->container_mode = FALSE;
         gst_flow_combiner_reset(demux->flow_combiner);
         gva_streamdemux_reset_output_times(demux);
         demux->flushing = FALSE;
@@ -799,16 +815,15 @@ static GstFlowReturn gst_gva_streamdemux_chain(GstPad *pad, GstObject *parent, G
         return GST_FLOW_ERROR;
     }
 
-    /* The caps event decides the mode, on the same streaming thread that runs
-     * this function, but it is written under the lock so read it under the
-     * lock too, together with the one-time validation log. */
+    /* Validate on first buffer, and read the mode in the same critical section
+     * so both come from one consistent snapshot. */
     g_mutex_lock(&demux->lock);
-    gboolean container_mode = demux->container_mode;
     if (G_UNLIKELY(!demux->validated)) {
         demux->validated = TRUE;
         GST_INFO_OBJECT(demux, "Validated: %u src pads configured, batch n_streams=%u, container_mode=%d",
-                        demux->num_src_pads, (guint)meta->n_streams, container_mode);
+                        demux->num_src_pads, (guint)meta->n_streams, demux->container_mode);
     }
+    gboolean container_mode = demux->container_mode;
     g_mutex_unlock(&demux->lock);
 
     /* CONTAINER mode: one buffer holds all sources (each with its own caps). */

@@ -247,6 +247,14 @@ static void gst_gva_streammux_class_init(GstGvaStreammuxClass *klass) {
 }
 
 static void gst_gva_streammux_init(GstGvaStreammux *mux) {
+    g_mutex_init(&mux->lock);
+    g_cond_init(&mux->cond);
+
+    /* No other thread can reach an object still under construction, but taking
+     * the lock anyway keeps every access to these fields on one path, so none
+     * of them has to be argued about (or annotated) individually. */
+    g_mutex_lock(&mux->lock);
+
     mux->max_fps = DEFAULT_MAX_FPS;
     mux->pts_tolerance = DEFAULT_PTS_TOLERANCE;
     mux->max_wait_time = DEFAULT_MAX_WAIT_TIME;
@@ -255,14 +263,8 @@ static void gst_gva_streammux_init(GstGvaStreammux *mux) {
     mux->output_mode = DEFAULT_OUTPUT_MODE;
 
     mux->num_sink_pads = 0;
-    /* Object is under construction; no other thread can reference it yet, and
-     * mux->lock is not initialised until below. The same applies to the
-     * lock-protected fields set further down. */
-    // coverity[missing_lock]
     mux->send_stream_start = TRUE;
-    // coverity[missing_lock]
     mux->flushing = FALSE;
-    // coverity[missing_lock]
     mux->flushing_pads_count = 0;
     mux->sinkpads = NULL;
     mux->current_caps = NULL;
@@ -274,20 +276,18 @@ static void gst_gva_streammux_init(GstGvaStreammux *mux) {
     mux->segment_adopted = FALSE;
     mux->last_output_time = GST_CLOCK_TIME_NONE;
     mux->max_fps_duration = GST_CLOCK_TIME_NONE;
-    // coverity[missing_lock]
     mux->batch_anchor_pts = GST_CLOCK_TIME_NONE;
     mux->batch_start_real_time = 0;
     mux->last_pushed_batch_pts = GST_CLOCK_TIME_NONE;
-    // coverity[missing_lock]
-
-    g_mutex_init(&mux->lock);
-    g_cond_init(&mux->cond);
 
     gst_segment_init(&mux->segment, GST_FORMAT_TIME);
 
     mux->pad_data = g_ptr_array_new();
 
-    /* Create source pad */
+    g_mutex_unlock(&mux->lock);
+
+    /* Create source pad: adding it emits signals and takes the element's own
+     * locks, so it stays outside mux->lock. */
     mux->srcpad = gst_pad_new_from_static_template(&gva_streammux_src_template, "src");
     gst_pad_set_query_function(mux->srcpad, GST_DEBUG_FUNCPTR(gst_gva_streammux_src_query));
     gst_pad_set_event_function(mux->srcpad, GST_DEBUG_FUNCPTR(gst_gva_streammux_src_event));
@@ -329,6 +329,11 @@ static void gst_gva_streammux_flush_pad_queues(GstGvaStreammux *mux) {
 static void gst_gva_streammux_finalize(GObject *object) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
 
+    /* The last reference is gone, so nothing can reach the object any more, but
+     * tearing it down under the lock keeps every access to these fields on one
+     * path, the way the constructor does. */
+    g_mutex_lock(&mux->lock);
+
     gst_gva_streammux_flush_pad_queues(mux);
 
     for (guint i = 0; i < mux->pad_data->len; i++) {
@@ -348,13 +353,15 @@ static void gst_gva_streammux_finalize(GObject *object) {
     g_list_free(mux->sinkpads);
     mux->sinkpads = NULL;
 
-    g_mutex_clear(&mux->lock);
-    g_cond_clear(&mux->cond);
-
     if (mux->current_caps) {
         gst_caps_unref(mux->current_caps);
         mux->current_caps = NULL;
     }
+
+    g_mutex_unlock(&mux->lock);
+
+    g_mutex_clear(&mux->lock);
+    g_cond_clear(&mux->cond);
 
     G_OBJECT_CLASS(gst_gva_streammux_parent_class)->finalize(object);
 }
@@ -367,6 +374,8 @@ static void gst_gva_streammux_set_property(GObject *object, guint prop_id, const
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(object);
     gboolean latency_changed = FALSE;
 
+    /* Properties can be set while the element is running, so the streaming
+     * threads that read them under the lock have to see one consistent value. */
     g_mutex_lock(&mux->lock);
 
     switch (prop_id) {
@@ -902,6 +911,8 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
         gboolean caps_mismatch = FALSE;
         GstCaps *caps_to_push = NULL;
         GstCaps *negotiated_caps = NULL;
+        GstSegment segment_to_push;
+        gst_segment_init(&segment_to_push, GST_FORMAT_TIME);
 
         g_mutex_lock(&mux->lock);
         GvaStreammuxPadData *pdata = get_pad_data(mux, pad);
@@ -921,6 +932,9 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
          * its caps (so a passthrough caps-equality check sees all of them). */
         if (!mux->caps_negotiated && all_live_pads_have_caps(mux)) {
             caps_to_push = negotiate_src_caps(mux, &need_stream_start, &need_segment, &caps_mismatch);
+            /* Copied out because the events are pushed after the lock is
+             * dropped, while another pad's streaming thread may update it. */
+            segment_to_push = mux->segment;
         } else if (mux->caps_negotiated && !mux->caps_change_error_posted &&
                    mux->output_mode == GVA_STREAMMUX_OUTPUT_PASSTHROUGH && mux->current_caps &&
                    !gst_caps_is_equal(mux->current_caps, caps)) {
@@ -965,7 +979,7 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
             GST_INFO_OBJECT(mux, "Set output caps: %" GST_PTR_FORMAT, caps_to_push);
             gst_caps_unref(caps_to_push);
             if (need_segment) {
-                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&mux->segment));
+                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&segment_to_push));
                 GST_INFO_OBJECT(mux, "Sent segment event");
             }
             /* The events are on the pad now, so open the output gate. */
@@ -1037,6 +1051,8 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
         gboolean need_segment = FALSE;
         gboolean caps_mismatch = FALSE;
         GstCaps *caps_to_push = NULL;
+        GstSegment segment_to_push;
+        gst_segment_init(&segment_to_push, GST_FORMAT_TIME);
 
         g_mutex_lock(&mux->lock);
         GvaStreammuxPadData *pdata = get_pad_data(mux, pad);
@@ -1050,6 +1066,9 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
          * to avoid the output loop waiting forever for caps to be decided. */
         if (!mux->caps_negotiated && all_live_pads_have_caps(mux)) {
             caps_to_push = negotiate_src_caps(mux, &need_stream_start, &need_segment, &caps_mismatch);
+            /* Copied out because the events are pushed after the lock is
+             * dropped, while another pad's streaming thread may update it. */
+            segment_to_push = mux->segment;
         }
         g_cond_signal(&mux->cond);
         g_mutex_unlock(&mux->lock);
@@ -1071,7 +1090,7 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
             gst_pad_push_event(mux->srcpad, gst_event_new_caps(caps_to_push));
             gst_caps_unref(caps_to_push);
             if (need_segment)
-                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&mux->segment));
+                gst_pad_push_event(mux->srcpad, gst_event_new_segment(&segment_to_push));
             /* The events are on the pad now, so open the output gate. */
             g_mutex_lock(&mux->lock);
             mux->events_pushed = TRUE;
@@ -1190,16 +1209,16 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
 static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, GstBuffer *buf) {
     GstGvaStreammux *mux = GST_GVA_STREAMMUX(parent);
 
-    /* Snapshot the sync mode rather than reading it twice: it decides both
-     * whether the buffer has to be made writable, which is done outside the
-     * lock because it does not touch the pad data, and whether to normalize,
-     * which is done inside because it does. Reading the field twice could see
-     * a set_property in between and make the buffer writable without
-     * normalizing it, or worse the other way round. */
+    /* One snapshot drives both decisions below, so a concurrent property change
+     * cannot leave normalize_buffer_pts writing into a buffer that was not made
+     * writable. */
     g_mutex_lock(&mux->lock);
     GvaStreammuxSyncMode sync_mode = mux->sync_mode;
     g_mutex_unlock(&mux->lock);
 
+    /* Making the buffer writable does not touch the pad data, so it can stay
+     * outside the lock; normalize_buffer_pts reads and writes that data and so
+     * has to move inside it. */
     if (sync_mode != GVA_STREAMMUX_SYNC_MODE_NONE)
         buf = gst_buffer_make_writable(buf);
 
@@ -1368,6 +1387,8 @@ static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQ
         g_mutex_lock(&mux->lock);
         for (l = mux->sinkpads; l; l = l->next)
             pads_copy = g_list_prepend(pads_copy, gst_object_ref(GST_PAD(l->data)));
+        GstClockTime max_wait_time = mux->max_wait_time;
+        GstClockTime queueing = queueing_latency(mux);
         g_mutex_unlock(&mux->lock);
 
         for (l = pads_copy; l; l = l->next) {
@@ -1389,11 +1410,6 @@ static gboolean gst_gva_streammux_src_query(GstPad *pad, GstObject *parent, GstQ
             gst_query_unref(peer_query);
         }
         g_list_free_full(pads_copy, gst_object_unref);
-
-        g_mutex_lock(&mux->lock);
-        GstClockTime max_wait_time = mux->max_wait_time;
-        GstClockTime queueing = queueing_latency(mux);
-        g_mutex_unlock(&mux->lock);
 
         /* Every batch can be held for up to max-wait-time, whether or not the
          * queues are busy, so that goes on both bounds. The queues only delay

@@ -1242,21 +1242,21 @@ void Impl::parse_displ_config() {
                 _displCfg.draw_text_background = (iter->second != "false");
                 cfg.erase(iter);
             }
-            if (iter = cfg.find("show-roi"); iter != cfg.end()) {
-                _displCfg.include_labels_filter = std::unordered_set<std::string>();
-                Utils::parseFilterConfig(iter->second, *_displCfg.include_labels_filter);
-                cfg.erase(iter);
+        }
+        if (iter = cfg.find("show-roi"); iter != cfg.end()) {
+            _displCfg.include_labels_filter = std::unordered_set<std::string>();
+            Utils::parseFilterConfig(iter->second, *_displCfg.include_labels_filter);
+            cfg.erase(iter);
+        }
+        if (iter = cfg.find("hide-roi"); iter != cfg.end()) {
+            if (_displCfg.include_labels_filter.has_value() && !(_displCfg.include_labels_filter->empty())) {
+                GST_WARNING("[gvawatermarkimpl] Both 'show-roi' and 'hide-roi' parameters are set, "
+                            "'hide-roi' will be ignored.");
+            } else {
+                _displCfg.exclude_labels_filter = std::unordered_set<std::string>();
+                Utils::parseFilterConfig(iter->second, *_displCfg.exclude_labels_filter);
             }
-            if (iter = cfg.find("hide-roi"); iter != cfg.end()) {
-                if (_displCfg.include_labels_filter.has_value() && !(_displCfg.include_labels_filter->empty())) {
-                    GST_WARNING("[gvawatermarkimpl] Both 'show-roi' and 'hide-roi' parameters are set, "
-                                "'hide-roi' will be ignored.");
-                } else {
-                    _displCfg.exclude_labels_filter = std::unordered_set<std::string>();
-                    Utils::parseFilterConfig(iter->second, *_displCfg.exclude_labels_filter);
-                }
-                cfg.erase(iter);
-            }
+            cfg.erase(iter);
         }
         if (iter = cfg.find("thickness"); iter != cfg.end()) {
             _displCfg.thickness = std::stoi(iter->second);
