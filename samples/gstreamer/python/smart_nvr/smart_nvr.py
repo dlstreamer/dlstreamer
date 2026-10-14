@@ -103,13 +103,7 @@ def main():
     if plugins_dir not in os.environ.get("GST_PLUGIN_PATH", ""):
         existing = os.environ.get("GST_PLUGIN_PATH", "")
         os.environ["GST_PLUGIN_PATH"] = f"{existing}:{plugins_dir}" if existing else plugins_dir
-    if plugins_dir not in os.environ.get("PYTHONPATH", ""):
-        existing_pp = os.environ.get("PYTHONPATH", "")
-        os.environ["PYTHONPATH"] = f"{plugins_dir}:{existing_pp}" if existing_pp else plugins_dir
-
-    # Drop any stale/blacklisted cache so this run always gets a fresh plugin scan.
-    for cache_file in (Path.home() / ".cache" / "gstreamer-1.0").glob("registry.*.bin"):
-        cache_file.unlink(missing_ok=True)
+    os.environ.setdefault("GST_REGISTRY_FORK", "no")
 
     Gst.init([])
     reg = Gst.Registry.get()

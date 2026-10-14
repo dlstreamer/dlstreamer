@@ -18,7 +18,7 @@ gi.require_version('GstBase', '1.0')
 gi.require_version("GstAnalytics", "1.0")
 gi.require_version("DLStreamerWatermarkMeta", "1.0")
 from gi.repository import Gst, GstBase, GObject, GLib, GstAnalytics, DLStreamerWatermarkMeta # pylint: disable=no-name-in-module
-Gst.init([])
+Gst.init_python()
 
 class Analytics(GstBase.BaseTransform):
     """DLStreamer custom Analytics element to detect lane hogging events."""
