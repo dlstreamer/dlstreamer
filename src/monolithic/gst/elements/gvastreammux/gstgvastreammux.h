@@ -18,7 +18,13 @@ G_BEGIN_DECLS
 #define GST_IS_GVA_STREAMMUX(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_GVA_STREAMMUX))
 #define GST_IS_GVA_STREAMMUX_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_GVA_STREAMMUX))
 
-#define GST_GVA_STREAMMUX_MAX_PAD_INDEX 256
+/* Upper bound on a request pad's index. The per-pad arrays are indexed by
+ * it and grow to hold it, so at this ceiling they cost a few kilobytes per
+ * element. Releasing a pad frees its index for reuse, and an unnamed
+ * request takes the lowest free one, so a long-running pipeline that
+ * recycles sources never approaches this; only one that keeps counting
+ * upwards does. */
+#define GST_GVA_STREAMMUX_MAX_PAD_INDEX 1024
 
 typedef enum {
     GVA_STREAMMUX_SYNC_MODE_NONE = 0,
