@@ -1070,7 +1070,7 @@ static gboolean gst_gva_streammux_sink_event(GstPad *pad, GstObject *parent, Gst
              * dropped, while another pad's streaming thread may update it. */
             segment_to_push = mux->segment;
         }
-        g_cond_signal(&mux->cond);
+        g_cond_broadcast(&mux->cond);
         g_mutex_unlock(&mux->lock);
 
         if (caps_mismatch) {
@@ -1285,7 +1285,13 @@ static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, Gst
      * caps of a later, mid-stream caps change. */
     g_queue_push_tail(&pdata->buffer_queue, queue_item_new(buf, pdata->caps));
     pdata->delivered = TRUE;
-    g_cond_signal(&mux->cond);
+    /* Broadcast, not signal. Two kinds of thread wait on this one condition
+     * variable: the output task, waiting for a batch to become possible, and
+     * other chain functions, waiting for room in their own queues. Waking
+     * exactly one of them can wake a chain function whose queue is still
+     * full, which simply waits again -- and the output task, the only thread
+     * that drains any queue, is left asleep with nothing to wake it. */
+    g_cond_broadcast(&mux->cond);
 
     g_mutex_unlock(&mux->lock);
     return GST_FLOW_OK;
