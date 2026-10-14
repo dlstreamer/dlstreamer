@@ -1725,6 +1725,7 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
     if (!GST_CLOCK_TIME_IS_VALID(mux->batch_anchor_pts)) {
         GstClockTime earliest = GST_CLOCK_TIME_NONE;
         gboolean any_buffer = FALSE;
+        gboolean dropped_any = FALSE;
 
         for (guint i = 0; i < mux->pad_data->len; i++) {
             GvaStreammuxPadData *pdata = (GvaStreammuxPadData *)g_ptr_array_index(mux->pad_data, i);
@@ -1745,8 +1746,10 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
              * This doubles as the catch-up path for a source returning from a
              * stall with a backlog: its arrears are dropped until what it is
              * delivering is current again. */
-            if (gva_streammux_drop_stale_head(mux, pdata) > 0)
+            if (gva_streammux_drop_stale_head(mux, pdata) > 0) {
                 pdata->stale_dropped = TRUE;
+                dropped_any = TRUE;
+            }
 
             GvaStreammuxQueueItem *head = (GvaStreammuxQueueItem *)g_queue_peek_head(&pdata->buffer_queue);
             if (head) {
@@ -1756,6 +1759,26 @@ static void gst_gva_streammux_output_loop(gpointer user_data) {
                     earliest = pts;
                 }
             }
+        }
+
+        if (!any_buffer && dropped_any) {
+            /* Everything queued was behind the last batch, which cannot be
+             * right: that reference comes from the anchor, and the anchor is
+             * the earliest queue head, so a single buffer carrying an absurd
+             * timestamp -- arriving when it was briefly the only one queued --
+             * becomes the reference and leaves every real buffer looking
+             * stale. The element then discards its whole input for good, and
+             * silently, because the batching loop is also where the stall
+             * detection runs and it never completes a batch.
+             *
+             * Forget the reference and anchor again from whatever arrives
+             * next. That costs the buffers discarded this round and bounds
+             * the damage to it, however the bad reference came about. */
+            GST_WARNING_OBJECT(mux,
+                               "Every queued buffer was behind the last batch at %" GST_TIME_FORMAT
+                               "; discarding that reference and re-anchoring",
+                               GST_TIME_ARGS(mux->last_pushed_batch_pts));
+            mux->last_pushed_batch_pts = GST_CLOCK_TIME_NONE;
         }
 
         if (!any_buffer) {
