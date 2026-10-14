@@ -35,7 +35,7 @@ struct TriggerResult {
 // types so it can be unit tested without a running pipeline; the caller (GObject element)
 // is responsible for all GstBuffer / ring-buffer bookkeeping.
 class TriggerEngine {
-public:
+  public:
     struct Config {
         std::vector<std::string> target_classes;
         float confidence_threshold = 0.5f;
