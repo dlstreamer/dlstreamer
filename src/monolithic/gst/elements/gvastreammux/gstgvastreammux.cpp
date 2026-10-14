@@ -1263,22 +1263,18 @@ static GstFlowReturn gst_gva_streammux_chain(GstPad *pad, GstObject *parent, Gst
         return GST_FLOW_FLUSHING;
     }
 
-    GstClockTime pts = GST_BUFFER_PTS(buf);
-
-    /* Late frame detection */
-    if (GST_CLOCK_TIME_IS_VALID(pts) && GST_CLOCK_TIME_IS_VALID(mux->last_pushed_batch_pts)) {
-        if (pts + mux->pts_tolerance < mux->last_pushed_batch_pts) {
-            GST_WARNING_OBJECT(mux,
-                               "Late frame from pad sink_%u (pts=%" GST_TIME_FORMAT
-                               " < last_batch_pts=%" GST_TIME_FORMAT "), dropping",
-                               pdata->pad_index, GST_TIME_ARGS(pts), GST_TIME_ARGS(mux->last_pushed_batch_pts));
-            g_mutex_unlock(&mux->lock);
-            gst_buffer_unref(buf);
-            return GST_FLOW_OK;
-        }
-    }
-
-    /* Capture the pad's current caps alongside the buffer: CAPS events and
+    /* Late buffers are not discarded here. The batching loop discards the
+     * heads it cannot use, which covers strictly more than this did -- it has
+     * no tolerance window -- and does it at the point where staleness
+     * actually decides something.
+     *
+     * Dropping here was also wrong in a way the loop is not: it returned
+     * before the pad was marked as having delivered, so a source whose
+     * buffers were all late never counted as alive. After five batches it was
+     * called stalled, and since recovery is judged on delivery it could never
+     * stop being called that -- while it was delivering the whole time.
+     *
+     * Capture the pad's current caps alongside the buffer: CAPS events and
      * buffers are serialized on this streaming thread, so pdata->caps is
      * exactly what upstream negotiated for this buffer. Reading it back when
      * the batch is assembled would instead tag already-queued buffers with the
