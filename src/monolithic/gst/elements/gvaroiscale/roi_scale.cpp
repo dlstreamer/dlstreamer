@@ -12,7 +12,15 @@
 namespace gvaroiscale {
 namespace {
 
-bool first_valid_roi(GstBuffer *buffer, gint &x, gint &y, gint &width, gint &height) {
+bool is_target_class(GQuark label, const GArray *target_classes) {
+    if (!target_classes || target_classes->len == 0)
+        return true;
+
+    const auto *labels = reinterpret_cast<const GQuark *>(target_classes->data);
+    return std::find(labels, labels + target_classes->len, label) != labels + target_classes->len;
+}
+
+bool first_valid_roi(GstBuffer *buffer, const GArray *target_classes, gint &x, gint &y, gint &width, gint &height) {
     GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
     if (!relation_meta)
         return false;
@@ -21,6 +29,8 @@ bool first_valid_roi(GstBuffer *buffer, gint &x, gint &y, gint &width, gint &hei
     GstAnalyticsODMtd detection;
     while (gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(),
                                                &detection)) {
+        if (!is_target_class(gst_analytics_od_mtd_get_obj_type(&detection), target_classes))
+            continue;
         if (gst_analytics_od_mtd_get_location(&detection, &x, &y, &width, &height, nullptr) && width > 0 &&
             height > 0)
             return true;
@@ -31,7 +41,8 @@ bool first_valid_roi(GstBuffer *buffer, gint &x, gint &y, gint &width, gint &hei
 } // namespace
 
 RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &input_info, guint output_width,
-                                guint output_height, GstBuffer **output_buffer, GstVideoInfo *output_info) {
+                                guint output_height, const GArray *target_classes, GstBuffer **output_buffer,
+                                GstVideoInfo *output_info) {
     if (output_buffer)
         *output_buffer = nullptr;
     if (!input_buffer || !output_buffer || output_width == 0 || output_height == 0 ||
@@ -40,7 +51,7 @@ RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &inp
         return RoiScaleResult::Error;
 
     gint roi_x = 0, roi_y = 0, roi_width = 0, roi_height = 0;
-    if (!first_valid_roi(input_buffer, roi_x, roi_y, roi_width, roi_height))
+    if (!first_valid_roi(input_buffer, target_classes, roi_x, roi_y, roi_width, roi_height))
         return RoiScaleResult::NoRoi;
 
     const gint64 left = std::max<gint64>(roi_x, 0);
