@@ -160,6 +160,12 @@ echo_color "Executing: sudo apt update" "blue"
 sudo apt-get update
 echo_color  "Completed: sudo apt update" "magenta"
 
+# Runner pod's python3 was baked in at image-build time and can drift from the apt
+# repo python3 the .deb's native extensions (gst-python) were just compiled against.
+echo_color "Executing: sudo apt-get install --only-upgrade -y python3 python3-dev python3-venv" "blue"
+sudo apt-get install --only-upgrade -y python3 python3-dev python3-venv
+echo_color "Completed: sudo apt-get install --only-upgrade -y python3 python3-dev python3-venv" "magenta"
+
 echo_color "Executing: sudo apt install -y ./intel-dlstreamer*" "blue"
 cd "$DEB_PKGS_PATH"
 sudo apt install -y ./intel-dlstreamer*
