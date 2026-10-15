@@ -31,7 +31,6 @@
 GST_DEBUG_CATEGORY(gst_gvaeventrecorder_debug);
 #define GST_CAT_DEFAULT gst_gvaeventrecorder_debug
 
-using gvaeventrecorder::ContainerFormat;
 using gvaeventrecorder::DetectionInput;
 using gvaeventrecorder::DropLogThrottle;
 using gvaeventrecorder::DumpJob;
@@ -47,14 +46,11 @@ enum {
     PROP_PRE_EVENT_FRAMES,
     PROP_POST_EVENT_FRAMES,
     PROP_EVENT_GAP_FRAMES,
-    PROP_COOLDOWN_UNIT,
     PROP_COOLDOWN_VALUE,
     PROP_MAX_CONCURRENT_EVENTS,
     PROP_FULL_CLIP_OUTPUT_DIR,
     PROP_DOWNSTREAM_OUTPUT_DIR,
-    PROP_LOCATION_TEMPLATE,
     PROP_ENCODER_MODE,
-    PROP_CONTAINER,
     PROP_DROP_LOG_INTERVAL_MS
 };
 
@@ -63,24 +59,10 @@ enum {
 #define DEFAULT_PRE_EVENT_FRAMES 30
 #define DEFAULT_POST_EVENT_FRAMES 30
 #define DEFAULT_EVENT_GAP_FRAMES 3
-#define DEFAULT_COOLDOWN_VALUE 5000
+#define DEFAULT_COOLDOWN_VALUE 150
 #define DEFAULT_MAX_CONCURRENT_EVENTS 4
 #define DEFAULT_FULL_CLIP_OUTPUT_DIR "."
-#define DEFAULT_LOCATION_TEMPLATE "event_%class%_%timestamp%_%counter%.mp4"
 #define DEFAULT_DROP_LOG_INTERVAL_MS 1500
-#define GST_TYPE_GVAEVENTRECORDER_COOLDOWN_UNIT (gst_gvaeventrecorder_cooldown_unit_get_type())
-static GType gst_gvaeventrecorder_cooldown_unit_get_type(void) {
-    static GType type = 0;
-    if (g_once_init_enter(&type)) {
-        static const GEnumValue values[] = {
-            {GST_GVAEVENTRECORDER_COOLDOWN_FRAMES, "Cooldown measured in number of frames", "frames"},
-            {GST_GVAEVENTRECORDER_COOLDOWN_TIME, "Cooldown measured in elapsed time (ms)", "time"},
-            {0, NULL, NULL}};
-        GType t = g_enum_register_static("GstGvaEventRecorderCooldownUnit", values);
-        g_once_init_leave(&type, t);
-    }
-    return type;
-}
 
 #define GST_TYPE_GVAEVENTRECORDER_ENCODER_MODE (gst_gvaeventrecorder_encoder_mode_get_type())
 static GType gst_gvaeventrecorder_encoder_mode_get_type(void) {
@@ -92,19 +74,6 @@ static GType gst_gvaeventrecorder_encoder_mode_get_type(void) {
             {GST_GVAEVENTRECORDER_ENCODER_AUTO, "VA-API if available, software fallback otherwise", "auto"},
             {0, NULL, NULL}};
         GType t = g_enum_register_static("GstGvaEventRecorderEncoderMode", values);
-        g_once_init_leave(&type, t);
-    }
-    return type;
-}
-
-#define GST_TYPE_GVAEVENTRECORDER_CONTAINER (gst_gvaeventrecorder_container_get_type())
-static GType gst_gvaeventrecorder_container_get_type(void) {
-    static GType type = 0;
-    if (g_once_init_enter(&type)) {
-        static const GEnumValue values[] = {{GST_GVAEVENTRECORDER_CONTAINER_MP4, "MP4 container", "mp4"},
-                                            {GST_GVAEVENTRECORDER_CONTAINER_MKV, "Matroska container", "mkv"},
-                                            {0, NULL, NULL}};
-        GType t = g_enum_register_static("GstGvaEventRecorderContainer", values);
         g_once_init_leave(&type, t);
     }
     return type;
@@ -203,15 +172,6 @@ static std::string format_frame_annotation(const std::vector<DetectionInput> &de
     return text.str();
 }
 
-static std::string replace_all(std::string s, const std::string &from, const std::string &to) {
-    size_t pos = 0;
-    while ((pos = s.find(from, pos)) != std::string::npos) {
-        s.replace(pos, from.length(), to);
-        pos += to.length();
-    }
-    return s;
-}
-
 struct EventTimestamp {
     std::string filename;
     std::string display;
@@ -228,29 +188,14 @@ static EventTimestamp make_event_timestamp() {
     return timestamp;
 }
 
-static std::string build_output_path(GstGvaEventRecorder *self, const std::string &dir, const std::string &class_label,
-                                     const std::string &timestamp, guint64 counter,
-                                     const std::string &suffix = std::string()) {
-
-    std::ostringstream counter_ss;
-    counter_ss.width(6);
-    counter_ss.fill('0');
-    counter_ss << counter;
-
-    std::string name = self->location_template ? self->location_template : DEFAULT_LOCATION_TEMPLATE;
-    name = replace_all(name, "%class%", class_label);
-    name = replace_all(name, "%timestamp%", timestamp);
-    name = replace_all(name, "%counter%", counter_ss.str());
-    if (!suffix.empty()) {
-        const std::size_t dot = name.find_last_of('.');
-        const std::size_t slash = name.find_last_of(G_DIR_SEPARATOR);
-        if (dot != std::string::npos && (slash == std::string::npos || dot > slash))
-            name.insert(dot, suffix);
-        else
-            name += suffix;
-    }
-
-    return dir + G_DIR_SEPARATOR_S + name;
+// Clip path: <dir>/event_<class>_<timestamp>_<counter><suffix>.mp4
+static std::string build_output_path(const std::string &dir, const std::string &class_label,
+                                     const std::string &timestamp, guint64 counter, const char *suffix = "") {
+    gchar *name = g_strdup_printf("event_%s_%s_%06" G_GUINT64_FORMAT "%s.mp4", class_label.c_str(), timestamp.c_str(),
+                                  counter, suffix);
+    std::string path = dir + G_DIR_SEPARATOR_S + name;
+    g_free(name);
+    return path;
 }
 
 static void enqueue_dump(GstGvaEventRecorder *self, GvaEventRecorderRuntime *rt, const std::string &path,
@@ -263,7 +208,6 @@ static void enqueue_dump(GstGvaEventRecorder *self, GvaEventRecorderRuntime *rt,
     job.frame_annotations = std::move(annotations);
     job.video_info = rt->video_info;
     job.encoder_mode = static_cast<EncoderMode>(self->encoder_mode);
-    job.container = static_cast<ContainerFormat>(self->container);
     rt->writer.enqueue(std::move(job));
     frames.clear();
     annotations.clear();
@@ -279,9 +223,6 @@ static TriggerEngine::Config make_engine_config(GstGvaEventRecorder *self) {
     cfg.target_classes = parse_target_classes(self->target_classes);
 
     cfg.confidence_threshold = static_cast<float>(self->confidence_threshold);
-    cfg.cooldown_unit = (self->cooldown_unit == GST_GVAEVENTRECORDER_COOLDOWN_FRAMES)
-                            ? gvaeventrecorder::CooldownUnit::Frames
-                            : gvaeventrecorder::CooldownUnit::Time;
     cfg.cooldown_value = self->cooldown_value;
     cfg.post_event_frames = self->post_event_frames;
     cfg.event_gap_frames = self->event_gap_frames;
@@ -364,17 +305,11 @@ static void gst_gvaeventrecorder_class_init(GstGvaEventRecorderClass *klass) {
             "Consecutive frames without a matching detection tolerated before the event is considered ended", 0,
             G_MAXUINT, DEFAULT_EVENT_GAP_FRAMES, G_PARAM_READWRITE));
 
-    g_object_class_install_property(gobject_class, PROP_COOLDOWN_UNIT,
-                                    g_param_spec_enum("cooldown-unit", "Cooldown Unit",
-                                                      "Unit used to measure the per-class cooldown window",
-                                                      GST_TYPE_GVAEVENTRECORDER_COOLDOWN_UNIT,
-                                                      GST_GVAEVENTRECORDER_COOLDOWN_TIME, G_PARAM_READWRITE));
-
     g_object_class_install_property(
         gobject_class, PROP_COOLDOWN_VALUE,
         g_param_spec_uint64("cooldown-value", "Cooldown Value",
-                            "Cooldown duration: milliseconds or frame count depending on cooldown-unit", 0, G_MAXUINT64,
-                            DEFAULT_COOLDOWN_VALUE, G_PARAM_READWRITE));
+                            "Per-class cooldown duration in frames, counted from the frame that started the window", 0,
+                            G_MAXUINT64, DEFAULT_COOLDOWN_VALUE, G_PARAM_READWRITE));
 
     g_object_class_install_property(
         gobject_class, PROP_MAX_CONCURRENT_EVENTS,
@@ -394,22 +329,11 @@ static void gst_gvaeventrecorder_class_init(GstGvaEventRecorderClass *klass) {
                             "Optional directory for per-event clips containing only EVENT frames forwarded downstream",
                             NULL, G_PARAM_READWRITE));
 
-    g_object_class_install_property(
-        gobject_class, PROP_LOCATION_TEMPLATE,
-        g_param_spec_string("location", "Location Template",
-                            "Output filename template; supports %class%, %timestamp% and %counter% placeholders",
-                            DEFAULT_LOCATION_TEMPLATE, G_PARAM_READWRITE));
-
     g_object_class_install_property(gobject_class, PROP_ENCODER_MODE,
                                     g_param_spec_enum("encoder-mode", "Encoder Mode",
                                                       "Video encoder backend used to write triggered clips",
                                                       GST_TYPE_GVAEVENTRECORDER_ENCODER_MODE,
                                                       GST_GVAEVENTRECORDER_ENCODER_SOFTWARE, G_PARAM_READWRITE));
-
-    g_object_class_install_property(
-        gobject_class, PROP_CONTAINER,
-        g_param_spec_enum("container", "Container", "Container format used to write triggered clips",
-                          GST_TYPE_GVAEVENTRECORDER_CONTAINER, GST_GVAEVENTRECORDER_CONTAINER_MP4, G_PARAM_READWRITE));
 
     g_object_class_install_property(
         gobject_class, PROP_DROP_LOG_INTERVAL_MS,
@@ -426,14 +350,11 @@ static void gst_gvaeventrecorder_init(GstGvaEventRecorder *self) {
     self->pre_event_frames = DEFAULT_PRE_EVENT_FRAMES;
     self->post_event_frames = DEFAULT_POST_EVENT_FRAMES;
     self->event_gap_frames = DEFAULT_EVENT_GAP_FRAMES;
-    self->cooldown_unit = GST_GVAEVENTRECORDER_COOLDOWN_TIME;
     self->cooldown_value = DEFAULT_COOLDOWN_VALUE;
     self->max_concurrent_events = DEFAULT_MAX_CONCURRENT_EVENTS;
     self->full_clip_output_dir = g_strdup(DEFAULT_FULL_CLIP_OUTPUT_DIR);
     self->downstream_output_dir = NULL;
-    self->location_template = g_strdup(DEFAULT_LOCATION_TEMPLATE);
     self->encoder_mode = GST_GVAEVENTRECORDER_ENCODER_SOFTWARE;
-    self->container = GST_GVAEVENTRECORDER_CONTAINER_MP4;
     self->drop_log_interval_ms = DEFAULT_DROP_LOG_INTERVAL_MS;
     self->frame_counter = 0;
     self->priv = NULL;
@@ -460,9 +381,6 @@ static void gst_gvaeventrecorder_set_property(GObject *object, guint prop_id, co
     case PROP_EVENT_GAP_FRAMES:
         self->event_gap_frames = g_value_get_uint(value);
         break;
-    case PROP_COOLDOWN_UNIT:
-        self->cooldown_unit = g_value_get_enum(value);
-        break;
     case PROP_COOLDOWN_VALUE:
         self->cooldown_value = g_value_get_uint64(value);
         break;
@@ -479,17 +397,8 @@ static void gst_gvaeventrecorder_set_property(GObject *object, guint prop_id, co
         self->downstream_output_dir = g_value_dup_string(value);
         needs_reconfig = FALSE;
         break;
-    case PROP_LOCATION_TEMPLATE:
-        g_free(self->location_template);
-        self->location_template = g_value_dup_string(value);
-        needs_reconfig = FALSE;
-        break;
     case PROP_ENCODER_MODE:
         self->encoder_mode = g_value_get_enum(value);
-        needs_reconfig = FALSE;
-        break;
-    case PROP_CONTAINER:
-        self->container = g_value_get_enum(value);
         needs_reconfig = FALSE;
         break;
     case PROP_DROP_LOG_INTERVAL_MS:
@@ -523,9 +432,6 @@ static void gst_gvaeventrecorder_get_property(GObject *object, guint prop_id, GV
     case PROP_EVENT_GAP_FRAMES:
         g_value_set_uint(value, self->event_gap_frames);
         break;
-    case PROP_COOLDOWN_UNIT:
-        g_value_set_enum(value, self->cooldown_unit);
-        break;
     case PROP_COOLDOWN_VALUE:
         g_value_set_uint64(value, self->cooldown_value);
         break;
@@ -538,14 +444,8 @@ static void gst_gvaeventrecorder_get_property(GObject *object, guint prop_id, GV
     case PROP_DOWNSTREAM_OUTPUT_DIR:
         g_value_set_string(value, self->downstream_output_dir);
         break;
-    case PROP_LOCATION_TEMPLATE:
-        g_value_set_string(value, self->location_template);
-        break;
     case PROP_ENCODER_MODE:
         g_value_set_enum(value, self->encoder_mode);
-        break;
-    case PROP_CONTAINER:
-        g_value_set_enum(value, self->container);
         break;
     case PROP_DROP_LOG_INTERVAL_MS:
         g_value_set_uint(value, self->drop_log_interval_ms);
@@ -562,7 +462,6 @@ static void gst_gvaeventrecorder_finalize(GObject *object) {
     g_free(self->target_classes);
     g_free(self->full_clip_output_dir);
     g_free(self->downstream_output_dir);
-    g_free(self->location_template);
 
     if (self->priv) {
         delete static_cast<GvaEventRecorderRuntime *>(self->priv);
@@ -735,16 +634,7 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
                           ("set_caps was not called before the first buffer"));
     }
 
-    self->frame_counter++;
-
-    uint64_t tick;
-    if (self->cooldown_unit == GST_GVAEVENTRECORDER_COOLDOWN_FRAMES) {
-        tick = self->frame_counter;
-    } else {
-        const GstClockTime pts = GST_BUFFER_PTS(buf);
-        tick = GST_CLOCK_TIME_IS_VALID(pts) ? static_cast<uint64_t>(pts / GST_MSECOND)
-                                            : static_cast<uint64_t>(g_get_monotonic_time() / 1000);
-    }
+    const uint64_t tick = ++self->frame_counter;
 
     std::vector<DetectionInput> detections = collect_detections(buf);
 
@@ -773,12 +663,12 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
         }
         const std::string full_clip_output_dir =
             self->full_clip_output_dir ? self->full_clip_output_dir : DEFAULT_FULL_CLIP_OUTPUT_DIR;
-        session.output_path = build_output_path(self, full_clip_output_dir, trig.class_label,
+        session.output_path = build_output_path(full_clip_output_dir, trig.class_label,
                                                 trigger_timestamp.filename, rt->file_counter);
 
         if (self->downstream_output_dir && self->downstream_output_dir[0] != '\0')
             session.downstream_output_path =
-                build_output_path(self, self->downstream_output_dir, trig.class_label, trigger_timestamp.filename,
+                build_output_path(self->downstream_output_dir, trig.class_label, trigger_timestamp.filename,
                                   rt->file_counter, "_downstream");
         ++rt->file_counter;
         rt->active_sessions.emplace(trig.session_id, std::move(session));

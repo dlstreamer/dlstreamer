@@ -61,7 +61,7 @@ Event clips use the default software encoder.
 - Detection and event metadata: `<output-directory>/events/events.json`.
 
 The full PRE/EVENT/POST clips are written to disk; only EVENT-phase frames are sent onward. Saving the separate EVENT-only clip does not consume those buffers: they continue through `gvametapublish` to the next pipeline element, `fakesink` in this sample.
-Clip filenames use the default template, `event_%class%_%timestamp%_%counter%.mp4`; downstream clips have the `_downstream` suffix.
+Clip filenames follow `event_<class>_<timestamp>_<counter>.mp4`; downstream clips have the `_downstream` suffix.
 
 ## See Also
 

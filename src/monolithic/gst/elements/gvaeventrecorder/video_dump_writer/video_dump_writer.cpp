@@ -41,10 +41,6 @@ std::string pick_encoder(EncoderMode mode) {
     }
 }
 
-std::string pick_muxer(ContainerFormat container) {
-    return container == ContainerFormat::Mkv ? "matroskamux" : "mp4mux";
-}
-
 void unref_all(const std::vector<GstBuffer *> &frames) {
     for (GstBuffer *b : frames)
         gst_buffer_unref(b);
@@ -158,8 +154,7 @@ bool VideoDumpWriter::write_job(const DumpJob &job, std::string &error_out) {
 
     const std::string desc = "appsrc name=src format=time is-live=false block=true ! videoconvert ! "
                              "cairooverlay name=annotation ! videoconvert ! " +
-                             pick_encoder(job.encoder_mode) + " ! h264parse ! " + pick_muxer(job.container) +
-                             " ! filesink name=sink";
+                             pick_encoder(job.encoder_mode) + " ! h264parse ! mp4mux ! filesink name=sink";
 
     GError *gerr = nullptr;
     GstElement *pipeline = gst_parse_launch(desc.c_str(), &gerr);

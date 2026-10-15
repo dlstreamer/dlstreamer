@@ -13,9 +13,6 @@
 
 namespace gvaeventrecorder {
 
-// Unit used to measure the per-class cooldown window.
-enum class CooldownUnit { Frames, Time };
-
 // A single detection read from incoming frame metadata (label + confidence).
 struct DetectionInput {
     std::string label;
@@ -39,8 +36,7 @@ class TriggerEngine {
     struct Config {
         std::vector<std::string> target_classes;
         float confidence_threshold = 0.5f;
-        CooldownUnit cooldown_unit = CooldownUnit::Time;
-        uint64_t cooldown_value = 5000; // milliseconds (Time) or frame count (Frames)
+        uint64_t cooldown_value = 150; // frames
         uint32_t post_event_frames = 30;
         uint32_t event_gap_frames = 3;
         uint32_t max_concurrent_events = 4;
@@ -55,8 +51,7 @@ class TriggerEngine {
 
     explicit TriggerEngine(Config config);
 
-    // tick must be monotonically non-decreasing: a frame counter when cooldown_unit is
-    // Frames, or elapsed time in milliseconds when cooldown_unit is Time.
+    // tick is the frame number and must be monotonically non-decreasing.
     // NOTE: call active_session_ids() *before* process_frame() for a given frame if the
     // caller needs to know which sessions were active prior to this frame's updates.
     FrameOutcome process_frame(uint64_t tick, const std::vector<DetectionInput> &detections);

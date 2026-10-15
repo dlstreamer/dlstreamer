@@ -21,8 +21,8 @@ element (e.g. `gvadetect`) and a downstream consumer such as `gvagenai`. It read
 - **Detection gaps**: up to `event-gap-frames` consecutive frames without a matching
   detection are tolerated as part of the same event. This helps prevent detector flicker
   from splitting one event into several clips.
-- **Cooldown**: each class has its own independent cooldown window
-  (`cooldown-unit`/`cooldown-value`), restarted from the first qualifying detection in the
+- **Cooldown**: each class has its own independent cooldown window of `cooldown-value`
+  frames, restarted from the first qualifying detection in the
   window, to avoid a burst of repeat triggers for the same ongoing event.
 - **Filtering to downstream**: only frames while an accepted event is active are forwarded.
   PRE frames remain in the recording ring but are not replayed downstream; POST frames are
@@ -46,14 +46,11 @@ element (e.g. `gvadetect`) and a downstream consumer such as `gvagenai`. It read
 | `pre-event-frames` | Unsigned Integer | [0, 4294967295] | 30 | Number of frames preceding a trigger kept in the shared ring buffer. |
 | `post-event-frames` | Unsigned Integer | [0, 4294967295] | 30 | Number of frames to keep capturing after the detected event ends. |
 | `event-gap-frames` | Unsigned Integer | [0, 4294967295] | 3 | Consecutive frames without a matching detection tolerated before the event is considered ended. |
-| `cooldown-unit` | Enum | `frames` / `time` | `time` | Unit used to measure the per-class cooldown window. |
-| `cooldown-value` | Unsigned Integer64 | [0, 18446744073709551615] | 5000 | Cooldown duration: milliseconds (`time`) or frame count (`frames`). |
+| `cooldown-value` | Unsigned Integer64 | [0, 18446744073709551615] | 150 | Per-class cooldown duration in frames. |
 | `max-concurrent-events` | Unsigned Integer | [1, 4294967295] | 4 | Maximum number of recording sessions active at the same time. New triggers beyond this limit are dropped and throttle-logged. |
 | `full-clip-output-dir` | String | — | `.` | Directory where full PRE/EVENT/POST clips are written. |
 | `downstream-output-dir` | String | — | (empty) | Optional directory for a separate per-event clip containing only EVENT frames forwarded downstream. The filename gets a `_downstream` suffix. |
-| `location` | String | — | `event_%class%_%timestamp%_%counter%.mp4` | Output filename template. See [Filename Template](#filename-template). |
 | `encoder-mode` | Enum | `software` / `vaapi` / `auto` | `software` | Video encoder backend used to write triggered clips. See [Encoder Modes](#encoder-modes). |
-| `container` | Enum | `mp4` / `mkv` | `mp4` | Container format used to write triggered clips. |
 | `drop-log-interval-ms` | Unsigned Integer | [0, 4294967295] | 1500 | Minimum interval between aggregated "events dropped" log messages. |
 
 All properties are `readable, writable` and can be changed at runtime (e.g. from a Python
@@ -66,17 +63,17 @@ application via `element.set_property(...)`), not just from the command line.
 Each target class has its own independent cooldown state. When a qualifying detection for a
 class arrives and that class is not currently in cooldown, a new trigger fires: the class
 enters cooldown starting from that frame, and cooldown is *not* restarted by any further
-detections of the same class until `cooldown-value` (frames or milliseconds, depending on
-`cooldown-unit`) has elapsed since the *first* detection that started the window.
+detections of the same class until `cooldown-value` frames have elapsed since the *first*
+detection that started the window.
 
 ```
-tick:        0        10       1500      2000
+frame:       0        10       150       200
 person:   trigger   (in cooldown, ignored)  trigger   (in cooldown, ignored)
 ```
 
-With `cooldown-unit=time` and `cooldown-value=1000`, a trigger at `tick=0` suppresses
-further "person" triggers until `tick=1000`; a detection at `tick=1500` fires a new trigger
-and restarts the window from `1500`, so a detection at `tick=2000` is suppressed again.
+With `cooldown-value=100`, a trigger at frame 0 suppresses further "person" triggers until
+frame 100; a detection at frame 150 fires a new trigger and restarts the window from 150, so
+a detection at frame 200 is suppressed again.
 
 ### Pre/event/post-event window
 
@@ -114,17 +111,18 @@ included in each corresponding session clip. These files capture the stream befo
   gvaroiscale out-width=448 out-height=448 ! gvagenai ...
 ```
 
-### Filename template
+### Clip filenames
 
-The `location` property supports the following placeholders:
+Each clip is an MP4 file whose name contains the triggering class, the UTC session start time, and a six-digit
+per-element counter. For example, the full clip of a `person` event is written to
+`full-clip-output-dir` as:
 
-| Placeholder | Substituted with |
-|---|---|
-| `%class%` | The class label that triggered the session. |
-| `%timestamp%` | UTC timestamp at session creation (`YYYYMMDDTHHMMSSZ`). |
-| `%counter%` | Zero-padded, per-element monotonically increasing counter. |
+```text
+event_person_20261015T142301Z_000003.mp4
+```
 
-The resulting full clip is written under `full-clip-output-dir`; the optional EVENT-only clip is written under `downstream-output-dir`.
+The optional EVENT-only clip of the same session is written to `downstream-output-dir` as
+`event_person_20261015T142301Z_000003_downstream.mp4`.
 
 ### Encoder modes
 
@@ -175,7 +173,7 @@ gst-launch-1.0 -v \
     gvadetect model=d-fine-int8.xml device=NPU ! queue ! \
     gvaeventrecorder target-classes=person,vehicle confidence-threshold=0.6 \
              pre-event-frames=30 post-event-frames=30 event-gap-frames=3 \
-                     cooldown-unit=time cooldown-value=5000 \
+                     cooldown-value=150 \
                      full-clip-output-dir=./events downstream-output-dir=./downstream_events ! \
     gvagenai model-path=$mVLM device=GPU prompt="Describe what is happening." ! \
     gvametaconvert format=json ! gvametapublish file-format=2 file-path=results.json ! \
@@ -191,18 +189,6 @@ gst-launch-1.0 -v \
     gvaeventrecorder target-classes=person max-concurrent-events=2 ! \
     fakesink
 ```
-
-## Input / Output
-
-| | Capability |
-|---|---|
-| **Sink** | `video/x-raw` (system memory: BGRx, BGRA, BGR, NV12, I420) |
-| **Sink** | `video/x-raw(memory:DMABuf)`, `video/x-raw(memory:VASurface)`, `video/x-raw(memory:VAMemory)` — Linux only |
-| **Src** | Same caps as sink (passthrough) |
-
-The element never modifies pixel data. Buffers that are forwarded get a `GstGVAJSONMeta`
-attached; buffers that are not part of a new trigger are dropped before the src pad and
-never reach downstream elements.
 
 ## Notes
 
@@ -263,19 +249,9 @@ Element Properties:
   confidence-threshold: Minimum detection confidence required to trigger
                         flags: readable, writable
                         Double. Range:               0 -               1 Default:             0.5
-  container           : Container format used to write triggered clips
+  cooldown-value      : Per-class cooldown duration in frames, counted from the frame that started the window
                         flags: readable, writable
-                        Enum "GstGvaEventRecorderContainer" Default: 0, "mp4"
-                           (0): mp4              - MP4 container
-                           (1): mkv              - Matroska container
-  cooldown-unit       : Unit used to measure the per-class cooldown window
-                        flags: readable, writable
-                        Enum "GstGvaEventRecorderCooldownUnit" Default: 1, "time"
-                           (0): frames           - Cooldown measured in number of frames
-                           (1): time             - Cooldown measured in elapsed time (ms)
-  cooldown-value      : Cooldown duration: milliseconds or frame count depending on cooldown-unit
-                        flags: readable, writable
-                        Unsigned Integer64. Range: 0 - 18446744073709551615 Default: 5000
+                        Unsigned Integer64. Range: 0 - 18446744073709551615 Default: 150
   drop-log-interval-ms: Minimum interval between aggregated 'events dropped' log messages
                         flags: readable, writable
                         Unsigned Integer. Range: 0 - 4294967295 Default: 1500
@@ -291,9 +267,6 @@ Element Properties:
                            (0): software          - Software encoder (x264), keeps the GPU free
                            (1): vaapi             - Hardware VA-API encoder (GPU media engine)
                            (2): auto              - VA-API if available, software fallback otherwise
-  location            : Output filename template; supports %class%, %timestamp% and %counter% placeholders
-                        flags: readable, writable
-                        String. Default: "event_%class%_%timestamp%_%counter%.mp4"
   max-concurrent-events: Maximum number of recording sessions active at the same time; new triggers
                         beyond this limit are dropped (and throttle-logged)
                         flags: readable, writable

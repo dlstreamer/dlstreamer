@@ -18,7 +18,6 @@
 namespace gvaeventrecorder {
 
 enum class EncoderMode { Software, VaApi, Auto };
-enum class ContainerFormat { Mp4, Mkv };
 
 // One finished recording session (pre + event + post frames) waiting to be encoded/muxed.
 struct DumpJob {
@@ -27,7 +26,6 @@ struct DumpJob {
     std::vector<std::string> frame_annotations;
     GstVideoInfo video_info{};
     EncoderMode encoder_mode = EncoderMode::Software;
-    ContainerFormat container = ContainerFormat::Mp4;
 };
 
 // Encodes and muxes finished sessions to disk off the streaming thread, via an internal
