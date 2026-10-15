@@ -12,6 +12,8 @@
 namespace gvaroiscale {
 namespace {
 
+constexpr double NMS_IOU_THRESHOLD = 0.5;
+
 bool is_target_class(GQuark label, const GArray *target_classes) {
     if (!target_classes || target_classes->len == 0)
         return true;
@@ -20,27 +22,73 @@ bool is_target_class(GQuark label, const GArray *target_classes) {
     return std::find(labels, labels + target_classes->len, label) != labels + target_classes->len;
 }
 
-bool first_valid_roi(GstBuffer *buffer, const GArray *target_classes, gint &x, gint &y, gint &width, gint &height) {
-    GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
-    if (!relation_meta)
-        return false;
+double intersection_over_union(const Roi &a, const Roi &b) {
+    const gint64 left = std::max<gint64>(a.x, b.x);
+    const gint64 top = std::max<gint64>(a.y, b.y);
+    const gint64 right = std::min<gint64>(static_cast<gint64>(a.x) + a.width,
+                                          static_cast<gint64>(b.x) + b.width);
+    const gint64 bottom = std::min<gint64>(static_cast<gint64>(a.y) + a.height,
+                                           static_cast<gint64>(b.y) + b.height);
+    if (right <= left || bottom <= top)
+        return 0.0;
+
+    const gint64 intersection = (right - left) * (bottom - top);
+    const gint64 area_a = static_cast<gint64>(a.width) * a.height;
+    const gint64 area_b = static_cast<gint64>(b.width) * b.height;
+    return static_cast<double>(intersection) / static_cast<double>(area_a + area_b - intersection);
+}
+
+} // namespace
+
+std::vector<Roi> collect_rois(GstBuffer *input_buffer, const GArray *target_classes, guint frame_width,
+                              guint frame_height, float confidence_threshold) {
+    std::vector<Roi> detections;
+    GstAnalyticsRelationMeta *relation_meta = input_buffer ? gst_buffer_get_analytics_relation_meta(input_buffer) : nullptr;
+    if (!relation_meta || frame_width == 0 || frame_height == 0)
+        return detections;
 
     gpointer state = nullptr;
     GstAnalyticsODMtd detection;
     while (
         gst_analytics_relation_meta_iterate(relation_meta, &state, gst_analytics_od_mtd_get_mtd_type(), &detection)) {
-        if (!is_target_class(gst_analytics_od_mtd_get_obj_type(&detection), target_classes))
+        const GQuark label = gst_analytics_od_mtd_get_obj_type(&detection);
+        if (!is_target_class(label, target_classes))
             continue;
-        if (gst_analytics_od_mtd_get_location(&detection, &x, &y, &width, &height, nullptr) && width > 0 && height > 0)
-            return true;
+
+        gint x = 0, y = 0, width = 0, height = 0;
+        gfloat confidence = 0.0f;
+        if (!gst_analytics_od_mtd_get_location(&detection, &x, &y, &width, &height, &confidence) || width <= 0 ||
+            height <= 0 || confidence < confidence_threshold)
+            continue;
+
+        const gint64 left = std::max<gint64>(x, 0);
+        const gint64 top = std::max<gint64>(y, 0);
+        const gint64 right = std::min<gint64>(static_cast<gint64>(x) + width, frame_width);
+        const gint64 bottom = std::min<gint64>(static_cast<gint64>(y) + height, frame_height);
+        if (right <= left || bottom <= top)
+            continue;
+
+        detections.push_back({label, confidence, static_cast<gint>(left), static_cast<gint>(top),
+                              static_cast<gint>(right - left), static_cast<gint>(bottom - top)});
     }
-    return false;
+
+    std::stable_sort(detections.begin(), detections.end(),
+                     [](const Roi &a, const Roi &b) { return a.confidence > b.confidence; });
+
+    std::vector<Roi> selected;
+    selected.reserve(detections.size());
+    for (const Roi &candidate : detections) {
+        const bool duplicate = std::any_of(selected.begin(), selected.end(), [&candidate](const Roi &kept) {
+            return candidate.label == kept.label && intersection_over_union(candidate, kept) > NMS_IOU_THRESHOLD;
+        });
+        if (!duplicate)
+            selected.push_back(candidate);
+    }
+    return selected;
 }
 
-} // namespace
-
-RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &input_info, guint output_width,
-                                guint output_height, const GArray *target_classes, GstBuffer **output_buffer,
+RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &input_info, const Roi &roi,
+                                guint output_width, guint output_height, GstBuffer **output_buffer,
                                 GstVideoInfo *output_info) {
     if (output_buffer)
         *output_buffer = nullptr;
@@ -49,14 +97,10 @@ RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &inp
         GST_VIDEO_INFO_HEIGHT(&input_info) == 0)
         return RoiScaleResult::Error;
 
-    gint roi_x = 0, roi_y = 0, roi_width = 0, roi_height = 0;
-    if (!first_valid_roi(input_buffer, target_classes, roi_x, roi_y, roi_width, roi_height))
-        return RoiScaleResult::NoRoi;
-
-    const gint64 left = std::max<gint64>(roi_x, 0);
-    const gint64 top = std::max<gint64>(roi_y, 0);
-    const gint64 right = std::min<gint64>(static_cast<gint64>(roi_x) + roi_width, GST_VIDEO_INFO_WIDTH(&input_info));
-    const gint64 bottom = std::min<gint64>(static_cast<gint64>(roi_y) + roi_height, GST_VIDEO_INFO_HEIGHT(&input_info));
+    const gint64 left = std::max<gint64>(roi.x, 0);
+    const gint64 top = std::max<gint64>(roi.y, 0);
+    const gint64 right = std::min<gint64>(static_cast<gint64>(roi.x) + roi.width, GST_VIDEO_INFO_WIDTH(&input_info));
+    const gint64 bottom = std::min<gint64>(static_cast<gint64>(roi.y) + roi.height, GST_VIDEO_INFO_HEIGHT(&input_info));
     if (right <= left || bottom <= top)
         return RoiScaleResult::NoRoi;
 

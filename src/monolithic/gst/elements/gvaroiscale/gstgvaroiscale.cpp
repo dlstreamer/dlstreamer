@@ -6,30 +6,39 @@
 
 #include "gstgvaroiscale.h"
 
-#include <cstring>
+#include <vector>
 
 #include <glib/gstdio.h>
 #include <gst/video/video.h>
+#include <nlohmann/json.hpp>
 
+#include "dlstreamer/gst/metadata/gva_json_meta.h"
 #include "roi_scale.hpp"
 
 constexpr guint DEFAULT_OUT_WIDTH = 448;
 constexpr guint DEFAULT_OUT_HEIGHT = 448;
 constexpr guint MAX_OUT_DIMENSION = 8192;
+constexpr gdouble DEFAULT_CONFIDENCE_THRESHOLD = 0.0;
 constexpr GstClockTime JPEG_ENCODE_TIMEOUT = 5 * GST_SECOND;
 
-enum { PROP_0, PROP_OUT_WIDTH, PROP_OUT_HEIGHT, PROP_OUTPUT_DIR, PROP_TARGET_CLASSES };
+enum { PROP_0, PROP_OUT_WIDTH, PROP_OUT_HEIGHT, PROP_OUTPUT_DIR, PROP_TARGET_CLASSES, PROP_CONFIDENCE_THRESHOLD };
 
 struct GstGvaRoiScale {
     GstBaseTransform parent;
     guint out_width;
     guint out_height;
+    gdouble confidence_threshold;
     guint64 output_frame_number;
     gchar *output_dir;
     gchar *target_classes_csv;
     GArray *target_classes;
     GstVideoInfo input_info;
     GstVideoInfo output_info;
+    GstBuffer *pending_input;
+    std::vector<gvaroiscale::Roi> pending_rois;
+    std::size_t next_roi_index;
+    guint64 pending_source_frame_number;
+    guint64 source_frame_number;
 };
 
 struct GstGvaRoiScaleClass {
@@ -76,14 +85,6 @@ static gboolean gst_gva_roi_scale_set_caps(GstBaseTransform *transform, GstCaps 
         GST_VIDEO_INFO_WIDTH(&self->output_info) != self->out_width ||
         GST_VIDEO_INFO_HEIGHT(&self->output_info) != self->out_height)
         return FALSE;
-    return TRUE;
-}
-
-static gboolean gst_gva_roi_scale_get_unit_size(GstBaseTransform *, GstCaps *caps, gsize *size) {
-    GstVideoInfo info;
-    if (!gst_video_info_from_caps(&info, caps))
-        return FALSE;
-    *size = info.size;
     return TRUE;
 }
 
@@ -149,49 +150,89 @@ static void save_jpeg(GstGvaRoiScale *self, GstBuffer *buffer, const gchar *outp
     gst_sample_unref(jpeg);
 }
 
-static GstFlowReturn gst_gva_roi_scale_transform(GstBaseTransform *transform, GstBuffer *input, GstBuffer *output) {
-    auto *self = reinterpret_cast<GstGvaRoiScale *>(transform);
-    GstBuffer *scaled = nullptr;
-    GstVideoInfo scaled_info;
-    GST_OBJECT_LOCK(self);
-    GArray *target_classes = g_array_ref(self->target_classes);
-    GST_OBJECT_UNLOCK(self);
-    const auto result = gvaroiscale::roi_scale_buffer(input, self->input_info, self->out_width, self->out_height,
-                                                      target_classes, &scaled, &scaled_info);
-    g_array_unref(target_classes);
-    if (result == gvaroiscale::RoiScaleResult::NoRoi)
-        return GST_BASE_TRANSFORM_FLOW_DROPPED;
-    if (result != gvaroiscale::RoiScaleResult::Ok)
-        return GST_FLOW_ERROR;
+static void clear_pending_input(GstGvaRoiScale *self) {
+    if (self->pending_input)
+        gst_buffer_unref(self->pending_input);
+    self->pending_input = nullptr;
+    self->pending_rois.clear();
+    self->next_roi_index = 0;
+}
 
-    GstMapInfo source_map = GST_MAP_INFO_INIT;
-    GstMapInfo output_map = GST_MAP_INFO_INIT;
-    if (!gst_buffer_map(scaled, &source_map, GST_MAP_READ) || !gst_buffer_map(output, &output_map, GST_MAP_WRITE)) {
-        if (source_map.data)
-            gst_buffer_unmap(scaled, &source_map);
-        gst_buffer_unref(scaled);
-        return GST_FLOW_ERROR;
+static void add_roi_metadata(GstGvaRoiScale *self, GstBuffer *buffer, const gvaroiscale::Roi &roi,
+                             guint64 source_frame_number, std::size_t roi_index, std::size_t roi_count) {
+    nlohmann::ordered_json metadata;
+    metadata["gvaroiscale"] = {
+        {"source_frame_number", source_frame_number},
+        {"roi_index", roi_index},
+        {"roi_count", roi_count},
+        {"class", g_quark_to_string(roi.label) ? g_quark_to_string(roi.label) : ""},
+        {"confidence", roi.confidence},
+        {"box", {{"x", roi.x}, {"y", roi.y}, {"width", roi.width}, {"height", roi.height}}},
+    };
+
+    GstGVAJSONMeta *json_meta = GST_GVA_JSON_META_ADD(buffer);
+    if (!json_meta) {
+        GST_WARNING_OBJECT(self, "Could not attach ROI JSON metadata");
+        return;
     }
-    if (source_map.size != output_map.size) {
-        gst_buffer_unmap(output, &output_map);
-        gst_buffer_unmap(scaled, &source_map);
-        gst_buffer_unref(scaled);
-        return GST_FLOW_ERROR;
+    const std::string serialized = metadata.dump();
+    set_json_message(json_meta, serialized.c_str());
+}
+
+static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transform, GstBuffer **outbuf) {
+    GstGvaRoiScale *self = reinterpret_cast<GstGvaRoiScale *>(transform);
+    *outbuf = nullptr;
+
+    if (!self->pending_input) {
+        GstBuffer *input = transform->queued_buf;
+        transform->queued_buf = nullptr;
+        if (!input)
+            return GST_BASE_TRANSFORM_FLOW_DROPPED;
+
+        self->pending_input = input;
+        self->pending_source_frame_number = self->source_frame_number++;
+        gdouble confidence_threshold;
+        GST_OBJECT_LOCK(self);
+        GArray *target_classes = g_array_ref(self->target_classes);
+        confidence_threshold = self->confidence_threshold;
+        GST_OBJECT_UNLOCK(self);
+        self->pending_rois = gvaroiscale::collect_rois(
+            input, target_classes, GST_VIDEO_INFO_WIDTH(&self->input_info), GST_VIDEO_INFO_HEIGHT(&self->input_info),
+            static_cast<float>(confidence_threshold));
+        g_array_unref(target_classes);
+        if (self->pending_rois.empty()) {
+            clear_pending_input(self);
+            return GST_BASE_TRANSFORM_FLOW_DROPPED;
+        }
     }
 
-    std::memcpy(output_map.data, source_map.data, source_map.size);
-    gst_buffer_unmap(output, &output_map);
-    gst_buffer_unmap(scaled, &source_map);
+    const std::size_t roi_index = self->next_roi_index++;
+    const std::size_t roi_count = self->pending_rois.size();
+    const gvaroiscale::Roi &roi = self->pending_rois[roi_index];
+    GstBuffer *output = nullptr;
+    const auto result = gvaroiscale::roi_scale_buffer(self->pending_input, self->input_info, roi, self->out_width,
+                                                      self->out_height, &output, nullptr);
+    if (result != gvaroiscale::RoiScaleResult::Ok) {
+        clear_pending_input(self);
+        return result == gvaroiscale::RoiScaleResult::NoRoi ? GST_BASE_TRANSFORM_FLOW_DROPPED : GST_FLOW_ERROR;
+    }
 
-    const guint64 frame_number = self->output_frame_number++;
+    GST_BUFFER_FLAGS(output) = GST_BUFFER_FLAGS(self->pending_input);
+    if (roi_index > 0)
+        GST_BUFFER_FLAG_UNSET(output, GST_BUFFER_FLAG_DISCONT);
+    add_roi_metadata(self, output, roi, self->pending_source_frame_number, roi_index, roi_count);
+
+    const guint64 output_frame_number = self->output_frame_number++;
     GST_OBJECT_LOCK(self);
     gchar *output_dir = g_strdup(self->output_dir);
     GST_OBJECT_UNLOCK(self);
     if (output_dir && *output_dir)
-        save_jpeg(self, output, output_dir, frame_number);
+        save_jpeg(self, output, output_dir, output_frame_number);
     g_free(output_dir);
 
-    gst_buffer_unref(scaled);
+    *outbuf = output;
+    if (self->next_roi_index == roi_count)
+        clear_pending_input(self);
     return GST_FLOW_OK;
 }
 
@@ -203,6 +244,11 @@ static void gst_gva_roi_scale_set_property(GObject *object, guint property_id, c
         break;
     case PROP_OUT_HEIGHT:
         self->out_height = g_value_get_uint(value);
+        break;
+    case PROP_CONFIDENCE_THRESHOLD:
+        GST_OBJECT_LOCK(self);
+        self->confidence_threshold = g_value_get_double(value);
+        GST_OBJECT_UNLOCK(self);
         break;
     case PROP_OUTPUT_DIR:
         GST_OBJECT_LOCK(self);
@@ -237,6 +283,11 @@ static void gst_gva_roi_scale_get_property(GObject *object, guint property_id, G
     case PROP_OUT_HEIGHT:
         g_value_set_uint(value, self->out_height);
         break;
+    case PROP_CONFIDENCE_THRESHOLD:
+        GST_OBJECT_LOCK(self);
+        g_value_set_double(value, self->confidence_threshold);
+        GST_OBJECT_UNLOCK(self);
+        break;
     case PROP_OUTPUT_DIR:
         GST_OBJECT_LOCK(self);
         g_value_set_string(value, self->output_dir);
@@ -254,6 +305,7 @@ static void gst_gva_roi_scale_get_property(GObject *object, guint property_id, G
 
 static void gst_gva_roi_scale_finalize(GObject *object) {
     auto *self = reinterpret_cast<GstGvaRoiScale *>(object);
+    clear_pending_input(self);
     g_free(self->output_dir);
     g_free(self->target_classes_csv);
     g_array_unref(self->target_classes);
@@ -262,14 +314,24 @@ static void gst_gva_roi_scale_finalize(GObject *object) {
 
 static gboolean gst_gva_roi_scale_start(GstBaseTransform *transform) {
     auto *self = reinterpret_cast<GstGvaRoiScale *>(transform);
+    clear_pending_input(self);
     self->output_frame_number = 0;
+    self->source_frame_number = 0;
+    return TRUE;
+}
+
+static gboolean gst_gva_roi_scale_stop(GstBaseTransform *transform) {
+    clear_pending_input(reinterpret_cast<GstGvaRoiScale *>(transform));
     return TRUE;
 }
 
 static gboolean gst_gva_roi_scale_sink_event(GstBaseTransform *transform, GstEvent *event) {
     auto *self = reinterpret_cast<GstGvaRoiScale *>(transform);
-    if (GST_EVENT_TYPE(event) == GST_EVENT_STREAM_START)
+    if (GST_EVENT_TYPE(event) == GST_EVENT_STREAM_START) {
+        clear_pending_input(self);
         self->output_frame_number = 0;
+        self->source_frame_number = 0;
+    }
     return GST_BASE_TRANSFORM_CLASS(gst_gva_roi_scale_parent_class)->sink_event(transform, event);
 }
 
@@ -287,11 +349,11 @@ static void gst_gva_roi_scale_class_init(GstGvaRoiScaleClass *klass) {
     object_class->get_property = gst_gva_roi_scale_get_property;
     object_class->finalize = gst_gva_roi_scale_finalize;
     transform_class->start = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_start);
+    transform_class->stop = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_stop);
     transform_class->sink_event = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_sink_event);
     transform_class->transform_caps = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_transform_caps);
-    transform_class->get_unit_size = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_get_unit_size);
     transform_class->set_caps = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_set_caps);
-    transform_class->transform = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_transform);
+    transform_class->generate_output = GST_DEBUG_FUNCPTR(gst_gva_roi_scale_generate_output);
 
     const auto property_flags = static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
     g_object_class_install_property(object_class, PROP_OUT_WIDTH,
@@ -300,6 +362,11 @@ static void gst_gva_roi_scale_class_init(GstGvaRoiScaleClass *klass) {
     g_object_class_install_property(object_class, PROP_OUT_HEIGHT,
                                     g_param_spec_uint("out-height", "Output Height", "Scaled ROI output height", 1,
                                                       MAX_OUT_DIMENSION, DEFAULT_OUT_HEIGHT, property_flags));
+    g_object_class_install_property(
+        object_class, PROP_CONFIDENCE_THRESHOLD,
+        g_param_spec_double("confidence-threshold", "Confidence Threshold",
+                            "Minimum detection confidence required to select an ROI", 0.0, 1.0,
+                            DEFAULT_CONFIDENCE_THRESHOLD, property_flags));
     g_object_class_install_property(
         object_class, PROP_OUTPUT_DIR,
         g_param_spec_string("output-dir", "Output Directory",
@@ -315,12 +382,17 @@ static void gst_gva_roi_scale_class_init(GstGvaRoiScaleClass *klass) {
 static void gst_gva_roi_scale_init(GstGvaRoiScale *self) {
     self->out_width = DEFAULT_OUT_WIDTH;
     self->out_height = DEFAULT_OUT_HEIGHT;
+    self->confidence_threshold = DEFAULT_CONFIDENCE_THRESHOLD;
     self->output_frame_number = 0;
     self->output_dir = nullptr;
     self->target_classes_csv = g_strdup("");
     self->target_classes = g_array_new(FALSE, FALSE, sizeof(GQuark));
     gst_video_info_init(&self->input_info);
     gst_video_info_init(&self->output_info);
+    self->pending_input = nullptr;
+    self->next_roi_index = 0;
+    self->pending_source_frame_number = 0;
+    self->source_frame_number = 0;
     gst_base_transform_set_in_place(GST_BASE_TRANSFORM(self), FALSE);
     gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(self), FALSE);
 }
