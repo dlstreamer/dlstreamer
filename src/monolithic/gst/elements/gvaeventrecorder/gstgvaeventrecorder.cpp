@@ -587,7 +587,8 @@ static GstFlowReturn push_event_frame(GstGvaEventRecorder *self, PendingFrame fr
         auto root = nlohmann::ordered_json::parse(existing->message ? existing->message : "", nullptr, false);
         if (root.is_object()) {
             root["gvaeventrecorder"] = std::move(frame.meta["gvaeventrecorder"]);
-            set_json_message(existing, root.dump().c_str());
+            g_free(existing->message);
+            existing->message = g_strdup(root.dump().c_str());
             return gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(self), buf);
         }
     }

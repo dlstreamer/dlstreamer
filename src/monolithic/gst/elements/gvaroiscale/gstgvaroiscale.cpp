@@ -176,7 +176,8 @@ static void add_roi_metadata(GstGvaRoiScale *self, GstBuffer *buffer, const gvar
         return;
     }
     const std::string serialized = metadata.dump();
-    set_json_message(json_meta, serialized.c_str());
+    g_free(json_meta->message);
+    json_meta->message = g_strdup(serialized.c_str());
 }
 
 static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transform, GstBuffer **outbuf) {

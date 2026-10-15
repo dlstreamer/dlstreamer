@@ -157,7 +157,8 @@ static void add_frame_number_meta(GstGvaFrameSelect *self, GstBuffer *buffer, gu
         GST_WARNING_OBJECT(self, "Could not attach frame number JSON metadata");
         return;
     }
-    set_json_message(json_meta, serialized.c_str());
+    g_free(json_meta->message);
+    json_meta->message = g_strdup(serialized.c_str());
 }
 
 static GstFlowReturn gst_gva_frame_select_transform_ip(GstBaseTransform *transform, GstBuffer *buffer) {
