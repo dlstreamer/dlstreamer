@@ -196,9 +196,9 @@ static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transfo
         GArray *target_classes = g_array_ref(self->target_classes);
         confidence_threshold = self->confidence_threshold;
         GST_OBJECT_UNLOCK(self);
-        self->pending_rois = gvaroiscale::collect_rois(
-            input, target_classes, GST_VIDEO_INFO_WIDTH(&self->input_info), GST_VIDEO_INFO_HEIGHT(&self->input_info),
-            static_cast<float>(confidence_threshold));
+        self->pending_rois = gvaroiscale::collect_rois(input, target_classes, GST_VIDEO_INFO_WIDTH(&self->input_info),
+                                                       GST_VIDEO_INFO_HEIGHT(&self->input_info),
+                                                       static_cast<float>(confidence_threshold));
         g_array_unref(target_classes);
         if (self->pending_rois.empty()) {
             clear_pending_input(self);
@@ -362,11 +362,10 @@ static void gst_gva_roi_scale_class_init(GstGvaRoiScaleClass *klass) {
     g_object_class_install_property(object_class, PROP_OUT_HEIGHT,
                                     g_param_spec_uint("out-height", "Output Height", "Scaled ROI output height", 1,
                                                       MAX_OUT_DIMENSION, DEFAULT_OUT_HEIGHT, property_flags));
-    g_object_class_install_property(
-        object_class, PROP_CONFIDENCE_THRESHOLD,
-        g_param_spec_double("confidence-threshold", "Confidence Threshold",
-                            "Minimum detection confidence required to select an ROI", 0.0, 1.0,
-                            DEFAULT_CONFIDENCE_THRESHOLD, property_flags));
+    g_object_class_install_property(object_class, PROP_CONFIDENCE_THRESHOLD,
+                                    g_param_spec_double("confidence-threshold", "Confidence Threshold",
+                                                        "Minimum detection confidence required to select an ROI", 0.0,
+                                                        1.0, DEFAULT_CONFIDENCE_THRESHOLD, property_flags));
     g_object_class_install_property(
         object_class, PROP_OUTPUT_DIR,
         g_param_spec_string("output-dir", "Output Directory",

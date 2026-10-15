@@ -25,10 +25,8 @@ bool is_target_class(GQuark label, const GArray *target_classes) {
 double intersection_over_union(const Roi &a, const Roi &b) {
     const gint64 left = std::max<gint64>(a.x, b.x);
     const gint64 top = std::max<gint64>(a.y, b.y);
-    const gint64 right = std::min<gint64>(static_cast<gint64>(a.x) + a.width,
-                                          static_cast<gint64>(b.x) + b.width);
-    const gint64 bottom = std::min<gint64>(static_cast<gint64>(a.y) + a.height,
-                                           static_cast<gint64>(b.y) + b.height);
+    const gint64 right = std::min<gint64>(static_cast<gint64>(a.x) + a.width, static_cast<gint64>(b.x) + b.width);
+    const gint64 bottom = std::min<gint64>(static_cast<gint64>(a.y) + a.height, static_cast<gint64>(b.y) + b.height);
     if (right <= left || bottom <= top)
         return 0.0;
 
@@ -43,7 +41,8 @@ double intersection_over_union(const Roi &a, const Roi &b) {
 std::vector<Roi> collect_rois(GstBuffer *input_buffer, const GArray *target_classes, guint frame_width,
                               guint frame_height, float confidence_threshold) {
     std::vector<Roi> detections;
-    GstAnalyticsRelationMeta *relation_meta = input_buffer ? gst_buffer_get_analytics_relation_meta(input_buffer) : nullptr;
+    GstAnalyticsRelationMeta *relation_meta =
+        input_buffer ? gst_buffer_get_analytics_relation_meta(input_buffer) : nullptr;
     if (!relation_meta || frame_width == 0 || frame_height == 0)
         return detections;
 

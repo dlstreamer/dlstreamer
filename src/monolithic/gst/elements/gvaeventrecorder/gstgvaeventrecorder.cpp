@@ -663,8 +663,8 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
         }
         const std::string full_clip_output_dir =
             self->full_clip_output_dir ? self->full_clip_output_dir : DEFAULT_FULL_CLIP_OUTPUT_DIR;
-        session.output_path = build_output_path(full_clip_output_dir, trig.class_label,
-                                                trigger_timestamp.filename, rt->file_counter);
+        session.output_path =
+            build_output_path(full_clip_output_dir, trig.class_label, trigger_timestamp.filename, rt->file_counter);
 
         if (self->downstream_output_dir && self->downstream_output_dir[0] != '\0')
             session.downstream_output_path =
