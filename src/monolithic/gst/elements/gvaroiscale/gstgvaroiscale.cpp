@@ -274,9 +274,9 @@ static gboolean gst_gva_roi_scale_sink_event(GstBaseTransform *transform, GstEve
 }
 
 static void gst_gva_roi_scale_class_init(GstGvaRoiScaleClass *klass) {
-    auto *object_class = G_OBJECT_CLASS(klass);
-    auto *transform_class = GST_BASE_TRANSFORM_CLASS(klass);
-    auto *element_class = GST_ELEMENT_CLASS(klass);
+    GObjectClass *object_class = G_OBJECT_CLASS(klass);
+    GstBaseTransformClass *transform_class = GST_BASE_TRANSFORM_CLASS(klass);
+    GstElementClass *element_class = GST_ELEMENT_CLASS(klass);
 
     gst_element_class_add_static_pad_template(element_class, &sink_template);
     gst_element_class_add_static_pad_template(element_class, &src_template);
