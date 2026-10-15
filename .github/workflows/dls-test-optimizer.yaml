@@ -17,7 +17,7 @@ on:
         default: "main"
 permissions: {}
 env:
-  dlstreamer-version: "2026.2.0"
+  dlstreamer-version: "2026.3.0"
   MODELS_PATH: "$HOME/models"
   VIDEO_INPUTS_PATH: "$HOME/videos"
   DLS_REL_PATH: "./dlstreamer"
@@ -129,6 +129,10 @@ jobs:
           ln -sf $OPTIMIZER_TESTS_PATH /home/runner/optimizer
 
       # ======================================================== BUILDING PART ========================================================
+      - name: Pre-pull BuildKit image
+        if: matrix.runner_print_label != 'SKIP'
+        uses: ./dlstreamer/.github/actions/common/pull-buildkit-image
+
       - name: Set up Docker Buildx
         if: matrix.runner_print_label != 'SKIP'
         uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e #4.3.0
@@ -234,12 +238,19 @@ jobs:
         run: |
           $DLS_REL_PATH/tests/scripts/installation-on-host-entrypoint.sh $DLS_REL_PATH/deb_packages
 
+      - name: Ensure uv is installed
+        run: |
+          # Check if uv is installed, if not install it
+          if ! command -v uv >/dev/null 2>&1; then
+            curl -LsSf https://astral.sh/uv/install.sh | sh
+          fi
+
       - name: Install requirements on host
         if: always() && matrix.runner_print_label != 'SKIP'
         run: |
           sudo apt-get install -y --no-install-recommends libcairo2-dev libgirepository1.0-dev
-          python3 -m venv --system-site-packages $HOME/optimizer-venv
-          $HOME/optimizer-venv/bin/pip install --no-cache-dir -r /opt/intel/dlstreamer/requirements.txt
+          uv venv --system-site-packages $HOME/optimizer-venv
+          VIRTUAL_ENV=$HOME/optimizer-venv uv pip install --no-cache-dir -r /opt/intel/dlstreamer/requirements.txt
           echo "$HOME/optimizer-venv/bin" >> $GITHUB_PATH
 
       - name: 🚀 Run Optimizer on host

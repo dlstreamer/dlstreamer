@@ -14,6 +14,7 @@
 
 #include <gst/gst.h>
 
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -44,21 +45,16 @@ class ConverterFacade {
                     ConverterType converter_type, AttachType attach_type, const ModelImageInputInfo &input_image_info,
                     const ModelOutputsInfo &outputs_info, const std::string &model_name,
                     const std::vector<std::string> &labels, const std::string &custom_postproc_lib,
-                    bool skip_raw_tensors);
+                    bool skip_raw_tensors, const ZeroShotEmbeddings &zeroshot_embeddings, uint32_t zeroshot_topk);
     ConverterFacade(GstStructure *model_proc_output_info, ConverterType converter_type, AttachType attach_type,
                     const ModelImageInputInfo &input_image_info, const ModelOutputsInfo &outputs_info,
                     const std::string &model_name, const std::vector<std::string> &labels,
-                    const std::string &custom_postproc_lib, bool skip_raw_tensors);
+                    const std::string &custom_postproc_lib, bool skip_raw_tensors,
+                    const ZeroShotEmbeddings &zeroshot_embeddings, uint32_t zeroshot_topk);
 
     void convert(const OutputBlobs &all_output_blobs, FramesWrapper &frames) const;
 
     ConverterFacade() = default;
-    ConverterFacade(const ConverterFacade &) = delete;
-    ConverterFacade(ConverterFacade &&) = default;
-    ConverterFacade &operator=(const ConverterFacade &) = delete;
-    ConverterFacade &operator=(ConverterFacade &&) = default;
-
-    ~ConverterFacade() = default;
 };
 
 } // namespace post_processing

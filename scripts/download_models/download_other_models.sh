@@ -44,6 +44,7 @@ SUPPORTED_MODELS=(
   "centerface"
   "hsemotion"
   "deeplabv3"
+  "aclnet" # Sound classification model for audio event detection sample
   "pallet_defect_detection" # Custom model for pallet defect detection
   "colorcls2" # Color classification model
   "mars-small128" # DeepSORT person re-identification model (uses convert_mars_deepsort.py)
@@ -87,6 +88,17 @@ echo_color() {
 handle_error() {
     echo -e "\e[31mError occurred: $1\e[0m"
     exit 1
+}
+
+# Function to check for uv and install it if missing
+ensure_uv_installed() {
+    if command -v uv >/dev/null 2>&1; then
+        return 0
+    fi
+    echo "uv not found, installing..."
+    curl -LsSf https://astral.sh/uv/install.sh | sh || handle_error $LINENO
+    export PATH="$HOME/.local/bin:$PATH"
+    command -v uv >/dev/null 2>&1 || handle_error $LINENO
 }
 
 download_binary_file() {
@@ -327,9 +339,10 @@ fi
 
 set -u  # Re-enable nounset option: treat any attempt to use an unset variable as an error
 
+ensure_uv_installed
+
 if [ "$ID" == "fedora" ]; then
   export PYTHON_CREATE_VENV=/usr/bin/python3.10
-  $PYTHON_CREATE_VENV -m ensurepip --upgrade || handle_error $LINENO
 else
   export PYTHON_CREATE_VENV=python3
 fi
@@ -343,7 +356,7 @@ if [ ! -f "$VENV_DIR/bin/activate" ]; then
   echo "Removing stale/incomplete virtual environment in $VENV_DIR..."
   rm -rf "$VENV_DIR"
   echo "Creating virtual environment in $VENV_DIR..."
-  $PYTHON_CREATE_VENV -m venv "$VENV_DIR" || handle_error $LINENO
+  uv venv "$VENV_DIR" --python "$PYTHON_CREATE_VENV" || handle_error $LINENO
 fi
 
 # Activate the virtual environment
@@ -351,20 +364,19 @@ echo "Activating virtual environment in $VENV_DIR..."
 source "$VENV_DIR/bin/activate"
 
 # Install all required packages for main virtual environment
-pip install --no-cache-dir --upgrade pip      || handle_error $LINENO
-pip install --no-cache-dir numpy==2.2.6       || handle_error $LINENO
-pip install --no-cache-dir openvino==2026.3.1 || handle_error $LINENO
-pip install --no-cache-dir onnx==1.21.0       || handle_error $LINENO
-pip install --no-cache-dir onnxscript==0.7.1  || handle_error $LINENO
-pip install --no-cache-dir seaborn==0.13.2    || handle_error $LINENO
-pip install --no-cache-dir opencv-python-headless==4.12.0.88 || handle_error $LINENO
-pip install --no-cache-dir nncf==2.19.0       || handle_error $LINENO
-pip install --no-cache-dir tqdm==4.67.1       || handle_error $LINENO
-pip install --no-cache-dir requests==2.32.5   || handle_error $LINENO
-pip install --no-cache-dir pyyaml==6.0.3   || handle_error $LINENO
+uv pip install --no-cache-dir numpy==2.2.6       || handle_error $LINENO
+uv pip install --no-cache-dir openvino==2026.3.1 || handle_error $LINENO
+uv pip install --no-cache-dir onnx==1.21.0       || handle_error $LINENO
+uv pip install --no-cache-dir onnxscript==0.7.1  || handle_error $LINENO
+uv pip install --no-cache-dir seaborn==0.13.2    || handle_error $LINENO
+uv pip install --no-cache-dir opencv-python-headless==4.12.0.88 || handle_error $LINENO
+uv pip install --no-cache-dir nncf==2.19.0       || handle_error $LINENO
+uv pip install --no-cache-dir tqdm==4.67.1       || handle_error $LINENO
+uv pip install --no-cache-dir requests==2.32.5   || handle_error $LINENO
+uv pip install --no-cache-dir pyyaml==6.0.3   || handle_error $LINENO
 
 # Install PyTorch CPU version
-pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu torch==2.13.0 torchaudio==2.11.0 torchvision==0.28.0 || handle_error $LINENO
+uv pip install --no-cache-dir --index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cpu torch==2.13.0 torchaudio==2.11.0 torchvision==0.28.0 || handle_error $LINENO
 
 echo Downloading models to folder "$MODELS_PATH".
 set -euo pipefail
@@ -385,12 +397,11 @@ if array_contains "yolox-tiny" "${MODELS_TO_PROCESS[@]}"; then
 
     # Create temporary new Python virtual environment for omz tools
     deactivate 2>/dev/null || true
-    $PYTHON_CREATE_VENV -m venv "$HOME/.virtualenvs/dlstreamer_openvino_dev" || handle_error $LINENO
+    uv venv "$HOME/.virtualenvs/dlstreamer_openvino_dev" --python "$PYTHON_CREATE_VENV" || handle_error $LINENO
     source "$HOME/.virtualenvs/dlstreamer_openvino_dev/bin/activate"
-    python -m pip install --upgrade pip                 || handle_error $LINENO
-    pip install --no-cache-dir "openvino-dev==2024.6.0" || handle_error $LINENO
-    pip install --no-cache-dir --upgrade --extra-index-url https://download.pytorch.org/whl/cpu torch==2.13.0 torchaudio==2.11.0 torchvision==0.28.0 || handle_error $LINENO
-    pip install --no-cache-dir onnxscript==0.7.1        || handle_error $LINENO
+    uv pip install --no-cache-dir "openvino-dev==2024.6.0" || handle_error $LINENO
+    uv pip install --no-cache-dir --index-strategy unsafe-best-match --extra-index-url https://download.pytorch.org/whl/cpu torch==2.13.0 torchaudio==2.11.0 torchvision==0.28.0 || handle_error $LINENO
+    uv pip install --no-cache-dir onnxscript==0.7.1        || handle_error $LINENO
 
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
@@ -404,7 +415,7 @@ if array_contains "yolox-tiny" "${MODELS_TO_PROCESS[@]}"; then
     # Cleanup temporary virtual environment
     deactivate 2>/dev/null || true
     rm -rf "$HOME/.virtualenvs/dlstreamer_openvino_dev" 2>/dev/null || true
-    source "$VENV_DIR/bin/activate" 
+    source "$VENV_DIR/bin/activate"
   else
     model_status="cached"
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
@@ -458,13 +469,13 @@ if array_contains "yolov7" "${MODELS_TO_PROCESS[@]}"; then
     echo "Downloading and converting: ${MODEL_DIR}"
     git clone https://github.com/WongKinYiu/yolov7.git
     cd yolov7
-    
+
     # Patch for PyTorch 2.6+ compatibility (weights_only parameter)
     sed -i 's/torch\.load(w, map_location=map_location)/torch.load(w, map_location=map_location, weights_only=False)/g' models/experimental.py
 
     # Use the legacy ONNX exporter because the YOLOv7 graph is incompatible with Dynamo.
     sed -i 's/opset_version=12, input_names=/opset_version=12, dynamo=False, input_names=/' export.py
-    
+
     python3 export.py --weights  yolov7.pt  --grid --dynamic-batch
     ovc yolov7.onnx --compress_to_fp16=True
     mv yolov7.xml "$MODEL_DIR/FP16"
@@ -493,7 +504,7 @@ if array_contains "yolov8_license_plate_detector" "${MODELS_TO_PROCESS[@]}"; the
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
 
-    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
+    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/948b6efb686df9668b633a11c40b006db1fc1e1d/models/license-plate-reader.zip'
     python3 -c "
 import zipfile
 import os
@@ -624,11 +635,10 @@ if array_contains "deeplabv3" "${MODELS_TO_PROCESS[@]}"; then
 
     # Create temporary new Python virtual environment for omz tools
     deactivate 2>/dev/null || true
-    $PYTHON_CREATE_VENV -m venv "$HOME/.virtualenvs/dlstreamer_openvino_dev" || handle_error $LINENO
+    uv venv "$HOME/.virtualenvs/dlstreamer_openvino_dev" --python "$PYTHON_CREATE_VENV" || handle_error $LINENO
     source "$HOME/.virtualenvs/dlstreamer_openvino_dev/bin/activate"
-    python -m pip install --upgrade pip                 || handle_error $LINENO
-    pip install --no-cache-dir "openvino-dev==2024.6.0" || handle_error $LINENO
-    pip install --no-cache-dir tensorflow==2.20.0       || handle_error $LINENO
+    uv pip install --no-cache-dir "openvino-dev==2024.6.0" || handle_error $LINENO
+    uv pip install --no-cache-dir tensorflow==2.20.0       || handle_error $LINENO
 
     omz_downloader --name "$MODEL_NAME"
     omz_converter --name "$MODEL_NAME"
@@ -655,7 +665,32 @@ EOF
     # Cleanup temporary virtual environment
     deactivate 2>/dev/null || true
     rm -rf "$HOME/.virtualenvs/dlstreamer_openvino_dev" 2>/dev/null || true
-    source "$VENV_DIR/bin/activate" 
+    source "$VENV_DIR/bin/activate"
+  else
+    model_status="cached"
+    echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
+  fi
+fi
+
+# ================================= AclNet FP16 & FP32 =================================
+if array_contains "aclnet" "${MODELS_TO_PROCESS[@]}"; then
+  display_header "Downloading AclNet model"
+  MODEL_NAME="aclnet"
+  model_status="ok"
+  MODEL_DIR="$MODELS_PATH/public/$MODEL_NAME"
+  DST_FILE1="$MODEL_DIR/FP16/$MODEL_NAME.xml"
+  DST_FILE2="$MODEL_DIR/FP32/$MODEL_NAME.xml"
+
+  if [[ ! -f "$DST_FILE1" || ! -f "$DST_FILE2" ]]; then
+    mkdir -p "$MODEL_DIR/FP16" "$MODEL_DIR/FP32"
+    cd "$MODEL_DIR"
+    echo "Downloading and converting: ${MODEL_DIR}"
+    download_binary_file \
+      "https://storage.openvinotoolkit.org/models_contrib/sound_classification/aclnet/2021-02-04/aclnet_des_53_fp32.onnx" \
+      "aclnet_des_53.onnx" || handle_error "failed to download aclnet_des_53.onnx"
+    ovc aclnet_des_53.onnx --input "[1,1,1,16000]" --output_model "FP16/${MODEL_NAME}.xml" --compress_to_fp16=True || handle_error $LINENO
+    ovc aclnet_des_53.onnx --input "[1,1,1,16000]" --output_model "FP32/${MODEL_NAME}.xml" --compress_to_fp16=False || handle_error $LINENO
+    rm -f aclnet_des_53.onnx
   else
     model_status="cached"
     echo_color "\nModel already exists: $MODEL_DIR.\n" "yellow"
@@ -675,7 +710,7 @@ if array_contains "ch_PP-OCRv4_rec_infer" "${MODELS_TO_PROCESS[@]}"; then
     mkdir -p "$MODEL_DIR"
     cd "$MODEL_DIR"
 
-    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/license-plate-reader.zip'
+    curl -L -k -o "${MODEL_NAME}.zip" 'https://github.com/open-edge-platform/edge-ai-resources/raw/948b6efb686df9668b633a11c40b006db1fc1e1d/models/license-plate-reader.zip'
     python3 -c "
 import zipfile
 import os
@@ -710,7 +745,7 @@ export_ppocr_v5_model() {
     cd "$MODEL_DIR"
 
     # Dependencies required for PaddlePaddle PIR -> ONNX conversion.
-    pip install --no-cache-dir paddlepaddle paddle2onnx huggingface_hub || handle_error $LINENO
+    uv pip install --no-cache-dir paddlepaddle paddle2onnx huggingface_hub || handle_error $LINENO
 
     echo_color "[1/4] Downloading PaddlePaddle/$MODEL_NAME from HuggingFace..." "cyan"
     python3 - <<EOF "$MODEL_NAME"
@@ -820,7 +855,7 @@ if array_contains "pallet_defect_detection" "${MODELS_TO_PROCESS[@]}"; then
     cd "$MODEL_DIR"
 
     download_binary_file \
-      "https://github.com/open-edge-platform/edge-ai-resources/raw/main/models/INT8/pallet_defect_detection.zip" \
+      "https://github.com/open-edge-platform/edge-ai-resources/raw/06bb0d621cb14a1791672552a538beddddcc4066/models/INT8/pallet_defect_detection.zip" \
       "${MODEL_NAME}.zip" || handle_error "failed to download ${MODEL_NAME}.zip"
 
     python3 -c "
@@ -845,7 +880,7 @@ os.remove('${MODEL_NAME}.zip')
   fi
 fi
 
-# ================================= Colorcls2 FP32 - Edge AI Suites =================================
+# ================================= Colorcls2 FP32 - Metro AI Suite =================================
 if array_contains "colorcls2" "${MODELS_TO_PROCESS[@]}"; then
   display_header "Downloading Colorcls2 model"
   MODEL_NAME="colorcls2"
@@ -859,10 +894,10 @@ if array_contains "colorcls2" "${MODELS_TO_PROCESS[@]}"; then
     cd "$MODEL_DIR"
 
     download_binary_file \
-      "https://github.com/open-edge-platform/edge-ai-suites/raw/main/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.bin" \
+      "https://github.com/open-edge-platform/metro-ai-suite/raw/41485929ec29c05c4f37f3d840117aed9f98b85c/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.bin" \
       "colorcls2.bin" || handle_error "failed to download colorcls2.bin"
     download_binary_file \
-      "https://github.com/open-edge-platform/edge-ai-suites/raw/main/metro-ai-suite/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.xml" \
+      "https://github.com/open-edge-platform/metro-ai-suite/raw/41485929ec29c05c4f37f3d840117aed9f98b85c/metro-vision-ai-app-recipe/smart-parking/src/dlstreamer-pipeline-server/models/colorcls2/colorcls2.xml" \
       "colorcls2.xml" || handle_error "failed to download colorcls2.xml"
 
     cd ..
