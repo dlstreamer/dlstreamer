@@ -34,7 +34,7 @@ Key design points:
   branch that is unlinked or has already finished does not stop the sources that are still
   running. Only when *every* branch reports the same non-OK result is it passed upstream.
 - **Sparse src indices** — names like `demux.src_5` work even if `src_0..src_4` were never
-  created, mirroring the mux side. Indices must be in `[0, 1024)`. Request a pad without a
+  created, mirroring the mux side. Indices must be in `[0, 256)`. Request a pad without a
   name to be given the lowest free index; releasing a pad frees its index for reuse.
 - **No strict count match** — the upstream `n_streams` and the number of requested `src_*` pads
   do not have to match, in either output mode. A source with no matching `src_*` pad is dropped
@@ -49,7 +49,7 @@ Key design points:
 ## How It Works
 
 1. The pipeline requests source pads (`src_0`, `src_1`, ...) — typically one per upstream
-   sink pad. Pad index is parsed from the requested name; sparse indices are allowed up to 1023.
+   sink pad. Pad index is parsed from the requested name; sparse indices are allowed up to 255.
 2. On the sink `CAPS` event the demux detects whether the input is plain video (PASSTHROUGH) or
    the `multistream/x-analytics-batch` container (CONTAINER). In CONTAINER mode it does **not**
    forward the container caps downstream — per-stream caps come from the buffers instead.
@@ -175,7 +175,7 @@ reads depend on the input mode:
 | Buffer missing `GstAnalyticsBatchMeta`| `GST_FLOW_ERROR` (pipeline stops). |
 | No `src_<index>` pad created | That source's buffers are dropped with a `GST_WARNING`; every other source keeps flowing. Add the missing pad to receive its frames. Identical in both output modes. |
 | Every branch unlinked or finished     | The combined flow return goes upstream. A single such branch does not. |
-| Pad index ≥ 1024 on request, or an index already in use | `request_new_pad` returns `NULL` (rejected by the element). |
+| Pad index ≥ 256 on request, or an index already in use | `request_new_pad` returns `NULL` (rejected by the element). |
 
 ## Element Details (gst-inspect-1.0)
 

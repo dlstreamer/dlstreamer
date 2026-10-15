@@ -30,7 +30,7 @@ Key design points:
   (e.g. files starting at different timestamps, multiple cameras with independent clocks),
   the element can normalize PTS before scheduling. See the [Sync Mode](#sync-mode) section.
 - **Sparse pad indices** — names like `mux.sink_5` work even if `sink_0..sink_4` were never
-  created. Indices must be in `[0, 1024)`.
+  created. Indices must be in `[0, 256)`.
 
 > **Important**: each source contributes one buffer per batch, so a downstream
 > `gvadetect inference-interval=N` (with N > 1) skips every Nth buffer in arrival order, which
@@ -40,7 +40,7 @@ Key design points:
 ## How It Works
 
 1. The pipeline requests sink pads (`sink_0`, `sink_1`, ...) — one per input source. Pad
-   index is parsed from the requested name; sparse indices are allowed up to 1023. Request a
+   index is parsed from the requested name; sparse indices are allowed up to 255. Request a
    pad without a name to be given the lowest free index.
 2. Upstream chain functions push buffers into per-pad queues. If a pad's queue is full, the
    chain function blocks until the output task drains it (back-pressure to upstream).
