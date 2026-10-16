@@ -699,9 +699,11 @@ Impl::Impl(GstVideoInfo *info, InferenceBackend::MemoryType mem_type, GstElement
     double Kb = 0, Kr = 0;
     GstVideoColorimetry colorimetry = GST_VIDEO_INFO_COLORIMETRY(_vinfo);
     gst_video_color_matrix_get_Kr_Kb(colorimetry.matrix, &Kr, &Kb);
+    // Treat unknown range as full range, the same way GStreamer (e.g. videoconvert) interprets it downstream
+    bool full_range = colorimetry.range != GST_VIDEO_COLOR_RANGE_16_235;
 
     dlstreamer::ImageFormat format = dlstreamer::gst_format_to_video_format(GST_VIDEO_INFO_FORMAT(_vinfo));
-    _converter = create_color_converter(format, color_table, Kr, Kb);
+    _converter = create_color_converter(format, color_table, Kr, Kb, full_range);
 
     _renderer = createRenderer(_converter);
 
