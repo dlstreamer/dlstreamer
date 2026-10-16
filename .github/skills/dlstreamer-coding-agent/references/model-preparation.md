@@ -179,30 +179,34 @@ Recommended small models for edge: `OpenGVLab/InternVL3_5-2B`, `openbmb/MiniCPM-
 **When to use:** OCR (PaddleOCR) or any PaddlePaddle model from HuggingFace.
 
 **CRITICAL:** PaddlePaddle v3+ uses PIR format (`.json` + `.pdiparams`), not `.pdmodel`.
-`ovc` cannot read PIR directly — use `paddle2onnx → ovc`.
+OpenVINO cannot read PIR directly — convert through ONNX.
 
-**Export pattern — paddle2onnx → ovc (two-step):**
+**Preferred export pattern — PaddlePaddle Python API → OpenVINO Python API (two-step):**
+
+Use `paddle2onnx.export()`, `openvino.convert_model()`, and `openvino.save_model()`
+in generated `export_models.py` scripts. This matches
+`assets/export-models-template.py` and avoids relying on the `paddle2onnx` and
+`ovc` commands being available on `PATH`. Use the command-line tools through
+`subprocess.run()` only when the Python APIs cannot perform a required conversion.
 
 ```python
-import subprocess
+import openvino as ov
+import paddle2onnx
 
 # Step 1: Download entire model repo (contains inference.json + inference.pdiparams)
 snapshot_download(repo_id=model_id, local_dir=str(paddle_dir))
 
-# Step 2: paddle2onnx — PaddlePaddle PIR → ONNX
-subprocess.run([
-    "paddle2onnx",
-    "--model_dir", str(paddle_dir),
-    "--model_filename", "inference.json",      # PIR format, NOT .pdmodel
-    "--params_filename", "inference.pdiparams",
-    "--save_file", str(onnx_file),
-    "--opset_version", "14",
-], check=True)
+# Step 2: paddle2onnx Python API — PaddlePaddle PIR → ONNX
+paddle2onnx.export(
+    model_filename=str(paddle_dir / "inference.json"),  # PIR format, NOT .pdmodel
+    params_filename=str(paddle_dir / "inference.pdiparams"),
+    save_file=str(onnx_file),
+    opset_version=14,
+)
 
-# Step 3: ovc — ONNX → OpenVINO IR
-subprocess.run([
-    "ovc", str(onnx_file), "--output_model", str(ov_model_xml)
-], check=True)
+# Step 3: OpenVINO Python API — ONNX → OpenVINO IR
+ov_ir = ov.convert_model(str(onnx_file))
+ov.save_model(ov_ir, str(ov_model_xml), compress_to_fp16=True)
 ```
 
 **Character dictionary extraction (PaddleOCR):**
@@ -240,11 +244,12 @@ sudo apt-get update
 sudo apt-get install -y cmake g++
 ```
 
-Rerun the requirements installation with the venv Python to avoid
+Rerun the requirements installation with the venv's `uv pip` to avoid
 system-pip/PEP 668 issues:
 
 ```bash
-./.<app_name>-export-venv/bin/python -m pip install -r export_requirements.txt
+source .<app_name>-export-venv/bin/activate
+uv pip install -r export_requirements.txt
 ```
 
 ### 6. Audio Models for gvaaudiodetect / gvaaudiotranscribe
@@ -332,7 +337,7 @@ Typical `requirements.txt` entries by model source:
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 # OpenVINO Python version (pin to match DL Streamer runtime — query with: python3 -c "import openvino; print(openvino.__version__)")
-openvino==2026.2.0
+openvino==2026.3.1
 nncf==3.0.0  # required for int8=True quantization (query with: pip show nncf | grep Version)
 
 # Ultralytics YOLO (query with: pip show ultralytics | grep Version)

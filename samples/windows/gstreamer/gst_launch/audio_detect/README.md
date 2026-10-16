@@ -35,10 +35,10 @@ graph LR
 
 ## Model
 
-This sample uses the ACLNet model trained for audio event detection and made available through the Open Model Zoo. For more details see [here](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/aclnet/aclnet.md).
+This sample uses the ACLNet model trained for audio event detection and made available through the Open Model Zoo. For more details see [here](https://github.com/openvinotoolkit/open_model_zoo/blob/master/models/public/aclnet/README.md).
 *   __aclnet_des_53_fp32.onnx__ is end-to-end convolutional neural network architecture for audio classification
 
-> **NOTE**: Before running this sample you'll need to download and prepare the model. Execute `samples\windows\download_omz_models.bat` once to download and prepare models for all audio samples.
+> **NOTE**: Before running this sample, prepare the required model with [`download_other_models.sh`](../../../../../scripts/download_models/download_other_models.sh) `aclnet` (see `scripts/download_models/README.md`).
 
 ## Environment Variables
 
@@ -103,5 +103,5 @@ The sample
 * starts the command and outputs audio detection results to the console
 
 ## See also
-* [Windows Samples overview](../../../README.md)
+* [Windows Samples overview](../../../../README.md)
 * [Linux Audio Detection Sample](../../../../gstreamer/gst_launch/audio_detect/README.md)

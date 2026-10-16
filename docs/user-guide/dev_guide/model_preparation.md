@@ -1,15 +1,15 @@
 # Model Preparation
 
-When getting started with Deep Learning Streamer, the best way to obtain a
-collection of models ready for use in video analytics pipelines is to
-run
-[download_omz_models.sh](https://github.com/open-edge-platform/dlstreamer/blob/main/samples/download_omz_models.sh)
-and
-[download_public_models.sh](https://github.com/open-edge-platform/dlstreamer/blob/main/samples/download_public_models.sh).
-These scripts will download models from
-[Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo) and other
-sources, handle the necessary conversions and put model files in a
-directory specified by the `MODELS_PATH` environment variable.
+When getting started with Deep Learning Streamer, the recommended way to obtain
+models ready for use in video analytics pipelines is to use the per-source
+conversion scripts under
+[scripts/download_models](https://github.com/open-edge-platform/dlstreamer/tree/main/scripts/download_models)
+(`download_hf_models.py` for Hugging Face, `download_ultralytics_models.py` for
+Ultralytics YOLO, `download_timm_models.py` for TIMM, and
+`download_other_models.sh` for a handful of other helper models). See
+[Download and Convert Models](./download_public_models.md) and the script's own
+[README](https://github.com/open-edge-platform/dlstreamer/blob/main/scripts/download_models/README.md)
+for details.
 
 This way, you will be able to easily perform the most popular tasks,
 such as object detection and classification, instance segmentation, face
@@ -39,17 +39,12 @@ consists of two files:
 
 You can either:
 
-1. Choose model(s) from the extensive set of pre-trained models available in
-   [Open Model Zoo](https://github.com/openvinotoolkit/open_model_zoo)
-   (already in the IR format).
+1. Choose a pre-trained model that is already available in the OpenVINO IR
+  format.
 2. Use
    [OpenVINO™ Toolkit Model Conversion](https://docs.openvino.ai/2026/openvino-workflow/model-preparation/convert-model-to-ir.html)
    method for converting your model from the training framework format
    (e.g., TensorFlow) to the IR format.
-
-When using a pre-trained model from Open Model Zoo, consider using the
-[Model Downloader](https://github.com/openvinotoolkit/open_model_zoo/blob/master/tools/model_tools/README.md)
-tool to facilitate the model downloading process.
 
 When converting a custom model, you can optionally utilize the
 [Post-Training Model Optimization and Compression](https://docs.openvino.ai/2026/openvino-workflow/model-optimization.html)
@@ -136,8 +131,6 @@ gvadetect model=MODEL1_FILE_PATH.xml model-proc=MODEL1_FILE_PATH.json ! gvaclass
 :::{toctree}
 :maxdepth: 2
 
-yolo_models
-transformers
 download_public_models
 :::
 hide_directive-->

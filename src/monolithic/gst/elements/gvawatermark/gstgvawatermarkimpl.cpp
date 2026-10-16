@@ -1096,7 +1096,7 @@ void Impl::preparePrimsForTensor(const GVA::Tensor &tensor, GVA::Rect<double> re
         assert(tensor.precision() == GVA::Tensor::Precision::I64);
         std::vector<int64_t> mask = tensor.data<int64_t>();
         std::vector<guint> dims = tensor.dims();
-        const cv::Size &mask_size{int(dims[1]), int(dims[2])};
+        const cv::Size &mask_size{int(dims[2]), int(dims[1])};
         cv::Rect2f box(rect.x, rect.y, rect.w, rect.h);
         prims.emplace_back(render::SemanticSegmantationMask(mask, mask_size, box));
     }
@@ -1242,21 +1242,21 @@ void Impl::parse_displ_config() {
                 _displCfg.draw_text_background = (iter->second != "false");
                 cfg.erase(iter);
             }
-            if (iter = cfg.find("show-roi"); iter != cfg.end()) {
-                _displCfg.include_labels_filter = std::unordered_set<std::string>();
-                Utils::parseFilterConfig(iter->second, *_displCfg.include_labels_filter);
-                cfg.erase(iter);
+        }
+        if (iter = cfg.find("show-roi"); iter != cfg.end()) {
+            _displCfg.include_labels_filter = std::unordered_set<std::string>();
+            Utils::parseFilterConfig(iter->second, *_displCfg.include_labels_filter);
+            cfg.erase(iter);
+        }
+        if (iter = cfg.find("hide-roi"); iter != cfg.end()) {
+            if (_displCfg.include_labels_filter.has_value() && !(_displCfg.include_labels_filter->empty())) {
+                GST_WARNING("[gvawatermarkimpl] Both 'show-roi' and 'hide-roi' parameters are set, "
+                            "'hide-roi' will be ignored.");
+            } else {
+                _displCfg.exclude_labels_filter = std::unordered_set<std::string>();
+                Utils::parseFilterConfig(iter->second, *_displCfg.exclude_labels_filter);
             }
-            if (iter = cfg.find("hide-roi"); iter != cfg.end()) {
-                if (_displCfg.include_labels_filter.has_value() && !(_displCfg.include_labels_filter->empty())) {
-                    GST_WARNING("[gvawatermarkimpl] Both 'show-roi' and 'hide-roi' parameters are set, "
-                                "'hide-roi' will be ignored.");
-                } else {
-                    _displCfg.exclude_labels_filter = std::unordered_set<std::string>();
-                    Utils::parseFilterConfig(iter->second, *_displCfg.exclude_labels_filter);
-                }
-                cfg.erase(iter);
-            }
+            cfg.erase(iter);
         }
         if (iter = cfg.find("thickness"); iter != cfg.end()) {
             _displCfg.thickness = std::stoi(iter->second);

@@ -4,7 +4,7 @@ Performs inference with Vision Language Models using OpenVINO™ GenAI.
 Accepts video and text prompts as input, and outputs text description.
 It can be used to generate text summarizations from video.
 
-[Visual Language Models supported by OpenVINO™ GenAI](https://openvinotoolkit.github.io/openvino.genai/docs/supported-models/#visual-language-models-vlms)
+[Visual Language Models supported by OpenVINO™ GenAI](https://openvinotoolkit.github.io/openvino.genai/docs/supported-models/#vision-language-models-vlms)
 
 [Prerequisites steps for Ubuntu](../dev_guide/advanced_install/advanced_install_guide_compilation.md#optional-step-6-install-openvino-genai-only-for-ubuntu)
 
@@ -17,6 +17,7 @@ one text-generation pass per chunk against a text prompt, and attaches the gener
 
 Key operations:
 - **Frame sampling**: `frame-rate` selects how many frames per second are forwarded to the model (`0` = all frames).
+- **Frame selection**: `trigger-obj-classes` can force frames with selected upstream detection metadata to the model. With `frame-rate=0`, only matching frames are analyzed; with `frame-rate>0`, matching frames are analyzed in addition to regular sampling.
 - **Chunking**: `chunk-size` frames are accumulated, then submitted together as one inference. Frames are presented either as independent images or as a single video clip (see [Vision Mode](#vision-mode)).
 - **Text generation**: the prompt (`prompt` or `prompt-path`) and the accumulated frames are passed to the VLM. Decoding is controlled by [`generation-config`](#generation-config); batching/KV-cache behavior by [`scheduler-config`](#scheduler-config); device tuning by [`pipeline-config`](#pipeline-config).
 - **Metadata attachment**: the result is attached as JSON and classification metadata (see [Metadata](#metadata)).
@@ -34,9 +35,12 @@ Key operations:
 | scheduler-config | String | Continuous-batching scheduler parameters as `KEY=VALUE,KEY=VALUE`. Used by the `openvino-genai` backend only. See [Scheduler Config](#scheduler-config). | null |
 | pipeline-config | String | OpenVINO™ device properties as `KEY=VALUE,KEY=VALUE`. Used by the `openvino-genai` backend only. See [Pipeline Config](#pipeline-config). | null |
 | vision-mode | Enum | How accumulated frames are presented to the model: `image` or `video`. See [Vision Mode](#vision-mode). | image |
-| frame-rate | Double | Frames sampled per second for inference. `0` processes all frames. | 0 |
+| frame-rate | Double | Frames sampled per second for inference. `0` processes all frames when `trigger-obj-classes` is unset; when it is set, `0` enables pure event-driven selection. See [Frame Selection](#frame-selection). | 0 |
 | chunk-size | Unsigned Integer | Number of frames accumulated per inference call. | 1 |
+| trigger-obj-classes | String | Comma-separated object class names from upstream `GstAnalyticsODMtd` detection metadata that force matching frames to be sent to the VLM. Empty/unset disables detection-based selection. See [Frame Selection](#frame-selection). | null |
+| trigger-mode | Enum | How `trigger-obj-classes` are combined: `any` triggers when at least one listed class is detected; `all` requires every listed class in the same frame. | any |
 | model-cache-path | String | Directory for caching compiled models (GPU/NPU only). Used by the `openvino-genai` backend only. | ov_cache |
+| model-instance-id | String | Identifier for sharing a loaded model instance with other `gvagenai` elements, instead of loading a separate copy. Used by the `openvino-genai` backend only. See [Model Sharing](#model-sharing). | null |
 | metrics | Boolean | Include performance metrics in the JSON output. | false |
 | http-server-url | String | Base URL of the OpenAI-compatible server (e.g. `http://localhost:8000/v1`). Required for the `openai-http` backend. | null |
 | http-api-key | String | Optional Bearer token / API key for the HTTP server. `openai-http` backend only. | null |
@@ -62,6 +66,28 @@ The diagram below shows the high-level architecture (HLD) of how a chunk of fram
 from `gvagenai` through the `openai-http` backend to the remote server:
 
 ![openai-http backend architecture diagram](http-backend-diagram.png)
+
+### Model Sharing
+
+By default (`model-instance-id` unset), each `gvagenai` element loads its own isolated
+model instance. Set the same non-empty `model-instance-id` string on multiple `gvagenai`
+elements (using the `openvino-genai` backend) in the same process — the same convention
+used by `gvadetect`/`gvaclassify` — to make them share one loaded model instance instead of
+each loading a redundant copy. This avoids duplicating model weights (which can be several
+GB) when multiple streams (e.g. branches after a `tee`) use the same model.
+
+Elements sharing a `model-instance-id` are expected to use matching `model-path`, `device`,
+`model-cache-path`, `scheduler-config`, and `pipeline-config` — the value is used verbatim
+as the cache key, so mismatched configuration under the same id is not detected and results
+in whichever element built the instance first silently determining its behavior for all
+sharers. `prompt` and `prompt-path` remain independent per element even when the underlying
+model is shared. Inference calls on a shared instance are serialized across the elements
+using it, so throughput per stream can drop under heavy multi-stream load — a trade-off for
+lower memory usage.
+
+This property is ignored by the `openai-http` backend, which is already stateless per
+element; to share a model across separate **processes**, point multiple `openai-http`
+elements at the same server (e.g. OVMS, vLLM) via `http-server-url` instead.
 
 ### Generation Config
 
@@ -238,6 +264,62 @@ Example:
 vision-mode=video chunk-size=16 frame-rate=2
 ```
 
+### Frame Selection
+
+`gvagenai` supports two complementary frame selection mechanisms:
+
+| Mechanism | Properties | Behavior |
+|-----------|------------|----------|
+| Fixed-rate sampling | `frame-rate` | Sends frames to the VLM at approximately the requested frames per second. `frame-rate=0` means all frames when no trigger is configured. |
+| Detection-driven selection | `trigger-obj-classes`, `trigger-mode` | Sends frames whose upstream object-detection metadata matches selected classes. |
+
+Detection-driven selection expects upstream detection metadata in `GstAnalyticsODMtd`
+format, for example from `gvadetect`. Classification metadata is not used for triggering.
+Class names in `trigger-obj-classes` must match the labels produced by the detector.
+
+When `trigger-obj-classes` is set, `frame-rate` controls the selection mode:
+
+| `frame-rate` value | Behavior |
+|--------------------|----------|
+| `0` | Pure event-driven mode: only frames matching `trigger-obj-classes` are sent to the VLM. |
+| `>0` | Hybrid mode: regular `frame-rate` sampling is used, and matching trigger frames are sent in addition to the sampled frames. |
+
+`trigger-mode=any` sends a frame when at least one configured class is detected.
+`trigger-mode=all` sends a frame only when all configured classes are detected in the
+same frame.
+Selected frames follow the regular chunking behavior: `chunk-size=1` submits every
+matching frame immediately, while larger values wait until that many selected frames have
+been accumulated. Consecutive frames containing a matching object can therefore produce
+multiple inference requests; the element does not perform event deduplication or apply a
+trigger cooldown.
+
+Pure event-driven example, where the VLM runs only on frames where `gvadetect` finds a
+person:
+
+```bash
+gst-launch-1.0 filesrc location=video.mp4 ! decodebin3 ! \
+  gvadetect model=${MODELS_PATH}/public/yolov8s/FP16/yolov8s.xml threshold=0.5 ! \
+  gvagenai model-path=${GENAI_MODEL_PATH} device=CPU \
+    prompt="Describe the detected object and whether the scene looks dangerous." \
+    trigger-obj-classes=person trigger-mode=any \
+    frame-rate=0 chunk-size=1 ! \
+  gvametapublish file-path=genai_event_driven_output.json ! \
+  fakesink async=false
+```
+
+Hybrid example, where the VLM runs at `2` fps and also runs whenever a car is detected:
+
+```bash
+gst-launch-1.0 filesrc location=video.mp4 ! decodebin3 ! \
+  gvadetect model=${MODELS_PATH}/public/yolov8s/FP16/yolov8s.xml threshold=0.5 ! \
+  gvagenai model-path=${GENAI_MODEL_PATH} device=CPU \
+    prompt="Describe the scene." \
+    trigger-obj-classes=car trigger-mode=any \
+    frame-rate=2 chunk-size=1 ! \
+  gvametapublish file-path=genai_hybrid_output.json ! \
+  fakesink async=false
+```
+
 ## Input/Output
 
 - **Input**: `video/x-raw` in `RGB`, `RGBA`, `RGBx`, `BGR`, `BGRA`, `BGRx`, `NV12`, or `I420`; also `video/x-raw(memory:DMABuf)` (`DMA_DRM`) and `video/x-raw(memory:VAMemory)` (`NV12`) on Linux, and `video/x-raw(memory:D3D11Memory)` (`NV12`) on Windows. The element converts the frame to RGB internally; an explicit `videoconvert` is not required.
@@ -279,8 +361,8 @@ gst-launch-1.0 filesrc location=video.mp4 ! decodebin3 ! \
 ## Processing Pipeline
 
 1. On `start`, validates `model-path` and the prompt, then constructs the OpenVINO™ GenAI `VLMPipeline` with the parsed `generation-config`, `scheduler-config`, and `pipeline-config`.
-2. For each frame, applies `frame-rate` sampling (frames are skipped to approximate the requested rate; `0` keeps all frames).
-3. Converts each sampled frame to an RGB tensor and appends it to the current chunk.
+2. For each frame, applies fixed-rate sampling and optional detection-driven frame selection from `trigger-obj-classes`.
+3. Converts each selected frame to an RGB tensor and appends it to the current chunk.
 4. When the chunk reaches `chunk-size`, runs one inference over the accumulated frames (as images or as a single video clip per `vision-mode`) with the prompt, and attaches `GstGVAJSONMeta` to that frame.
 5. Attaches `GstAnalyticsClsMtd` carrying the latest result to every frame so downstream elements can render it persistently.
 
@@ -350,7 +432,20 @@ Element Properties:
   device              : Device to use (CPU, GPU, NPU, etc.)
                         flags: readable, writable
                         String. Default: "CPU"
-  frame-rate          : Number of frames sampled per second for inference (0 = process all frames)
+  frame-rate          : Target frame-sampling rate in frames/s (approximate; 0 = process all frames)
+                        (approximate; sampling uses a whole-number
+                        input-frame interval, so the actual rate
+                        is usually slightly lower).
+                        Example with a 30 fps input:
+                        10 - sample every 3rd input frame (10 sampled frames/s);
+                        2 - sample every 15th input frame (2 sampled frames/s);
+                        1 - sample every 30th input frame (1 sampled frame/s);
+                        0.5 - sample every 60th input frame (1 sampled frame every 2 s);
+                        0.1 - sample every 300th input frame (1 sampled frame every 10 s);
+                        0 - process every input frame (30 sampled frames/s).
+                        Higher values result in more frequent inference
+                        and higher computational cost;
+                        Lower values mean less frequent, cheaper sampling.
                         flags: readable, writable
                         Double. Range:               0 -   1.797693e+308 Default:               0
   generation-config   : Generation configuration as KEY=VALUE,KEY=VALUE format
@@ -371,6 +466,9 @@ Element Properties:
   model-cache-path    : Path for caching compiled models (GPU/NPU only)
                         flags: readable, writable
                         String. Default: "ov_cache"
+  model-instance-id   : Identifier for sharing a loaded model instance between gvagenai elements of the same type. Elements with the same model-instance-id will share the model and inference engine (avoiding redundant model loads); leave unset (default) for an isolated, unshared instance. Ignored by the 'openai-http' backend.
+                        flags: readable, writable
+                        String. Default: null
   model-path          : Path to the local GenAI model ('openvino-genai' backend), or the model name to request from the server ('openai-http' backend)
                         flags: readable, writable
                         String. Default: null
@@ -393,6 +491,14 @@ Element Properties:
                         flags: readable, writable
                         Boolean. Default: false
   scheduler-config    : Scheduler configuration as KEY=VALUE,KEY=VALUE format
+                        flags: readable, writable
+                        String. Default: null
+  trigger-mode        : How trigger-obj-classes are combined: 'any' sends the frame if at least one class is detected, 'all' requires every listed class to be detected in the same frame.
+                        flags: readable, writable
+                        Enum "GstGvaGenAITriggerMode" Default: 0, "any"
+                           (0): any              - Trigger when any of trigger-obj-classes is detected
+                           (1): all              - Trigger only when all trigger-obj-classes are detected
+  trigger-obj-classes : Comma-separated object class names from upstream detection metadata (GstAnalyticsODMtd, e.g. gvadetect) that force a frame to be sent to the VLM, e.g. "person,fire". With frame-rate>0 these frames are sent in addition to the time-sampled ones; with frame-rate=0 only matching frames are sent (event-driven). Empty/unset disables the trigger.
                         flags: readable, writable
                         String. Default: null
   vision-mode         : How accumulated frames are presented to the model: as independent images, or as one video clip. Video mode requires a video-capable model

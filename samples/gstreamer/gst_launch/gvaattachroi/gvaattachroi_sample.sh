@@ -35,7 +35,7 @@ ROI_COORDS=${4:-""} # Specifies pixel absolute coordinates of ROI in form: x_top
 # If not defined, the roi list file ./roi_list.json will be used
 
 MODEL="yolov8s"
-MODEL_PATH="${MODELS_PATH}/public/$MODEL/FP32/$MODEL.xml"
+MODEL_PATH="${MODELS_PATH}/public/$MODEL/FP16/$MODEL.xml"
 
 if [[ $INPUT == "/dev/video"* ]]; then
   SOURCE_ELEMENT="v4l2src device=${INPUT}"
@@ -46,11 +46,14 @@ else
 fi
 
 DECODE_ELEMENT="! decodebin3 !"
-PREPROC_BACKEND="opencv"
-if [[ "$DEVICE" == "GPU" ]] || [[ "$DEVICE" == "NPU" ]]; then
-  DECODE_ELEMENT+=" vapostproc ! video/x-raw(memory:VAMemory) !"
-  PREPROC_BACKEND="va-surface-sharing"
-fi
+
+case "$DEVICE" in
+  "CPU") PREPROC_BACKEND="opencv" ;;
+  "GPU") PREPROC_BACKEND="va-surface-sharing" ;;
+  "NPU") PREPROC_BACKEND="va" ;;
+  *) echo "Error: Unsupported DEVICE value: $DEVICE. Supported: CPU, GPU, NPU" >&2
+     exit 1 ;;
+esac
 
 if [[ "$OUTPUT" == "file" ]]; then
   FILE=$(basename "${INPUT%.*}")

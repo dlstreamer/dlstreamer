@@ -25,7 +25,7 @@ Refer to [OpenVINO™ GenAI Model Preparation](https://openvinotoolkit.github.io
 
 > [!NOTE]
 > To install `optimum-cli` and other required dependencies for model export, refer to the respective OpenVINO™ notebook tutorials linked in the table below.
-> DL Streamer currently depends on OpenVINO™ GenAI 2026.2.0. For optimal compatibility, use the library versions specified in [export-requirements.txt](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2026/2/samples/export-requirements.txt).
+> DL Streamer currently depends on OpenVINO™ GenAI 2026.3.1. For optimal compatibility, use the library versions specified in [export-requirements.txt](https://github.com/openvinotoolkit/openvino.genai/blob/releases/2026/3/samples/export-requirements.txt).
 
 | Model | Export Command | Tutorial |
 |-------|----------------|----------|
@@ -180,5 +180,5 @@ Video preprocessing isn't implemented for this model. Pass frames as independent
 - **Solution:** Use `-VisionMode image` (the default), or switch to a video-capable model such as Qwen2/2.5/3-VL or LLaVA-NeXT-Video
 
 ## See also
-* [Windows Samples overview](../../../README.md)
+* [Windows Samples overview](../../../../README.md)
 * [Linux gvagenai Sample](../../../../gstreamer/gst_launch/gvagenai/README.md)

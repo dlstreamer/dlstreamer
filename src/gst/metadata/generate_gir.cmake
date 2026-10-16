@@ -45,14 +45,18 @@ if(GENERATE_GIR_FROM_SOURCE)
         "${CMAKE_CURRENT_SOURCE_DIR}/gstanalyticskeypointdescriptor.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/gva_zone_meta.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/gva_tripwire_meta.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/gva_dwelltime_meta.c"
         "${CMAKE_CURRENT_SOURCE_DIR}/g3d_od_mtd.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/camera_3d_od_mtd.c"
     )
 
     set(METADATA_HEADERS
         "${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata/gstanalyticskeypointdescriptor.h"
         "${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata/gva_zone_meta.h"
         "${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata/gva_tripwire_meta.h"
+        "${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata/gva_dwelltime_meta.h"
         "${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata/g3d_od_mtd.h"
+        "${CMAKE_SOURCE_DIR}/include/dlstreamer/gst/metadata/camera_3d_od_mtd.h"
     )
 
     set(LIB_OUTPUT_DIR "${CMAKE_BINARY_DIR}/intel64/${CMAKE_BUILD_TYPE}/lib")
