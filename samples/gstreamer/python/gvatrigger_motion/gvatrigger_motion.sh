@@ -11,7 +11,7 @@ set -e
 INPUT=${1:-synthetic}
 OUTPUT=${2:-}
 ENCODER=${ENCODER:-openh264}
-K=${K:-3.0}
+K=${K:-2.0}
 ALPHA=${ALPHA:-0.03}
 MARGIN=${MARGIN:-64}
 MAX_CACHE_TIME_MS=${MAX_CACHE_TIME_MS:-4000}

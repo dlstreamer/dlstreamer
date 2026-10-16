@@ -107,7 +107,7 @@ def build_pipeline(args):
     tail = f"{trigger} ! decodebin ! frame_counter name=counter ! "
     
     if args.output:
-        tail += f"videoconvert ! video/x-raw,format=BGR ! openh264enc ! h264parse ! mp4mux ! filesink sync=false location=\"{os.path.abspath(args.output)}\""
+        tail += f"videoconvert ! video/x-raw,format=I420 ! openh264enc ! h264parse ! mp4mux ! filesink sync=false location=\"{os.path.abspath(args.output)}\""
     else:
         tail += "fakesink sync=false"
 
