@@ -18,10 +18,7 @@
 #include <gst/analytics/analytics.h>
 #include <gst/video/video.h>
 
-#include <nlohmann/json.hpp>
-
 #include "gva_caps.h"
-#include "gva_json_meta.h"
 
 #include "drop_log_throttle/drop_log_throttle.hpp"
 #include "pre_event_ring/pre_event_ring.hpp"
@@ -108,7 +105,8 @@ struct ActiveSession {
 // Forwarded frame held back by one frame, since only the next frame tells whether it ends the event.
 struct PendingFrame {
     GstBuffer *buffer = nullptr;
-    nlohmann::ordered_json meta;
+    std::vector<GQuark> trigger_classes; // classes that started sessions on this frame
+    std::vector<gfloat> trigger_confidences;
     bool first = false;
 };
 
@@ -125,8 +123,6 @@ struct GvaEventRecorderRuntime {
     GstVideoInfo video_info;
     gboolean video_info_valid = FALSE;
     PendingFrame pending;
-    guint64 event_counter = 0;
-    std::string event_id;
     std::mutex config_mutex; // guards engine/ring reconfiguration vs. transform_ip
 
     GvaEventRecorderRuntime()
@@ -551,53 +547,33 @@ static std::vector<DetectionInput> collect_detections(GstBuffer *buf) {
     return detections;
 }
 
-static nlohmann::ordered_json build_json_meta(const std::vector<gvaeventrecorder::TriggerResult> &triggers,
-                                              const GvaEventRecorderRuntime *rt, const std::string &event_id) {
-    nlohmann::ordered_json root;
-    auto &er = root["gvaeventrecorder"];
-    er["event_active"] = true;
-    er["event_id"] = event_id;
-    er["state"] = ""; // filled in when the frame is pushed
-
-    nlohmann::ordered_json triggers_json = nlohmann::ordered_json::array();
-    for (const auto &t : triggers) {
-        nlohmann::ordered_json tj;
-        tj["class"] = t.class_label;
-        tj["confidence"] = t.confidence;
-        auto it = rt->active_sessions.find(t.session_id);
-        tj["dump_file"] = (it != rt->active_sessions.end()) ? it->second.output_path : "";
-        if (it != rt->active_sessions.end() && !it->second.downstream_output_path.empty())
-            tj["downstream_dump_file"] = it->second.downstream_output_path;
-        triggers_json.push_back(tj);
-    }
-    er["triggers"] = triggers_json;
-    return root;
-}
-
 // Takes ownership of frame.buffer.
 static GstFlowReturn push_event_frame(GstGvaEventRecorder *self, PendingFrame frame, const char *state) {
     GstBuffer *buf = gst_buffer_make_writable(frame.buffer);
     if (frame.first)
         GST_BUFFER_FLAG_SET(buf, GST_BUFFER_FLAG_DISCONT);
 
-    frame.meta["gvaeventrecorder"]["state"] = state;
+    GstAnalyticsRelationMeta *rmeta = gst_buffer_get_analytics_relation_meta(buf);
+    if (!rmeta)
+        rmeta = gst_buffer_add_analytics_relation_meta(buf); // gap frames may carry no detections
 
-    // Merge into an existing frame JSON (e.g. from gvametaconvert), since gvametapublish reads only the first one.
-    if (auto *existing = GST_GVA_JSON_META_GET(buf)) {
-        auto root = nlohmann::ordered_json::parse(existing->message ? existing->message : "", nullptr, false);
-        if (root.is_object()) {
-            root["gvaeventrecorder"] = std::move(frame.meta["gvaeventrecorder"]);
-            g_free(existing->message);
-            existing->message = g_strdup(root.dump().c_str());
-            return gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(self), buf);
-        }
-    }
-
-    auto *json_meta = (GstGVAJSONMeta *)gst_buffer_add_meta(buf, gst_gva_json_meta_get_info(), NULL);
-    if (json_meta)
-        json_meta->message = g_strdup(frame.meta.dump().c_str());
+    // Frame-level ClsMtd (no relation to any ODMtd), identified by semantic tag.
+    GstAnalyticsClsMtd state_mtd;
+    if (rmeta &&
+        gst_analytics_relation_meta_add_one_cls_mtd(rmeta, 1.0f, g_quark_from_static_string(state), &state_mtd))
+        gst_analytics_mtd_set_semantic_tag(reinterpret_cast<GstAnalyticsMtd *>(&state_mtd), "event");
     else
-        GST_WARNING_OBJECT(self, "Failed to add JSON meta");
+        GST_WARNING_OBJECT(self, "Failed to add event state metadata");
+
+    GstAnalyticsClsMtd trigger_mtd;
+    if (rmeta && !frame.trigger_classes.empty()) {
+        if (gst_analytics_relation_meta_add_cls_mtd(rmeta, frame.trigger_classes.size(),
+                                                    frame.trigger_confidences.data(), frame.trigger_classes.data(),
+                                                    &trigger_mtd))
+            gst_analytics_mtd_set_semantic_tag(reinterpret_cast<GstAnalyticsMtd *>(&trigger_mtd), "event_trigger");
+        else
+            GST_WARNING_OBJECT(self, "Failed to add event trigger metadata");
+    }
 
     return gst_pad_push(GST_BASE_TRANSFORM_SRC_PAD(self), buf);
 }
@@ -682,16 +658,12 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
     PendingFrame to_push = std::exchange(rt->pending, PendingFrame{});
     const char *push_state = !outcome.forward ? "stop" : (to_push.first ? "start" : "continue");
     if (outcome.forward) {
-        const bool first = to_push.buffer == nullptr;
-        if (first) {
-            std::ostringstream id;
-            id << "event_" << outcome.new_triggers.front().class_label << '_' << make_event_timestamp().filename << '_'
-               << std::setw(6) << std::setfill('0') << rt->event_counter++;
-            rt->event_id = id.str();
-        }
         rt->pending.buffer = gst_buffer_ref(buf);
-        rt->pending.meta = build_json_meta(outcome.new_triggers, rt, rt->event_id);
-        rt->pending.first = first;
+        for (const auto &trig : outcome.new_triggers) {
+            rt->pending.trigger_classes.push_back(g_quark_from_string(trig.class_label.c_str()));
+            rt->pending.trigger_confidences.push_back(trig.confidence);
+        }
+        rt->pending.first = to_push.buffer == nullptr;
     }
 
     for (uint64_t id : active_ids_before) {

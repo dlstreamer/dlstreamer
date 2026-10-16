@@ -41,5 +41,4 @@ target_link_libraries(${TARGET_NAME}
     ${CAIRO_LIBRARIES}
     common
     dlstreamer_gst_meta
-    json-hpp
 )

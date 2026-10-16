@@ -30,6 +30,4 @@ target_link_libraries(${TARGET_NAME}
     ${GSTREAMER_LIBRARIES}
     ${GSTREAMER_BASE_LIBRARIES}
     ${GSTREAMER_VIDEO_LIBRARIES}
-    dlstreamer_gst_meta
-    json-hpp
 )

@@ -60,7 +60,7 @@ For a full block of `N` frames and a budget of `k`, selected positions are evenl
 
 - JPEG copies of selected frames: `<output-directory>/frame_XXXXXXXX.jpg`.
 - The same selected video buffers continue downstream to `fakesink`; saving JPEGs does not consume them.
-- Each forwarded frame receives its stream frame number in `gvaframeselect.frame_number` JSON metadata. The number counts every input frame, including dropped frames, starts at zero, and resets on a new stream.
+- Each forwarded frame carries its stream frame number in its buffer offset (`GST_BUFFER_OFFSET`). The number counts every input frame, including dropped frames, starts at zero, and resets on a new stream.
 - The detector must provide a `person` class, as selected frames are intended to demonstrate detections before frame selection.
 
 ## See Also

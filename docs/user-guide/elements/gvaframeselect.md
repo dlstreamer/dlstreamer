@@ -16,8 +16,9 @@ if $k \geq N$, every frame is forwarded. A short final block forwards only selec
 that occur before end-of-stream; its selection is not recalculated for the shorter length.
 
 The stream frame number counts every input frame from `STREAM_START`, including dropped frames.
-It is reset on a new `STREAM_START` event, but not on `DISCONT`. Each forwarded frame receives
-this number in `gvaframeselect.frame_number` in its JSON metadata. If `output-dir` is set, an
+It is reset on a new `STREAM_START` event, but not on `DISCONT`. Each forwarded frame carries
+this number in its buffer offset (`GST_BUFFER_OFFSET`), which GStreamer defines as the frame number
+for video. If `output-dir` is set, an
 unmodified copy of the frame is saved as `frame_<number>.jpg`, with the number zero-padded to
 8 digits. Saving requires frames in system memory.
 

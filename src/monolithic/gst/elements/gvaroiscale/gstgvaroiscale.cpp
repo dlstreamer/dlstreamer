@@ -10,9 +10,7 @@
 
 #include <glib/gstdio.h>
 #include <gst/video/video.h>
-#include <nlohmann/json.hpp>
 
-#include "dlstreamer/gst/metadata/gva_json_meta.h"
 #include "roi_scale.hpp"
 
 constexpr guint DEFAULT_OUT_WIDTH = 448;
@@ -37,8 +35,6 @@ struct GstGvaRoiScale {
     GstBuffer *pending_input;
     std::vector<gvaroiscale::Roi> pending_rois;
     std::size_t next_roi_index;
-    guint64 pending_source_frame_number;
-    guint64 source_frame_number;
 };
 
 struct GstGvaRoiScaleClass {
@@ -158,26 +154,14 @@ static void clear_pending_input(GstGvaRoiScale *self) {
     self->next_roi_index = 0;
 }
 
+// The crop is a new buffer, so the source ODMtd is re-created on it in output-frame coordinates.
 static void add_roi_metadata(GstGvaRoiScale *self, GstBuffer *buffer, const gvaroiscale::Roi &roi,
-                             guint64 source_frame_number, std::size_t roi_index, std::size_t roi_count) {
-    nlohmann::ordered_json metadata;
-    metadata["gvaroiscale"] = {
-        {"source_frame_number", source_frame_number},
-        {"roi_index", roi_index},
-        {"roi_count", roi_count},
-        {"class", g_quark_to_string(roi.label) ? g_quark_to_string(roi.label) : ""},
-        {"confidence", roi.confidence},
-        {"box", {{"x", roi.x}, {"y", roi.y}, {"width", roi.width}, {"height", roi.height}}},
-    };
-
-    GstGVAJSONMeta *json_meta = GST_GVA_JSON_META_ADD(buffer);
-    if (!json_meta) {
-        GST_WARNING_OBJECT(self, "Could not attach ROI JSON metadata");
-        return;
-    }
-    const std::string serialized = metadata.dump();
-    g_free(json_meta->message);
-    json_meta->message = g_strdup(serialized.c_str());
+                             const GstVideoRectangle &content_rect) {
+    GstAnalyticsRelationMeta *rmeta = gst_buffer_add_analytics_relation_meta(buffer);
+    GstAnalyticsODMtd od_mtd;
+    if (!rmeta || !gst_analytics_relation_meta_add_od_mtd(rmeta, roi.label, content_rect.x, content_rect.y,
+                                                          content_rect.w, content_rect.h, roi.confidence, &od_mtd))
+        GST_WARNING_OBJECT(self, "Could not attach ROI detection metadata");
 }
 
 static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transform, GstBuffer **outbuf) {
@@ -191,7 +175,6 @@ static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transfo
             return GST_BASE_TRANSFORM_FLOW_DROPPED;
 
         self->pending_input = input;
-        self->pending_source_frame_number = self->source_frame_number++;
         gdouble confidence_threshold;
         GST_OBJECT_LOCK(self);
         GArray *target_classes = g_array_ref(self->target_classes);
@@ -211,8 +194,9 @@ static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transfo
     const std::size_t roi_count = self->pending_rois.size();
     const gvaroiscale::Roi &roi = self->pending_rois[roi_index];
     GstBuffer *output = nullptr;
+    GstVideoRectangle content_rect;
     const auto result = gvaroiscale::roi_scale_buffer(self->pending_input, self->input_info, roi, self->out_width,
-                                                      self->out_height, &output, nullptr);
+                                                      self->out_height, &output, nullptr, &content_rect);
     if (result != gvaroiscale::RoiScaleResult::Ok) {
         clear_pending_input(self);
         return result == gvaroiscale::RoiScaleResult::NoRoi ? GST_BASE_TRANSFORM_FLOW_DROPPED : GST_FLOW_ERROR;
@@ -221,7 +205,7 @@ static GstFlowReturn gst_gva_roi_scale_generate_output(GstBaseTransform *transfo
     GST_BUFFER_FLAGS(output) = GST_BUFFER_FLAGS(self->pending_input);
     if (roi_index > 0)
         GST_BUFFER_FLAG_UNSET(output, GST_BUFFER_FLAG_DISCONT);
-    add_roi_metadata(self, output, roi, self->pending_source_frame_number, roi_index, roi_count);
+    add_roi_metadata(self, output, roi, content_rect);
 
     const guint64 output_frame_number = self->output_frame_number++;
     GST_OBJECT_LOCK(self);
@@ -317,7 +301,6 @@ static gboolean gst_gva_roi_scale_start(GstBaseTransform *transform) {
     auto *self = reinterpret_cast<GstGvaRoiScale *>(transform);
     clear_pending_input(self);
     self->output_frame_number = 0;
-    self->source_frame_number = 0;
     return TRUE;
 }
 
@@ -331,7 +314,6 @@ static gboolean gst_gva_roi_scale_sink_event(GstBaseTransform *transform, GstEve
     if (GST_EVENT_TYPE(event) == GST_EVENT_STREAM_START) {
         clear_pending_input(self);
         self->output_frame_number = 0;
-        self->source_frame_number = 0;
     }
     return GST_BASE_TRANSFORM_CLASS(gst_gva_roi_scale_parent_class)->sink_event(transform, event);
 }
@@ -391,8 +373,6 @@ static void gst_gva_roi_scale_init(GstGvaRoiScale *self) {
     gst_video_info_init(&self->output_info);
     self->pending_input = nullptr;
     self->next_roi_index = 0;
-    self->pending_source_frame_number = 0;
-    self->source_frame_number = 0;
     gst_base_transform_set_in_place(GST_BASE_TRANSFORM(self), FALSE);
     gst_base_transform_set_passthrough(GST_BASE_TRANSFORM(self), FALSE);
 }

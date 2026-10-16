@@ -20,9 +20,10 @@ Set these dimensions according to the downstream model's input requirements. Mod
 dynamic image sizes or resize inputs internally may not require an exact match; check the model
 documentation. The defaults are not universal.
 The output directory is optional; an empty value disables image saving. File numbering advances
-for each crop, starts at zero, and restarts on each new stream. Every output crop carries
-`gvaroiscale` JSON metadata with its source frame number, ROI index and count, class, confidence,
-and clipped source-frame box. Outputs from the same input frame retain its PTS and duration.
+for each crop, starts at zero, and restarts on each new stream. Every output crop carries a
+`GstAnalyticsODMtd` with the class and confidence of its source detection; its box is the area the
+scaled ROI occupies inside the output frame, excluding the black padding. Outputs from the same input
+frame retain its PTS, duration and buffer offset.
 When `target-classes` is set, only ROIs whose labels match one of the comma-separated values are
 considered. Whitespace around labels is ignored.
 

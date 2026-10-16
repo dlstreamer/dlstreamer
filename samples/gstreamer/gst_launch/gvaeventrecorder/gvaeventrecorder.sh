@@ -72,7 +72,6 @@ echo "============================================="
 PIPELINE="gst-launch-1.0 -e \
     filesrc $(printf '%q' "location=$INPUT_VIDEO") ! decodebin3 ! videoconvert ! \
     gvadetect $(printf '%q' "model=$DETECTION_MODEL") device=CPU ! queue ! \
-    gvametaconvert format=json ! \
     gvaeventrecorder \
         target-classes=person \
         confidence-threshold=0.5 \
@@ -81,6 +80,7 @@ PIPELINE="gst-launch-1.0 -e \
         event-gap-frames=3 \
         $(printf '%q' "full-clip-output-dir=$OUTPUT_DIR/full-clip") \
         $(printf '%q' "downstream-output-dir=$OUTPUT_DIR/downstream") ! \
+    gvametaconvert format=json ! \
     gvametapublish file-format=2 $(printf '%q' "file-path=$OUTPUT_DIR/events/events.json") ! \
     fakesink sync=false"
 

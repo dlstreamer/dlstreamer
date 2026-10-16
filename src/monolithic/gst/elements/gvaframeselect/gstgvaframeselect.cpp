@@ -11,9 +11,7 @@
 #include <vector>
 
 #include <gst/video/video.h>
-#include <nlohmann/json.hpp>
 
-#include "dlstreamer/gst/metadata/gva_json_meta.h"
 #include "frame_selector.hpp"
 #include "gva_caps.h"
 
@@ -138,29 +136,6 @@ static void save_jpeg(GstGvaFrameSelect *self, GstBuffer *buffer, const gchar *o
     gst_sample_unref(jpeg);
 }
 
-static void add_frame_number_meta(GstGvaFrameSelect *self, GstBuffer *buffer, guint64 frame_number) {
-    auto *json_meta = GST_GVA_JSON_META_GET(buffer);
-    nlohmann::ordered_json metadata = nlohmann::ordered_json::object();
-    if (json_meta && json_meta->message) {
-        metadata = nlohmann::ordered_json::parse(json_meta->message, nullptr, false);
-        if (!metadata.is_object()) {
-            GST_WARNING_OBJECT(self, "Existing JSON metadata is not an object; cannot add frame number");
-            return;
-        }
-    }
-
-    metadata["gvaframeselect"]["frame_number"] = frame_number;
-    const std::string serialized = metadata.dump();
-    if (!json_meta)
-        json_meta = GST_GVA_JSON_META_ADD(buffer);
-    if (!json_meta) {
-        GST_WARNING_OBJECT(self, "Could not attach frame number JSON metadata");
-        return;
-    }
-    g_free(json_meta->message);
-    json_meta->message = g_strdup(serialized.c_str());
-}
-
 static GstFlowReturn gst_gva_frame_select_transform_ip(GstBaseTransform *transform, GstBuffer *buffer) {
     auto *self = reinterpret_cast<GstGvaFrameSelect *>(transform);
     // Counts every input frame from stream start; unlike frame_index it is not reset on DISCONT.
@@ -175,7 +150,8 @@ static GstFlowReturn gst_gva_frame_select_transform_ip(GstBaseTransform *transfo
     if (!std::binary_search(selected.begin(), selected.end(), static_cast<std::size_t>(index)))
         return GST_BASE_TRANSFORM_FLOW_DROPPED;
 
-    add_frame_number_meta(self, buffer, stream_frame_number);
+    // For video, GstBuffer offset is defined as the frame number.
+    GST_BUFFER_OFFSET(buffer) = stream_frame_number;
 
     GST_OBJECT_LOCK(self);
     gchar *output_dir = g_strdup(self->output_dir);

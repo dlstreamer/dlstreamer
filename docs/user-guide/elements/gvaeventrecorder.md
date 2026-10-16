@@ -34,8 +34,8 @@ element (e.g. `gvadetect`) and a downstream consumer such as `gvagenai`. It read
 - **Video annotation**: matching target labels and confidence scores are drawn only on frames
   where those detections are present. The trigger frame also includes its UTC trigger time;
   frames without a matching detection have no detection label overlay.
-- **Metadata**: forwarded frames get a `GstGVAJSONMeta` (the same meta type used by
-  `gvagenai`) describing which class(es) triggered and the resulting dump file name.
+- **Metadata**: forwarded frames get frame-level `GstAnalyticsClsMtd` entries describing the
+  event state and, on start frames, the triggering class(es). See [Metadata](#metadata).
 
 ## Properties
 
@@ -134,34 +134,32 @@ The optional EVENT-only clip of the same session is written to `downstream-outpu
 
 ## Metadata
 
-Forwarded EVENT buffers carry a `GstGVAJSONMeta` (same meta type as `gvagenai`) with
-`event_active`, `event_id`, `state`; `triggers` is populated on frames that start one or more recording sessions.
-If the frame already has a `GstGVAJSONMeta` (e.g. place `gvametaconvert format=json` before the recorder), the
-`gvaeventrecorder` object is added to that JSON instead, so `gvametapublish` outputs ROI and event data together:
+Forwarded EVENT buffers carry frame-level `GstAnalyticsClsMtd` entries in their
+`GstAnalyticsRelationMeta`. They are not related to any `GstAnalyticsODMtd` and are identified by
+their semantic tag:
+
+| Semantic tag | Labels | Present on |
+|---|---|---|
+| `event` | `start`, `continue` or `stop` (confidence 1.0) | every forwarded EVENT frame, including tolerated detection gaps |
+| `event_trigger` | class(es) that started a recording session, with their confidence | frames that start one or more sessions |
+
+`start` marks the first forwarded frame of an event, `continue` the frames after it, and `stop` the
+last one. If an event has only one frame, that frame gets `stop`. To know which frame is the last one,
+the element holds each frame until the next one arrives, so forwarding is delayed by one frame.
+
+Place `gvametaconvert` after the recorder to serialize the entries to JSON; each frame then contains a
+full-frame object such as:
 
 ```json
 {
-  "gvaeventrecorder": {
-    "event_active": true,
-    "event_id": "event_person_20261007T142301Z_000001",
-    "state": "start",
-    "triggers": [
-      { "class": "person", "confidence": 0.87, "dump_file": "./event_person_20261007T142301Z_000123.mp4", "downstream_dump_file": "./event_person_20261007T142301Z_000123_downstream.mp4" }
-    ]
-  }
+  "x": 0, "y": 0, "w": 1920, "h": 1080,
+  "classification/event": { "label": "start", "confidence": 1.0 },
+  "classification/event_trigger": { "label": "person", "confidence": 0.87 }
 }
 ```
 
-A single frame can trigger more than one class at once (e.g. `person` and `vehicle`); in
-that case `triggers` contains one entry per class, but the buffer still passes through the
-element only once. Other EVENT buffers have an empty `triggers` array.
-
-- `event_id`: identifies one continuous run of forwarded frames as `event_<class>_<UTC start time>_<counter>`.
-  The class is taken from the first trigger, and the counter starts at `000000` when the element starts, matching
-  the order used in output filenames.
-- `state`: `start` for the first forwarded frame of the event, `continue` for the frames after it, and
-  `stop` for the last one. If an event has only one frame, that frame gets `stop`. To know which frame is
-  the last one, the element holds each frame until the next one arrives, so forwarding is delayed by one frame.
+If one frame triggers several classes (e.g. `person` and `vehicle`), the `event_trigger` entry holds
+all of them; `gvametaconvert` joins their labels and reports the highest confidence.
 
 ## Pipeline Examples
 

@@ -88,7 +88,7 @@ std::vector<Roi> collect_rois(GstBuffer *input_buffer, const GArray *target_clas
 
 RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &input_info, const Roi &roi,
                                 guint output_width, guint output_height, GstBuffer **output_buffer,
-                                GstVideoInfo *output_info) {
+                                GstVideoInfo *output_info, GstVideoRectangle *content_rect) {
     if (output_buffer)
         *output_buffer = nullptr;
     if (!input_buffer || !output_buffer || output_width == 0 || output_height == 0 ||
@@ -166,9 +166,13 @@ RoiScaleResult roi_scale_buffer(GstBuffer *input_buffer, const GstVideoInfo &inp
     GST_BUFFER_PTS(scaled_buffer) = GST_BUFFER_PTS(input_buffer);
     GST_BUFFER_DTS(scaled_buffer) = GST_BUFFER_DTS(input_buffer);
     GST_BUFFER_DURATION(scaled_buffer) = GST_BUFFER_DURATION(input_buffer);
+    GST_BUFFER_OFFSET(scaled_buffer) = GST_BUFFER_OFFSET(input_buffer);
     *output_buffer = scaled_buffer;
     if (output_info)
         *output_info = scaled_info;
+    if (content_rect)
+        *content_rect = {static_cast<gint>(offset_x), static_cast<gint>(offset_y), static_cast<gint>(resized_width),
+                         static_cast<gint>(resized_height)};
     return RoiScaleResult::Ok;
 }
 
