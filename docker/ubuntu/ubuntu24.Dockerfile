@@ -36,7 +36,9 @@
 # DLSTREAMER_BUILD_NUMBER # Build ID
 # GST_VERSION             # GStreamer
 # FFMPEG_VERSION          # FFmpeg
-# OPENVINO_VERSION        # OpenVINO
+# OPENVINO_VERSION        # OpenVINO archive version (e.g. 2026.5.0.dev20261014)
+# OPENVINO_BUILD_ID       # OpenVINO nightly storage folder (version-build-commit)
+# OPENVINO_GENAI_VERSION  # OpenVINO GenAI archive version
 # OPENCV_VERSION          # OpenCV
 # REALSENSE_VERSION       # RealSense
 # KAFKA_VERSION           # librdkafka
@@ -368,10 +370,15 @@ FROM builder AS dlstreamer-dev
 
 ARG DLSTREAMER_VERSION=2026.3.0
 ARG DLSTREAMER_BUILD_NUMBER
-ARG OPENVINO_VERSION=2026.3.1
+ARG OPENVINO_VERSION=2026.5.0.dev20261014
+ARG OPENVINO_BUILD_ID=2026.5.0-23457-7d81aad55a5
+ARG OPENVINO_PACKAGE_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/${OPENVINO_BUILD_ID}/openvino_toolkit_ubuntu24_${OPENVINO_VERSION}_x86_64.tgz
+ARG OPENVINO_GENAI_VERSION=2026.5.0.0.dev20261014
 # DL Streamer development image and build proccess
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
+
+ENV OPENVINO_DIR=/opt/intel/openvino
 
 COPY --from=gstreamer-builder ${GSTREAMER_DIR} ${GSTREAMER_DIR}
 COPY --from=opencv-builder /usr/local/include/opencv4 /usr/local/include/opencv4
@@ -387,20 +394,21 @@ COPY --from=realsense-builder /usr/local/include/librealsense2 /usr/local/includ
 # Build DL Streamer
 WORKDIR /home/dlstreamer
 
-RUN apt-get update && apt-get install --no-install-recommends -y gnupg=\* && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# Download and install OpenVINO Runtime from an archive
 RUN \
-    echo "deb https://apt.repos.intel.com/openvino ubuntu24 main" | tee /etc/apt/sources.list.d/intel-openvino.list && \
-    curl -sSL -O https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    apt-get update && apt-get install --no-install-recommends -y "openvino-${OPENVINO_VERSION}"=\* && \
+    mkdir -p /opt/intel && \
+    curl -L "${OPENVINO_PACKAGE_URL}" --output /tmp/openvino.tgz && \
+    tar -xf /tmp/openvino.tgz -C /opt/intel && \
+    rm /tmp/openvino.tgz && \
+    mv /opt/intel/openvino_toolkit_ubuntu24_* "${OPENVINO_DIR}" && \
+    "${OPENVINO_DIR}/install_dependencies/install_openvino_dependencies.sh" -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    cp -a "${OPENVINO_DIR}/runtime/lib/intel64/"*.so* /usr/local/lib/
 
-# OpenVINO Gen AI
-ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_VERSION}.0_x86_64
-ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/${OPENVINO_VERSION}/linux/${OPENVINO_GENAI_VER}.tar.gz
+# OpenVINO Gen AI (nightly build, matching OPENVINO_PACKAGE_URL)
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_GENAI_VERSION}_x86_64
+ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/nightly/${OPENVINO_GENAI_VERSION}/${OPENVINO_GENAI_VER}.tar.gz
 
 RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
     mv ${OPENVINO_GENAI_VER} /opt/intel/openvino_genai
@@ -418,14 +426,14 @@ WORKDIR $DLSTREAMER_DIR/build
 ENV LIBDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/lib
 ENV BINDIR=${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}/bin
 ENV PATH=${GSTREAMER_DIR}/bin:${BINDIR}:${PATH}
-ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:${GSTREAMER_DIR}/lib/pkgconfig:${PKG_CONFIG_PATH}
-ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LIBRARY_PATH}
-ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${LD_LIBRARY_PATH}
+ENV PKG_CONFIG_PATH=/usr/local/lib/pkgconfig:${LIBDIR}/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:${GSTREAMER_DIR}/lib/pkgconfig:${OPENVINO_DIR}/runtime/lib/intel64/pkgconfig:${PKG_CONFIG_PATH}
+ENV LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${OPENVINO_DIR}/runtime/lib/intel64:${OPENVINO_DIR}/runtime/3rdparty/tbb/lib:${LIBRARY_PATH}
+ENV LD_LIBRARY_PATH=${GSTREAMER_DIR}/lib:${LIBDIR}:/usr/lib:/usr/local/lib:${OPENVINO_DIR}/runtime/lib/intel64:${OPENVINO_DIR}/runtime/3rdparty/tbb/lib:${LD_LIBRARY_PATH}
 ENV LIB_PATH=$LIBDIR
 ENV GST_PLUGIN_PATH=${LIBDIR}:${GSTREAMER_DIR}/lib/gstreamer-1.0:${GST_PLUGIN_PATH}
 ENV LC_NUMERIC=C
-ENV C_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${C_INCLUDE_PATH}
-ENV CPLUS_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${CPLUS_INCLUDE_PATH}
+ENV C_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${OPENVINO_DIR}/runtime/include:${C_INCLUDE_PATH}
+ENV CPLUS_INCLUDE_PATH=/usr/local/include:${DLSTREAMER_DIR}/include:${DLSTREAMER_DIR}/include/dlstreamer/gst/metadata:${OPENVINO_DIR}/runtime/include:${CPLUS_INCLUDE_PATH}
 ENV GST_PLUGIN_SCANNER=${GSTREAMER_DIR}/bin/gstreamer-1.0/gst-plugin-scanner
 ENV GI_TYPELIB_PATH=${GSTREAMER_DIR}/lib/girepository-1.0:${DLSTREAMER_DIR}/build/src/gst/metadata/
 ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/python:${DLSTREAMER_DIR}/scripts/optimizer:${PYTHONPATH}
@@ -433,6 +441,7 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 # Build DLStreamer
 # hadolint ignore=SC1091
 RUN \
+    source "${OPENVINO_DIR}/setupvars.sh" && \
     source /opt/intel/openvino_genai/setupvars.sh && \
     cmake \
        -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
@@ -475,6 +484,7 @@ RUN \
     mkdir -p /deb-pkg/opt/opencv/include && \
     mkdir -p /deb-pkg/opt/rdkafka && \
     mkdir -p /deb-pkg/opt/librealsense/ && \
+    mkdir -p /deb-pkg/opt/openvino && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -492,6 +502,9 @@ RUN \
     cp -r /usr/local/include/opencv4/* /deb-pkg/opt/opencv/include && \
     cp -a /usr/local/lib/librdkafka*.so* /deb-pkg/opt/rdkafka/ && \
     cp -a /usr/local/lib/librealsense* /deb-pkg/opt/librealsense/ && \
+    cp -a "${OPENVINO_DIR}/runtime/lib/intel64/"*.so* /deb-pkg/opt/openvino/ && \
+    cp -a "${OPENVINO_DIR}/runtime/lib/intel64/cache.json" /deb-pkg/opt/openvino/ && \
+    cp -a "${OPENVINO_DIR}/runtime/3rdparty/tbb/lib/"*.so* /deb-pkg/opt/openvino/ && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/archived && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docker && \
     rm -rf /deb-pkg/opt/intel/dlstreamer/docs && \
@@ -561,11 +574,6 @@ RUN curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.38.0
 
 WORKDIR /
 
-RUN curl -fsSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
-    gpg --dearmor -o /usr/share/keyrings/intel-sw-products.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/intel-sw-products.gpg] https://apt.repos.intel.com/openvino ubuntu24 main" \
-    > /etc/apt/sources.list.d/intel-openvino.list
-
 RUN mkdir -p /debs
 COPY --from=deb-builder /*.deb /debs/
 
@@ -598,7 +606,7 @@ RUN \
 # DL Streamer environment variables
 ENV LIBVA_DRIVER_NAME=iHD
 ENV GST_PLUGIN_PATH=/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/gstreamer/lib/gstreamer-1.0:/opt/intel/dlstreamer/gstreamer/lib/
-ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/opt/rdkafka:/opt/librealsense:/usr/local/lib/gstreamer-1.0:/usr/local/lib
+ENV LD_LIBRARY_PATH=/opt/intel/dlstreamer/gstreamer/lib:/opt/intel/dlstreamer/lib:/opt/intel/dlstreamer/lib/gstreamer-1.0:/opt/opencv:/opt/rdkafka:/opt/librealsense:/opt/openvino:/usr/local/lib/gstreamer-1.0:/usr/local/lib
 ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
 ENV GST_VA_ALL_DRIVERS=1
 ENV MODEL_PROC_PATH=/opt/intel/dlstreamer/samples/gstreamer/model_proc

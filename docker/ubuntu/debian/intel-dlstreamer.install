@@ -3,3 +3,4 @@ opt/opencv/ /opt/
 opt/rdkafka/ /opt/
 usr/lib/ /usr
 opt/librealsense/ /opt/
+opt/openvino/ /opt/
