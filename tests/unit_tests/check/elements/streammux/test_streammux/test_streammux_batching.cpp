@@ -114,7 +114,7 @@ TEST(StreammuxBatching, AStrayFutureTimestampDoesNotSilenceTheElement) {
  * back, not that the muxer is still producing something. */
 TEST(StreammuxBatching, ASourceSurvivesItsTimelineRestarting) {
     StreammuxHarness h("passthrough", /*with_demux=*/true);
-    g_object_set(h.mux(), "sync-mode", "first-pts", nullptr);
+    gst_util_set_object_arg(G_OBJECT(h.mux()), "sync-mode", "first-pts");
     h.addSource(0);
     h.addSource(1);
     h.addBranch(0);

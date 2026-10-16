@@ -7,6 +7,8 @@
 #pragma once
 
 #include <functional>
+#include <map>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -35,7 +37,11 @@ class StreammuxHarness {
         _pipeline = gst_pipeline_new(nullptr);
         _mux = gst_element_factory_make("gvastreammux", "mux");
         EXPECT_NE(_mux, nullptr) << "gvastreammux is not registered; check GST_PLUGIN_PATH";
-        g_object_set(_mux, "sync-mode", "none", "output-mode", output_mode.c_str(),
+        /* Both are enums, so they have to be set by nick: g_object_set would
+         * read the string pointer as the enum value and reject it. */
+        gst_util_set_object_arg(G_OBJECT(_mux), "sync-mode", "none");
+        gst_util_set_object_arg(G_OBJECT(_mux), "output-mode", output_mode.c_str());
+        g_object_set(_mux,
                      /* Short enough that a batch which has to time out does not
                       * dominate the test's runtime, long enough to be a timeout
                       * rather than a race. */
@@ -105,7 +111,10 @@ class StreammuxHarness {
         gst_element_sync_state_with_parent(queue);
         gst_element_sync_state_with_parent(sink);
 
-        _branch_counts[index] = 0;
+        {
+            std::lock_guard<std::mutex> lock(_lock);
+            _branch_counts[index] = 0;
+        }
         watchOutput(gst_element_get_static_pad(queue, "src"), &_branch_counts[index]);
         _branches[index] = {pad, queue, sink};
     }
@@ -151,24 +160,34 @@ class StreammuxHarness {
         _sources.erase(it);
     }
 
+    /* The accessors below read what the pad probes write from streaming
+     * threads -- one per demuxer branch -- so everything goes through _lock. */
     guint outputCount() const {
+        std::lock_guard<std::mutex> lock(_lock);
         return _out;
     }
-    guint branchCount(guint index) {
-        return _branch_counts[index];
+    guint branchCount(guint index) const {
+        std::lock_guard<std::mutex> lock(_lock);
+        auto it = _branch_counts.find(index);
+        return it == _branch_counts.end() ? 0 : it->second;
     }
-    guint srcEventCount(GstEventType type) {
-        return _events[type];
+    guint srcEventCount(GstEventType type) const {
+        std::lock_guard<std::mutex> lock(_lock);
+        auto it = _events.find(type);
+        return it == _events.end() ? 0 : it->second;
     }
     /* Whether a stream-start carrying the muxer's own id reached the source
      * pad, as opposed to one forwarded from a source. */
     bool sawOwnStreamStart() const {
+        std::lock_guard<std::mutex> lock(_lock);
         return _own_stream_start;
     }
     GstClockTime lastBatchPts() const {
+        std::lock_guard<std::mutex> lock(_lock);
         return _last_pts;
     }
-    const std::vector<GstClockTime> &batchPtsSeen() const {
+    std::vector<GstClockTime> batchPtsSeen() const {
+        std::lock_guard<std::mutex> lock(_lock);
         return _pts_seen;
     }
 
@@ -242,6 +261,7 @@ class StreammuxHarness {
             pad, (GstPadProbeType)(GST_PAD_PROBE_TYPE_BUFFER | GST_PAD_PROBE_TYPE_EVENT_DOWNSTREAM),
             [](GstPad *, GstPadProbeInfo *info, gpointer user_data) -> GstPadProbeReturn {
                 auto *c = static_cast<Ctx *>(user_data);
+                std::lock_guard<std::mutex> lock(c->self->_lock);
                 if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER) {
                     (*c->counter)++;
                     GstBuffer *b = GST_PAD_PROBE_INFO_BUFFER(info);
@@ -270,6 +290,7 @@ class StreammuxHarness {
     GstElement *_tail = nullptr;
     GstBus *_bus = nullptr;
 
+    mutable std::mutex _lock;
     std::map<guint, Source> _sources;
     std::map<guint, Branch> _branches;
     std::map<guint, guint> _branch_counts;
