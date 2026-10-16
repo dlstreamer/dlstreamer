@@ -327,10 +327,40 @@ static GstFlowReturn gst_gva_trigger_flush_cache(GstGvaTrigger *self) {
     return ret;
 }
 
+/* gst_gva_trigger_chain: Implement GOP-level bandwidth gating based on coded-size motion detection.
+ *
+ * This is the main processing function called for every H.264/H.265 access unit (AU).
+ * It implements a GOP (Group of Pictures) buffering strategy:
+ *
+ * WARM-UP PHASE (first ~30 P-frames):
+ *   - All AUs are forwarded live (baseline not yet established)
+ *   - Quiet P-frame sizes are accumulated to compute initial baseline
+ *   - I-frames (IDRs) are skipped during warm-up
+ *
+ * STEADY STATE:
+ *   - Each IDR (I-frame) starts a new GOP
+ *   - P-frames are checked for motion: size > MAX(k * baseline, baseline + margin)?
+ *   - If motion detected:
+ *     * Flush the buffered "quiet start" frames from the GOP
+ *     * Switch to live forwarding (forwarding=TRUE) for the rest of the GOP
+ *     * Sticky: a dip below threshold mid-GOP doesn't resume buffering
+ *   - If no motion by next IDR:
+ *     * Discard all buffered frames (bandwidth reduction achieved)
+ *   - Quiet P-frames: baseline is updated via EMA, then frame is buffered
+ *
+ * BUFFER MANAGEMENT:
+ *   - Bounded by max-cache-time-ms: oldest frames are permanently dropped
+ *   - Hard cap at GST_GVA_TRIGGER_MAX_CACHE_BUFFERS (3000) for missing timestamps
+ *   - EOS and FLUSH_STOP events flush and reset the buffer
+ *
+ * Result: Quiet GOPs (e.g., static camera, frozen scenes) are entirely dropped,
+ * reducing bandwidth. Motion GOPs pass through with minimal latency (one IDR buffer depth).
+ */
 static GstFlowReturn gst_gva_trigger_chain(GstPad *pad, GstObject *parent, GstBuffer *buf) {
     GstGvaTrigger *self = GST_GVA_TRIGGER(parent);
     (void)pad;
 
+    /* Read motion detection parameters under lock. */
     GST_OBJECT_LOCK(self);
     const gdouble k = self->k;
     const gdouble alpha = self->alpha;
@@ -339,6 +369,7 @@ static GstFlowReturn gst_gva_trigger_chain(GstPad *pad, GstObject *parent, GstBu
     const GstClockTime max_cache_time = self->max_cache_time;
     GST_OBJECT_UNLOCK(self);
 
+    /* Map and scan NAL units to extract VCL size, IDR flag, VCL presence. */
     GstMapInfo map;
     if (!gst_buffer_map(buf, &map, GST_MAP_READ)) {
         GST_ERROR_OBJECT(self, "Failed to map input buffer");
@@ -353,19 +384,24 @@ static GstFlowReturn gst_gva_trigger_chain(GstPad *pad, GstObject *parent, GstBu
     gst_gva_trigger_scan_nals(self, map.data, map.size, &vcl_bytes, &is_idr, &has_vcl);
     gst_buffer_unmap(buf, &map);
 
+    /* I-frame (IDR): marks the start of a new GOP. */
     if (is_idr) {
-        /* Warm-up forwards P-frames live, so their IDR must go out too. */
+        /* During warm-up, pass I-frames through (baseline not ready).
+         * After warm-up, I-frame begins a new GOP: cache the IDR and wait for motion trigger. */
         if (!self->ema_initialized)
             return gst_pad_push(self->srcpad, buf);
-        /* New GOP: an untriggered previous GOP is dropped whole, its IDR included. */
+        /* New GOP: discard any quiet frames from the previous GOP that never triggered. */
         gst_gva_trigger_discard_cache(self);
+        /* Start buffering the new GOP from its I-frame. */
         self->forwarding = FALSE;
         g_queue_push_tail(self->gop_buffer, buf);
         return GST_FLOW_OK;
     }
 
+    /* P-frame with no VCL: non-standard access unit (e.g., filler), forward without gating. */
     if (!has_vcl) {
         GST_WARNING_OBJECT(self, "Access unit has no VCL NAL units; forwarding without gating");
+        /* If we were buffering, flush the buffer to resume live forwarding. */
         if (!self->forwarding) {
             GstFlowReturn flush_ret = gst_gva_trigger_flush_cache(self);
             self->forwarding = TRUE;
@@ -377,24 +413,30 @@ static GstFlowReturn gst_gva_trigger_chain(GstPad *pad, GstObject *parent, GstBu
         return gst_pad_push(self->srcpad, buf);
     }
 
+    /* P-frame during warm-up: accumulate size to establish baseline. */
     if (!self->ema_initialized) {
         self->warmup_sum += vcl_bytes;
         self->warmup_count++;
         if (self->warmup_count == GST_GVA_TRIGGER_WARMUP_COUNT) {
+            /* Warm-up complete: initialize EMA baseline from collected sizes. */
             self->ema = MAX((gdouble)self->warmup_sum / GST_GVA_TRIGGER_WARMUP_COUNT, min_baseline);
             self->ema_initialized = TRUE;
             GST_INFO_OBJECT(self, "Warm-up complete, initial baseline=%.1f bytes", self->ema);
         }
-        self->forwarding = TRUE; /* baseline unknown yet: pass everything through */
+        /* Warm-up: forward all frames live. */
+        self->forwarding = TRUE;
         return gst_pad_push(self->srcpad, buf);
     }
 
+    /* P-frame steady state: check for motion and manage buffering. */
     gdouble threshold = MAX(k * self->ema, self->ema + margin);
     gboolean motion = (gdouble)vcl_bytes > threshold;
 
     if (motion || self->forwarding) {
-        /* Forwarding is sticky until the next IDR, so a dip below threshold mid-GOP does not resume caching. */
+        /* Motion detected OR already forwarding: flush buffered frames and forward live.
+         * Forwarding is sticky until the next IDR (no resume-to-buffer mid-GOP). */
         if (!self->forwarding) {
+            /* First motion frame this GOP: flush the quiet buffer. */
             GstFlowReturn flush_ret = gst_gva_trigger_flush_cache(self);
             if (flush_ret != GST_FLOW_OK) {
                 gst_buffer_unref(buf);
@@ -405,10 +447,10 @@ static GstFlowReturn gst_gva_trigger_chain(GstPad *pad, GstObject *parent, GstBu
         return gst_pad_push(self->srcpad, buf);
     }
 
-    /* Quiet, and nothing has triggered this GOP yet: update the baseline and cache it. */
+    /* Quiet P-frame and no motion trigger yet: buffer it, update baseline. */
     self->ema = MAX(alpha * (gdouble)vcl_bytes + (1.0 - alpha) * self->ema, min_baseline);
-
     g_queue_push_tail(self->gop_buffer, buf);
+    /* Prevent unbounded growth: drop oldest frames if cache exceeds time/count bounds. */
     gst_gva_trigger_trim_cache(self, max_cache_time);
 
     return GST_FLOW_OK;

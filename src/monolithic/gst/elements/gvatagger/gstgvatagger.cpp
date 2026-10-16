@@ -296,9 +296,29 @@ static void gst_gva_tagger_scan_nals(GstGvaTagger *self, const guint8 *data, gsi
         GST_WARNING_OBJECT(self, "Failed to fully parse access unit NAL units; using partial size sum");
 }
 
+/* gst_gva_tagger_transform_ip: Read H.264/H.265 NAL unit sizes to detect motion and attach metadata.
+ *
+ * This function is called for every access unit (AU) in the H.264/H.265 bitstream.
+ * It reads only NAL sizes (no entropy decoding, no pixel access), maintains a baseline
+ * of quiet frame sizes using exponential moving average (EMA), and flags each AU as
+ * motion or quiet. The result is attached as GvaTriggerMeta, which survives decoding
+ * so downstream inference can skip quiet frames.
+ *
+ * Warm-up phase:
+ *   - First GST_GVA_TAGGER_WARMUP_COUNT quiet P-frames establish a baseline
+ *   - I-frames (IDRs) are skipped during warm-up (they're naturally large)
+ *   - During warm-up, all frames are tagged as motion=TRUE (fail-safe)
+ *
+ * Steady state:
+ *   - I-frames are always tagged as motion=FALSE (keyframes, not affected by content)
+ *   - P-frames: motion = vcl_bytes > MAX(k * baseline, baseline + margin)
+ *   - Quiet P-frames: baseline is updated via EMA to track slow content changes
+ *   - Motion P-frames: baseline is frozen (don't learn from motion)
+ */
 static GstFlowReturn gst_gva_tagger_transform_ip(GstBaseTransform *trans, GstBuffer *buf) {
     GstGvaTagger *self = GST_GVA_TAGGER(trans);
 
+    /* Read properties under lock; release before expensive operations to avoid blocking. */
     GST_OBJECT_LOCK(self);
     const gdouble k = self->k;
     const gdouble alpha = self->alpha;
@@ -306,37 +326,49 @@ static GstFlowReturn gst_gva_tagger_transform_ip(GstBaseTransform *trans, GstBuf
     const gdouble min_baseline = (gdouble)self->min_baseline;
     GST_OBJECT_UNLOCK(self);
 
+    /* Map buffer to read NAL data (read-only). */
     GstMapInfo map;
     if (!gst_buffer_map(buf, &map, GST_MAP_READ)) {
         GST_ELEMENT_ERROR(self, RESOURCE, READ, ("Failed to map input buffer"), (NULL));
         return GST_FLOW_ERROR;
     }
 
+    /* Scan NAL units to extract VCL (picture data) size, detect IDR, and check for VCL presence. */
     guint64 vcl_bytes = 0;
     gboolean is_idr = FALSE;
     gboolean has_vcl = FALSE;
     gst_gva_tagger_scan_nals(self, map.data, map.size, &vcl_bytes, &is_idr, &has_vcl);
     gst_buffer_unmap(buf, &map);
 
+    /* Determine motion flag for this AU. */
     gboolean motion;
     if (!self->ema_initialized) {
+        /* Warm-up: collect quiet P-frame sizes to establish baseline. */
         if (has_vcl && !is_idr) {
             self->warmup_sum += vcl_bytes;
             if (++self->warmup_count == GST_GVA_TAGGER_WARMUP_COUNT) {
+                /* Warm-up complete: initialize baseline from average of quiet P-frames. */
                 self->ema = MAX((gdouble)self->warmup_sum / GST_GVA_TAGGER_WARMUP_COUNT, min_baseline);
                 self->ema_initialized = TRUE;
                 GST_INFO_OBJECT(self, "Warm-up complete, initial baseline=%.1f bytes", self->ema);
             }
         }
-        motion = TRUE; /* no baseline yet: fail open */
+        motion = TRUE; /* Baseline not ready yet: fail-safe (tag everything as motion). */
     } else if (is_idr || !has_vcl) {
-        motion = FALSE; /* I-frames are large regardless of content */
+        /* I-frames and AU with no VCL data are always tagged as non-motion
+         * (I-frames are large regardless of content, no VCL = no picture data). */
+        motion = FALSE;
     } else {
+        /* Steady state P-frame: compare size against motion threshold. */
         motion = (gdouble)vcl_bytes > MAX(k * self->ema, self->ema + margin);
-        if (!motion)
+        if (!motion) {
+            /* Quiet frame: update baseline using EMA. This learns scene brightness/complexity changes. */
             self->ema = MAX(alpha * (gdouble)vcl_bytes + (1.0 - alpha) * self->ema, min_baseline);
+        }
+        /* Motion frame: freeze baseline (don't learn from transient content). */
     }
 
+    /* Attach motion tag to buffer as GvaTriggerMeta custom metadata. */
     GstCustomMeta *meta = gst_buffer_add_custom_meta(buf, GST_GVA_TAGGER_META_NAME);
     if (!meta) {
         GST_WARNING_OBJECT(self, "Failed to attach %s", GST_GVA_TAGGER_META_NAME);
@@ -345,6 +377,7 @@ static GstFlowReturn gst_gva_tagger_transform_ip(GstBaseTransform *trans, GstBuf
     gst_structure_set(gst_custom_meta_get_structure(meta), "motion", G_TYPE_BOOLEAN, motion, "keyframe",
                       G_TYPE_BOOLEAN, is_idr, NULL);
 
+    /* Log for debugging. */
     GST_LOG_OBJECT(self, "pts=%" GST_TIME_FORMAT " size=%" G_GUINT64_FORMAT " baseline=%.1f keyframe=%d motion=%d",
                    GST_TIME_ARGS(GST_BUFFER_PTS(buf)), vcl_bytes, self->ema, is_idr, motion);
     return GST_FLOW_OK;
