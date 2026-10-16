@@ -16,10 +16,10 @@ By default a synthetic scene is generated and encoded:
   static (5 s) -> moving ball (3 s) -> static (5 s) -> noise (2 s) -> static (5 s)
 
 Pipeline (synthetic):
-  videotestsrc -> <encoder> -> <parser> -> gvatagger -> decodebin -> gvafpscounter -> fakesink
+  videotestsrc -> <encoder> -> <parser> -> gvatagger -> decodebin3 -> gvafpscounter -> fakesink
 
 Pipeline (--input):
-  urisourcebin -> parsebin -> gvatagger -> decodebin -> gvafpscounter -> fakesink
+  urisourcebin -> parsebin -> gvatagger -> decodebin3 -> gvafpscounter -> fakesink
 
 With --output, fakesink is replaced by:
   videoconvert -> motion_overlay -> gvawatermark -> videoconvert -> openh264enc -> mp4mux -> filesink
@@ -117,7 +117,7 @@ def scene_phases():
 
 def build_pipeline(args):
     trigger = f"gvatagger name=trigger k={args.k} margin={args.margin} min-baseline={args.min_baseline}"
-    tail = f"{trigger} ! decodebin ! gvafpscounter ! identity name=tap ! "
+    tail = f"{trigger} ! decodebin3 ! gvafpscounter ! identity name=tap ! "
     if args.output:
         # gvawatermark renders watermark meta only on BGR input, as in the watermark_meta sample
         tail += (

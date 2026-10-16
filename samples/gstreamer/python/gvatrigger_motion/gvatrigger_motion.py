@@ -20,10 +20,10 @@ By default a longer synthetic 60 s scene is generated:
   static (15 s) -> moving ball (15 s) -> static (15 s) -> noise (15 s)
 
 Pipeline (synthetic):
-  videotestsrc -> <encoder> -> <parser> -> gvatrigger -> decodebin -> statistics -> fakesink
+  videotestsrc -> <encoder> -> <parser> -> gvatrigger -> decodebin3 -> statistics -> fakesink
 
 Pipeline (--input):
-  urisourcebin -> parsebin -> gvatrigger -> decodebin -> statistics -> fakesink
+  urisourcebin -> parsebin -> gvatrigger -> decodebin3 -> statistics -> fakesink
 """
 
 import argparse
@@ -104,7 +104,7 @@ def scene_phases():
 def build_pipeline(args):
     """Build pipeline with gvatrigger GOP gate."""
     trigger = f"gvatrigger name=trigger k={args.k} alpha={args.alpha} margin={args.margin} max-cache-time-ms={args.max_cache_time_ms} min-baseline={args.min_baseline}"
-    tail = f"{trigger} ! decodebin ! frame_counter name=counter ! "
+    tail = f"{trigger} ! decodebin3 ! frame_counter name=counter ! "
     
     if args.output:
         tail += f"videoconvert ! video/x-raw,format=I420 ! openh264enc ! h264parse ! mp4mux ! filesink sync=false location=\"{os.path.abspath(args.output)}\""
