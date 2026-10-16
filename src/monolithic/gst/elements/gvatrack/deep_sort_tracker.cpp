@@ -323,7 +323,6 @@ void DeepSortTracker::track(dlstreamer::FramePtr buffer, GVA::VideoFrame &frame_
     if (!buffer) {
         throw std::invalid_argument("DeepSortTracker: buffer is nullptr");
     }
-    static int frame_num_ = 0;
     frame_num_++;
 
     // Expire old re-ID gallery entries
@@ -493,6 +492,11 @@ std::vector<Detection> DeepSortTracker::convert_detections(const std::vector<GVA
         for (const auto &tensor : tensors) {
             std::string tensor_name = tensor.name();
             std::string layer_name = tensor.layer_name();
+
+            if (tensor.type() == GVA::GST_ANALYTICS_TENSOR_2_TENSOR && tensor.has_field("tensor_name")) {
+                layer_name = tensor.get_string("tensor_name");
+                tensor_name = "inference_layer_name:" + layer_name;
+            }
 
             // Match feature tensor by layer name
             if (((layer_name.find("output") != std::string::npos &&

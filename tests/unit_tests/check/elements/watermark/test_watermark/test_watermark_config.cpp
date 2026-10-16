@@ -446,11 +446,11 @@ GST_START_TEST(test_multiple_rois_more_pixels) {
 GST_END_TEST;
 
 /* ========================================================================= */
-/*  Test: show-labels=false causes show-roi to be ignored                    */
+/*  Test: show-roi is applied regardless of show-labels                      */
 /*                                                                           */
-/*  In parse_displ_config, show-roi and hide-roi are parsed inside the       */
-/*  `if (_displCfg.show_labels)` block. So when show-labels=false, the       */
-/*  ROI filter is never activated — all ROIs should render their bbox.       */
+/*  show-labels only toggles the per-ROI text. The ROI filter decides        */
+/*  whether anything is drawn for an ROI, so with show-labels=false the      */
+/*  filtered-out ROI must not render its bbox either.                        */
 /* ========================================================================= */
 
 GST_START_TEST(test_show_labels_false_ignores_show_roi) {
@@ -463,7 +463,7 @@ GST_START_TEST(test_show_labels_false_ignores_show_roi) {
     run_test(impl_name, WATERMARK_BGR_CAPS, test_resolution, &srctemplate, &sinktemplate, setup_buffer_with_roi,
              record_modified_bytes, &with_filter, "displ-cfg", "show-labels=true,show-roi=car", NULL);
 
-    /* show-labels=false,show-roi=car → show-roi NOT parsed, "person" bbox still drawn */
+    /* show-labels=false,show-roi=car → "person" ROI also filtered out */
     run_test(impl_name, WATERMARK_BGR_CAPS, test_resolution, &srctemplate, &sinktemplate, setup_buffer_with_roi,
              record_modified_bytes, &without_filter, "displ-cfg", "show-labels=false,show-roi=car", NULL);
 
@@ -472,8 +472,8 @@ GST_START_TEST(test_show_labels_false_ignores_show_roi) {
 
     ck_assert_msg(with_filter.modified == 0,
                   "With show-labels=true,show-roi=car, 'person' should be filtered. Got: %zu", with_filter.modified);
-    ck_assert_msg(without_filter.modified > 0,
-                  "With show-labels=false, show-roi should be ignored — 'person' bbox should render. Got: %zu",
+    ck_assert_msg(without_filter.modified == 0,
+                  "With show-labels=false,show-roi=car, 'person' should be filtered. Got: %zu",
                   without_filter.modified);
 }
 GST_END_TEST;
