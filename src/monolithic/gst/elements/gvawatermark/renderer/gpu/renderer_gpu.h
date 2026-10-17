@@ -18,6 +18,7 @@
 #define CL_TARGET_OPENCL_VERSION 300
 #endif
 #include <CL/cl.h>
+#include <CL/cl_ext.h>
 #include <CL/cl_va_api_media_sharing_intel.h>
 
 #include <array>
@@ -295,7 +296,9 @@ class RendererGPU {
     size_t _span_records = 0; // pending plus already flushed, for the budget
 
     /* VA surfaces cycle through a fixed pool, so the imported plane images are
-     * cached per surface id instead of reimported every frame. */
+     * cached per surface id instead of reimported every frame, except where
+     * SharedContext::cache_imports forbids it and only the latest frame's
+     * import is kept. */
     std::unordered_map<VASurfaceID, std::array<cl_mem, 2>> _plane_cache;
 
     /* Dispatch schedule, per plane, in order. Groups are reused across frames

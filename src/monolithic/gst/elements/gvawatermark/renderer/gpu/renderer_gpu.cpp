@@ -15,11 +15,15 @@
 
 #include <algorithm>
 #include <cfloat>
+#include <climits>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <map>
 #include <mutex>
+#include <string>
+
+#include <unistd.h>
 
 GST_DEBUG_CATEGORY_STATIC(gva_watermark_gpu_debug);
 #define GST_CAT_DEFAULT gva_watermark_gpu_debug
@@ -139,6 +143,43 @@ bool cl_ok(cl_int err, const char *what) {
 
 } // namespace
 
+namespace {
+
+/* cl_khr_pci_bus_info, for OpenCL headers that predate it. */
+#ifdef cl_khr_pci_bus_info
+using PciBusInfo = cl_device_pci_bus_info_khr;
+constexpr cl_device_info DEVICE_PCI_BUS_INFO = CL_DEVICE_PCI_BUS_INFO_KHR;
+#else
+struct PciBusInfo {
+    cl_uint pci_domain;
+    cl_uint pci_bus;
+    cl_uint pci_device;
+    cl_uint pci_function;
+};
+constexpr cl_device_info DEVICE_PCI_BUS_INFO = 0x410F;
+#endif
+
+/* Kernel driver bound to the device behind `dev` ("i915", "xe", ...), found
+ * through cl_khr_pci_bus_info and sysfs; empty if either is unavailable. */
+std::string kernel_driver(cl_device_id dev) {
+    PciBusInfo bus = {};
+    if (clGetDeviceInfo(dev, DEVICE_PCI_BUS_INFO, sizeof(bus), &bus, nullptr) != CL_SUCCESS)
+        return {};
+
+    char link[96];
+    std::snprintf(link, sizeof(link), "/sys/bus/pci/devices/%04x:%02x:%02x.%x/driver", bus.pci_domain, bus.pci_bus,
+                  bus.pci_device, bus.pci_function);
+    char target[PATH_MAX];
+    ssize_t len = readlink(link, target, sizeof(target) - 1);
+    if (len <= 0)
+        return {};
+    target[len] = '\0';
+    const char *name = std::strrchr(target, '/');
+    return name ? name + 1 : target;
+}
+
+} // namespace
+
 // ---------------------------------------------------------------------------
 // SharedContext
 // ---------------------------------------------------------------------------
@@ -152,6 +193,15 @@ struct RendererGPU::SharedContext {
     clCreateFromVA_APIMediaSurfaceINTEL_fn create_from_va = nullptr;
     clEnqueueAcquireVA_APIMediaSurfacesINTEL_fn acquire = nullptr;
     clEnqueueReleaseVA_APIMediaSurfacesINTEL_fn release = nullptr;
+
+    /* Whether imported plane images may outlive the frame that used them. Not
+     * on i915: there the imports keep every pooled surface attached to the
+     * compute runtime, which with direct submission (the default on its
+     * integrated GPUs) makes vaQuerySurfaceStatus report recycled surfaces as
+     * still rendering. GstVA then refuses to map them, so a CPU consumer such
+     * as gvatrack tracking-type=zero-term fails intermittently, and the
+     * watermark itself runs slower than with per-frame imports. */
+    bool cache_imports = true;
 
     ~SharedContext() {
         if (program)
@@ -254,9 +304,15 @@ bool RendererGPU::SharedContext::build(VADisplay display) {
             continue;
         }
 
+        const std::string driver = kernel_driver(dev);
+        this->cache_imports = driver != "i915";
+
         char name[256] = {};
         clGetDeviceInfo(dev, CL_DEVICE_NAME, sizeof(name) - 1, name, nullptr);
-        GST_INFO("gvawatermark GPU renderer: OpenCL device '%s' bound to VADisplay %p", name, display);
+        GST_INFO("gvawatermark GPU renderer: OpenCL device '%s' (kernel driver '%s') bound to VADisplay %p; "
+                 "surface imports %s",
+                 name, driver.empty() ? "unknown" : driver.c_str(), display,
+                 this->cache_imports ? "cached" : "released after each frame");
         return true;
     }
 
@@ -1408,6 +1464,24 @@ bool RendererGPU::sync_prims() {
 }
 
 bool RendererGPU::get_planes(VASurfaceID surface, cl_mem planes[2]) {
+    /* Where imports must not outlive their frame, the previous frame's are
+     * dropped here rather than right after its clFinish: by now they are long
+     * idle, whereas releasing one straight after use costs noticeably more
+     * under direct submission (measured on Arrow Lake). */
+    if (!_shared->cache_imports) {
+        for (auto it = _plane_cache.begin(); it != _plane_cache.end();) {
+            if (it->first == surface) {
+                ++it;
+                continue;
+            }
+            for (cl_mem plane : it->second) {
+                if (plane)
+                    clReleaseMemObject(plane);
+            }
+            it = _plane_cache.erase(it);
+        }
+    }
+
     if (auto it = _plane_cache.find(surface); it != _plane_cache.end()) {
         planes[0] = it->second[0];
         planes[1] = it->second[1];
