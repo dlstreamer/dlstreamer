@@ -12,7 +12,6 @@
 #include "gva_utils.h"
 #include "utils.h"
 
-#include <exception>
 #include <functional>
 #include <inference_backend/logger.h>
 
@@ -98,31 +97,9 @@ class TrackerBackend {
             return _object_tracker->Track(_dummy_mat, detected_objects);
         }
 
-        // DIAG(loitering ARL): tell a failed VA->system map apart from a failure inside VAS-OT.
-        auto describe = [&]() {
-            std::string s = " memory_type=" + std::to_string(static_cast<int>(buffer->memory_type())) +
-                            " format=" + std::to_string(static_cast<int>(buffer->format())) +
-                            " detections=" + std::to_string(detected_objects.size()) + ":";
-            for (const auto &d : detected_objects)
-                s += " [" + std::to_string(d.rect.x) + "," + std::to_string(d.rect.y) + "," +
-                     std::to_string(d.rect.width) + "x" + std::to_string(d.rect.height) + " l" +
-                     std::to_string(d.class_label) + "]";
-            return s;
-        };
-        dls::FramePtr sys_buf;
-        try {
-            sys_buf = _buf_mapper->map(buffer, dls::AccessMode::Read);
-        } catch (...) {
-            std::throw_with_nested(std::runtime_error("DIAG: map to system memory failed;" + describe()));
-        }
+        dls::FramePtr sys_buf = _buf_mapper->map(buffer, dls::AccessMode::Read);
         MappedMat cv_mat(sys_buf);
-        try {
-            return _object_tracker->Track(cv_mat.mat(), detected_objects);
-        } catch (...) {
-            std::throw_with_nested(std::runtime_error("DIAG: VAS-OT Track failed; mat=" +
-                                                      std::to_string(cv_mat.mat().cols) + "x" +
-                                                      std::to_string(cv_mat.mat().rows) + describe()));
-        }
+        return _object_tracker->Track(cv_mat.mat(), detected_objects);
     }
 
     void prepareDummyCvMat(dls::Frame &buffer) {
@@ -208,7 +185,7 @@ void Tracker::track(dls::FramePtr buffer, GVA::VideoFrame &frame_meta) {
         tracked_objects = _impl->track(std::move(buffer), detected_objects);
     } catch (const std::exception &e) {
         GST_ERROR("Exception within tracker occurred: %s", Utils::createNestedErrorMsg(e).c_str());
-        std::throw_with_nested(std::runtime_error("Track: error while tracking objects"));
+        throw std::runtime_error("Track: error while tracking objects");
     }
 
     // Tracker itself does not produce confidence, so for objects without associated detection on this frame

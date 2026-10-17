@@ -137,40 +137,7 @@ if gst-inspect-1.0 vah264enc &>/dev/null; then
 else
     ENCODER="videoconvert ! openh264enc"
 fi
-
-# ---- DIAG (temporary, ARL python_loitering_detection_GPU): isolate the gvatrack failure ----
-if [[ ${DEVICE} == "GPU" ]]; then
-    DIAG_DIR=$(mktemp -d)
-    {
-        echo "DIAG: kernel=$(uname -r)"
-        echo "DIAG: gpu=$(lspci -k 2>/dev/null | grep -A3 -iE 'vga|display' | grep -iE 'driver in use' | xargs)"
-        echo "DIAG: va=$(vainfo 2>&1 | grep -i 'driver version' | xargs)"
-    } >&2
-    diag_run() { # $1=tag $2=watermark device $3=tracking type
-        local log="${DIAG_DIR}/$1.log" json="${DIAG_DIR}/$1.json" rc=0
-        GST_DEBUG="1,gvawatermarkimpl:4" gst-launch-1.0 -e ${SOURCE_ELEMENT} ! decodebin3 ! \
-            gvadetect model=${MODEL} ${GVADETECT_OPTIONS} ! queue ! \
-            gvatrack tracking-type=$3 ! queue ! \
-            gvaanalytics config=${CONFIG_FILE} evaluation-point=bottom-center ! queue ! \
-            loitering_watermark loitering-threshold=5.0 dashboard-pos="750,60" ! queue ! \
-            gvametaconvert ! gvametapublish file-format=json-lines file-path=${json} ! queue ! \
-            gvawatermark device=$2 ! gvafpscounter ! queue ! \
-            ${ENCODER} bitrate=1024 ! h264parse ! mp4mux ! filesink location=${DIAG_DIR}/$1.mp4 \
-            > "${log}" 2>&1 || rc=$?
-        echo "DIAG: $1 watermark=$2 track=$3 rc=${rc} frames=$(wc -l < "${json}" 2>/dev/null || echo 0)" \
-             "opencl_wm=$(grep -ac 'OpenCL watermark renderer active' "${log}")" \
-             "$(grep -a 'Execution ended' "${log}" | xargs)" >&2
-        grep -a -A6 'ERROR: from element' "${log}" | grep -av '^\s*$' | sed 's/^/DIAG:     /' >&2
-    }
-    diag_run A1 CPU zero-term
-    diag_run B1 GPU zero-term
-    diag_run A2 CPU zero-term
-    diag_run B2 GPU zero-term
-    diag_run C1 GPU zero-term-imageless
-    rm -rf "${DIAG_DIR}"
-fi
-# ---- end DIAG ----
-
+    
 gst-launch-1.0 -e ${SOURCE_ELEMENT} ! decodebin3 ! \
     gvadetect model=${MODEL} ${GVADETECT_OPTIONS} ! queue ! \
     gvatrack tracking-type=zero-term ! queue ! \
@@ -179,10 +146,4 @@ gst-launch-1.0 -e ${SOURCE_ELEMENT} ! decodebin3 ! \
     gvametaconvert ! gvametapublish file-format=json-lines file-path=${JSON_METADATA} ! queue !  \
     gvawatermark device=${WATERMARK_DEVICE} ! \
     gvafpscounter ! queue ! \
-    ${ENCODER} bitrate=1024 ! h264parse ! mp4mux ! filesink location=${OUTPUT}
-
-# DIAG (temporary): a passing run prints nothing in CI, so force the log to be dumped.
-if [[ ${DEVICE} == "GPU" ]]; then
-    echo "DIAG: main pipeline finished OK; exiting 1 on purpose so CI prints this log" >&2
-    exit 1
-fi
+    ${ENCODER} bitrate=1024 ! h264parse ! mp4mux ! filesink location=${OUTPUT} 
