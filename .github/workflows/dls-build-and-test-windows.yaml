@@ -9,7 +9,7 @@ on:
         type: string
         default: "main"
       run-unit-tests:
-        description: "Whether to build and run C++ unit tests (skipped when PR changes only touch the samples/ folder)"
+        description: "Whether to build and run C++ and Python unit tests (skipped when PR changes only touch the samples/ folder)"
         required: false
         type: string
         default: "true"
@@ -21,7 +21,7 @@ on:
         type: string
         default: "main"
       run-unit-tests:
-        description: "Whether to build and run C++ unit tests"
+        description: "Whether to build and run C++ and Python unit tests"
         required: false
         type: string
         default: "true"
@@ -391,7 +391,7 @@ jobs:
           $models = @(
               "centerface/FP32", "colorcls2/FP32", "yolov8_license_plate_detector/FP32",
               "dima806_fairface_gender_image_detection/FP32", "yolo11n/FP16", "yolo11s/FP32", "yolo11s/FP16",
-              "yolo26s/FP32", "yolo26s/FP16"
+              "yolo26s/FP32", "yolo26s/FP16", "yolo11s-seg/FP32", "resnet50/FP32"
           )
           $xmlFiles = Get-ChildItem -Path "${{ env.MODELS_PATH }}" -Recurse -Filter *.xml -File -ErrorAction SilentlyContinue
           $missing = 0
@@ -409,56 +409,53 @@ jobs:
                   $missing++
               }
           }
-          $video = Join-Path "${{ env.VIDEO_INPUTS_PATH }}" "Pexels_Videos_4786.mp4"
-          if (-not (Test-Path $video)) {
-              Write-Host "::warning title=Missing unit test video::$video"
-              $missing++
+          foreach ($v in @("Pexels_Videos_4786.mp4", "Pexels_Videos_1192116-sd_640_360_30fps.mp4")) {
+              $video = Join-Path "${{ env.VIDEO_INPUTS_PATH }}" $v
+              if (-not (Test-Path $video)) {
+                  Write-Host "::warning title=Missing unit test video::$video"
+                  $missing++
+              }
           }
           Write-Host "Missing unit test resources: $missing (affected tests will fail)"
 
-      - name: "${{ env.ERUN }} Run C++ unit tests"
+      - name: Install Python unit test dependencies
+        if: needs.setup.outputs.should_run == 'true' && inputs.run-unit-tests == 'true'
+        shell: powershell
+        run: |
+          # A separate venv, so the functional tests' packages are not affected
+          $venvDir = Join-Path $env:RUNNER_TEMP "python_unit_tests_venv"
+          & $env:PYTHON_EXE_PATH -m venv --clear $venvDir
+          & "$venvDir\Scripts\python.exe" -m pip install -r "${{ env.DLS_REPO_TARGET_DIRECTORY }}\requirements.txt" pytest==8.3.3
+          if ($LASTEXITCODE -ne 0) {
+              throw "Failed to install the Python unit test dependencies"
+          }
+          "UNIT_TESTS_VENV=$venvDir" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: "${{ env.ERUN }} Run unit tests"
         if: needs.setup.outputs.should_run == 'true' && inputs.run-unit-tests == 'true'
         id: run-unit-tests
+        # pytest runs the Python tests in-process, so a crash ends the step. The results check step
+        # reports the missing results, and the functional tests still run.
+        continue-on-error: true
         shell: powershell
         run: |
           $resultsDir = "${{ env.UNIT_TESTS_RESULTS_DIRECTORY }}"
           if (Test-Path $resultsDir) {
               Remove-Item -Recurse -Force $resultsDir
           }
-          New-Item -ItemType Directory -Path $resultsDir -Force | Out-Null
 
-          # Use the plugins from the build tree, with a private registry
-          $binDir = "${{ env.DLS_BUILD_DIRECTORY }}\intel64\Release\bin"
-          $env:PATH = "$binDir;$env:PATH"
-          $env:GST_PLUGIN_PATH = $binDir
-          $env:GST_REGISTRY = Join-Path $env:RUNNER_TEMP "gst_registry_unit_tests.bin"
-          Remove-Item $env:GST_REGISTRY -Force -ErrorAction SilentlyContinue
-          $env:GST_DEBUG = "3"
-          $env:GST_DEBUG_NO_COLOR = "1"
-          $env:MODELS_PATH = "${{ env.MODELS_PATH }}"
-          $env:MODELS_PROC_PATH = "${{ env.DLS_REPO_TARGET_DIRECTORY }}\samples\gstreamer\model_proc"
+          $env:PATH = "$env:UNIT_TESTS_VENV\Scripts;$env:PATH"
           $env:VIDEO_EXAMPLES_DIR = "${{ env.VIDEO_INPUTS_PATH }}"
+          $env:GSTREAMER_1_0_ROOT_MSVC_X86_64 = "${{ env.GSTREAMER_DIRECTORY }}\1.0\msvc_x86_64\"
+          # Same as the Linux unit test job
+          $env:UNIT_TEST_PIPELINE_TIMEOUT_SEC = "60"
+          $openvinoRuntimeDir = $ExecutionContext.InvokeCommand.ExpandString($env:OPENVINO_RUNTIME_DIRECTORY)
 
-          # libcheck can't fork on Windows, so it can't time out a hung test case: rely on ctest --timeout.
-          # Same exclusions as tests/scripts/run_unit_tests.sh.
-          cd "${{ env.DLS_BUILD_DIRECTORY }}"
-          ctest -C Release -T Test --timeout 900 --output-on-failure `
-              -E "test_audio_detection_plugin" `
-              --output-junit "$resultsDir\ctest-junit.xml"
-          $ctestExitCode = $LASTEXITCODE
-          Write-Host "ctest exit code: $ctestExitCode"
-
-          $tag = Get-Content "Testing\TAG" -TotalCount 1
-          Copy-Item "Testing\$tag\Test.xml" "$resultsDir\CTestResults.xml" -ErrorAction SilentlyContinue
-          # -T Test names the log LastTest_<timestamp>.log
-          Copy-Item "Testing\Temporary\LastTest*.log" $resultsDir -ErrorAction SilentlyContinue
-
-          # Failed tests are reported by the results check step, so the functional tests still run
-          if (-not (Test-Path "$resultsDir\ctest-junit.xml")) {
-              Write-Host "::error::ctest did not produce a JUnit report"
-              exit 1
-          }
-          exit 0
+          # Failed tests don't fail this step: the results check step reports them
+          & "${{ env.DLS_REPO_TARGET_DIRECTORY }}\tests\scripts\run_unit_tests.ps1" `
+              -BuildDir "${{ env.DLS_BUILD_DIRECTORY }}" `
+              -ResultsDir $resultsDir `
+              -OpenVINODir (Split-Path $openvinoRuntimeDir)
 
       - name: Install Python dependencies in VENV
         if: needs.setup.outputs.should_run == 'true'
@@ -632,7 +629,7 @@ jobs:
           }
 
       - name: "${{ env.ECHART }} Check and display unit test results"
-        if: always() && steps.run-unit-tests.outcome == 'success'
+        if: always() && steps.run-unit-tests.outcome != 'skipped'
         shell: powershell
         env:
           PYTHON_VENV_EXE: ${{ env.VENV_PYTHON }}
@@ -656,13 +653,23 @@ jobs:
           $utf8NoBom = New-Object System.Text.UTF8Encoding $false
           [System.IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, "## Test Summary for Unit Tests on Windows $($env:RUNNER_PRINT_LABEL)`n$content`n", $utf8NoBom)
 
+          # A suite without results didn't complete, see the "Run unit tests" step
           if ($content -notmatch "CTest:.*Failed: (\d+)") {
-              Write-Host "::error::Could not read the CTest failure count from $summaryFile"
+              Write-Host "::error::No CTest results in $summaryFile"
               exit 1
           }
-          $failed = [int]$Matches[1]
+          $ctestFailed = [int]$Matches[1]
+
+          # pytest reports a test module that fails to import, or a failing setUpClass, as an error
+          if ($content -notmatch "Pytest:.*Failed: (\d+), Errors: (\d+)") {
+              Write-Host "::error::No pytest results in $summaryFile"
+              exit 1
+          }
+          $pytestFailed = [int]$Matches[1] + [int]$Matches[2]
+
+          $failed = $ctestFailed + $pytestFailed
           if ($failed -gt 0) {
-              Write-Host "::error::$failed unit test(s) failed (CTest: $failed)"
+              Write-Host "::error::$failed unit test(s) failed (CTest: $ctestFailed, Pytest: $pytestFailed)"
               exit 1
           }
 
