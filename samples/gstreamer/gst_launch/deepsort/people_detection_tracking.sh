@@ -85,15 +85,15 @@ fi
 
 # ── Locate models ────────────────────────────────────────────────────────────
 
-DETECT_MODEL=$(find "${MODELS_DIR}/yolo26m/FP32" -name "*.xml" 2>/dev/null | head -1)
+DETECT_MODEL=$(find "${MODELS_DIR}/public/yolo26m/FP32" -name "*.xml" 2>/dev/null | head -1)
 if [[ -z "${DETECT_MODEL}" ]]; then
-  echo "Error: YOLO26m model not found. Run: python3 export_models.py" >&2
+  echo "Error: YOLO26m model not found." >&2
   exit 1
 fi
 
-REID_MODEL="${MODELS_DIR}/mars-small128/FP32/mars_small128_fp32.xml"
+REID_MODEL="${MODELS_DIR}/public/mars-small128/FP32/mars_small128_fp32.xml"
 if [[ ! -f "${REID_MODEL}" ]]; then
-  echo "Error: Mars-Small128 model not found. Run: python3 export_models.py" >&2
+  echo "Error: Mars-Small128 model not found." >&2
   exit 1
 fi
 
