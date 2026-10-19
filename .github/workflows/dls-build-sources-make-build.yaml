@@ -216,12 +216,44 @@ jobs:
 
           echo "Verifying DL Streamer installation..."
           gst-inspect-1.0 | grep gva
-          gst-inspect-1.0 gvadetect
-          gst-inspect-1.0 gvawatermark3d
-          gst-inspect-1.0 gvapython
-          gst-inspect-1.0 gvamotiondetect
-          gst-inspect-1.0 gvafpscounter
-          gst-inspect-1.0 gvagenai
+
+          # Sanity check: make sure every element documented in docs/user-guide/elements/elements.md
+          # is registered and loadable. gvarealsense is excluded because this workflow builds with
+          # ENABLE_REALSENSE=OFF (default), so the plugin is not compiled here.
+          DLS_ELEMENTS=(
+            gvadetect
+            gvaclassify
+            gvainference
+            gvamono3d
+            gvatrack
+            gvaaudiodetect
+            gvaaudiotranscribe
+            gvagenai
+            g3dradarprocess
+            g3dlidarsrc
+            g3dlidarparse
+            g3dinference
+            g3dobjectfuser
+            g3drender
+            gvaanalytics
+            gvaattachroi
+            gvafpscounter
+            gvafpsthrottle
+            gvastreammux
+            gvastreamdemux
+            gvametaaggregate
+            gvametaconvert
+            gvametapublish
+            gvapython
+            gvawatermark
+            gvawatermark3d
+            gvamotiondetect
+          )
+          for element in "${DLS_ELEMENTS[@]}"; do
+            echo "Checking element: $element"
+            gst-inspect-1.0 "$element" > /dev/null
+          done
+          echo "✅ All DL Streamer elements verified successfully"
 
       - name: Install Python dependencies
         if: needs.setup.outputs.should_run == 'true'

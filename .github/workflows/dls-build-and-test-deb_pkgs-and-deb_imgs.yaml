@@ -192,6 +192,53 @@ jobs:
           --build-arg BASE_IMAGE=$deb_final_img \
           ${{ env.DLS_REL_PATH }}
 
+      - name: 🔍 Verify DL Streamer installation in Docker
+        if: needs.setup.outputs.should_run == 'true'
+        env:
+          deb_final_img: ghcr.io/${{ github.repository }}/deb-final-img-${{ matrix.ubuntu_version }}:${{ github.sha }}
+        run: |
+          # Sanity check: make sure every element documented in docs/user-guide/elements/elements.md
+          # is registered and loadable inside the deb-based Docker image.
+          docker run --rm "${deb_final_img}" bash -c '
+            echo "Verifying DL Streamer installation in Docker..."
+            gst-inspect-1.0 | grep gva
+            DLS_ELEMENTS=(
+              gvadetect
+              gvaclassify
+              gvainference
+              gvamono3d
+              gvatrack
+              gvaaudiodetect
+              gvaaudiotranscribe
+              gvagenai
+              g3dradarprocess
+              g3dlidarsrc
+              g3dlidarparse
+              g3dinference
+              g3dobjectfuser
+              g3drender
+              gvaanalytics
+              gvaattachroi
+              gvafpscounter
+              gvafpsthrottle
+              gvastreammux
+              gvastreamdemux
+              gvametaaggregate
+              gvametaconvert
+              gvametapublish
+              gvapython
+              gvarealsense
+              gvawatermark
+              gvawatermark3d
+              gvamotiondetect
+            )
+            for element in "${DLS_ELEMENTS[@]}"; do
+              echo "Checking element: $element"
+              gst-inspect-1.0 "$element" > /dev/null
+            done
+            echo "✅ All DL Streamer elements verified successfully"
+          '
+
       - name: 📦 Extract .deb packages using script
         if: needs.setup.outputs.should_run == 'true'
         env:
@@ -309,6 +356,55 @@ jobs:
         if: always() && needs.setup.outputs.should_run == 'true'
         run: |
           $DLS_REL_PATH/tests/scripts/installation-on-host-entrypoint.sh $DLS_REL_PATH/deb_packages
+
+      - name: 🔍 Verify DL Streamer installation on host
+        if: always() && needs.setup.outputs.should_run == 'true'
+        run: |
+          echo "Setting up DL Streamer environment..."
+          source /opt/intel/dlstreamer/scripts/setup_dls_env.sh
+          echo " "
+
+          echo "Verifying DL Streamer installation..."
+          gst-inspect-1.0 | grep gva
+
+          # Sanity check: make sure every element documented in docs/user-guide/elements/elements.md
+          # is registered and loadable on-host. gvarealsense is included because this workflow builds
+          # the .deb packages with ENABLE_REALSENSE=ON.
+          DLS_ELEMENTS=(
+            gvadetect
+            gvaclassify
+            gvainference
+            gvamono3d
+            gvatrack
+            gvaaudiodetect
+            gvaaudiotranscribe
+            gvagenai
+            g3dradarprocess
+            g3dlidarsrc
+            g3dlidarparse
+            g3dinference
+            g3dobjectfuser
+            g3drender
+            gvaanalytics
+            gvaattachroi
+            gvafpscounter
+            gvafpsthrottle
+            gvastreammux
+            gvastreamdemux
+            gvametaaggregate
+            gvametaconvert
+            gvametapublish
+            gvapython
+            gvarealsense
+            gvawatermark
+            gvawatermark3d
+            gvamotiondetect
+          )
+          for element in "${DLS_ELEMENTS[@]}"; do
+            echo "Checking element: $element"
+            gst-inspect-1.0 "$element" > /dev/null
+          done
+          echo "✅ All DL Streamer elements verified successfully"
 
       - name: 👋 Test hello_dlstreamer script on host
         if: always() && needs.setup.outputs.should_run == 'true'
