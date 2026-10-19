@@ -4,12 +4,13 @@ This sample demonstrates an edge AI alerting pipeline using Vision-Language Mode
 
 It shows how to:
 
-- Download a VLM from Hugging Face
-- Convert it to OpenVINO IR using `optimum-cli`
-- Run inference inside a DL Streamer pipeline
+- Run a VLM — exported to OpenVINO IR beforehand — inside a DL Streamer pipeline
 - Generate structured JSON alerts per processed frame, including a confidence score
 - Produce MP4 output with the inference result overlaid on each frame
 - Run a single video stream (default) or four streams grouped into two model-sharing groups
+
+> **Note:** the sample never downloads media or models. Prepare the input video and export
+> the model beforehand, as described below.
 
 ## Use Case: Alert-Based Monitoring
 
@@ -20,32 +21,47 @@ This enables alerting for events, like in prompts:
 - Is there smoke or fire?
 - Is a person lying on the ground?
 
-## Model Preparation
+## Download Video
+
+Download an example video file:
+
+```code
+curl -L -o 2103099-hd_1280_720_60fps.mp4 \
+    "https://videos.pexels.com/video-files/2103099/2103099-hd_1280_720_60fps.mp4"
+```
+
+Pass the file with `--video-path`. The flag is repeatable; extra inputs are only used by the
+four-stream scenario (**`--stream-groups`**).
+
+## Prepare Model
 
 Any image-text-to-text model supported by optimum-intel can be used. Smaller models (1B-4B parameters) are recommended for edge deployment. For example, OpenGVLab/InternVL3_5-2B.
 
-The script runs:
+Export the model once with the [Hugging Face model conversion](../../../../scripts/download_models/README.md#1-hugging-face-conversion) script:
+
+```code
+python3 ../../../../scripts/download_models/download_hf_models.py \
+    --model OpenGVLab/InternVL3_5-2B \
+    --outdir ./models
+```
+
+or directly with `optimum-cli`:
 
 ```code
 optimum-cli export openvino \
-    --model <model_id> \
+    --model OpenGVLab/InternVL3_5-2B \
     --task image-text-to-text \
     --trust-remote-code \
-    <output_dir>
+    ./models/OpenGVLab_InternVL3_5-2B
 ```
 
-Exported artifacts are stored under `models/<ModelName>/`. 
-The export runs once and is cached. To skip export, pass `--model-path` directly.
+Pass the exported directory with `--model-path`. A relative path is looked up in the current
+directory and then in `$MODELS_PATH` (the model store shared with other DL Streamer samples),
+so an already exported model can be referenced by its directory name only:
 
-## Video Preparation
-
-Similarly to model, provide either:
-
-- `--video-path` for a local file
-- `--video-url` to download automatically
-
-Both flags are repeatable; extra inputs are only used by the four-stream scenario
-(**`--stream-groups`**). Downloaded videos are cached under **`videos/`**.
+```code
+python3 vlm_alerts.py --model-path OpenGVLab_InternVL3_5-2B ...
+```
 
 ## Pipeline Architecture
 
@@ -79,7 +95,7 @@ Four independent streams split into two groups of two:
 Within each group, the two **`gvagenai`** elements share one loaded OpenVINO model instance;
 inference calls on a shared instance are serialized, which reduces memory use but can
 limit throughput. The two groups load separate model instances. Provide up to four inputs
-by repeating **`--video-path`**/**`--video-url`**; if fewer are given, they are cycled to fill the
+by repeating **`--video-path`**; if fewer are given, they are cycled to fill the
 four streams.
 
 ```mermaid
@@ -145,6 +161,10 @@ uv pip install -r requirements.txt
 - `transformers` must be compatible with `optimum-intel` for OpenVINO export.
 - `openvino-tokenizers` must match the OpenVINO runtime used by DL Streamer to avoid binary incompatibility.
 
+**Note:** these dependencies are needed for the one-time model export described in
+[Prepare Model](#prepare-model). Running the sample itself requires only DL Streamer and its
+GStreamer Python bindings.
+
 A DL Streamer build that includes the `gvagenai` element is required.
 
 ## Running
@@ -152,8 +172,8 @@ A DL Streamer build that includes the `gvagenai` element is required.
 Required arguments:
 
 - `--prompt`
-- `--video-path` or `--video-url`
-- `--model-id` or `--model-path`
+- `--video-path`
+- `--model-path`
 
 ### Single stream (default)
 
@@ -161,16 +181,15 @@ Run one video stream with an isolated model instance:
 
 ```code
 python3 vlm_alerts.py \
-    --video-url https://videos.pexels.com/video-files/2103099/2103099-hd_1280_720_60fps.mp4 \
-    --model-id Phi-4-multimodal \
-    --models-dir /home/dlstreamer/
+    --video-path 2103099-hd_1280_720_60fps.mp4 \
+    --model-path ./models/OpenGVLab_InternVL3_5-2B \
     --prompt "Is there a police car? Answer yes or no."
 ```
 
 ### Four streams in two model-sharing groups
 
 Use **`--stream-groups`** to run four video branches in one pipeline. Repeat
-**`--video-path`** or **`--video-url`** to provide up to four inputs; if fewer are provided,
+**`--video-path`** to provide up to four inputs; if fewer are provided,
 the inputs are cycled to fill all four streams. Each pair of **`gvagenai`** elements shares
 one model instance: streams 1-2 use **`model-instance-id=stream-grp-1`**, and streams 3-4
 use **`model-instance-id=stream-grp-2`**.
@@ -178,8 +197,8 @@ use **`model-instance-id=stream-grp-2`**.
 ```code
 python3 vlm_alerts.py \
     --stream-groups \
-    --video-url https://videos.pexels.com/video-files/2103099/2103099-hd_1280_720_60fps.mp4 \
-    --model-id OpenGVLab/InternVL3_5-2B \
+    --video-path 2103099-hd_1280_720_60fps.mp4 \
+    --model-path ./models/OpenGVLab_InternVL3_5-2B \
     --prompt "Is there a police car? Answer yes or no."
 ```
 
@@ -195,9 +214,8 @@ Optional arguments:
 | `--max-tokens` | `1` | Maximum tokens in the model response |
 | `--num-beams` | `4` | Beam search width. Values ≥ 2 enable beam search and produce a confidence score; `1` means greedy decoding with no confidence |
 | `--frame-rate` | `1.0` | Frames per second passed to `gvagenai` |
-| `--videos-dir` | `./videos` | Directory for downloaded videos |
-| `--models-dir` | `./models` | Directory for exported models |
 | `--results-dir` | `./results` | Directory for output files |
+| `--output-json` | *(unset)* | Path of the JSON Lines output file, overriding `<results-dir>/<ModelName>-<video_stem>.jsonl`. With `--stream-groups` the stream suffix is inserted before the extension |
 
 ## Output
 
@@ -217,6 +235,9 @@ results/<ModelName>-<video_stem>-stream<N>.mp4
 
 The `.jsonl` file contains one JSON record per processed frame. 
 The `.mp4` file contains the processed video with the inference result and confidence percentage overlaid on every frame.
+
+Use `--output-json` to write the JSON Lines file to an explicit path, for example when the
+results are consumed by an automated test.
 
 ### Help
 
