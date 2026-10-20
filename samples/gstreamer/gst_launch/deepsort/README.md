@@ -54,7 +54,7 @@ The pipeline uses the following elements:
 The script expects the following pre-converted OpenVINO IR models under the fixed models
 directory set by `MODELS_DIR` in the script:
 
-* **YOLO26m** (detection) — any precision `.xml`/`.bin` under `yolo26m/FP32/`
+* **YOLO26m** (detection) — any precision `.xml`/`.bin` under `yolo26m/FP16/`
 * **Mars-Small-128** (re-identification) — `mars-small128/FP32/mars_small128_fp32.xml` (+ matching `.bin`)
 
 If the models are missing, generate them with the repository's model conversion scripts in
