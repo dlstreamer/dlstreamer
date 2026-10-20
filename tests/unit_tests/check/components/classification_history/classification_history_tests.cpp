@@ -393,6 +393,26 @@ TEST_F(ClassificationHistoryTest, FillROIParams_pending_reclassification_test) {
         gst_buffer_unref(frame);
 }
 
+TEST_F(ClassificationHistoryTest, ReclassifyIntervalChange_clears_outdated_history_test) {
+    classification_history->GetHistory().put(1);
+    classification_history->GetHistory().put(2);
+
+    // history is up to date when switching between intervals greater than 1
+    g_object_set(gva_classify, "reclassify-interval", 5, NULL);
+    g_object_set(gva_classify, "reclassify-interval", 3, NULL);
+    ASSERT_EQ(classification_history->GetHistory().size(), 0u); // cleared on initial 1 -> 5 switch
+
+    classification_history->GetHistory().put(1);
+    g_object_set(gva_classify, "reclassify-interval", 4, NULL);
+    EXPECT_EQ(classification_history->GetHistory().size(), 1u);
+
+    // history is not maintained with interval 1, so it is outdated after switching back
+    g_object_set(gva_classify, "reclassify-interval", 1, NULL);
+    EXPECT_EQ(classification_history->GetHistory().size(), 1u);
+    g_object_set(gva_classify, "reclassify-interval", 2, NULL);
+    EXPECT_EQ(classification_history->GetHistory().size(), 0u);
+}
+
 TEST_F(ClassificationHistoryTest, ClassificationHistory_LRUCache_api_test) {
     // test LRU Cache API sanity interaction with ROIClassificationHistory defined for classification history operations
 

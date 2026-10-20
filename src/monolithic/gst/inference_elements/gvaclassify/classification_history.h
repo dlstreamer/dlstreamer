@@ -19,6 +19,7 @@ struct ClassificationHistory;
 struct ClassificationHistory *create_classification_history(GstGvaClassify *gva_classify);
 void release_classification_history(struct ClassificationHistory *classification_history);
 void fill_roi_params_from_history(struct ClassificationHistory *classification_history, GstBuffer *buffer);
+void clear_classification_history(struct ClassificationHistory *classification_history);
 
 G_END_DECLS
 
@@ -59,6 +60,7 @@ struct ClassificationHistory {
     void UpdateROIParams(GstBuffer *buffer, GstVideoRegionOfInterestMeta roi,
                          const std::vector<GstStructure *> &classifications);
     void FillROIParams(GstBuffer *buffer);
+    void Clear();
     LRUCache<int, ROIClassificationHistory> &GetHistory();
 
   private:

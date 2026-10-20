@@ -228,6 +228,9 @@ void ClassificationHistory::UpdateROIParams(GstBuffer *buffer, GstVideoRegionOfI
 void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
     std::lock_guard<std::mutex> guard(history_mutex);
     const uint64_t frame_num = output_frame_num++;
+    // Every frame is classified, history is not used
+    if (gva_classify->reclassify_interval == 1)
+        return;
     try {
         GMutexLockGuard meta_guard(&gva_classify->base_inference.meta_mutex);
         GstAnalyticsRelationMeta *relation_meta = gst_buffer_get_analytics_relation_meta(buffer);
@@ -271,6 +274,11 @@ void ClassificationHistory::FillROIParams(GstBuffer *buffer) {
     }
 }
 
+void ClassificationHistory::Clear() {
+    std::lock_guard<std::mutex> guard(history_mutex);
+    history.clear();
+}
+
 LRUCache<int, ClassificationHistory::ROIClassificationHistory> &ClassificationHistory::GetHistory() {
     std::lock_guard<std::mutex> guard(history_mutex);
     return history;
@@ -302,4 +310,8 @@ void release_classification_history(ClassificationHistory *classification_histor
 
 void fill_roi_params_from_history(ClassificationHistory *classification_history, GstBuffer *buffer) {
     classification_history->FillROIParams(buffer);
+}
+
+void clear_classification_history(ClassificationHistory *classification_history) {
+    classification_history->Clear();
 }
