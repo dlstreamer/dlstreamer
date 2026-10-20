@@ -4,6 +4,9 @@
 #
 # SPDX-License-Identifier: MIT
 # ==============================================================================
+# This sample refers to a video file by Khaoula ATTAR via Pexels
+# (https://www.pexels.com)
+# ==============================================================================
 # People Detection & Tracking with Deep SORT
 #
 # Pipeline:
