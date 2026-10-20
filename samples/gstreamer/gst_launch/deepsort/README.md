@@ -47,7 +47,6 @@ The pipeline uses the following elements:
 * DL Streamer installed (or run via the DL Streamer Docker image), with GStreamer VA-API plugins for GPU encoding
 * Intel Core Ultra 3 processor (or any Intel system with integrated GPU); the script falls back to CPU automatically if `/dev/dri` is not present
 * `curl` (to download the default sample video, if needed)
-* `ffprobe` (only required when running with `OUTPUT=frames` and `INTERVAL` > 1)
 
 ### Models
 
