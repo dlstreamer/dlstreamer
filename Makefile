@@ -186,6 +186,25 @@ rpm: ## Build the Deep Learning Streamer RPM package
 	docker cp rpm-builder:/intel-dlstreamer-${DLSTREAMER_VERSION}.1-1.fc41.x86_64.rpm ./build/packages/rpm
 	docker rm rpm-builder
 
+.PHONY: rpm-fedora44
+rpm-fedora44: ## Build the Deep Learning Streamer RPM package for Fedora 44
+	mkdir -p build/packages/rpm
+	docker build . \
+		-t rpm-builder-fedora44 \
+		-f docker/fedora44/fedora44.Dockerfile \
+		--target rpm-builder \
+		--build-arg http_proxy=${http_proxy} \
+		--build-arg https_proxy=${https_proxy} \
+		--build-arg DLSTREAMER_VERSION=${DLSTREAMER_VERSION} \
+		--build-arg DLSTREAMER_BUILD_NUMBER=1 \
+		--build-arg DEV_MODE=true \
+		--build-arg DOCKER_PRIVATE_REGISTRY=${DOCKER_PRIVATE_REGISTRY}
+	docker create \
+		--name rpm-builder-fedora44 \
+		rpm-builder-fedora44
+	docker cp rpm-builder-fedora44:/intel-dlstreamer-${DLSTREAMER_VERSION}.1-1.fc44.x86_64.rpm ./build/packages/rpm
+	docker rm rpm-builder-fedora44
+
 .PHONY: image
 image: ## Build the Deep Learning Streamer docker image based on Ubuntu 24.04
 	docker build . \

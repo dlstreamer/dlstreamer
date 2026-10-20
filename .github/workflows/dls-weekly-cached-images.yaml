@@ -171,3 +171,55 @@ jobs:
         if: always()
         run: |
           rm -rf dlstreamer-repo
+
+  build-dls-fedora44-img:
+    name: Build DLS Fedora 44 img
+    runs-on: dlstreamer
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Initial environment clean
+        run: |
+          sudo rm -rf dlstreamer-repo
+
+      - name: Check out dlstreamer repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 #7.0.1
+        with:
+          persist-credentials: false
+          path: dlstreamer-repo
+
+      - name: Init submodules
+        run: |
+          cd dlstreamer-repo
+          git submodule update --init thirdparty/spdlog
+
+      - name: Pre-pull BuildKit image
+        uses: ./dlstreamer-repo/.github/actions/common/pull-buildkit-image
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e #4.3.0
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f #4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build f44 img with cache from GHCR
+        env:
+          f44_img_cached: ghcr.io/${{ github.repository }}/f44-img:buildcache
+        run: |
+          docker buildx build \
+            --target dlstreamer \
+            --cache-from=type=registry,ref=${f44_img_cached} \
+            --cache-to=type=registry,ref=${f44_img_cached},mode=max \
+            --build-arg DLSTREAMER_BUILD_NUMBER=${{ github.run_number }} \
+            -f ./dlstreamer-repo/docker/fedora44/fedora44.Dockerfile \
+            ${{ env.DLS_REL_PATH }}
+
+      - name: Clean up
+        if: always()
+        run: |
+          rm -rf dlstreamer-repo
