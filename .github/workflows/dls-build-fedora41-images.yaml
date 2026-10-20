@@ -2,7 +2,22 @@ name: "[DLS] [F41] Build F41 image"
 run-name: "[DLS] [F41] Build F41 image (by ${{ github.actor }})"
 on:
   workflow_call:
+    inputs:
+      fedora-version:
+        description: Fedora version used for the image build
+        required: false
+        type: string
+        default: "41"
   workflow_dispatch:
+    inputs:
+      fedora-version:
+        description: Fedora version used for the image build
+        required: false
+        type: choice
+        options:
+          - "41"
+          - "44"
+        default: "41"
 permissions: {}
 
 env:
@@ -10,7 +25,7 @@ env:
 
 jobs:
   setup:
-    name: "Setup F41 build configuration"
+    name: "Setup F${{ inputs.fedora-version }} build configuration"
     runs-on: dlstreamer
     outputs:
       should_run: ${{ steps.skip-check.outputs.should_run }}
@@ -25,15 +40,15 @@ jobs:
         id: skip-check
         uses: ./.github/actions/common/check-skip-ci
         with:
-          job_name: "Build F41 images"
+          job_name: "Build F${{ inputs.fedora-version }} images"
           working_directory: "."
 
   build:
-    name: "Build f41 img"
+    name: "Build f${{ inputs.fedora-version }} img"
     runs-on: dlstreamer
     needs: setup
     container:
-      image: fedora:41
+      image: fedora:${{ inputs.fedora-version }}
     permissions:
       contents: read
       packages: read
@@ -41,7 +56,7 @@ jobs:
       - name: Skip or execute based on configuration
         if: needs.setup.outputs.should_run == 'false'
         run: |
-          echo "## ✅ F41 Build Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ F${{ inputs.fedora-version }} Build Skipped" >> $GITHUB_STEP_SUMMARY
           echo "**Reason:** Changes only in excluded files" >> $GITHUB_STEP_SUMMARY
           exit 0
 
@@ -80,24 +95,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: 🚢 Build f41 img with cache from GHCR
+      - name: 🚢 Build f${{ inputs.fedora-version }} img with cache from GHCR
         if: needs.setup.outputs.should_run == 'true'
         env:
-          f41_img: ghcr.io/${{ github.repository }}/f41-img:${{ github.sha }}
-          f41_img_cached: ghcr.io/${{ github.repository }}/f41-img:buildcache
+          fedora_version: ${{ inputs.fedora-version }}
+          fedora_img: ghcr.io/${{ github.repository }}/f${{ inputs.fedora-version }}-img:${{ github.sha }}
+          fedora_img_cached: ghcr.io/${{ github.repository }}/f${{ inputs.fedora-version }}-img:buildcache
         run: |
           docker buildx build \
             --load \
             --target dlstreamer \
-            --tag "${f41_img}" \
-            --cache-from=type=registry,ref="${f41_img_cached}" \
-            -f ./dlstreamer/docker/fedora41/fedora41.Dockerfile \
+            --tag "${fedora_img}" \
+            --cache-from=type=registry,ref="${fedora_img_cached}" \
+            -f "./dlstreamer/docker/fedora${fedora_version}/fedora${fedora_version}.Dockerfile" \
             ${{ env.DLS_REL_PATH }}
 
       - name: Clean up
         if: always() && needs.setup.outputs.should_run == 'true'
         env:
-          f41_img: ghcr.io/${{ github.repository }}/f41-img:${{ github.sha }}
+          fedora_img: ghcr.io/${{ github.repository }}/f${{ inputs.fedora-version }}-img:${{ github.sha }}
         run: |
           rm -rf dlstreamer
-          docker rmi ${f41_img} || true
+          docker rmi ${fedora_img} || true

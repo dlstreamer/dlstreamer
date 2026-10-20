@@ -200,9 +200,6 @@ jobs:
           - name: dlstreamer_fedora41
             path: dlstreamer-repo/docker/fedora41/fedora41.Dockerfile
             output: reports/trivy-DLS_fedora41.json
-          - name: dlstreamer_fedora44
-            path: dlstreamer-repo/docker/fedora44/fedora44.Dockerfile
-            output: reports/trivy-DLS_fedora44.json
           - name: dlstreamer-testing-ubuntu
             path: dlstreamer-repo/docker/ubuntu/ubuntu-testing.Dockerfile
             output: reports/trivy-DLS-testing-ubuntu.json
@@ -235,9 +232,6 @@ jobs:
           - name: dlstreamer_fedora41
             dockerfile: ./docker/fedora41/fedora41.Dockerfile
             output-file: hadolint-dlstreamer_fedora41.json
-          - name: dlstreamer_fedora44
-            dockerfile: ./docker/fedora44/fedora44.Dockerfile
-            output-file: hadolint-dlstreamer_fedora44.json
           - name: dlstreamer-testing-ubuntu
             dockerfile: ./docker/ubuntu/ubuntu-testing.Dockerfile
             output-file: hadolint-dlstreamer-testing-ubuntu.json
@@ -441,13 +435,6 @@ jobs:
       packages: read
     name: "DLS BUILD: fedora41 img"
     uses: ./.github/workflows/dls-build-fedora41-images.yaml
-
-  dls-build-fedora44-img:
-    permissions:
-      contents: read
-      packages: read
-    name: "DLS BUILD: fedora44 img"
-    uses: ./.github/workflows/dls-build-fedora44-images.yaml
 
   dls-build-sources-make-build:
     permissions:
