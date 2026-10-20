@@ -185,6 +185,25 @@ gst-launch-1.0 -v \
     fakesink
 ```
 
+## Logging
+
+To write debug messages from `gvaeventrecorder` to a file, prefix your pipeline
+command with:
+
+```bash
+GST_DEBUG=gvaeventrecorder:5 \
+GST_DEBUG_FILE="/path/to/gvaeventrecorder.log" \
+gst-launch-1.0 ...
+```
+
+Replace `/path/to/gvaeventrecorder.log` with the desired log file path and `...`
+with your pipeline. The parent directory must already exist and be writable.
+
+- `GST_DEBUG=gvaeventrecorder:5` enables messages up to DEBUG level for the
+  `gvaeventrecorder` category.
+- `GST_DEBUG_FILE` sends GStreamer debug messages to the specified file instead
+  of standard error. It does not redirect regular `gst-launch-1.0` output.
+
 ## Notes
 
 - **The pre-event ring is never reset by a trigger.** A trigger only takes a snapshot of it;
