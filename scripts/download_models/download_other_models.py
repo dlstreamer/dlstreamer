@@ -6,9 +6,6 @@
 # ==============================================================================
 
 """Download and convert models that are not covered by the Ultralytics/HF/TIMM scripts.
-
-Cross-platform (Linux/Windows) Python port of download_other_models.sh. The output
-layout under <MODELS_PATH>/public is identical to the one produced by the shell script.
 """
 
 from __future__ import annotations
@@ -34,6 +31,7 @@ import openvino as ov
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+MAX_PYTHON_VERSION = (3, 12)
 USER_AGENT = "dlstreamer-download-models"
 TORCH_CPU_INDEX = "https://download.pytorch.org/whl/cpu"
 TORCH_PACKAGES = ("torch==2.13.0", "torchaudio==2.11.0", "torchvision==0.28.0")
@@ -497,7 +495,7 @@ def download_mars_small128(models_path: Path) -> None:
     log(f"Downloading and converting: {model_dir}")
     model_dir.mkdir(parents=True, exist_ok=True)
     converter = SCRIPT_DIR / "convert_mars_deepsort.py"
-    run([sys.executable, converter, "--output-dir", model_dir, "--precision", "both"])
+    run([sys.executable, converter, "--output-dir", model_dir, "--precision", "both"], retries=3, retry_delay=30)
 
     for precision, stem in targets.items():
         (model_dir / precision).mkdir(parents=True, exist_ok=True)
@@ -650,13 +648,28 @@ def main() -> int:
     args = parse_args()
     models = resolve_models(args.model)
 
+    # openvino-dev 2024.6.0 (omz tools) and paddlepaddle publish no wheels for Python >= 3.13.
+    if sys.version_info[:2] > MAX_PYTHON_VERSION:
+        log(
+            f"Python {sys.version_info.major}.{sys.version_info.minor} is not supported; "
+            f"use Python <= {MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1]} for this script."
+        )
+        return 1
+
     models_path_arg = args.outdir or os.environ.get("MODELS_PATH", "")
     if not models_path_arg:
         log("MODELS_PATH is not specified")
         log("Please set MODELS_PATH env variable or pass --outdir with target path to download models")
         return 1
     models_path = Path(models_path_arg).expanduser().resolve()
-    models_path.mkdir(parents=True, exist_ok=True)
+    try:
+        (models_path / "public").mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        log(f"Cannot create {models_path / 'public'}: {exc}")
+        return 1
+    if not os.access(models_path / "public", os.W_OK):
+        log(f"{models_path / 'public'} is not writable by the current user")
+        return 1
 
     log(f"Models to process: {' '.join(models)}")
     log(f"Downloading models to folder {models_path}.")
