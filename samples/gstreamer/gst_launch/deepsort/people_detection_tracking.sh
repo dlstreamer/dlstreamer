@@ -18,7 +18,6 @@
 #   gvametaconvert → gvametapublish (JSONL) →
 #   videoconvert → vah264enc → h264parse → mp4mux → filesink
 #
-# Optimized for Intel Core Ultra 3 processors.
 # ==============================================================================
 
 set -euo pipefail
@@ -88,7 +87,7 @@ fi
 
 # ── Locate models ────────────────────────────────────────────────────────────
 
-DETECT_MODEL=$(find "${MODELS_DIR}/public/yolo26m/FP32" -name "*.xml" 2>/dev/null | head -1)
+DETECT_MODEL=$(find "${MODELS_DIR}/public/yolo26m/FP16" -name "*.xml" 2>/dev/null | head -1)
 if [[ -z "${DETECT_MODEL}" ]]; then
   echo "Error: YOLO26m model not found." >&2
   exit 1
