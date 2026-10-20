@@ -40,24 +40,86 @@ Key design points:
 ## How It Works
 
 1. The pipeline requests sink pads (`sink_0`, `sink_1`, ...) — one per input source. Pad
-   index is parsed from the requested name; sparse indices are allowed up to 255.
+   index is parsed from the requested name; sparse indices are allowed up to 255. Request a
+   pad without a name to be given the lowest free index.
 2. Upstream chain functions push buffers into per-pad queues. If a pad's queue is full, the
    chain function blocks until the output task drains it (back-pressure to upstream).
 3. The output task on the src pad assembles batches in three phases:
-   - **Phase 1 (anchor selection)** — pick the earliest valid PTS across all non-EOS pad
-     queue heads as `batch_anchor_pts`.
-   - **Phase 2 (wait for contributors)** — wait up to `max-wait-time` for every non-EOS
-     pad to have a head buffer with `|pts - anchor| ≤ pts-tolerance`. Exit early once all
-     eligible pads contribute.
+   - **Phase 1 (anchor selection)** — discard any queue head older than the batch already
+     pushed, then pick the earliest valid PTS across all non-EOS pad queue heads as
+     `batch_anchor_pts`. Discarding first keeps the anchor monotonic: a buffer older than the
+     last batch has missed it, and taking it as the next anchor would move batch time (and, in
+     `container` mode, the output buffer's PTS) backwards.
+   - **Phase 2 (wait for contributors)** — wait up to `max-wait-time` for every *active*
+     non-EOS pad to have a head buffer with `|pts - anchor| ≤ pts-tolerance`. Exit early once
+     they all contribute. See [Slow and Failed Sources](#slow-and-failed-sources).
    - **Phase 3 (collect & push)** — pop one matching buffer per pad, attach
      `GstAnalyticsBatchMeta`, push downstream in pad-index order.
 4. EOS on a sink pad is honored only once that pad's queue is drained: buffers already enqueued
    before EOS are still batched (so the last frames of a stream, or a single-frame source, are
    not lost). A pad with no remaining buffers and EOS set is excluded from future batches. When
    all pads are EOS and all queues are drained, the src pad emits EOS and the task pauses.
-5. Per-pad `FLUSH_START` / `FLUSH_STOP` events are coalesced — the downstream flush, task
+5. The muxer presents a single stream assembled from several, so it emits exactly one
+   `stream-start` with its own stream id. Each sink pad's upstream `stream-start` is consumed
+   rather than forwarded.
+6. Per-pad `FLUSH_START` / `FLUSH_STOP` events are coalesced — the downstream flush, task
    pause, queue reset and task restart each happen exactly once per flush cycle no matter
-   how many sink pads receive the events.
+   how many sink pads receive the events. A flush removes the sticky segment from the `src`
+   pad, so the muxer sends a replacement immediately afterwards.
+
+### Slow and Failed Sources
+
+A batch waits only for the sources that are behaving. Each sink pad is in one of three
+states, and a pad leaves the first one as soon as anything arrives on it — recovery is
+judged on delivery, not on whether what was delivered could be used.
+
+| State | Entered when | Effect |
+|-------|--------------|--------|
+| `active` | buffers are arriving and being batched | batches wait for this pad |
+| `stalled` | nothing has arrived for five batches | batches no longer wait for it |
+| `late` | its queue head has been discarded as stale for three batches running | batches no longer wait for it |
+
+Neither unhealthy state excludes a pad from batching — its buffers still go out whenever
+they match the anchor. The pad simply stops holding everyone else up, so a dead feed costs
+its own share of the throughput and nothing more. With four sources at 30 fps and one of
+them cut off, output goes from 120 to 90 buffers per second rather than collapsing to 74.
+
+`stalled` and `late` are separate because they need different responses: nothing is arriving
+in the first, while in the second the source is alive and working through a backlog that
+Phase 1 discards until it is current again.
+
+The thresholds are counted in batches, not milliseconds, so they scale with `max-wait-time`
+— already your statement of how long a straggler may hold a batch open.
+
+Every change of state is posted on the bus as a `GST_MESSAGE_ELEMENT`, once per transition:
+
+```
+gva-streammux-stream-state, pad-index=(uint)3, state=(string)stalled,
+                            active-pads=(uint)3, total-pads=(uint)4
+```
+
+`state` is `active`, `stalled` or `late`. Watch for it to find out *which* source went bad
+without turning on debug logging.
+
+### Adding and Removing Sources at Runtime
+
+Sink pads can be requested and released while the pipeline is running.
+
+- Releasing a pad that has already reached EOS does **not** end the stream: the muxer only
+  emits EOS once every pad that is still attached has finished. Releasing finished sources one
+  at a time, as a long-running pipeline recycles them, therefore keeps the live ones running.
+- A pad may be released while its upstream is still pushing. Its chain function is told to
+  stop first, so a source that is still delivering is not left waiting for queue space that
+  will never be freed.
+- Requesting an index that is already in use is rejected (`request_new_pad` returns `NULL`)
+  rather than replacing the existing pad. Request pads without a name to get the first free
+  index.
+- If every pad reaches EOS before any of them reported caps, the source caps can never be
+  negotiated. The muxer ends the stream itself, sending stream-start and a segment (and, in
+  `container` mode, the batch caps) ahead of the EOS.
+- A source that goes quiet, or comes back delivering buffers that are already too old, stops
+  holding up the batches of the sources that are still healthy. See
+  [Slow and Failed Sources](#slow-and-failed-sources).
 
 ## Output Modes
 
@@ -75,6 +137,12 @@ anything until then.
 > (`gvadetect`, `gvawatermark`, …) may follow the mux directly. Insert `gvastreamdemux` to recover
 > the per-source streams (e.g. video → `gvadetect`, lidar → `g3dinference`) first.
 
+> **Caps changes mid-stream (`passthrough` mode):** the `src` caps are fixed at negotiation and
+> cannot be changed afterwards, because buffers already queued were accepted under the old
+> caps. If a sink pad reports different caps later — an RTSP source reconnecting at another
+> resolution, for instance — the element posts an error instead of silently forwarding
+> mismatched buffers. Use `container` mode for sources whose caps can change.
+
 > **Choosing the mode:** use `passthrough` when every source produces the same caps (the common
 > all-video case) and you want plain buffers downstream. Use `container` whenever the sources are
 > heterogeneous (mixed media types or differing caps) — a `passthrough` mux with mismatched sink
@@ -87,7 +155,7 @@ one-buffer-per-batch carrying all sources.
 
 | Property        | Type     | Default     | Description |
 |-----------------|----------|-------------|-------------|
-| `max-fps`       | Double   | `0`         | Output rate cap (0 = unlimited). Only set for local file sources; setting on RTSP/live sources can stall the pipeline. |
+| `max-fps`       | Double   | `0`         | Output rate cap on the assembled batches (0 = unlimited). Only set for local file sources; setting on RTSP/live sources can stall the pipeline. |
 | `pts-tolerance` | UInt64 (ns) | `20000000` (20 ms) | Max `\|pts - anchor\|` for a buffer to count as contributing to the current batch. |
 | `max-wait-time` | UInt64 (ns) | `40000000` (40 ms) | Max time the output task waits for late pads after the anchor is set. After timeout the partial batch is pushed. |
 | `max-queue-size`| UInt    | `2`         | Maximum buffers per pad queue. When reached, upstream blocks (back-pressure). |
@@ -105,13 +173,27 @@ single-stream). `sync-mode` selects the normalization policy.
 | Mode        | What it does                                                                 | Typical use case |
 |-------------|------------------------------------------------------------------------------|------------------|
 | `none`      | Use buffer PTS as-is. Default; preserves legacy behavior.                    | Single source, or upstream already aligned (e.g. `videorate`). |
-| `first-pts` | Subtract each pad's first observed PTS so every pad starts at 0.             | Multiple file sources whose PTS bases differ. |
+| `first-pts` | Subtract each pad's first observed PTS so every pad starts at 0. Survives a source restarting its timeline (see below). | Multiple file sources whose PTS bases differ; RTSP sources that reconnect. |
 | `segment`   | Subtract each pad's `GST_EVENT_SEGMENT` start.                               | Standard GStreamer pipelines, including seek/trick mode. |
 | `pipeline`  | Overwrite PTS with `clock.now() - base_time` (pipeline running time).        | Single-machine multi-live source where source PTS are unreliable. |
 | `ntp`       | Replace PTS with `GstReferenceTimestampMeta.timestamp` if the buffer carries one. | Cross-device cameras synchronized via NTP/PTP, paired with `rtspsrc add-reference-timestamp-meta=true`. |
 
 Per-pad normalization state (first PTS, segment start) is reset on `FLUSH_STOP` and on
 `PAUSED → READY`, so seek and pipeline restart establish fresh baselines.
+
+`first-pts` additionally handles a source whose timeline restarts mid-run, which is what an
+RTSP feed does when it reconnects: PTS begins from zero again, with `DISCONT` set. The pad's
+baseline is re-derived so its normalized time **continues from where it left off** rather than
+restarting at zero — a pad that went back to zero while the others were seconds ahead would
+have every buffer discarded as a late frame and would never recover. A restart is recognised
+only when a buffer is flagged `DISCONT` *and* its PTS jumps by more than a second; either
+signal alone (a dropped frame, a sparse source) leaves the baseline untouched.
+
+The segment on the `src` pad follows from the mode. `first-pts`, `segment` and `pipeline`
+rewrite every PTS onto a zero-based timeline, so the muxer sends a zero-based segment to match.
+`none` passes PTS through untouched, so it forwards the upstream segment instead — otherwise a
+downstream sink would read a buffer seeked to T as having a running time of T and wait that
+long before rendering it. A flush starts a new run, so a seek adopts the new segment.
 
 ## Buffer Metadata
 
@@ -123,7 +205,13 @@ Each output buffer carries a `GstAnalyticsBatchMeta`. The way it is populated de
 | Field                  | Type     | Description |
 |------------------------|----------|-------------|
 | `streams[0].index`     | guint    | Source pad index this buffer originated from. |
-| `n_streams`            | gsize    | Number of contributing pads in the batch this buffer is part of. |
+| `n_streams`            | gsize    | Always `1`: a passthrough buffer carries one source. |
+
+> Up to and including the 2026.2 release this reported the size of the batch the buffer
+> belonged to while still filling in only `streams[0]`, so consumers that walk
+> `streams[0..n_streams)` — `gvametaconvert`, `g3drender`, `g3dobjectfuser` — saw
+> `batch_size - 1` zeroed entries on every buffer. How many sources were in the batch is a
+> different fact and is not carried here.
 
 **CONTAINER (heterogeneous):** one container buffer per batch, `n_streams` entries.
 

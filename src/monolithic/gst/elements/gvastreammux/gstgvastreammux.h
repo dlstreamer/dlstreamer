@@ -18,6 +18,10 @@ G_BEGIN_DECLS
 #define GST_IS_GVA_STREAMMUX(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_GVA_STREAMMUX))
 #define GST_IS_GVA_STREAMMUX_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_GVA_STREAMMUX))
 
+/* Upper bound on a request pad's index. Releasing a pad frees its index for
+ * reuse, and an unnamed request takes the lowest free one, so a long-running
+ * pipeline that recycles sources never approaches this; only one that keeps
+ * counting upwards does. */
 #define GST_GVA_STREAMMUX_MAX_PAD_INDEX 256
 
 typedef enum {
@@ -49,17 +53,81 @@ GType gst_gva_streammux_output_mode_get_type(void);
 typedef struct _GstGvaStreammux GstGvaStreammux;
 typedef struct _GstGvaStreammuxClass GstGvaStreammuxClass;
 typedef struct _GvaStreammuxPadData GvaStreammuxPadData;
+typedef struct _GvaStreammuxQueueItem GvaStreammuxQueueItem;
+
+/* One entry of a sink pad's queue: a buffer together with the caps that were
+ * active on that pad when the buffer was enqueued. Caps are captured on the
+ * pad's streaming thread (where CAPS events and buffers are serialized) rather
+ * than read back when the batch is assembled, so buffers queued before a
+ * mid-stream caps change keep their own caps instead of inheriting the new
+ * ones. */
+struct _GvaStreammuxQueueItem {
+    GstBuffer *buffer;
+    GstCaps *caps; /* own ref, may be NULL if the pad had no caps yet */
+};
+
+/* How a sink pad is currently behaving, which decides whether a batch waits
+ * for it. Only an ACTIVE pad is waited for; the other two still have their
+ * buffers batched whenever they happen to match, they just stop holding
+ * everyone else up.
+ *
+ * The two unhealthy states are distinct on purpose. STALLED means nothing is
+ * arriving at all -- a dead feed. LATE means buffers are arriving but are too
+ * far behind to be batched, which is what a source looks like while it works
+ * through a backlog after a network stall. An operator needs to tell those
+ * apart, and they recover differently. */
+typedef enum {
+    GVA_STREAMMUX_PAD_ACTIVE = 0,
+    GVA_STREAMMUX_PAD_STALLED,
+    GVA_STREAMMUX_PAD_LATE,
+} GvaStreammuxPadState;
 
 struct _GvaStreammuxPadData {
     GstPad *pad;
     guint pad_index;
+    /* GQueue of GvaStreammuxQueueItem* */
     GQueue buffer_queue;
     gboolean eos;
     gboolean flushing;
+    /* Set by release_pad before it deactivates the pad, so a chain function
+     * parked on this pad's back-pressure knows to give up instead of waiting
+     * for room that will never be made. */
+    gboolean released;
 
-    /* PTS normalization state (used by sync-mode) */
+    /* Liveness tracking.
+     *
+     * state is what the batching loop acts on. delivered says whether a buffer
+     * arrived since the last batch was assembled, and is deliberately about
+     * arrival rather than about being batched: a source returning from a stall
+     * delivers a backlog that is too old to batch, and if recovery depended on
+     * contributing, that source could never leave STALLED.
+     *
+     * idle_windows counts batches that went out with nothing delivered here;
+     * late_rounds counts batches whose head had to be discarded as stale. */
+    GvaStreammuxPadState state;
+    gboolean delivered;
+    guint idle_windows;
+    guint late_rounds;
+
+    /* Per-batch scratch, reset once the batch has been assembled. */
+    gboolean contributed;
+    gboolean stale_dropped;
+
+    /* PTS normalization state (used by sync-mode).
+     *
+     * sync-mode=first-pts reports raw_pts - pts_offset. The offset starts as
+     * the pad's first PTS, so the pad starts at zero, and is re-derived if the
+     * source's timeline restarts -- an RTSP feed coming back after a reconnect
+     * begins from zero again. It is signed because the new offset can be
+     * negative once the restarted timeline is behind the normalized one.
+     *
+     * last_raw_pts / last_norm_pts are what the previous buffer carried before
+     * and after normalization, which is what a restart is detected against and
+     * what the normalized timeline resumes from. */
     gboolean first_pts_set;
-    GstClockTime first_pts;
+    gint64 pts_offset;
+    GstClockTime last_raw_pts;
+    GstClockTime last_norm_pts;
     GstClockTime segment_start;
 
     /* Caps negotiated on this pad (own ref). In CONTAINER mode each stream
@@ -82,7 +150,6 @@ struct _GstGvaStreammux {
 
     /* Internal state */
     guint num_sink_pads;
-    gboolean started;
     gboolean send_stream_start;
     gboolean flushing;
 
@@ -108,9 +175,31 @@ struct _GstGvaStreammux {
      * output loop until the (mode-dependent) src caps are known. */
     gboolean caps_negotiated;
 
+    /* TRUE once stream-start, caps and segment have actually been pushed on the
+     * source pad. caps_negotiated is set while mux->lock is held but the events
+     * can only be pushed after it is dropped, so the output loop has to gate on
+     * this rather than on caps_negotiated: otherwise it can slip into that
+     * window and push a buffer ahead of the events that describe it. */
+    gboolean events_pushed;
+
+    /* Set once the "sink caps changed after negotiation" error has been posted,
+     * so an upstream element that retries per buffer cannot flood the bus. */
+    gboolean caps_change_error_posted;
+
+    /* Set once the batch anchor has been reported as moving backwards, so a
+     * persistently bursty source warns once instead of several times a second.
+     * Later occurrences are logged at debug level. */
+    gboolean anchor_regression_warned;
+
     /* Segment tracking */
     gboolean segment_sent;
     GstSegment segment;
+
+    /* TRUE once an upstream segment has been adopted as the source segment.
+     * Only sync-mode=none does this: the other modes rewrite every PTS onto a
+     * zero-based timeline, for which a zero-based segment is the correct
+     * description. Reset by a flush, so a seek adopts the new one. */
+    gboolean segment_adopted;
 
     /* FPS control */
     GstClockTime last_output_time;
@@ -120,9 +209,6 @@ struct _GstGvaStreammux {
     GstClockTime batch_anchor_pts;
     gint64 batch_start_real_time;
     GstClockTime last_pushed_batch_pts;
-
-    /* Output task */
-    guint eos_pad_count;
 };
 
 struct _GstGvaStreammuxClass {

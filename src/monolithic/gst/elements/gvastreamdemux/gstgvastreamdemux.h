@@ -7,6 +7,7 @@
 #ifndef __GST_GVA_STREAMDEMUX_H__
 #define __GST_GVA_STREAMDEMUX_H__
 
+#include <gst/base/gstflowcombiner.h>
 #include <gst/gst.h>
 #include <gst/video/video.h>
 
@@ -19,6 +20,10 @@ G_BEGIN_DECLS
 #define GST_IS_GVA_STREAMDEMUX(obj) (G_TYPE_CHECK_INSTANCE_TYPE((obj), GST_TYPE_GVA_STREAMDEMUX))
 #define GST_IS_GVA_STREAMDEMUX_CLASS(klass) (G_TYPE_CHECK_CLASS_TYPE((klass), GST_TYPE_GVA_STREAMDEMUX))
 
+/* Upper bound on a request pad's index. Releasing a pad frees its index for
+ * reuse, and an unnamed request takes the lowest free one, so a long-running
+ * pipeline that recycles sources never approaches this; only one that keeps
+ * counting upwards does. */
 #define GST_GVA_STREAMDEMUX_MAX_PAD_INDEX 256
 
 typedef struct _GstGvaStreamdemux GstGvaStreamdemux;
@@ -51,13 +56,37 @@ struct _GstGvaStreamdemux {
 
     /* Synchronization */
     GMutex lock;
+    /* Signalled when a flush starts, so a thread waiting out its max-fps
+     * interval gives up. FLUSH_STOP is a serialized event, so it waits for the
+     * stream lock that the waiting chain function holds, and nothing
+     * downstream restarts until it has been through. */
+    GCond fps_cond;
+    gboolean flushing;
 
     /* Src pads array (indexed by source_id) */
     GPtrArray *srcpads;
 
-    /* FPS control */
-    GstClockTime last_output_time;
+    /* Combines the per-src-pad flow returns into the one value the chain
+     * function reports upstream, so a single unlinked or finished branch does
+     * not stop the other ones. Not MT-safe; only touch it with lock held. */
+    GstFlowCombiner *flow_combiner;
+
+    /* FPS control.
+     *
+     * PASSTHROUGH carries one source per buffer, so each source is throttled
+     * against its own last output time, indexed by source id -- a single
+     * shared time would divide max-fps between the sources instead of
+     * applying it to each. CONTAINER carries every source in one buffer, so
+     * one time covers the whole batch and therefore every source in it. */
+    GArray *last_output_times;
+    GstClockTime last_batch_output_time;
     GstClockTime max_fps_duration;
+
+    /* Per source id: whether the "no src pad for this source" warning has
+     * already been issued. A batch carrying a source nobody requested a branch
+     * for arrives at the full frame rate, so without this it would be a
+     * warning per buffer. Cleared when a pad is requested for that id. */
+    GArray *unrouted_warned;
 };
 
 struct _GstGvaStreamdemuxClass {

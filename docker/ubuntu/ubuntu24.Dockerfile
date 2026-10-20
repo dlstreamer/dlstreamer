@@ -306,6 +306,7 @@ RUN \
     shopt -s dotglob && \
     mv gst-plugins-rs/* . && \
     git checkout "tags/gstreamer-$GST_VERSION" && \
+    sed -i '/analytics\/burn/d' Cargo.toml && \
     curl -sSL --insecure https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.92.0 && \
     source "$HOME"/.cargo/env && \
     cargo install cargo-c --version=0.10.11 --locked && \
@@ -366,7 +367,7 @@ RUN cp -a /usr/local/lib/librealsense* ./
 # ==============================================================================
 FROM builder AS dlstreamer-dev
 
-ARG DLSTREAMER_VERSION=2026.2.0
+ARG DLSTREAMER_VERSION=2026.3.0
 ARG DLSTREAMER_BUILD_NUMBER
 ARG OPENVINO_VERSION=2026.3.1
 # DL Streamer development image and build proccess
