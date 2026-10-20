@@ -6,7 +6,6 @@
 
 #include "video_dump_writer.hpp"
 
-#include <cairo.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/gst.h>
 
@@ -44,49 +43,6 @@ std::string pick_encoder(EncoderMode mode) {
 void unref_all(const std::vector<GstBuffer *> &frames) {
     for (GstBuffer *b : frames)
         gst_buffer_unref(b);
-}
-
-struct AnnotationState {
-    const std::vector<std::string> *annotations;
-    std::size_t frame_index = 0;
-    std::string current_text;
-};
-
-GstPadProbeReturn update_frame_annotation(GstPad *, GstPadProbeInfo *info, gpointer user_data) {
-    auto *state = static_cast<AnnotationState *>(user_data);
-    if (GST_PAD_PROBE_INFO_TYPE(info) & GST_PAD_PROBE_TYPE_BUFFER) {
-        state->current_text = state->frame_index < state->annotations->size()
-                                  ? state->annotations->at(state->frame_index)
-                                  : std::string();
-        ++state->frame_index;
-    }
-    return GST_PAD_PROBE_OK;
-}
-
-void draw_event_annotation(GstElement *, cairo_t *cr, guint64, guint64, gpointer user_data) {
-    const auto *state = static_cast<const AnnotationState *>(user_data);
-    if (!state || state->current_text.empty())
-        return;
-
-    cairo_select_font_face(cr, "sans-serif", CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-    cairo_set_font_size(cr, 32.0);
-    cairo_text_extents_t extents;
-    cairo_text_extents(cr, state->current_text.c_str(), &extents);
-
-    constexpr double margin = 24.0;
-    constexpr double padding = 16.0;
-    const double x = margin;
-    const double y = margin;
-    const double box_width = extents.width + 2.0 * padding;
-    const double box_height = 32.0 + 2.0 * padding;
-
-    cairo_set_source_rgba(cr, 0.0, 0.0, 0.0, 0.72);
-    cairo_rectangle(cr, x, y, box_width, box_height);
-    cairo_fill(cr);
-
-    cairo_set_source_rgb(cr, 1.0, 1.0, 1.0);
-    cairo_move_to(cr, x + padding, y + padding + 32.0);
-    cairo_show_text(cr, state->current_text.c_str());
 }
 
 } // namespace
@@ -152,8 +108,7 @@ bool VideoDumpWriter::write_job(const DumpJob &job, std::string &error_out) {
         return false;
     }
 
-    const std::string desc = "appsrc name=src format=time is-live=false block=true ! videoconvert ! "
-                             "cairooverlay name=annotation ! videoconvert ! " +
+    const std::string desc = "appsrc name=src format=time is-live=false block=true ! videoconvert ! " +
                              pick_encoder(job.encoder_mode) + " ! h264parse ! mp4mux ! filesink name=sink";
 
     GError *gerr = nullptr;
@@ -168,13 +123,6 @@ bool VideoDumpWriter::write_job(const DumpJob &job, std::string &error_out) {
 
     GstElement *appsrc = gst_bin_get_by_name(GST_BIN(pipeline), "src");
     GstElement *sink = gst_bin_get_by_name(GST_BIN(pipeline), "sink");
-    GstElement *annotation = gst_bin_get_by_name(GST_BIN(pipeline), "annotation");
-    AnnotationState annotation_state{&job.frame_annotations};
-    GstPad *annotation_sink_pad = gst_element_get_static_pad(annotation, "sink");
-    gst_pad_add_probe(annotation_sink_pad, GST_PAD_PROBE_TYPE_BUFFER, update_frame_annotation, &annotation_state,
-                      nullptr);
-    gst_object_unref(annotation_sink_pad);
-    g_signal_connect(annotation, "draw", G_CALLBACK(draw_event_annotation), &annotation_state);
     g_object_set(sink, "location", job.output_path.c_str(), NULL);
 
     GstCaps *caps = gst_video_info_to_caps(const_cast<GstVideoInfo *>(&job.video_info));
@@ -186,7 +134,6 @@ bool VideoDumpWriter::write_job(const DumpJob &job, std::string &error_out) {
         unref_all(job.frames);
         gst_object_unref(appsrc);
         gst_object_unref(sink);
-        gst_object_unref(annotation);
         gst_element_set_state(pipeline, GST_STATE_NULL);
         gst_object_unref(pipeline);
         return false;
@@ -236,7 +183,6 @@ bool VideoDumpWriter::write_job(const DumpJob &job, std::string &error_out) {
     gst_element_set_state(pipeline, GST_STATE_NULL);
     gst_object_unref(appsrc);
     gst_object_unref(sink);
-    gst_object_unref(annotation);
     gst_object_unref(pipeline);
     return ok;
 }

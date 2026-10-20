@@ -31,9 +31,6 @@ element (e.g. `gvadetect`) and a downstream consumer such as `gvagenai`. It read
   post) are encoded and muxed to a video file by a background worker thread, via an internal
   `appsrc ! videoconvert ! encoder ! muxer ! filesink` pipeline. This never blocks the main
   streaming thread.
-- **Video annotation**: matching target labels and confidence scores are drawn only on frames
-  where those detections are present. The trigger frame also includes its UTC trigger time;
-  frames without a matching detection have no detection label overlay.
 - **Metadata**: forwarded frames get frame-level `GstAnalyticsClsMtd` entries describing the
   event state and, on start frames, the triggering class(es). See [Metadata](#metadata).
 

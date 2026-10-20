@@ -23,7 +23,6 @@ enum class EncoderMode { Software, VaApi, Auto };
 struct DumpJob {
     std::string output_path;
     std::vector<GstBuffer *> frames; // owning refs; consumed (pushed into appsrc) by the writer
-    std::vector<std::string> frame_annotations;
     GstVideoInfo video_info{};
     EncoderMode encoder_mode = EncoderMode::Software;
 };

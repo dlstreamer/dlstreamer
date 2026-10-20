@@ -7,7 +7,6 @@
 #include "gstgvaeventrecorder.h"
 
 #include <algorithm>
-#include <iomanip>
 #include <memory>
 #include <mutex>
 #include <sstream>
@@ -87,7 +86,6 @@ namespace {
 
 struct CachedFrame {
     GstBuffer *buffer = nullptr;
-    std::string annotation;
 };
 
 // One recording session currently being assembled (snapshot + event + post-event frames).
@@ -95,10 +93,8 @@ struct ActiveSession {
     std::string class_label;
     float confidence = 0.0f;
     std::vector<GstBuffer *> frames; // owning refs
-    std::vector<std::string> frame_annotations;
     std::string output_path;
     std::vector<GstBuffer *> downstream_frames; // owning refs
-    std::vector<std::string> downstream_annotations;
     std::string downstream_output_path;
 };
 
@@ -152,34 +148,15 @@ static std::vector<std::string> parse_target_classes(const gchar *csv) {
     return result;
 }
 
-static std::string format_frame_annotation(const std::vector<DetectionInput> &detections,
-                                           const std::vector<std::string> &target_classes, gdouble threshold) {
-    std::ostringstream text;
-    bool first = true;
-    for (const auto &d : detections) {
-        if (d.confidence < threshold ||
-            std::find(target_classes.begin(), target_classes.end(), d.label) == target_classes.end())
-            continue;
-        if (!first)
-            text << " | ";
-        text << d.label << " confidence=" << std::fixed << std::setprecision(2) << d.confidence;
-        first = false;
-    }
-    return text.str();
-}
-
 struct EventTimestamp {
     std::string filename;
-    std::string display;
 };
 
 static EventTimestamp make_event_timestamp() {
     GDateTime *now = g_date_time_new_now_utc();
     gchar *filename = g_date_time_format(now, "%Y%m%dT%H%M%SZ");
-    gchar *display = g_date_time_format(now, "%Y-%m-%d %H:%M:%S UTC");
-    EventTimestamp timestamp{filename, display};
+    EventTimestamp timestamp{filename};
     g_free(filename);
-    g_free(display);
     g_date_time_unref(now);
     return timestamp;
 }
@@ -195,23 +172,21 @@ static std::string build_output_path(const std::string &dir, const std::string &
 }
 
 static void enqueue_dump(GstGvaEventRecorder *self, GvaEventRecorderRuntime *rt, const std::string &path,
-                         std::vector<GstBuffer *> &frames, std::vector<std::string> &annotations) {
+                         std::vector<GstBuffer *> &frames) {
     if (frames.empty())
         return;
     DumpJob job;
     job.output_path = path;
     job.frames = std::move(frames);
-    job.frame_annotations = std::move(annotations);
     job.video_info = rt->video_info;
     job.encoder_mode = static_cast<EncoderMode>(self->encoder_mode);
     rt->writer.enqueue(std::move(job));
     frames.clear();
-    annotations.clear();
 }
 
 static void finish_session(GstGvaEventRecorder *self, GvaEventRecorderRuntime *rt, ActiveSession &s) {
-    enqueue_dump(self, rt, s.output_path, s.frames, s.frame_annotations);
-    enqueue_dump(self, rt, s.downstream_output_path, s.downstream_frames, s.downstream_annotations);
+    enqueue_dump(self, rt, s.output_path, s.frames);
+    enqueue_dump(self, rt, s.downstream_output_path, s.downstream_frames);
 }
 
 static TriggerEngine::Config make_engine_config(GstGvaEventRecorder *self) {
@@ -619,25 +594,19 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
 
     std::vector<uint64_t> active_ids_before = rt->engine->active_session_ids();
 
-    const auto target_classes = parse_target_classes(self->target_classes);
-    std::string frame_annotation = format_frame_annotation(detections, target_classes, self->confidence_threshold);
     TriggerEngine::FrameOutcome outcome = rt->engine->process_frame(tick, detections);
 
     EventTimestamp trigger_timestamp;
     if (!outcome.new_triggers.empty())
         trigger_timestamp = make_event_timestamp();
-    if (!outcome.new_triggers.empty() && !frame_annotation.empty())
-        frame_annotation += " | detected at " + trigger_timestamp.display;
 
     // Snapshot the ring before the current buffer is pushed, so the event frame is not duplicated.
     for (const auto &trig : outcome.new_triggers) {
         ActiveSession session;
         session.class_label = trig.class_label;
         session.confidence = trig.confidence;
-        for (const CachedFrame &frame : rt->ring.snapshot()) {
+        for (const CachedFrame &frame : rt->ring.snapshot())
             session.frames.push_back(gst_buffer_ref(frame.buffer));
-            session.frame_annotations.push_back(frame.annotation);
-        }
         const std::string full_clip_output_dir =
             self->full_clip_output_dir ? self->full_clip_output_dir : DEFAULT_FULL_CLIP_OUTPUT_DIR;
         session.output_path =
@@ -670,14 +639,12 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
         auto it = rt->active_sessions.find(id);
         if (it != rt->active_sessions.end()) {
             it->second.frames.push_back(gst_buffer_ref(buf));
-            it->second.frame_annotations.push_back(frame_annotation);
         }
     }
     for (const auto &trig : outcome.new_triggers) {
         auto it = rt->active_sessions.find(trig.session_id);
         if (it != rt->active_sessions.end()) {
             it->second.frames.push_back(gst_buffer_ref(buf));
-            it->second.frame_annotations.push_back(frame_annotation);
         }
     }
 
@@ -686,12 +653,11 @@ static GstFlowReturn gst_gvaeventrecorder_transform_ip(GstBaseTransform *base, G
             if (!rt->engine->is_event_active(entry.first))
                 continue;
             entry.second.downstream_frames.push_back(gst_buffer_ref(buf));
-            entry.second.downstream_annotations.push_back(frame_annotation);
         }
     }
 
     // The pre-event ring is shared and continuous: never reset by a trigger.
-    rt->ring.push({gst_buffer_ref(buf), frame_annotation});
+    rt->ring.push({gst_buffer_ref(buf)});
 
     for (uint64_t id : outcome.finished_sessions) {
         auto it = rt->active_sessions.find(id);
