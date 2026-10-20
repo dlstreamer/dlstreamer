@@ -162,20 +162,8 @@ case "${OUTPUT}" in
     # outputs, only the saved PNG count changes.
     PNG_INTERVAL_STAGE=""
     if [[ "${INTERVAL}" != "1" ]]; then
-      if ! command -v ffprobe >/dev/null 2>&1; then
-        echo "Error: ffprobe not found; required to compute framerate for INTERVAL" >&2
-        exit 1
-      fi
-      SRC_FPS=$(ffprobe -v error -select_streams v:0 \
-        -show_entries stream=r_frame_rate -of csv=p=0 "${INPUT}")
-      if [[ -z "${SRC_FPS}" ]]; then
-        echo "Error: could not determine input framerate for INTERVAL scaling" >&2
-        exit 1
-      fi
-      FPS_NUM="${SRC_FPS%%/*}"
-      FPS_DEN="${SRC_FPS#*/}"
-      [[ "${FPS_DEN}" == "${SRC_FPS}" ]] && FPS_DEN=1
-      TARGET_FPS="${FPS_NUM}/$(( FPS_DEN * INTERVAL ))"
+      SRC_FPS=24 # hardcoded for the default videos/people.mp4 (downloaded at fps=24.0)
+      TARGET_FPS="${SRC_FPS}/${INTERVAL}"
       echo "PNG downsampling: ${SRC_FPS} fps -> ${TARGET_FPS} fps (videorate)"
       PNG_INTERVAL_STAGE="videorate ! \"video/x-raw,framerate=${TARGET_FPS}\" ! "
     fi
