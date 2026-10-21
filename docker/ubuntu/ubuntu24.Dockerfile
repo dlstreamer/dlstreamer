@@ -369,7 +369,8 @@ FROM builder AS dlstreamer-dev
 
 ARG DLSTREAMER_VERSION=2026.3.0
 ARG DLSTREAMER_BUILD_NUMBER
-ARG OPENVINO_VERSION=2026.3.1
+ARG OPENVINO_VERSION=2026.5.0.dev20261020
+ARG OPENVINO_NIGHTLY_BUILD=2026.5.0-23523-1bddaae9e4f
 # DL Streamer development image and build proccess
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -388,20 +389,22 @@ COPY --from=realsense-builder /usr/local/include/librealsense2 /usr/local/includ
 # Build DL Streamer
 WORKDIR /home/dlstreamer
 
-RUN apt-get update && apt-get install --no-install-recommends -y gnupg=\* && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+# OpenVINO Runtime, installed from the archive distribution instead of the apt
+# repository, see:
+# https://docs.openvino.ai/2026/get-started/install-openvino/install-openvino-archive-linux.html
+ARG OPENVINO_PKG=openvino_toolkit_ubuntu24_${OPENVINO_VERSION}_x86_64
+ARG OPENVINO_PKG_URL=https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/${OPENVINO_NIGHTLY_BUILD}/${OPENVINO_PKG}.tgz
+
 RUN \
-    echo "deb https://apt.repos.intel.com/openvino ubuntu24 main" | tee /etc/apt/sources.list.d/intel-openvino.list && \
-    curl -sSL -O https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
-    apt-get update && apt-get install --no-install-recommends -y "openvino-${OPENVINO_VERSION}"=\* && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    mkdir -p /opt/intel && \
+    curl -L ${OPENVINO_PKG_URL} | tar -xz -C /opt/intel && \
+    mv "/opt/intel/${OPENVINO_PKG}" "/opt/intel/openvino_${OPENVINO_VERSION}" && \
+    ln -s "/opt/intel/openvino_${OPENVINO_VERSION}" /opt/intel/openvino
 
 # OpenVINO Gen AI
-ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_VERSION}.0_x86_64
-ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/${OPENVINO_VERSION}/linux/${OPENVINO_GENAI_VER}.tar.gz
+ARG OPENVINO_GENAI_VERSION=2026.5.0.0.dev20261020
+ARG OPENVINO_GENAI_VER=openvino_genai_ubuntu24_${OPENVINO_GENAI_VERSION}_x86_64
+ARG OPENVINO_GENAI_PKG=https://storage.openvinotoolkit.org/repositories/openvino_genai/packages/nightly/${OPENVINO_GENAI_VERSION}/${OPENVINO_GENAI_VER}.tar.gz
 
 RUN curl -L ${OPENVINO_GENAI_PKG} | tar -xz && \
     mv ${OPENVINO_GENAI_VER} /opt/intel/openvino_genai
@@ -434,6 +437,7 @@ ENV PYTHONPATH=${GSTREAMER_DIR}/lib/python3/dist-packages:${DLSTREAMER_DIR}/pyth
 # Build DLStreamer
 # hadolint ignore=SC1091
 RUN \
+    source /opt/intel/openvino/setupvars.sh && \
     source /opt/intel/openvino_genai/setupvars.sh && \
     cmake \
        -DCMAKE_BUILD_TYPE="${BUILD_ARG}" \
@@ -477,6 +481,7 @@ RUN \
     mkdir -p /deb-pkg/opt/rdkafka && \
     mkdir -p /deb-pkg/opt/librealsense/ && \
     find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
+    cp -a /opt/intel/openvino/runtime/lib/intel64/*.so* /deb-pkg/usr/lib/ && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -561,11 +566,6 @@ RUN curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.38.0
     rm -rf /var/lib/apt/lists/* /tmp/npu_deps
 
 WORKDIR /
-
-RUN curl -fsSL https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB | \
-    gpg --dearmor -o /usr/share/keyrings/intel-sw-products.gpg && \
-    echo "deb [signed-by=/usr/share/keyrings/intel-sw-products.gpg] https://apt.repos.intel.com/openvino ubuntu24 main" \
-    > /etc/apt/sources.list.d/intel-openvino.list
 
 RUN mkdir -p /debs
 COPY --from=deb-builder /*.deb /debs/
