@@ -465,6 +465,7 @@ jobs:
           ubuntu_version: ${{ matrix.ubuntu_version }}
         run: |
           sudo apt install -y libcairo2-dev libgirepository1.0-dev # Build-time headers required to compile PyGObject
+          sudo apt install -y cmake # needed for building cpp_draw_attributes and custom_postproc* samples
           if [[ ${ubuntu_version} == "ubuntu24" ]]; then
               sudo apt install -y libopencv-dev
           fi
