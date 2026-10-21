@@ -86,7 +86,7 @@ The GStreamer Python plugin (`libgstpython.so`) must be available in `GST_PLUGIN
 Install Python dependencies required by [`prepare_models.py`](prepare_models.py):
 
 ```sh
-uv pip install -r requirements.txt
+uv pip install --index-strategy unsafe-best-match -r requirements.txt
 ```
 
 ## Running

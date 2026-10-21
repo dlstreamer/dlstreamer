@@ -45,7 +45,9 @@ fi
 
 RUN_PREFIX=
 
-OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/2026.3.1/linux/openvino_toolkit_${OS}_2026.3.1.22476.56d9685302d_x86_64.tgz"
+# Nightly build; keep in sync with ARG OPENVINO_VERSION / OPENVINO_NIGHTLY_BUILD
+# in docker/ubuntu/ubuntu24.Dockerfile.
+OV_REMOTE_ARCHIVE_PATH="https://storage.openvinotoolkit.org/repositories/openvino/packages/nightly/2026.5.0-23523-1bddaae9e4f/openvino_toolkit_${OS}_2026.5.0.dev20261020_x86_64.tgz"
 OV_ARCHIVE_EXT=".tgz"
 OV_CHECKSUM_EXT=".tgz.sha256"
 OV_LOCAL_ARCHIVE_PATH=/tmp/openvino_installation

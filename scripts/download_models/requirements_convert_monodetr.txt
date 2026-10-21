@@ -4,7 +4,8 @@ opencv-python
 numba
 scikit-image
 tqdm
-openvino
+--extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly
+openvino==2026.5.0.dev20261020
 gdown  # convert_monodetr_ov.py: download the upstream checkpoint when --ckpt is omitted
 
 # CPU-only PyTorch. The project's inference path is OpenVINO; PyTorch is
