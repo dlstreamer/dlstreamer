@@ -576,7 +576,6 @@ def download_pointpillars(models_path: Path) -> None:
         download_file(f"{base_url}/{file_name}", model_dir / file_name)
 
 
-# Processing order matches download_other_models.sh.
 MODEL_HANDLERS: dict[str, tuple[str, Callable[[Path], None]]] = {
     "yolox-tiny": ("YOLOx-TINY", download_yolox_tiny),
     "yolox_s": ("YOLOx-S", download_yolox_s),
