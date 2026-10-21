@@ -126,7 +126,6 @@ USER dlstreamer
 RUN \
     uv venv --python python3 /python3venv && \
     VIRTUAL_ENV=/python3venv uv pip install --no-cache-dir --no-deps \
-    --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly \
     meson==1.4.1 \
     ninja==1.11.1.1 \
     numpy==2.2.0 \
@@ -146,7 +145,9 @@ RUN \
     pluggy==1.5.0 \
     exceptiongroup==1.2.2 \
     iniconfig==2.0.0 \
-    typing-extensions==4.15.0 \
+    typing-extensions==4.15.0 && \
+    VIRTUAL_ENV=/python3venv uv pip install --no-cache-dir --no-deps \
+    --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly \
     openvino==2026.5.0.dev20261020
 
 # hadolint ignore=DL3002
