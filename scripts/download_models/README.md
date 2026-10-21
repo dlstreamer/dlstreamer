@@ -240,7 +240,12 @@ Script: `download_other_models.py`
 
 Dependencies file: `requirements_download_other_models.txt`
 
-This script downloads/converts a fixed set of helper models (for example, `centerface`, `hsemotion`, `deeplabv3`, `mars-small128`) into the `MODELS_PATH/public/...` layout. It runs on Linux and Windows and requires Python 3.12 or older.
+This script downloads/converts a fixed set of helper models (for example, `centerface`, `hsemotion`, `deeplabv3`, `mars-small128`) into the `MODELS_PATH/public/...` layout. It runs on Linux and Windows.
+
+`yolox-tiny` and `deeplabv3` are converted with the OpenVINO Model Zoo tools
+(`openvino-dev` 2024.6.0), which require Python 3.12 or older. With a newer
+Python these two models are skipped with a warning and the script exits with a
+non-zero status. Use Python 3.12 to download all models.
 
 ### Setup
 
@@ -269,9 +274,9 @@ python download_other_models.py [MODEL] [--outdir <output_dir>]
 - `--outdir` (optional, default `${MODELS_PATH}`): Root output directory. Models
   are written under `<outdir>/public/<model_name>/...`.
 
-Models that already exist in the output directory are skipped. If a model fails,
-the remaining models are still processed and the script exits with a non-zero
-status listing the failed models.
+Models that already exist in the output directory are not downloaded again. If a
+model fails or is skipped, the remaining models are still processed and the
+script exits with a non-zero status listing the failed and skipped models.
 
 ### Versioning Behavior
 

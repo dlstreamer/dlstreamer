@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-MAX_PYTHON_VERSION = (3, 12)
+MAX_OMZ_PYTHON_VERSION = (3, 12)
 USER_AGENT = "dlstreamer-download-models"
 TORCH_CPU_INDEX = "https://download.pytorch.org/whl/cpu"
 TORCH_PACKAGES = ("torch==2.13.0", "torchaudio==2.11.0", "torchvision==0.28.0")
@@ -237,8 +237,17 @@ def temporary_venv(package_groups: list[list[str]]) -> Iterator[tuple[Path, dict
         remove_path(venv_dir)
 
 
+class ModelSkipped(Exception):
+    """Raised when a model cannot be converted with the current Python version."""
+
+
 def run_omz_tools(models_path: Path, model_name: str, package_groups: list[list[str]]) -> None:
     """Run omz_downloader + omz_converter from a temporary openvino-dev venv."""
+    if sys.version_info[:2] > MAX_OMZ_PYTHON_VERSION:
+        raise ModelSkipped(
+            f"requires Python <= {MAX_OMZ_PYTHON_VERSION[0]}.{MAX_OMZ_PYTHON_VERSION[1]} (openvino-dev 2024.6.0), "
+            f"current Python is {sys.version_info.major}.{sys.version_info.minor}"
+        )
     with temporary_venv(package_groups) as (venv_dir, env):
         run([venv_executable(venv_dir, "omz_downloader"), "--name", model_name], cwd=models_path, env=env)
         run([venv_executable(venv_dir, "omz_converter"), "--name", model_name], cwd=models_path, env=env)
@@ -664,14 +673,6 @@ def main() -> int:
         log("Please set MODELS_PATH env variable or pass --outdir with target path to download models")
         return 1
 
-    # openvino-dev 2024.6.0 (omz tools) and paddlepaddle publish no wheels for Python >= 3.13.
-    if sys.version_info[:2] > MAX_PYTHON_VERSION:
-        log(
-            f"Python {sys.version_info.major}.{sys.version_info.minor} is not supported; "
-            f"use Python <= {MAX_PYTHON_VERSION[0]}.{MAX_PYTHON_VERSION[1]} for this script."
-        )
-        return 1
-
     models_path = Path(models_path_arg).expanduser().resolve()
     try:
         (models_path / "public").mkdir(parents=True, exist_ok=True)
@@ -686,6 +687,7 @@ def main() -> int:
     log(f"Downloading models to folder {models_path}.")
 
     failures: list[str] = []
+    skipped: list[str] = []
     for name in models:
         title, handler = MODEL_HANDLERS[name]
         display_header(f"Downloading {title} model")
@@ -693,13 +695,19 @@ def main() -> int:
         try:
             handler(models_path)
             log(f"[OK] {name} ({time.monotonic() - start:.0f}s)")
+        except ModelSkipped as exc:
+            log(f"[WARN] {name} skipped: {exc}")
+            skipped.append(name)
         except Exception:  # pylint: disable=broad-exception-caught
             traceback.print_exc()
             log(f"[ERROR] {name} failed ({time.monotonic() - start:.0f}s)")
             failures.append(name)
 
+    if skipped:
+        log(f"\nSkipped models: {', '.join(skipped)}")
     if failures:
         log(f"\nFailed models: {', '.join(failures)}")
+    if skipped or failures:
         return 1
     log("\nAll requested models are ready.")
     return 0
