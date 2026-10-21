@@ -39,7 +39,7 @@ env:
   TESTS_RESULTS_DIRECTORY: 'C:\dlstreamer_test_results'
   UNIT_TESTS_RESULTS_DIRECTORY: 'C:\dlstreamer_unit_test_results'
   PYTHON_VERSION: '3.12.7'
-  DLL_EXPECTED_COUNT: 14
+  DLL_EXPECTED_COUNT: ${{ vars.EXPECTED_WIN_DLL_COUNT }}
 
 jobs:
   setup:
