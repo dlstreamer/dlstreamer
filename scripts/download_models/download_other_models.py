@@ -25,9 +25,10 @@ import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
-from typing import Callable, Iterator
+from typing import TYPE_CHECKING, Callable, Iterator
 
-import openvino as ov
+if TYPE_CHECKING:
+    import openvino as ov
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -192,6 +193,8 @@ def patch_file(path: Path, old: str, new: str) -> None:
 
 def read_model(xml_path: Path) -> ov.Model:
     """Read an IR fully into memory so its files can be deleted afterwards (needed on Windows)."""
+    import openvino as ov  # pylint: disable=import-outside-toplevel,redefined-outer-name
+
     core = ov.Core()
     core.set_property({"ENABLE_MMAP": False})
     return core.read_model(model=str(xml_path))
@@ -206,6 +209,8 @@ def onnx_to_ir(
 
     Equivalent of `ovc <onnx> [--input <shape>] --output_model <xml> --compress_to_fp16=<bool>`.
     """
+    import openvino as ov  # pylint: disable=import-outside-toplevel,redefined-outer-name
+
     kwargs = {"input": ov.PartialShape(input_shape)} if input_shape else {}
     ov_model = ov.convert_model(str(onnx_path), **kwargs)
     for xml_path, compress_to_fp16 in outputs:
@@ -334,6 +339,8 @@ def download_license_plate_reader_model(
 
 
 def download_centerface(models_path: Path) -> None:
+    import openvino as ov  # pylint: disable=import-outside-toplevel,redefined-outer-name
+
     model_name = "centerface"
     model_dir = models_path / "public" / model_name
     if all_exist(model_dir / "FP16" / f"{model_name}.xml", model_dir / "FP32" / f"{model_name}.xml"):
@@ -365,6 +372,8 @@ def download_centerface(models_path: Path) -> None:
 
 
 def download_hsemotion(models_path: Path) -> None:
+    import openvino as ov  # pylint: disable=import-outside-toplevel,redefined-outer-name
+
     model_name = "hsemotion"
     model_dir = models_path / "public" / model_name
     if all_exist(model_dir / "FP16" / f"{model_name}.xml"):
@@ -394,6 +403,8 @@ def download_hsemotion(models_path: Path) -> None:
 
 
 def download_deeplabv3(models_path: Path) -> None:
+    import openvino as ov  # pylint: disable=import-outside-toplevel,redefined-outer-name
+
     model_name = "deeplabv3"
     model_dir = models_path / "public" / model_name
     fp32_xml = model_dir / "FP32" / f"{model_name}.xml"
@@ -648,6 +659,12 @@ def main() -> int:
     args = parse_args()
     models = resolve_models(args.model)
 
+    models_path_arg = args.outdir or os.environ.get("MODELS_PATH", "")
+    if not models_path_arg:
+        log("MODELS_PATH is not specified")
+        log("Please set MODELS_PATH env variable or pass --outdir with target path to download models")
+        return 1
+
     # openvino-dev 2024.6.0 (omz tools) and paddlepaddle publish no wheels for Python >= 3.13.
     if sys.version_info[:2] > MAX_PYTHON_VERSION:
         log(
@@ -656,11 +673,6 @@ def main() -> int:
         )
         return 1
 
-    models_path_arg = args.outdir or os.environ.get("MODELS_PATH", "")
-    if not models_path_arg:
-        log("MODELS_PATH is not specified")
-        log("Please set MODELS_PATH env variable or pass --outdir with target path to download models")
-        return 1
     models_path = Path(models_path_arg).expanduser().resolve()
     try:
         (models_path / "public").mkdir(parents=True, exist_ok=True)
