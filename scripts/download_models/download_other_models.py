@@ -145,12 +145,14 @@ def _looks_like_error_payload(path: Path, extension: str) -> bool:
 
 def download_file(url: str, destination: Path, retries: int = 3) -> None:
     """Download `url` to `destination` with retries and basic payload validation."""
+    if not url.startswith("https://"):
+        raise ValueError(f"Refusing to download from non-HTTPS URL: {url}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     last_error: Exception | None = None
     for attempt in range(1, retries + 1):
         try:
             request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-            with urllib.request.urlopen(request, timeout=120) as response, destination.open("wb") as output:
+            with urllib.request.urlopen(request, timeout=120) as response, destination.open("wb") as output:  # nosec B310 - URL scheme validated above
                 shutil.copyfileobj(response, output)
             break
         except (urllib.error.URLError, OSError) as exc:
