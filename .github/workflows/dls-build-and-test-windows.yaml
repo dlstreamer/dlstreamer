@@ -201,7 +201,7 @@ jobs:
           $dllDir = "${{ env.DLS_DLL_TARGET_DIRECTORY }}"
           $files = Get-ChildItem -Path $dllDir -Recurse -Filter *.dll -File
 
-          $expectedCount = ${{ env.DLL_EXPECTED_COUNT }}
+          $expectedCount = [int]$env:DLL_EXPECTED_COUNT
           $actualCount = $files.Count
           $isMismatch = $actualCount -ne $expectedCount
 
