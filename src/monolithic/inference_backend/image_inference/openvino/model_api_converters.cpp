@@ -574,11 +574,6 @@ bool convertHuggingFaceMeta2ModelApi(const std::string &model_file, ov::AnyMap &
         modelConfig["model_type"] = ov::Any(std::string("rtdetr"));
         modelConfig["output_raw_scores"] =
             ov::Any(std::string("False")); // meaning the model outputs processed detection results (no softmax needed)
-        // transformers defaults use_focal_loss to true: sigmoid scores instead of softmax with a no-object class
-        const bool use_focal_loss =
-            !(config_json.contains("use_focal_loss") && config_json["use_focal_loss"].is_boolean() &&
-              !config_json["use_focal_loss"].get<bool>());
-        modelConfig["use_focal_loss"] = ov::Any(std::string(use_focal_loss ? "True" : "False"));
     } else if (architecture == "RfDetrForObjectDetection") {
         modelConfig["model_type"] = ov::Any(std::string("rfdetr"));
         modelConfig["output_raw_scores"] =
@@ -1123,11 +1118,6 @@ std::map<std::string, GstStructure *> get_model_info_postproc(const std::shared_
             const gboolean nms_execute = element.second.as<std::string>().find("True") != std::string::npos;
             gst_structure_set(s, "nms_execute", G_TYPE_BOOLEAN, nms_execute, NULL);
             GST_INFO("[get_model_info_postproc] nms_execute: %d", nms_execute);
-        }
-        if (element.first == "use_focal_loss") {
-            const gboolean use_focal_loss = element.second.as<std::string>() == "True";
-            gst_structure_set(s, "use_focal_loss", G_TYPE_BOOLEAN, use_focal_loss, NULL);
-            GST_INFO("[get_model_info_postproc] use_focal_loss: %d", use_focal_loss);
         }
         if (element.first.find("image_threshold") != std::string::npos) {
             GValue gvalue = G_VALUE_INIT;

@@ -32,38 +32,11 @@ size_t getNumQueriesFromDims(const std::vector<size_t> &dims) {
     return dims[dims.size() - 2];
 }
 
-std::vector<float> softmax(const float *data, size_t size) {
-    std::vector<float> probs(size);
-    float max_val = data[0];
-    for (size_t i = 1; i < size; ++i)
-        max_val = std::max(max_val, data[i]);
-
-    float sum = 0.0f;
-    for (size_t i = 0; i < size; ++i) {
-        probs[i] = std::exp(data[i] - max_val);
-        sum += probs[i];
-    }
-
-    if (sum <= 0.0f)
-        return probs;
-
-    for (size_t i = 0; i < size; ++i)
-        probs[i] /= sum;
-
-    return probs;
-}
-
 float sigmoid(float x) {
     return 1.0f / (1.0f + std::exp(-x));
 }
 
 } // namespace
-
-RTDETRConverter::RTDETRConverter(BlobToMetaConverter::Initializer initializer, double confidence_threshold)
-    : BlobToROIConverter(std::move(initializer), confidence_threshold, false, 0.0) {
-    gboolean focal = FALSE;
-    use_focal_loss = gst_structure_get_boolean(getModelProcOutputInfo().get(), "use_focal_loss", &focal) && focal;
-}
 
 void RTDETRConverter::parseOutputBlobs(const float *logits_data, const std::vector<size_t> &logits_dims,
                                        const float *boxes_data, const std::vector<size_t> &boxes_dims,
@@ -92,7 +65,23 @@ void RTDETRConverter::parseOutputBlobs(const float *logits_data, const std::vect
     const float input_width = static_cast<float>(model_input_image_info.width);
     const float input_height = static_cast<float>(model_input_image_info.height);
 
-    auto add_object = [&](size_t query, size_t class_id, float score) {
+    // Like transformers: sigmoid per class, then the num_queries best (query, class) pairs over the threshold.
+    const size_t valid_classes = std::min(labels_count, logits_classes);
+    std::vector<std::tuple<float, size_t, size_t>> candidates;
+    for (size_t i = 0; i < num_queries; ++i) {
+        const float *logits = logits_data + i * logits_classes;
+        for (size_t c = 0; c < valid_classes; ++c) {
+            const float score = sigmoid(logits[c]);
+            if (score >= confidence_threshold)
+                candidates.emplace_back(score, i, c);
+        }
+    }
+    const size_t keep = std::min(candidates.size(), num_queries);
+    std::partial_sort(candidates.begin(), candidates.begin() + keep, candidates.end(),
+                      [](const auto &a, const auto &b) { return std::get<0>(a) > std::get<0>(b); });
+
+    for (size_t k = 0; k < keep; ++k) {
+        const auto [score, query, class_id] = candidates[k];
         const float *box = boxes_data + query * boxes_object_size;
         const float cx = box[0];
         const float cy = box[1];
@@ -101,51 +90,6 @@ void RTDETRConverter::parseOutputBlobs(const float *logits_data, const std::vect
         objects.emplace_back((cx - 0.5f * w) * input_width, (cy - 0.5f * h) * input_height, w * input_width,
                              h * input_height, 0.0f, score, class_id, BlobToMetaConverter::getLabelByLabelId(class_id),
                              1.0f / input_width, 1.0f / input_height, false);
-    };
-
-    if (use_focal_loss) {
-        // Like transformers: sigmoid per class, then the num_queries best (query, class) pairs over the threshold.
-        const size_t valid_classes = std::min(labels_count, logits_classes);
-        std::vector<std::tuple<float, size_t, size_t>> candidates;
-        for (size_t i = 0; i < num_queries; ++i) {
-            const float *logits = logits_data + i * logits_classes;
-            for (size_t c = 0; c < valid_classes; ++c) {
-                const float score = sigmoid(logits[c]);
-                if (score >= confidence_threshold)
-                    candidates.emplace_back(score, i, c);
-            }
-        }
-        const size_t keep = std::min(candidates.size(), num_queries);
-        std::partial_sort(candidates.begin(), candidates.begin() + keep, candidates.end(),
-                          [](const auto &a, const auto &b) { return std::get<0>(a) > std::get<0>(b); });
-        for (size_t k = 0; k < keep; ++k)
-            add_object(std::get<1>(candidates[k]), std::get<2>(candidates[k]), std::get<0>(candidates[k]));
-        return;
-    }
-
-    const bool has_no_object = logits_classes > labels_count;
-    const size_t valid_classes = has_no_object ? labels_count : std::min(labels_count, logits_classes);
-    if (valid_classes == 0)
-        throw std::invalid_argument("No valid classes for RT-DETR post-processing.");
-
-    for (size_t i = 0; i < num_queries; ++i) {
-        const float *logits = logits_data + i * logits_classes;
-
-        auto probs = softmax(logits, logits_classes);
-
-        size_t best_class = 0;
-        float best_score = probs[0];
-        for (size_t c = 1; c < valid_classes; ++c) {
-            if (probs[c] > best_score) {
-                best_score = probs[c];
-                best_class = c;
-            }
-        }
-
-        if (best_score < confidence_threshold)
-            continue;
-
-        add_object(i, best_class, best_score);
     }
 }
 
