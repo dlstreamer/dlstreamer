@@ -177,6 +177,55 @@ GST_START_TEST(test_runtime_property_changes_under_load) {
 
 GST_END_TEST;
 
+/* ========================================================================= */
+/*  inference-interval of elements that share a model                        */
+/* ========================================================================= */
+
+GST_START_TEST(test_shared_model_keeps_explicit_inference_interval) {
+    g_print("Starting test: test_shared_model_keeps_explicit_inference_interval\n");
+    char model_path[MAX_STR_PATH_SIZE];
+    ck_assert(get_model_path(model_path, MAX_STR_PATH_SIZE, "yolo11s", "FP32") == EXIT_STATUS_SUCCESS);
+
+    /* "master" has the model and an interval, "own" has an interval of its own, "bare" only shares the model */
+    gchar *description = g_strdup_printf(
+        "videotestsrc num-buffers=10 ! video/x-raw,width=640,height=480,framerate=30/1 ! tee name=t "
+        "t. ! queue ! gvadetect name=master model=%s model-instance-id=shared inference-interval=2 ! fakesink "
+        "t. ! queue ! gvadetect name=own model-instance-id=shared inference-interval=3 ! fakesink "
+        "t. ! queue ! gvadetect name=bare model-instance-id=shared ! fakesink",
+        model_path);
+    GError *error = NULL;
+    GstElement *pipeline = gst_parse_launch(description, &error);
+    g_free(description);
+    ck_assert_msg(pipeline != NULL && error == NULL, "Cannot create the pipeline: %s", error ? error->message : "");
+
+    ck_assert(gst_element_set_state(pipeline, GST_STATE_PLAYING) != GST_STATE_CHANGE_FAILURE);
+    GstBus *bus = gst_element_get_bus(pipeline);
+    GstMessage *msg =
+        gst_bus_timed_pop_filtered(bus, 120 * GST_SECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_EOS));
+    ck_assert_msg(msg != NULL && GST_MESSAGE_TYPE(msg) == GST_MESSAGE_EOS, "The pipeline did not finish correctly");
+    gst_message_unref(msg);
+
+    const struct {
+        const char *name;
+        guint expected;
+    } expectations[] = {{"master", 2}, {"own", 3}, {"bare", 2}};
+    for (const auto &expectation : expectations) {
+        GstElement *element = gst_bin_get_by_name(GST_BIN(pipeline), expectation.name);
+        ck_assert(element != NULL);
+        guint interval = 0;
+        g_object_get(element, "inference-interval", &interval, NULL);
+        ck_assert_msg(interval == expectation.expected, "%s: inference-interval is %u, expected %u", expectation.name,
+                      interval, expectation.expected);
+        gst_object_unref(element);
+    }
+
+    gst_object_unref(bus);
+    gst_element_set_state(pipeline, GST_STATE_NULL);
+    gst_object_unref(pipeline);
+}
+
+GST_END_TEST;
+
 static Suite *inference_suite(void) {
     Suite *s = suite_create("inference");
     TCase *tc_chain = tcase_create("general");
@@ -186,6 +235,7 @@ static Suite *inference_suite(void) {
     tcase_add_test(tc_chain, test_obj_detection_inference_cpu);
     tcase_add_test(tc_chain, test_obj_detection_inference_gpu);
     tcase_add_test(tc_chain, test_runtime_property_changes_under_load);
+    tcase_add_test(tc_chain, test_shared_model_keeps_explicit_inference_interval);
 
     return s;
 }
