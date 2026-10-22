@@ -812,6 +812,22 @@ bool Impl::extract_primitives(GstBuffer *buffer) {
         prims.emplace_back(t);
     }
 
+    // put avg-fps from gvafpscounter element
+    if (_displ_avgfps) {
+        std::ostringstream fpstext;
+        gfloat avg_fps = 0.0f;
+        g_object_get(_gvafpscounter_element, "avg-fps", &avg_fps, NULL);
+        if (avg_fps > 0.0f) {
+            fpstext << "[avg " << std::fixed << std::setprecision(1) << avg_fps << " FPS]";
+            if (fpstext.str().size() != 0) {
+                cv::Point2f pos(_vinfo->width * 0.8, _vinfo->height * 0.95);
+                render::Text t(fpstext.str(), pos, _displCfg.font_type, _displCfg.font_scale,
+                               indexToColor(COLOR_IDX_WHITE));
+                prims.emplace_back(t);
+            }
+        }
+    }
+
     // Extract and merge any pre-existing watermark metadata from input buffer
     auto watermark_prims = MetaExtractor::extractWatermarkPrimitives(buffer);
     prims.insert(prims.end(), watermark_prims.begin(), watermark_prims.end());
@@ -973,22 +989,6 @@ void Impl::preparePrimsForRoi(GVA::RegionOfInterest &roi, std::vector<render::Pr
                 t.draw_bg = _displCfg.draw_text_background;
                 prims.emplace_back(t);
             }
-    }
-
-    // put avg-fps from gvafpscounter element
-    if (_displ_avgfps) {
-        std::ostringstream fpstext;
-        gfloat avg_fps = 0.0f;
-        g_object_get(_gvafpscounter_element, "avg-fps", &avg_fps, NULL);
-        if (avg_fps > 0.0f) {
-            fpstext << "[avg " << std::fixed << std::setprecision(1) << avg_fps << " FPS]";
-            if (fpstext.str().size() != 0) {
-                cv::Point2f pos(_vinfo->width * 0.8, _vinfo->height * 0.95);
-                render::Text t(fpstext.str(), pos, _displCfg.font_type, _displCfg.font_scale,
-                               indexToColor(COLOR_IDX_WHITE));
-                prims.emplace_back(t);
-            }
-        }
     }
 }
 
