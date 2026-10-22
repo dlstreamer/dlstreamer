@@ -5,19 +5,7 @@
 
 ## Pipeline
 
-```mermaid
-flowchart LR
-    subgraph Sample pipeline for gvaframeselect
-        direction LR
-        A[Input video] --> B[Decode and convert]
-        B --> C[gvadetect<br/>person detections]
-        C --> D[queue]
-        D --> E[gvaframeselect<br/>900 frames per block<br/>budget 8]
-        E -->|save selected frames| F[frame_XXXXXXXX.jpg]
-        E -->|forward selected frames| G[fakesink]
-        style E fill:#ADD8E6,color:#111,stroke:#397A9E,stroke-width:2px
-    end
-```
+![gvaframeselect sample pipelin](gveframeselect-sample-overview.jpeg)
 
 ## Requirements
 

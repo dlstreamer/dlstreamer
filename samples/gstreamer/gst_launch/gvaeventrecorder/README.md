@@ -5,23 +5,7 @@
 
 ## Pipeline
 
-```mermaid
-flowchart LR
-	subgraph Sample pipeline for gvaeventrecorder
-		direction LR
-		A[Input video] --> B[Decode and convert]
-		B --> C[gvadetect<br/>person detections]
-		C --> D[queue]
-		D --> F[gvaeventrecorder<br/>person, confidence 0.5<br/>PRE 30, POST 30]
-		F -->|forward EVENT frames only| E[gvametaconvert<br/>JSON]
-		E --> G[gvametapublish<br/>JSON file]
-		G --> H[fakesink]
-		F -->|save PRE + EVENT + POST| I[full-clip/*.mp4]
-		F -->|save EVENT-only clip| J[downstream/*.mp4]
-		G -->|write event metadata| K[events/events.json]
-		style F fill:#ADD8E6,color:#111,stroke:#397A9E,stroke-width:2px
-	end
-```
+![gvaeventrecorder sample pipeline](gvaeventrecorder-sample-overview.jpeg)
 
 ## Requirements
 

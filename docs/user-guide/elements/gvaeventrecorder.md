@@ -185,6 +185,8 @@ gst-launch-1.0 -v \
     fakesink
 ```
 
+  For a runnable command-line example, see the [gvaeventrecorder sample](../../../samples/gstreamer/gst_launch/gvaeventrecorder/README.md).
+
 ## Logging
 
 To write debug messages from `gvaeventrecorder` to a file, prefix your pipeline
@@ -297,4 +299,13 @@ Element Properties:
   target-classes      : Comma-separated detection labels that trigger a recording (e.g. "person,vehicle")
                         flags: readable, writable
                         String. Default: "person,vehicle"
+  name                : The name of the object
+                        flags: readable, writable
+                        String. Default: "gvaeventrecorder0"
+  parent              : The parent of the object
+                        flags: readable, writable
+                        Object of type "GstObject"
+  qos                 : Handle Quality-of-Service events
+                        flags: readable, writable
+                        Boolean. Default: false
 ```

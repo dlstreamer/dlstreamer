@@ -1,25 +1,11 @@
 # gvaroiscale Sample
 
-- `gvaroiscale` reads object-detection metadata (`GstAnalyticsRelationMeta`) attached to each RGB frame and selects the first ROI matching `target-classes`. It crops that object, preserves its aspect ratio, and letterboxes it to the configured output dimensions. It can optionally save each scaled ROI as a JPEG image.
-- This sample uses `gvaframeselect` to choose up to eight frames from each 900-frame block, then passes them through `gvaroiscale` to crop and scale the first matching `person` ROI to 448x448 RGB. Both selected frames and scaled ROI frames are saved as JPEG images.
+- `gvaroiscale` reads object-detection metadata (`GstAnalyticsRelationMeta`) attached to each RGB frame and selects all ROIs matching `target-classes`. It processes ROIs in descending confidence order and suppresses same-class duplicates with an intersection-over-union (IoU) above 0.5. Each remaining ROI is cropped, resized while preserving its aspect ratio, and centered on a black canvas at the configured output dimensions. It can optionally save each scaled ROI as a JPEG image.
+- This sample uses `gvaframeselect` to choose up to eight frames from each 900-frame block, then passes them through `gvaroiscale` to crop and scale matching `person` ROIs to 448x448 RGB. A selected frame can produce multiple scaled ROI frames. Both selected frames and scaled ROI frames are saved as JPEG images.
 
 ## Pipeline
 
-```mermaid
-flowchart LR
-	subgraph Sample pipeline for gvaroiscale element
-		direction LR
-		A[Input video] --> B[Decode and convert]
-		B --> C[gvadetect<br/>person detections]
-		C --> D[gvaframeselect<br/>900 frames per block<br/>budget 8]
-		D -->|save selected frames| E[selected_frames/*.jpg]
-		D --> F[videoconvert<br/>RGB]
-		F --> G[gvaroiscale<br/>person ROI<br/>448 x 448 letterbox]
-		G -->|save scaled ROI| H[roi_scaled_frames/*.jpg]
-		G --> I[fakesink]
-		style G fill:#ADD8E6,color:#111,stroke:#397A9E,stroke-width:2px
-	end
-```
+![gvaroiscale sample pipeline](gvaroiscale-sample-overview.jpeg)
 
 ## Requirements
 

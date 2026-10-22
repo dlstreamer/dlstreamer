@@ -3,8 +3,9 @@
 Finds matching object-detection ROIs in `GstAnalyticsRelationMeta`, crops each ROI from an
 RGB frame, preserves aspect ratio, and centers each resized image on a black canvas. Each
 input frame produces one output buffer per selected ROI; frames without a valid ROI are dropped.
-Same-class detections with an intersection-over-union (IoU) above 0.5 are deduplicated, keeping
-the detection with the highest confidence.
+ROIs are processed in descending confidence order. Same-class detections with an
+intersection-over-union (IoU) above 0.5 are deduplicated, keeping the detection with the
+highest confidence.
 
 | Property | Type | Range | Default | Description |
 |---|---|---|---|---|
@@ -29,5 +30,64 @@ considered. Whitespace around labels is ignored.
 
 ```sh
 ... ! gvaframeselect frame-budget=8 ! videoconvert ! video/x-raw,format=RGB ! \
-	gvaroiscale out-width=448 out-height=448 target-classes=person,vehicle ! gvagenai ...
+  gvaroiscale out-width=448 out-height=448 target-classes=person,vehicle ! gvagenai ...
+```
+
+For a runnable command-line example, see the [gvaroiscale sample](../../../samples/gstreamer/gst_launch/gvaroiscale/README.md).
+
+## Element Details (gst-inspect-1.0)
+
+```text
+Pad Templates:
+  SINK template: 'sink'
+    Availability: Always
+    Capabilities:
+      video/x-raw
+         format: RGB (gchararray)
+        width: [ 1, 8192 ] (GstIntRange)
+       height: [ 1, 8192 ] (GstIntRange)
+
+  SRC template: 'src'
+    Availability: Always
+    Capabilities:
+      video/x-raw
+                 format: RGB (gchararray)
+                  width: [ 1, 8192 ] (GstIntRange)
+                 height: [ 1, 8192 ] (GstIntRange)
+
+Element has no clocking capabilities.
+Element has no URI handling capabilities.
+
+Pads:
+  SINK: 'sink'
+    Pad Template: 'sink'
+  SRC: 'src'
+    Pad Template: 'src'
+
+Element Properties:
+
+  confidence-threshold: Minimum detection confidence required to select an ROI
+                        flags: readable, writable
+                        Double. Range: 0 - 1 Default: 0
+  name                : The name of the object
+                        flags: readable, writable
+                        String. Default: "gvaroiscale0"
+  out-height          : Scaled ROI output height
+                        flags: readable, writable
+                        Unsigned Integer. Range: 1 - 8192 Default: 448
+  out-width           : Scaled ROI output width
+                        flags: readable, writable
+                        Unsigned Integer. Range: 1 - 8192 Default: 448
+  output-dir          : If set, each scaled ROI frame is also saved as a JPEG in this directory
+                        flags: readable, writable
+                        String. Default: null
+  parent              : The parent of the object
+                        flags: readable, writable
+                        Object of type "GstObject"
+  qos                 : Handle Quality-of-Service events
+                        flags: readable, writable
+                        Boolean. Default: false
+  target-classes      : Comma-separated detection labels to consider; empty means all classes
+                        flags: readable, writable
+                        String. Default: ""
 ```
