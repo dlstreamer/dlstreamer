@@ -41,10 +41,16 @@
 # REALSENSE_VERSION       # RealSense
 # KAFKA_VERSION           # librdkafka
 ARG DOCKER_REGISTRY
+# Single source of truth for the OpenVINO version: used both for the pip
+# wheel installed for build/test tooling in this stage, and for the archive
+# distribution (C++ runtime + matching Python bindings) installed in the
+# dlstreamer-dev stage, keeping them from drifting out of sync.
+ARG OPENVINO_VERSION=2026.5.0.dev20261020
 FROM ${DOCKER_REGISTRY}ubuntu:26.04 AS builder
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG BUILD_ARG=Release
+ARG OPENVINO_VERSION
 
 LABEL description="This is the development image of Intel® Deep Learning Streamer (Intel® DL Streamer) Pipeline Framework"
 LABEL vendor="Intel Corporation"
@@ -148,7 +154,7 @@ RUN \
     typing-extensions==4.15.0 && \
     VIRTUAL_ENV=/python3venv uv pip install --no-cache-dir --no-deps \
     --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly \
-    openvino==2026.5.0.dev20261020
+    openvino==${OPENVINO_VERSION}
 
 # hadolint ignore=DL3002
 USER root
@@ -375,7 +381,7 @@ FROM builder AS dlstreamer-dev
 
 ARG DLSTREAMER_VERSION=2026.3.0
 ARG DLSTREAMER_BUILD_NUMBER
-ARG OPENVINO_VERSION=2026.5.0.dev20261020
+ARG OPENVINO_VERSION
 ARG OPENVINO_NIGHTLY_BUILD=2026.5.0-23523-1bddaae9e4f
 # DL Streamer development image and build proccess
 
@@ -481,6 +487,12 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
+# The OpenVINO archive provides both the C++ runtime libs (copied below) and
+# the matching compiled Python bindings (python/openvino). Packaging the
+# bindings here, instead of installing a separate openvino pip wheel later,
+# guarantees the Python API is always the exact same build as the C++
+# runtime, and lands on PYTHONPATH for free via the existing dlstreamer/python
+# entry (see PYTHONPATH env var in the final dlstreamer image).
 RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
@@ -492,6 +504,7 @@ RUN \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
+    cp -r /opt/intel/openvino/python/openvino /deb-pkg/opt/intel/dlstreamer/python/openvino && \
     cp -r "${DLSTREAMER_DIR}/scripts/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/include/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp "${DLSTREAMER_DIR}/README.md" /deb-pkg/opt/intel/dlstreamer && \
