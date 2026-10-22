@@ -47,11 +47,12 @@ typedef struct {
                    //          from round-half-even to round-half-up,
                    //          z the column at which the float regime hands
                    //          over from OpenCV's vector code to its scalar
-                   //          tail, w which of the two fuse multiply-adds
-                   //          (bit 0 vector, bit 1 scalar)
+                   //          tail, w which parts of the row fuse
+                   //          multiply-adds (see wm_blur_fused)
     int4   c;      // blur:    first tile of the row pass, first tile of the
                    //          column pass, counted from the group's first
-                   //          rectangle
+                   //          rectangle, and the column at which the scalar
+                   //          tail's 4-wide loop ends
 } wm_prim;
 
 __constant sampler_t WM_SAMPLER = CLK_NORMALIZED_COORDS_FALSE | CLK_ADDRESS_CLAMP_TO_EDGE | CLK_FILTER_NEAREST;
@@ -283,13 +284,16 @@ R"CLC(
 //    up to 256*65280 - is exactly representable in binary32.
 //  - In the float regime the multiply-adds are not all rounded alike. Both
 //    passes run v_muladd over whole v_uint8-wide steps of the row and plain
-//    s += f * x over what is left, and whether either of those is fused is up
-//    to how OpenCV was built: an AVX2 dispatch fuses the vector code, MSVC
-//    does not contract the scalar code, GCC does. The host measures both and
-//    passes them in color.w with the handover column in color.z; the arithmetic
-//    below is pinned with fma() and FP_CONTRACT OFF so that the device compiler
-//    cannot choose for itself. Getting this wrong moves a sum by an ulp, which
-//    is enough to flip the rounding of an output that lands next to a .5.
+//    s += f * x over what is left, first in a hand-unrolled 4-wide loop and
+//    then one element at a time. Whether each of those is fused is up to how
+//    OpenCV was built: an AVX2 dispatch fuses the vector code; MSVC contracts
+//    none of the scalar code, while a GCC 13 build of OpenCV 4.13 contracts
+//    the column filter's 4-wide loop and nothing else. The host measures every
+//    part of each pass and passes the result in color.w, with the boundaries in
+//    color.z and c.z; the arithmetic below is pinned with fma() and
+//    FP_CONTRACT OFF so that the device compiler cannot choose for itself.
+//    Getting this wrong moves a sum by an ulp, which is enough to flip the
+//    rounding of an output that lands next to a .5.
 //
 // Separable, so the cost is O(kw + kh) per pixel rather than O(kw * kh); split
 // across two dispatches through a scratch buffer because a kernel may not both
@@ -324,11 +328,14 @@ inline int wm_tile_owner(__global const wm_prim *prims, int n, int t, int pass) 
     return lo;
 }
 
-// Whether OpenCV fuses the multiply-adds at column ix. Decided once per work
-// item: each pass then runs one of two plain loops rather than choosing at
-// every tap.
-inline bool wm_blur_fused(const wm_prim p, int ix) {
-    return ((int)p.color.w & (ix < (int)p.color.z ? 1 : 2)) != 0;
+// Whether OpenCV fuses the multiply-adds of a pass (0 row, 1 column) at
+// column ix. Bits 0-2 of color.w are the row pass's vector code, the 4-wide
+// loop of its scalar tail and the 1-wide rest; bits 3-5 the same for the
+// column pass. Decided once per work item: each pass then runs one of two
+// plain loops rather than choosing at every tap.
+inline bool wm_blur_fused(const wm_prim p, int ix, int pass) {
+    const int part = ix < (int)p.color.z ? 0 : ix < p.c.z ? 1 : 2;
+    return (((int)p.color.w >> (3 * pass + part)) & 1) != 0;
 }
 
 __kernel __attribute__((reqd_work_group_size(WM_ROW_TILE_W, WM_ROW_TILE_H, 1)))
@@ -354,7 +361,7 @@ void wm_blur_h(__read_only image2d_t img, int iw, int ih,
 
     // OpenCV's generic RowFilter accumulates straight through the taps.
     wm_vec s = WM_ZERO;
-    if (wm_blur_fused(p, ix)) {
+    if (wm_blur_fused(p, ix, 0)) {
         for (int k = 0; k < kw; ++k) {
             const float4 v = read_imagef(img, WM_SAMPLER, (int2)(wm_reflect101(x0 + k, iw), sy));
             s = fma((wm_vec)(kx[k]), round(WM_LOAD(v) * 255.f), s);
@@ -389,7 +396,7 @@ void wm_blur_v(__write_only image2d_t img, int iw, int ih,
     __global const float *ky = coeffs + p.b.w + ay;
     __global const wm_vec *col = scratch + p.b.y + (iy + ay) * rw + ix;
     wm_vec s = ky[0] * col[0];
-    if (wm_blur_fused(p, ix)) {
+    if (wm_blur_fused(p, ix, 1)) {
         for (int k = 1; k <= ay; ++k)
             s = fma((wm_vec)(ky[k]), col[k * rw] + col[-k * rw], s);
     } else {

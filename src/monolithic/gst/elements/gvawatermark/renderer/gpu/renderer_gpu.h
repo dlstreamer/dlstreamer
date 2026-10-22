@@ -288,15 +288,20 @@ class RendererGPU {
      * VTraits<v_uint8>::vlanes() dependent, i.e. it varies with the SIMD width
      * OpenCV dispatched to, so it is measured rather than assumed. */
     void calibrate_blur_rounding();
-    /* In the float regime the same split decides whether a multiply-add is
-     * fused. That is down to how OpenCV was compiled - FMA3 in the vector
-     * code, contraction in the scalar code - so it is measured as well. Needs
-     * _blur_vec_lanes. */
+    /* In the float regime the same split, and within the scalar tail the split
+     * between its 4-wide unrolled loop and the 1-wide rest, decide whether a
+     * multiply-add is fused. That is down to how OpenCV was compiled - FMA3 in
+     * the vector code, contraction in the scalar code, which a compiler may
+     * apply to one loop and not to another - so it is measured for each part
+     * of the row in each pass. Needs _blur_vec_lanes. */
     void calibrate_blur_fma();
     /* Elements (not pixels) of a row of `n` that the vectorized path takes. */
     int blur_vector_elements(int n) const;
     /* The same in the float regime, which has no half-width step. */
     int blur_float_vector_elements(int n) const;
+    /* Float regime: elements of a row of `n` up to the end of the scalar
+     * tail's 4-wide loop. */
+    int blur_unrolled_elements(int n) const;
 
     /* One rectangle of one plane, blurred in place. `cn` is the plane's channel
      * count, which the rounding handover is expressed in. */
@@ -413,9 +418,11 @@ class RendererGPU {
      * vectorized column filter consumes per step, or 0 if this build has no
      * vector path at all. */
     int _blur_vec_lanes = 0;
-    /* Measured by calibrate_blur_fma(): bit 0 set if OpenCV's vector float
-     * filters fuse their multiply-adds, bit 1 if its scalar tail does. */
-    int _blur_fma = 3;
+    /* Measured by calibrate_blur_fma(): which parts of a row OpenCV's float
+     * filters fuse their multiply-adds in. Bits 0-2 are the row pass's vector
+     * code, the 4-wide loop of its scalar tail and the 1-wide rest; bits 3-5
+     * the same for the column pass. */
+    int _blur_fma = 0x3f;
 
     /* Segmentation coverage bitmaps. Unlike glyphs these are different every
      * frame, so they get their own buffer and are rebuilt from scratch rather

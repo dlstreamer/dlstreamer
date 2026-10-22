@@ -173,6 +173,23 @@ float row_sum(const float *kx, const uint8_t *px, int n, bool fused) {
     return s;
 }
 
+/* One output of SymmColumnFilter<float, uchar>: the centre tap, then the taps
+ * paired around it, each pair added before it is scaled. */
+float column_sum(const float *ky, const uint8_t *px, int n, bool fused) {
+    const int c = n / 2;
+    float s = ky[c] * static_cast<float>(px[c]);
+    for (int k = 1; k <= c; ++k) {
+        const float pair = static_cast<float>(px[c + k]) + static_cast<float>(px[c - k]);
+        if (fused) {
+            s = std::fma(ky[c + k], pair, s);
+        } else {
+            volatile float t = ky[c + k] * pair;
+            s = s + t;
+        }
+    }
+    return s;
+}
+
 bool cl_ok(cl_int err, const char *what) {
     if (err == CL_SUCCESS)
         return true;
@@ -970,6 +987,13 @@ int RendererGPU::blur_float_vector_elements(int n) const {
     return _blur_vec_lanes > 0 ? n / _blur_vec_lanes * _blur_vec_lanes : 0;
 }
 
+int RendererGPU::blur_unrolled_elements(int n) const {
+    /* RowFilter and SymmColumnFilter take what the vector code leaves in steps
+     * of 4 (CV_ENABLE_UNROLLED), then one element at a time. */
+    const int vec = blur_float_vector_elements(n);
+    return vec + (n - vec) / 4 * 4;
+}
+
 void RendererGPU::calibrate_blur_rounding() {
     /* Feeds cv::GaussianBlur an input for which every output element is an
      * exact .5 tie, so the boundary shows up directly as a step in the output.
@@ -1032,74 +1056,86 @@ void RendererGPU::calibrate_blur_rounding() {
 }
 
 void RendererGPU::calibrate_blur_fma() {
-    /* Finds eleven pixels whose 11-tap Gaussian sum rounds to one integer when
-     * fused and to another when not, then has cv::GaussianBlur round them once
-     * inside the vector code and once inside the scalar tail. An 11x1 kernel
-     * keeps the regime float - the 1-tap column kernel is also KERNEL_INTEGER -
-     * and makes the column pass an exact copy, so the outputs are the row
-     * sums. Nine taps would not do: no input tells the two apart there. With
-     * 16, 32 or 64 lanes a 72 wide row hands over at 64. */
-    constexpr int TAPS = 11, W = 72, BODY = 20, TAIL = W - 4;
+    /* For each pass, finds eleven pixels whose 11-tap Gaussian sum rounds to
+     * one integer when fused and to another when not, then has cv::GaussianBlur
+     * round them in each part of a row: the vector code, the 4-wide loop of the
+     * scalar tail and its 1-wide rest. An 11x1 kernel probes the row pass and a
+     * 1x11 one the column pass. Either keeps the regime float - the 1-tap
+     * kernel is also KERNEL_INTEGER - and makes the other pass an exact copy.
+     * Nine taps would not do: no input tells the two apart there. With 16, 32
+     * or 64 lanes a 70 wide row hands over at 64, and the 4-wide loop then
+     * takes 64-67. */
+    constexpr int TAPS = 11, W = 70, AT[3] = {20, 65, 69};
     struct Probe {
         uint8_t px[TAPS];
         int fused = 0, plain = 0;
     };
     /* About one input in 350k qualifies, and which one depends only on the
      * kernel, so the search runs once per process. */
-    static const Probe probe = [] {
+    static const std::array<Probe, 2> probes = [] {
         const cv::Mat kernel = cv::getGaussianKernel(TAPS, 0, CV_32F);
-        const float *kx = kernel.ptr<float>();
-        Probe p;
-        uint32_t seed = 1;
-        for (int it = 0; it < (1 << 24) && p.fused == p.plain; ++it) {
-            for (uint8_t &v : p.px) {
-                seed = seed * 1664525u + 1013904223u;
-                v = static_cast<uint8_t>(seed >> 24);
+        const float *k = kernel.ptr<float>();
+        std::array<Probe, 2> found;
+        for (int pass = 0; pass < 2; ++pass) {
+            Probe &p = found[pass];
+            const auto sum = pass ? column_sum : row_sum;
+            uint32_t seed = 1;
+            for (int it = 0; it < (1 << 24) && p.fused == p.plain; ++it) {
+                for (uint8_t &v : p.px) {
+                    seed = seed * 1664525u + 1013904223u;
+                    v = static_cast<uint8_t>(seed >> 24);
+                }
+                p.fused = cvRound(sum(k, p.px, TAPS, true));
+                p.plain = cvRound(sum(k, p.px, TAPS, false));
             }
-            p.fused = cvRound(row_sum(kx, p.px, TAPS, true));
-            p.plain = cvRound(row_sum(kx, p.px, TAPS, false));
         }
-        return p;
+        return found;
     }();
-    const uint8_t *px = probe.px;
-    const int fused = probe.fused, plain = probe.plain;
-    if (fused == plain) {
-        GST_WARNING("gvawatermark GPU renderer: no blur FMA probe found; blurs may differ from the CPU renderer by "
-                    "one on rare pixels");
-        return;
-    }
 
-    // The tail probe's taps reach past the rectangle, into the plane.
-    cv::Mat plane = cv::Mat::zeros(1, W + TAPS, CV_8UC1);
-    for (int k = 0; k < TAPS; ++k) {
-        plane.at<uint8_t>(BODY - TAPS / 2 + k) = px[k];
-        plane.at<uint8_t>(TAIL - TAPS / 2 + k) = px[k];
-    }
-    try {
-        cv::Mat sub = plane(cv::Rect(0, 0, W, 1));
-        cv::GaussianBlur(sub, sub, cv::Size(TAPS, 1), 0);
-    } catch (const cv::Exception &e) {
-        GST_WARNING("gvawatermark GPU renderer: blur FMA calibration failed: %s", e.what());
-        return;
-    }
-
-    const int vec = blur_float_vector_elements(W);
     int bits = 0;
-    for (int x : {BODY, TAIL}) {
-        const int out = plane.at<uint8_t>(x);
-        if (out != fused && out != plain) {
-            GST_WARNING("gvawatermark GPU renderer: blur FMA calibration got %d at %d, expected %d or %d", out, x,
-                        fused, plain);
+    for (int pass = 0; pass < 2; ++pass) {
+        const Probe &probe = probes[pass];
+        if (probe.fused == probe.plain) {
+            GST_WARNING("gvawatermark GPU renderer: no blur FMA probe found; blurs may differ from the CPU renderer "
+                        "by one on rare pixels");
             return;
         }
-        if (out == fused)
-            bits |= x < vec ? 1 : 2;
+        for (int part = 0; part < 3; ++part) {
+            /* One blur per probe, so no two probes share taps. The row probe's
+             * taps reach past the rectangle into the plane, the column probe's
+             * into the rows above and below it. */
+            const int x = AT[part];
+            cv::Mat plane = pass ? cv::Mat::zeros(TAPS, W, CV_8UC1) : cv::Mat::zeros(1, W + TAPS, CV_8UC1);
+            for (int k = 0; k < TAPS; ++k) {
+                if (pass)
+                    plane.at<uint8_t>(k, x) = probe.px[k];
+                else
+                    plane.at<uint8_t>(0, x - TAPS / 2 + k) = probe.px[k];
+            }
+            cv::Mat sub = plane(cv::Rect(0, pass ? TAPS / 2 : 0, W, 1));
+            try {
+                cv::GaussianBlur(sub, sub, pass ? cv::Size(1, TAPS) : cv::Size(TAPS, 1), 0);
+            } catch (const cv::Exception &e) {
+                GST_WARNING("gvawatermark GPU renderer: blur FMA calibration failed: %s", e.what());
+                return;
+            }
+            const int out = sub.at<uint8_t>(0, x);
+            if (out != probe.fused && out != probe.plain) {
+                GST_WARNING("gvawatermark GPU renderer: blur FMA calibration got %d at %d (%s pass), expected %d or %d",
+                            out, x, pass ? "column" : "row", probe.fused, probe.plain);
+                return;
+            }
+            if (out == probe.fused)
+                bits |= 1 << (pass * 3 + part);
+        }
     }
-    if (vec == 0)
-        bits |= bits >> 1; // no vector code, so bit 0 is never consulted
+    /* With no vector code the first probe lands in the 4-wide loop, but the
+     * vector bits are then never consulted. */
     _blur_fma = bits;
-    GST_INFO("gvawatermark GPU renderer: blur vector lanes %d, fused multiply-add: vector %s, scalar %s",
-             _blur_vec_lanes, (bits & 1) ? "yes" : "no", (bits & 2) ? "yes" : "no");
+    auto yn = [bits](int bit) { return (bits >> bit & 1) ? "yes" : "no"; };
+    GST_INFO("gvawatermark GPU renderer: blur vector lanes %d, fused multiply-add (vector, 4-wide tail, 1-wide tail): "
+             "row %s %s %s, column %s %s %s",
+             _blur_vec_lanes, yn(0), yn(1), yn(2), yn(3), yn(4), yn(5));
 }
 
 void RendererGPU::add_blur(BatchId id, const cv::Rect &rect, int cn, int kw, int kh, const CoeffEntry &cx,
@@ -1140,13 +1176,15 @@ void RendererGPU::add_blur(BatchId id, const cv::Rect &rect, int cn, int kw, int
     p.b.s[2] = static_cast<cl_int>(integer_regime ? cx.int_offset : cx.float_offset);
     p.b.s[3] = static_cast<cl_int>(integer_regime ? cy.int_offset : cy.float_offset);
     p.color.s[0] = integer_regime ? 1.f : 0.f;
-    /* The handover is always a multiple of 16 elements, so with one or two
-     * channels it never falls inside a pixel and can be passed as a column. */
+    /* The handovers are multiples of 16 elements and the end of the 4-wide
+     * loop a multiple of 4 past the float one, so with one or two channels
+     * none falls inside a pixel and each can be passed as a column. */
     p.color.s[1] = static_cast<float>(blur_vector_elements(rect.width * cn) / cn);
     p.color.s[2] = static_cast<float>(blur_float_vector_elements(rect.width * cn) / cn);
     p.color.s[3] = static_cast<float>(_blur_fma);
     p.c.s[0] = group.tiles[0];
     p.c.s[1] = group.tiles[1];
+    p.c.s[2] = blur_unrolled_elements(rect.width * cn) / cn;
     group.prims.push_back(p);
 
     group.tiles[0] += tiles[0];
