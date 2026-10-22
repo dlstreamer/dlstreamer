@@ -466,12 +466,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# The OpenVINO archive provides both the C++ runtime libs (copied below) and
-# the matching compiled Python bindings (python/openvino). Packaging the
-# bindings here, instead of installing a separate openvino pip wheel later,
-# guarantees the Python API is always the exact same build as the C++
-# runtime, and lands on PYTHONPATH for free via the existing dlstreamer/python
-# entry (see PYTHONPATH env var in the final dlstreamer image).
 RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
@@ -483,7 +477,6 @@ RUN \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
-    cp -r /opt/intel/openvino/python/openvino /deb-pkg/opt/intel/dlstreamer/python/openvino && \
     cp -r "${DLSTREAMER_DIR}/scripts/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/include/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp "${DLSTREAMER_DIR}/README.md" /deb-pkg/opt/intel/dlstreamer && \
@@ -571,6 +564,15 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
+# Install the .deb package plus the DL Streamer Python requirements.
+# NOTE: the .deb package only ships the OpenVINO C++ runtime libraries used
+# by the DL Streamer GStreamer plugins, not the Python bindings, so the
+# OpenVINO Python API (openvino pip package) is intentionally not installed
+# here: this OpenVINO nightly version does not publish a cp310 wheel (the
+# ABI for this distro's system Python, 3.10), and its archive distribution
+# only bundles cp311/cp312/cp313 bindings, neither of which is importable
+# on Python 3.10. See ubuntu24.Dockerfile/ubuntu26.Dockerfile for the
+# equivalent step on distros where a matching OpenVINO Python build exists.
 RUN \
     apt-get update -y && \
     apt-get install -y -q --no-install-recommends /debs/*.deb gcc=\* ninja-build=\* libcairo2-dev=\* libgirepository1.0-dev=\* && \

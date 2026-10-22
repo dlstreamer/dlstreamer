@@ -482,12 +482,6 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# The OpenVINO archive provides both the C++ runtime libs (copied below) and
-# the matching compiled Python bindings (python/openvino). Packaging the
-# bindings here, instead of installing a separate openvino pip wheel later,
-# guarantees the Python API is always the exact same build as the C++
-# runtime, and lands on PYTHONPATH for free via the existing dlstreamer/python
-# entry (see PYTHONPATH env var in the final dlstreamer image).
 RUN \
     mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
@@ -499,7 +493,6 @@ RUN \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
-    cp -r /opt/intel/openvino/python/openvino /deb-pkg/opt/intel/dlstreamer/python/openvino && \
     cp -r "${DLSTREAMER_DIR}/scripts/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/include/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp "${DLSTREAMER_DIR}/README.md" /deb-pkg/opt/intel/dlstreamer && \
@@ -540,6 +533,7 @@ ARG DOCKER_REGISTRY
 FROM ${DOCKER_REGISTRY}ubuntu:24.04 AS dlstreamer
 ARG DLSTREAMER_VERSION
 ARG DLSTREAMER_BUILD_NUMBER
+ARG OPENVINO_VERSION
 # Build final image for dlstreamer - using .deb packages for installation
 
 SHELL ["/bin/bash", "-xo", "pipefail", "-c"]
@@ -599,12 +593,28 @@ RUN \
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
-# Install onvif-zeep Python package
+# Install onvif-zeep Python package and the OpenVINO Python API.
+# NOTE: the .deb package only ships the OpenVINO C++ runtime libraries used
+# by the DL Streamer GStreamer plugins, not the Python bindings. The
+# OpenVINO archive distribution does bundle compiled Python bindings
+# (python/openvino), but packaging them into the .deb was tried and reverted:
+# this OpenVINO nightly's archive is missing libopenvino_jax_frontend.so
+# (needed by the jax frontend Python binding), which breaks dh_shlibdeps
+# during `debuild`, and the archive only ships cp311/cp312/cp313 bindings,
+# which would silently fail to import on distros whose system Python uses a
+# different ABI (e.g. Ubuntu 26.04's Python 3.14). Installing the self
+# contained pip wheel here - after the .deb is already installed, so it is
+# never seen by dh_shlibdeps - avoids both problems and always matches the
+# system Python's ABI. Version is kept in sync with the OpenVINO runtime via
+# the shared OPENVINO_VERSION build arg.
 RUN \
     apt-get update && \
     apt-get install -y -q --no-install-recommends python3-pip=\* gcc=\* libcairo2-dev=\* libgirepository1.0-dev=\* && \
     uv pip install --system --no-cache-dir --break-system-packages onvif-zeep==0.2.12 && \
     uv pip install --system --no-cache-dir --break-system-packages -r /opt/intel/dlstreamer/requirements.txt && \
+    uv pip install --system --no-cache-dir --break-system-packages --no-deps \
+    --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly \
+    openvino==${OPENVINO_VERSION} && \
     apt-get remove -y gcc libcairo2-dev libgirepository1.0-dev && \
     apt-get autoremove -y && \
     cp -r /usr/local/lib/python3.12/site-packages/wsdl /usr/local/lib/python3.12/dist-packages/ && \
