@@ -677,6 +677,8 @@ class OpenVinoNewApiImpl {
         const ov::Shape padded_shape{1, channels_num, size_t(image.height), pitch};
         ov::RemoteTensor remote_tensor = _npu_context->create_tensor(ov::element::u8, padded_shape, image.dma_fd);
         if (pitch != width) {
+            // Crop the padding columns [width, pitch) off every row. The ROI keeps the parent's strides
+            // (row stride = pitch), so the NPU must be compiled with NPU_ENABLE_STRIDES_FOR for this input.
             const ov::Coordinate begin{0, 0, 0, 0};
             const ov::Coordinate end{1, channels_num, size_t(image.height), width};
             remote_tensor = ov::RemoteTensor(remote_tensor, begin, end);
