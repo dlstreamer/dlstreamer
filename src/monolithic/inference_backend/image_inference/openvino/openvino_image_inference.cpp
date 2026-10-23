@@ -1195,7 +1195,8 @@ class OpenVinoNewApiImpl {
                     throw;
                 std::throw_with_nested(std::runtime_error(
                     "NPU rejected strided input required for DMA-BUF zero-copy with a non 64-byte aligned model "
-                    "input width; set NPU_ZERO_COPY=0 to disable zero-copy"));
+                    "input width; to disable zero-copy, remove access to /dev/dma_heap/system, e.g. "
+                    "'sudo chmod 600 /dev/dma_heap/system'"));
             }
         }
         GVA_INFO("Network loaded to device");
