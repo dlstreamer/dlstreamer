@@ -9,6 +9,7 @@ set (TARGET_NAME "image_inference_openvino")
 find_package(PkgConfig REQUIRED)
 find_package(OpenVINO REQUIRED Runtime)
 find_package(OpenCL REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
 
 file (GLOB MAIN_SRC
         ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp
@@ -41,6 +42,8 @@ PUBLIC
         spdlog::spdlog
         OpenCL::OpenCL
 )
+
+target_link_libraries(${TARGET_NAME} PRIVATE ${OpenCV_LIBS})
 
 if(WIN32)
     target_link_libraries(${TARGET_NAME} PUBLIC d3d11)

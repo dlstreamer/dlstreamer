@@ -8,10 +8,12 @@
 #include "inference_backend/image_inference.h"
 #include <spdlog/fmt/fmt.h>
 
+#include <cinttypes>
 #include <cstddef>
 #include <openvino/runtime/properties.hpp>
 
 #include <openvino/runtime/intel_npu/level_zero/level_zero.hpp>
+#include <openvino/runtime/intel_npu/properties.hpp>
 
 #include <dlstreamer/openvino/context.h>
 #ifdef _WIN32
@@ -42,6 +44,19 @@
 #endif
 #endif
 
+#include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
+
+#ifndef _WIN32
+#include <linux/dma-buf.h>
+#include <sys/ioctl.h>
+#include <sys/mman.h>
+#endif
+
+#include <atomic>
+#include <cerrno>
+#include <cstdlib>
+#include <cstring>
 #include <functional>
 #include <iterator>
 #include <mutex>
@@ -669,8 +684,17 @@ class OpenVinoNewApiImpl {
             _npu_context = std::make_unique<ov::intel_npu::level_zero::ZeroContext>(core());
 
         auto channels_num = get_channels_num(image.format);
-        const ov::Shape shape{1, channels_num, size_t(image.height), size_t(image.width)};
-        ov::Tensor remote_tensor = _npu_context->create_tensor(ov::element::u8, shape, image.dma_fd);
+        // The DMA-BUF rows are padded to a 64-byte aligned pitch (see alignDmaBufPitch). Wrap the whole
+        // padded buffer and expose the [1, C, H, W] region as a strided ROI remote tensor.
+        const size_t width = image.width;
+        const size_t pitch = image.stride[0] ? image.stride[0] : width;
+        const ov::Shape padded_shape{1, channels_num, size_t(image.height), pitch};
+        ov::RemoteTensor remote_tensor = _npu_context->create_tensor(ov::element::u8, padded_shape, image.dma_fd);
+        if (pitch != width) {
+            const ov::Coordinate begin{0, 0, 0, 0};
+            const ov::Coordinate end{1, channels_num, size_t(image.height), width};
+            remote_tensor = ov::RemoteTensor(remote_tensor, begin, end);
+        }
 
         return _npu_dmabuf_tensor_cache.emplace(image.dma_fd, remote_tensor).first->second;
     }
@@ -1134,10 +1158,31 @@ class OpenVinoNewApiImpl {
         print_input_and_outputs_info(*_model);
     }
 
+    // NPU zero-copy DMA-BUFs use a padded row pitch when the model input width is not 64-byte aligned.
+    // Let the NPU consume such strided input tensors directly instead of copying them on the CPU.
+    // Returns true if the property was added.
+    bool enable_npu_dmabuf_strides(ov::AnyMap &ov_params) {
+        if (_memory_type != MemoryType::DMA_BUFFER || _device.find("NPU") == std::string::npos ||
+            _image_input_name.empty() || ov_params.count(ov::intel_npu::enable_strides_for.name()))
+            return false;
+
+        size_t width = 0, height = 0, batch = 0;
+        int format = 0, memory_type = 0;
+        get_model_image_input_info(width, height, batch, format, memory_type);
+        if (width == 0 || alignDmaBufPitch(safe_convert<uint32_t>(width)) == width)
+            return false;
+
+        GVA_INFO("NPU zero-copy: model input width %zu is not %u-byte aligned, enabling strided input '%s'", width,
+                 DMA_BUF_PITCH_ALIGNMENT, _image_input_name.c_str());
+        ov_params[ov::intel_npu::enable_strides_for.name()] = _image_input_name;
+        return true;
+    }
+
     // Loads network to the device
     void load_network(const ConfigHelper &config) {
         assert(!_compiled_model);
         ov::AnyMap ov_params = config.inference_cfg();
+        const bool npu_strides_added = enable_npu_dmabuf_strides(ov_params);
         std::string params = fmt::format("Params for compile_model:\n  {}", fmt::join(ov_params, "\n  "));
         GVA_INFO("%s", params.c_str());
         // adjust_ie_config(ov_params);
@@ -1155,7 +1200,15 @@ class OpenVinoNewApiImpl {
             if (_batch_timeout > -1) {
                 formatted_device = fmt::format("BATCH:{}({})", _device, _auto_batch_num_requests);
             }
-            _compiled_model = core().compile_model(_model, formatted_device, ov_params);
+            try {
+                _compiled_model = core().compile_model(_model, formatted_device, ov_params);
+            } catch (const std::exception &) {
+                if (!npu_strides_added)
+                    throw;
+                std::throw_with_nested(std::runtime_error(
+                    "NPU rejected strided input required for DMA-BUF zero-copy with a non 64-byte aligned model "
+                    "input width; set NPU_ZERO_COPY=0 to disable zero-copy"));
+            }
         }
         GVA_INFO("Network loaded to device");
 
@@ -1449,10 +1502,7 @@ bool OpenVINOImageInference::DoNeedImagePreProcessing(const InferenceBackend::Im
     if ((_impl->_memory_type == MemoryType::SYSTEM) &&
         ((image->format == FourCC::FOURCC_RGBP) || (image->format == FourCC::FOURCC_BGRP))) {
 
-        bool contiguous = (image->planes[1] - image->planes[0] == image->width * image->height) &&
-                          (image->planes[2] - image->planes[1] == image->width * image->height) &&
-                          (image->stride[0] == image->stride[1]) && (image->stride[1] == image->stride[2]) &&
-                          (image->stride[2] == image->width);
+        bool contiguous = isImageContiguous(*image);
 
         if (!contiguous) {
             GVA_WARNING("Force OPENCV preprocessor to convert non-contiguous tensors into contigous memory location");
@@ -1497,12 +1547,146 @@ void OpenVINOImageInference::ApplyInputPreprocessors(
     }
 }
 
+namespace {
+
+cv::Mat ConvertSystemImageToBGR(const Image &img) {
+    const int w = safe_convert<int>(img.width);
+    const int h = safe_convert<int>(img.height);
+    auto plane = [&](int idx, int rows, int cols, int type) {
+        return cv::Mat(rows, cols, type, img.planes[idx], img.stride[idx]);
+    };
+
+    cv::Mat bgr;
+    switch (img.format) {
+    case FOURCC_NV12:
+        cv::cvtColorTwoPlane(plane(0, h, w, CV_8UC1), plane(1, h / 2, w / 2, CV_8UC2), bgr, cv::COLOR_YUV2BGR_NV12);
+        break;
+    case FOURCC_I420: {
+        cv::Mat yuv(h * 3 / 2, w, CV_8UC1);
+        plane(0, h, w, CV_8UC1).copyTo(yuv(cv::Rect(0, 0, w, h)));
+        cv::Mat u = plane(1, h / 2, w / 2, CV_8UC1).clone().reshape(1, h / 4);
+        cv::Mat v = plane(2, h / 2, w / 2, CV_8UC1).clone().reshape(1, h / 4);
+        u.copyTo(yuv(cv::Rect(0, h, w, h / 4)));
+        v.copyTo(yuv(cv::Rect(0, h + h / 4, w, h / 4)));
+        cv::cvtColor(yuv, bgr, cv::COLOR_YUV2BGR_I420);
+        break;
+    }
+    case FOURCC_BGR:
+        bgr = plane(0, h, w, CV_8UC3).clone();
+        break;
+    case FOURCC_RGB:
+        cv::cvtColor(plane(0, h, w, CV_8UC3), bgr, cv::COLOR_RGB2BGR);
+        break;
+    case FOURCC_BGRA:
+    case FOURCC_BGRX:
+        cv::cvtColor(plane(0, h, w, CV_8UC4), bgr, cv::COLOR_BGRA2BGR);
+        break;
+    case FOURCC_RGBA:
+    case FOURCC_RGBX:
+        cv::cvtColor(plane(0, h, w, CV_8UC4), bgr, cv::COLOR_RGBA2BGR);
+        break;
+    case FOURCC_BGRP:
+        cv::merge(std::vector<cv::Mat>{plane(0, h, w, CV_8UC1), plane(1, h, w, CV_8UC1), plane(2, h, w, CV_8UC1)}, bgr);
+        break;
+    case FOURCC_RGBP:
+        cv::merge(std::vector<cv::Mat>{plane(2, h, w, CV_8UC1), plane(1, h, w, CV_8UC1), plane(0, h, w, CV_8UC1)}, bgr);
+        break;
+    default:
+        throw std::runtime_error(fmt::format("Unsupported image format for PNG dump: {:#x}", img.format));
+    }
+    return bgr;
+}
+
+// Debug helper: stores the frame image as PNG into the directory given by DLS_DUMP_IMAGE_DIR.
+// Does nothing when the environment variable is not set.
+void DumpImageToPng(const Image &image) {
+    static const char *dump_dir = std::getenv("DLS_DUMP_IMAGE_DIR");
+    if (!dump_dir || !*dump_dir)
+        return;
+
+    static std::atomic<uint64_t> counter{0};
+    try {
+        std::unique_ptr<ImageMap> mapper;
+        Image sys_image = image;
+        if (image.type == MemoryType::DMA_BUFFER) {
+            // NPU zero-copy buffer: linear RGBP/BGRP in a dma-heap buffer, rows padded to image.stride[0].
+            // vaDeriveImage() on this imported surface does not yield valid planes, so mmap the fd directly.
+            if (image.dma_fd < 0)
+                throw std::runtime_error("DMA_BUFFER image without valid dma_fd");
+            if (image.format != FOURCC_RGBP && image.format != FOURCC_BGRP)
+                throw std::runtime_error("Unexpected DMA_BUFFER image format");
+
+            // Wait for VPP to finish writing into the surface
+            mapper.reset(ImageMap::Create(MemoryType::DMA_BUFFER));
+            mapper->Map(image);
+
+            const size_t pitch = image.stride[0] ? image.stride[0] : image.width;
+            const size_t plane_size = pitch * image.height;
+            const size_t buf_size = plane_size * 3;
+            void *ptr = mmap(nullptr, buf_size, PROT_READ, MAP_SHARED, image.dma_fd, 0);
+            if (ptr == MAP_FAILED)
+                throw std::runtime_error(std::string("mmap of dma_fd failed: ") + std::strerror(errno));
+
+            struct dma_buf_sync sync = {};
+            sync.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ;
+            ioctl(image.dma_fd, DMA_BUF_IOCTL_SYNC, &sync);
+
+            sys_image.type = MemoryType::SYSTEM;
+            for (int i = 0; i < 3; i++) {
+                sys_image.planes[i] = static_cast<uint8_t *>(ptr) + i * plane_size;
+                sys_image.stride[i] = safe_convert<uint32_t>(pitch);
+            }
+            sys_image.planes[3] = nullptr;
+
+            cv::Mat bgr;
+            try {
+                bgr = ConvertSystemImageToBGR(sys_image);
+            } catch (...) {
+                sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ;
+                ioctl(image.dma_fd, DMA_BUF_IOCTL_SYNC, &sync);
+                munmap(ptr, buf_size);
+                throw;
+            }
+            sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ;
+            ioctl(image.dma_fd, DMA_BUF_IOCTL_SYNC, &sync);
+            munmap(ptr, buf_size);
+
+            const std::string path = fmt::format("{}/frame_dma_{:06}.png", dump_dir, counter++);
+            if (!cv::imwrite(path, bgr))
+                throw std::runtime_error("cv::imwrite failed for " + path);
+            GVA_WARNING("Dumped frame image to %s", path.c_str());
+            return;
+        } else if (image.type == MemoryType::VAAPI) {
+            // ImageMap for SYSTEM derives a VA image from the surface and maps it to CPU memory
+            mapper.reset(ImageMap::Create(MemoryType::SYSTEM));
+            sys_image = mapper->Map(image);
+        } else if (image.type != MemoryType::SYSTEM) {
+            throw std::runtime_error("Unsupported memory type for PNG dump");
+        }
+
+        cv::Mat bgr = ConvertSystemImageToBGR(sys_image);
+        if (mapper)
+            mapper->Unmap();
+
+        const std::string path = fmt::format("{}/frame_{:06}.png", dump_dir, counter++);
+        if (!cv::imwrite(path, bgr))
+            throw std::runtime_error("cv::imwrite failed for " + path);
+        GVA_WARNING("Dumped frame image to %s", path.c_str());
+    } catch (const std::exception &e) {
+        GVA_WARNING("Failed to dump frame image to PNG: %s", e.what());
+    }
+}
+
+} // namespace
+
 void OpenVINOImageInference::SubmitImage(
     IFrameBase::Ptr frame, const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
     ITT_TASK(__FUNCTION__);
 
     if (!frame)
         throw std::invalid_argument("Invalid frame provided");
+
+    DumpImageToPng(*frame->GetImage());
 
     std::unique_lock<std::mutex> lk(requests_mutex_);
     ++requests_processing_;
@@ -1603,6 +1787,16 @@ std::map<std::string, std::vector<size_t>> OpenVINOImageInference::GetModelInput
         res.emplace(name, std::vector<size_t>(shape.begin(), shape.end()));
     }
     return res;
+}
+
+bool OpenVINOImageInference::IsNpuStridedInputSupported() {
+    try {
+        const auto props = OpenVinoNewApiImpl::core().get_property("NPU", ov::supported_properties);
+        return std::find(props.begin(), props.end(), ov::intel_npu::enable_strides_for.name()) != props.end();
+    } catch (const std::exception &e) {
+        GVA_WARNING("Could not query NPU supported properties: %s", e.what());
+        return false;
+    }
 }
 
 void OpenVINOImageInference::Flush() {

@@ -23,6 +23,13 @@ class VaApiImagePool;
 class VaApiImage;
 class VaApiContext;
 
+// Allocates a temporary VPP output surface of the given size/format, maps it as SYSTEM memory, and
+// reports whether its color planes are contiguous in memory. Currently not called: the NPU zero-copy
+// decision uses the DMA-BUF pitch alignment instead (see isNpuZeroCopyLayoutSupported). The surface is mapped as SYSTEM
+// memory so the mapping layer derives and exposes the real plane offsets/strides needed for the
+// contiguity check. Returns false if the VA-API context or surface cannot be created/mapped.
+bool probeNpuZeroCopyContiguity(dlstreamer::ContextPtr context, uint32_t width, uint32_t height, int fourcc);
+
 class ImageInferenceAsync : public ImageInference {
   public:
     constexpr static size_t DEFAULT_THREAD_POOL_SIZE = 5;
