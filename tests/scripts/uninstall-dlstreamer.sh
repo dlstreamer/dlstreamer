@@ -28,7 +28,7 @@ echo " Found packages: $installed_packages"
 
 #Uninstall openvino packages
 echo "Uninstall openvino packages"
-sudo $PKG_MGR remove -y openvino* libopenvino* python3-openvino*
+sudo $PKG_MGR remove -y openvino* libopenvino* python3-openvino* || true
 sudo $PKG_MGR autoremove -y
 echo "Packages are uninstalled"
 
