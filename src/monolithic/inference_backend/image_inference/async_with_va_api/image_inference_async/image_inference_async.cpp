@@ -84,30 +84,6 @@ getImagePreProcInfo(const std::map<std::string, InferenceBackend::InputLayerDesc
 
 } // namespace
 
-bool InferenceBackend::probeNpuZeroCopyContiguity(dlstreamer::ContextPtr context, uint32_t width, uint32_t height,
-                                                  int fourcc) {
-    if (!context || width == 0 || height == 0)
-        return false;
-
-    try {
-        // A matching VPP output surface is allocated and mapped so its real memory layout (plane
-        // offsets and strides, which depend on driver/width alignment) can be inspected before the
-        // pipeline commits to the DMA_BUFFER zero-copy path. The surface is mapped as SYSTEM memory
-        // because only VaApiImageMap_SystemMemory populates the planes/strides fields (via
-        // vaDeriveImage) that isImageContiguous() relies on; the DMA_BUFFER map returns the surface
-        // without those fields set.
-        VaApiContext va_context(context);
-        VaApiImage probe(&va_context, width, height, fourcc, MemoryType::SYSTEM);
-        Image mapped = probe.Map();
-        const bool contiguous = isImageContiguous(mapped);
-        probe.Unmap();
-        return contiguous;
-    } catch (const std::exception &e) {
-        GVA_WARNING("NPU zero-copy contiguity probe failed, zero-copy will be disabled: %s", e.what());
-        return false;
-    }
-}
-
 ImageInferenceAsync::ImageInferenceAsync(const InferenceBackend::InferenceConfig &config,
                                          dlstreamer::ContextPtr vadpy_context, ImageInference::Ptr inference)
     : _inference(inference) {
