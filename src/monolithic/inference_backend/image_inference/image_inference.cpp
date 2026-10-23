@@ -10,7 +10,6 @@
 #include "image_inference_async_d3d11.h"
 #else
 #include "image_inference_async/image_inference_async.h"
-#include <cstdlib>
 #include <unistd.h>
 #endif
 
@@ -157,16 +156,7 @@ ImageInference::Ptr ImageInference::createImageInferenceInstance(MemoryType inpu
             // Enable zero-copy for NPU on PTL series CPUs
             // if (Utils::isCPUPTLHSeries(false))
             {
-                // Enabled by default; opt-out via env var.
-                const char *zc_env = std::getenv("NPU_ZERO_COPY");
-                bool zero_copy_enabled = !zc_env || !(std::string(zc_env) == "0" || std::string(zc_env) == "false");
-                if (zero_copy_enabled) {
-                    GVA_WARNING("Zero-copy enabled for NPU.");
-                } else {
-                    GVA_WARNING("Zero-copy disabled for NPU.");
-                }
-
-                if (isNpu && zero_copy_enabled) {
+                if (isNpu) {
                     if (access("/dev/dma_heap/system", R_OK | W_OK) != 0) {
                         GVA_WARNING("Falling back to the slow NPU path (extra GPU->CPU->NPU copies): no access to "
                                     "DMA-BUF. To enable zero-copy, grant access to /dev/dma_heap/system, e.g. "
