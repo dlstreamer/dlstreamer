@@ -80,7 +80,6 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     COPY_GSTRING(targetElem->model_proc, masterElem->model_proc);
     targetElem->batch_size = masterElem->batch_size;
     targetElem->batch_timeout = masterElem->batch_timeout;
-    targetElem->inference_interval = masterElem->inference_interval;
     targetElem->no_block = masterElem->no_block;
     targetElem->nireq = masterElem->nireq;
     targetElem->cpu_streams = masterElem->cpu_streams;
@@ -90,6 +89,16 @@ void fillElementProps(GvaBaseInference *targetElem, GvaBaseInference *masterElem
     COPY_GSTRING(targetElem->pre_proc_type, masterElem->pre_proc_type);
     COPY_GSTRING(targetElem->object_class, masterElem->object_class);
     COPY_GSTRING(targetElem->labels, masterElem->labels);
+
+    // inference-interval can be changed while running: read and written under the element locks, one at a time.
+    // An element that has an interval of its own keeps it, otherwise it takes the one of the master.
+    GST_OBJECT_LOCK(masterElem);
+    const guint inference_interval = masterElem->inference_interval;
+    GST_OBJECT_UNLOCK(masterElem);
+    GST_OBJECT_LOCK(targetElem);
+    if (!targetElem->inference_interval_set)
+        targetElem->inference_interval = inference_interval;
+    GST_OBJECT_UNLOCK(targetElem);
     // no need to copy model_instance_id because it should match already.
 }
 
