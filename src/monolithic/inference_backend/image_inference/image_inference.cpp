@@ -72,9 +72,12 @@ bool isNpuZeroCopyLayoutSupported(const InferenceConfig &config) {
         if (width == 0 || height == 0)
             return false;
 
+        // Aligned width: the DMA-BUF rows need no padding, so the NPU gets a plain contiguous tensor and
+        // strided input support is not required (works on any NPU driver).
         if (alignDmaBufPitch(width) == width)
             return true;
 
+        // Unaligned width: rows are padded to an aligned pitch, so the NPU must accept a strided ROI tensor.
         if (OpenVINOImageInference::IsNpuStridedInputSupported()) {
             GVA_INFO("NPU zero-copy: model input width %u is not %u-byte aligned, using padded rows with strided "
                      "NPU input",
