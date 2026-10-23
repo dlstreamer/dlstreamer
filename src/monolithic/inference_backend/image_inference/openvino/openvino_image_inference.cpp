@@ -1491,9 +1491,7 @@ bool OpenVINOImageInference::DoNeedImagePreProcessing(const InferenceBackend::Im
     if ((_impl->_memory_type == MemoryType::SYSTEM) &&
         ((image->format == FourCC::FOURCC_RGBP) || (image->format == FourCC::FOURCC_BGRP))) {
 
-        bool contiguous = isImageContiguous(*image);
-
-        if (!contiguous) {
+        if (!isImageContiguous(*image)) {
             GVA_WARNING("Force OPENCV preprocessor to convert non-contiguous tensors into contigous memory location");
             pre_processor.reset(
                 InferenceBackend::ImagePreprocessor::Create(InferenceBackend::ImagePreprocessorType::OPENCV, ""));
