@@ -467,13 +467,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN \
-    mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
     mkdir -p /deb-pkg/opt/opencv/include && \
     mkdir -p /deb-pkg/opt/rdkafka && \
     mkdir -p /deb-pkg/opt/librealsense && \
-    find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
-    cp -a /opt/intel/openvino/runtime/lib/intel64/*.so* /deb-pkg/usr/lib/ && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -557,6 +554,24 @@ RUN curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.26.0
 
 WORKDIR /
 
+ARG OPENVINO_VERSION
+
+# OpenVINO Runtime and OpenVINO GenAI are installed here, alongside the DL
+# Streamer .deb package, instead of being bundled inside it. The archives
+# already fetched/extracted in the dlstreamer-dev stage are reused (no second
+# download, and the exact binaries DL Streamer was built/linked against), and
+# their library directories are registered with ldconfig so the DL Streamer
+# plugins (which carry no RPATH and rely on the default linker search path)
+# can resolve libopenvino*/libopenvino_genai* at runtime.
+COPY --from=dlstreamer-dev /opt/intel/openvino_${OPENVINO_VERSION} /opt/intel/openvino_${OPENVINO_VERSION}
+COPY --from=dlstreamer-dev /opt/intel/openvino_genai /opt/intel/openvino_genai
+
+RUN \
+    ln -s "/opt/intel/openvino_${OPENVINO_VERSION}" /opt/intel/openvino && \
+    echo "/opt/intel/openvino/runtime/lib/intel64" > /etc/ld.so.conf.d/openvino.conf && \
+    find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -printf '%h\n' | sort -u > /etc/ld.so.conf.d/openvino-genai.conf && \
+    ldconfig
+
 RUN mkdir -p /debs
 COPY --from=deb-builder /*.deb /debs/
 
@@ -565,14 +580,15 @@ ARG DEBIAN_FRONTEND=noninteractive
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 # Install the .deb package plus the DL Streamer Python requirements.
-# NOTE: the .deb package only ships the OpenVINO C++ runtime libraries used
-# by the DL Streamer GStreamer plugins, not the Python bindings, so the
-# OpenVINO Python API (openvino pip package) is intentionally not installed
-# here: this OpenVINO nightly version does not publish a cp310 wheel (the
-# ABI for this distro's system Python, 3.10), and its archive distribution
-# only bundles cp311/cp312/cp313 bindings, neither of which is importable
-# on Python 3.10. See ubuntu24.Dockerfile/ubuntu26.Dockerfile for the
-# equivalent step on distros where a matching OpenVINO Python build exists.
+# NOTE: the OpenVINO C++ runtime libraries used by the DL Streamer GStreamer
+# plugins are installed separately above (alongside the .deb, via ldconfig),
+# not the Python bindings, so the OpenVINO Python API (openvino pip package)
+# is intentionally not installed here: this OpenVINO nightly version does
+# not publish a cp310 wheel (the ABI for this distro's system Python, 3.10),
+# and its archive distribution only bundles cp311/cp312/cp313 bindings,
+# neither of which is importable on Python 3.10. See
+# ubuntu24.Dockerfile/ubuntu26.Dockerfile for the equivalent step on distros
+# where a matching OpenVINO Python build exists.
 RUN \
     apt-get update -y && \
     apt-get install -y -q --no-install-recommends /debs/*.deb gcc=\* ninja-build=\* libcairo2-dev=\* libgirepository1.0-dev=\* && \

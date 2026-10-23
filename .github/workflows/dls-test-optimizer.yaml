@@ -247,22 +247,10 @@ jobs:
 
       - name: Install requirements on host
         if: always() && matrix.runner_print_label != 'SKIP'
-        env:
-          path_dockerfile: ${{ matrix.path_dockerfile }}
         run: |
           sudo apt-get install -y --no-install-recommends libcairo2-dev libgirepository1.0-dev
           uv venv --system-site-packages $HOME/optimizer-venv
           VIRTUAL_ENV=$HOME/optimizer-venv uv pip install --no-cache-dir -r /opt/intel/dlstreamer/requirements.txt
-          # The intel-dlstreamer .deb only ships the OpenVINO C++ runtime
-          # libraries (installed on-host above), not the Python bindings - see
-          # the "Install onvif-zeep..." step in docker/ubuntu/ubuntu24.Dockerfile
-          # for why they are installed separately via pip. Read the version
-          # from the same Dockerfile used to build the test image so it can
-          # never drift out of sync with it.
-          OPENVINO_VERSION=$(grep -m1 -oP '^ARG OPENVINO_VERSION=\K.*' "${path_dockerfile}")
-          VIRTUAL_ENV=$HOME/optimizer-venv uv pip install --no-cache-dir --no-deps \
-            --extra-index-url https://storage.openvinotoolkit.org/simple/wheels/nightly \
-            openvino=="${OPENVINO_VERSION}"
           echo "$HOME/optimizer-venv/bin" >> $GITHUB_PATH
 
       - name: 🚀 Run Optimizer on host

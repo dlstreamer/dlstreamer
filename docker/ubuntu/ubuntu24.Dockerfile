@@ -483,13 +483,10 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 RUN \
-    mkdir -p /deb-pkg/usr/lib/ && \
     mkdir -p /deb-pkg/opt/intel/ && \
     mkdir -p /deb-pkg/opt/opencv/include && \
     mkdir -p /deb-pkg/opt/rdkafka && \
     mkdir -p /deb-pkg/opt/librealsense/ && \
-    find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -exec cp -a {} /deb-pkg/usr/lib/ \; && \
-    cp -a /opt/intel/openvino/runtime/lib/intel64/*.so* /deb-pkg/usr/lib/ && \
     cp -r "${DLSTREAMER_DIR}/build/intel64/${BUILD_ARG}" /deb-pkg/opt/intel/dlstreamer && \
     cp -r "${DLSTREAMER_DIR}/samples/" /deb-pkg/opt/intel/dlstreamer/ && \
     cp -r "${DLSTREAMER_DIR}/python/" /deb-pkg/opt/intel/dlstreamer/ && \
@@ -576,6 +573,22 @@ RUN curl -LO https://github.com/intel/linux-npu-driver/releases/download/v1.38.0
 
 WORKDIR /
 
+# OpenVINO Runtime and OpenVINO GenAI are installed here, alongside the DL
+# Streamer .deb package, instead of being bundled inside it. The archives
+# already fetched/extracted in the dlstreamer-dev stage are reused (no second
+# download, and the exact binaries DL Streamer was built/linked against), and
+# their library directories are registered with ldconfig so the DL Streamer
+# plugins (which carry no RPATH and rely on the default linker search path)
+# can resolve libopenvino*/libopenvino_genai* at runtime.
+COPY --from=dlstreamer-dev /opt/intel/openvino_${OPENVINO_VERSION} /opt/intel/openvino_${OPENVINO_VERSION}
+COPY --from=dlstreamer-dev /opt/intel/openvino_genai /opt/intel/openvino_genai
+
+RUN \
+    ln -s "/opt/intel/openvino_${OPENVINO_VERSION}" /opt/intel/openvino && \
+    echo "/opt/intel/openvino/runtime/lib/intel64" > /etc/ld.so.conf.d/openvino.conf && \
+    find /opt/intel/openvino_genai -regex '.*\/lib.*\(genai\|token\).*$' -printf '%h\n' | sort -u > /etc/ld.so.conf.d/openvino-genai.conf && \
+    ldconfig
+
 RUN mkdir -p /debs
 COPY --from=deb-builder /*.deb /debs/
 
@@ -594,10 +607,11 @@ RUN \
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 # Install onvif-zeep Python package and the OpenVINO Python API.
-# NOTE: the .deb package only ships the OpenVINO C++ runtime libraries used
-# by the DL Streamer GStreamer plugins, not the Python bindings. The
-# OpenVINO archive distribution does bundle compiled Python bindings
-# (python/openvino), but packaging them into the .deb was tried and reverted:
+# NOTE: the OpenVINO C++ runtime libraries used by the DL Streamer GStreamer
+# plugins are installed separately above (alongside the .deb, via ldconfig),
+# not the Python bindings. The OpenVINO archive distribution does bundle
+# compiled Python bindings (python/openvino), but packaging them into the
+# .deb was tried and reverted:
 # this OpenVINO nightly's archive is missing libopenvino_jax_frontend.so
 # (needed by the jax frontend Python binding), which breaks dh_shlibdeps
 # during `debuild`, and the archive only ships cp311/cp312/cp313 bindings,
