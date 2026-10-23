@@ -42,7 +42,6 @@ class DeviceGenerator: # pylint: disable=missing-class-docstring
 
             # transform device combinations into pipeline candidates
             for combination in combinations:
-                logger.info(f"{str(current_devices)}, {str(list(combination))}")
                 # skip if the generated combination equals the original pipeline
                 if list(combination) == current_devices:
                     continue

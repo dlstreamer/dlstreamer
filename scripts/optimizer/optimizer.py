@@ -20,7 +20,7 @@ from preprocess import preprocess_pipeline
 from processors.device import DeviceGenerator
 from processors.batch import BatchGenerator
 from processors.nireq import NireqGenerator
-from utils import add_instance_ids
+from utils import add_instance_ids, print_inference_parameters
 from optimization_targets import FpsTarget, PowerTarget
 
 import gi
@@ -292,6 +292,8 @@ class DLSOptimizer:
 
         while scored_candidates:
             (_, _, pipeline) = heapq.heappop(scored_candidates)
+            print_inference_parameters(pipeline, logger.info)
+
             try:
                 pipelines = []
                 for _ in range(0, streams):
@@ -305,8 +307,6 @@ class DLSOptimizer:
                 if target.is_better(result, best_result):
                     best_result = result.copy()
                     best_pipeline = pipeline
-
-                logger.info(str(result))
 
                 yield pipeline, result
 
