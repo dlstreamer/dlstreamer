@@ -144,15 +144,7 @@ void ImageInferenceAsync::SubmitInference(VaApiImage *va_api_image, IFrameBase::
     };
 
     auto mapped = va_api_image->Map();
-    // bool contiguous = isImageContiguous(mapped);
-    // if (!contiguous) {
-    //     GVA_WARNING("VaApiImage is not contiguous in memory");
-    // } else {
-    //     GVA_WARNING("VaApiImage is contiguous in memory");
-    // }
-
     frame->SetImage(std::shared_ptr<Image>(new Image(mapped), deleter));
-
     _inference->SubmitImage(std::move(frame), input_preprocessors);
 }
 
