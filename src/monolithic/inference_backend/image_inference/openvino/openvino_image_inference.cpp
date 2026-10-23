@@ -44,19 +44,6 @@
 #endif
 #endif
 
-#include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
-
-#ifndef _WIN32
-#include <linux/dma-buf.h>
-#include <sys/ioctl.h>
-#include <sys/mman.h>
-#endif
-
-#include <atomic>
-#include <cerrno>
-#include <cstdlib>
-#include <cstring>
 #include <functional>
 #include <iterator>
 #include <mutex>
@@ -1547,146 +1534,12 @@ void OpenVINOImageInference::ApplyInputPreprocessors(
     }
 }
 
-namespace {
-
-cv::Mat ConvertSystemImageToBGR(const Image &img) {
-    const int w = safe_convert<int>(img.width);
-    const int h = safe_convert<int>(img.height);
-    auto plane = [&](int idx, int rows, int cols, int type) {
-        return cv::Mat(rows, cols, type, img.planes[idx], img.stride[idx]);
-    };
-
-    cv::Mat bgr;
-    switch (img.format) {
-    case FOURCC_NV12:
-        cv::cvtColorTwoPlane(plane(0, h, w, CV_8UC1), plane(1, h / 2, w / 2, CV_8UC2), bgr, cv::COLOR_YUV2BGR_NV12);
-        break;
-    case FOURCC_I420: {
-        cv::Mat yuv(h * 3 / 2, w, CV_8UC1);
-        plane(0, h, w, CV_8UC1).copyTo(yuv(cv::Rect(0, 0, w, h)));
-        cv::Mat u = plane(1, h / 2, w / 2, CV_8UC1).clone().reshape(1, h / 4);
-        cv::Mat v = plane(2, h / 2, w / 2, CV_8UC1).clone().reshape(1, h / 4);
-        u.copyTo(yuv(cv::Rect(0, h, w, h / 4)));
-        v.copyTo(yuv(cv::Rect(0, h + h / 4, w, h / 4)));
-        cv::cvtColor(yuv, bgr, cv::COLOR_YUV2BGR_I420);
-        break;
-    }
-    case FOURCC_BGR:
-        bgr = plane(0, h, w, CV_8UC3).clone();
-        break;
-    case FOURCC_RGB:
-        cv::cvtColor(plane(0, h, w, CV_8UC3), bgr, cv::COLOR_RGB2BGR);
-        break;
-    case FOURCC_BGRA:
-    case FOURCC_BGRX:
-        cv::cvtColor(plane(0, h, w, CV_8UC4), bgr, cv::COLOR_BGRA2BGR);
-        break;
-    case FOURCC_RGBA:
-    case FOURCC_RGBX:
-        cv::cvtColor(plane(0, h, w, CV_8UC4), bgr, cv::COLOR_RGBA2BGR);
-        break;
-    case FOURCC_BGRP:
-        cv::merge(std::vector<cv::Mat>{plane(0, h, w, CV_8UC1), plane(1, h, w, CV_8UC1), plane(2, h, w, CV_8UC1)}, bgr);
-        break;
-    case FOURCC_RGBP:
-        cv::merge(std::vector<cv::Mat>{plane(2, h, w, CV_8UC1), plane(1, h, w, CV_8UC1), plane(0, h, w, CV_8UC1)}, bgr);
-        break;
-    default:
-        throw std::runtime_error(fmt::format("Unsupported image format for PNG dump: {:#x}", img.format));
-    }
-    return bgr;
-}
-
-// Debug helper: stores the frame image as PNG into the directory given by DLS_DUMP_IMAGE_DIR.
-// Does nothing when the environment variable is not set.
-void DumpImageToPng(const Image &image) {
-    static const char *dump_dir = std::getenv("DLS_DUMP_IMAGE_DIR");
-    if (!dump_dir || !*dump_dir)
-        return;
-
-    static std::atomic<uint64_t> counter{0};
-    try {
-        std::unique_ptr<ImageMap> mapper;
-        Image sys_image = image;
-        if (image.type == MemoryType::DMA_BUFFER) {
-            // NPU zero-copy buffer: linear RGBP/BGRP in a dma-heap buffer, rows padded to image.stride[0].
-            // vaDeriveImage() on this imported surface does not yield valid planes, so mmap the fd directly.
-            if (image.dma_fd < 0)
-                throw std::runtime_error("DMA_BUFFER image without valid dma_fd");
-            if (image.format != FOURCC_RGBP && image.format != FOURCC_BGRP)
-                throw std::runtime_error("Unexpected DMA_BUFFER image format");
-
-            // Wait for VPP to finish writing into the surface
-            mapper.reset(ImageMap::Create(MemoryType::DMA_BUFFER));
-            mapper->Map(image);
-
-            const size_t pitch = image.stride[0] ? image.stride[0] : image.width;
-            const size_t plane_size = pitch * image.height;
-            const size_t buf_size = plane_size * 3;
-            void *ptr = mmap(nullptr, buf_size, PROT_READ, MAP_SHARED, image.dma_fd, 0);
-            if (ptr == MAP_FAILED)
-                throw std::runtime_error(std::string("mmap of dma_fd failed: ") + std::strerror(errno));
-
-            struct dma_buf_sync sync = {};
-            sync.flags = DMA_BUF_SYNC_START | DMA_BUF_SYNC_READ;
-            ioctl(image.dma_fd, DMA_BUF_IOCTL_SYNC, &sync);
-
-            sys_image.type = MemoryType::SYSTEM;
-            for (int i = 0; i < 3; i++) {
-                sys_image.planes[i] = static_cast<uint8_t *>(ptr) + i * plane_size;
-                sys_image.stride[i] = safe_convert<uint32_t>(pitch);
-            }
-            sys_image.planes[3] = nullptr;
-
-            cv::Mat bgr;
-            try {
-                bgr = ConvertSystemImageToBGR(sys_image);
-            } catch (...) {
-                sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ;
-                ioctl(image.dma_fd, DMA_BUF_IOCTL_SYNC, &sync);
-                munmap(ptr, buf_size);
-                throw;
-            }
-            sync.flags = DMA_BUF_SYNC_END | DMA_BUF_SYNC_READ;
-            ioctl(image.dma_fd, DMA_BUF_IOCTL_SYNC, &sync);
-            munmap(ptr, buf_size);
-
-            const std::string path = fmt::format("{}/frame_dma_{:06}.png", dump_dir, counter++);
-            if (!cv::imwrite(path, bgr))
-                throw std::runtime_error("cv::imwrite failed for " + path);
-            GVA_WARNING("Dumped frame image to %s", path.c_str());
-            return;
-        } else if (image.type == MemoryType::VAAPI) {
-            // ImageMap for SYSTEM derives a VA image from the surface and maps it to CPU memory
-            mapper.reset(ImageMap::Create(MemoryType::SYSTEM));
-            sys_image = mapper->Map(image);
-        } else if (image.type != MemoryType::SYSTEM) {
-            throw std::runtime_error("Unsupported memory type for PNG dump");
-        }
-
-        cv::Mat bgr = ConvertSystemImageToBGR(sys_image);
-        if (mapper)
-            mapper->Unmap();
-
-        const std::string path = fmt::format("{}/frame_{:06}.png", dump_dir, counter++);
-        if (!cv::imwrite(path, bgr))
-            throw std::runtime_error("cv::imwrite failed for " + path);
-        GVA_WARNING("Dumped frame image to %s", path.c_str());
-    } catch (const std::exception &e) {
-        GVA_WARNING("Failed to dump frame image to PNG: %s", e.what());
-    }
-}
-
-} // namespace
-
 void OpenVINOImageInference::SubmitImage(
     IFrameBase::Ptr frame, const std::map<std::string, InferenceBackend::InputLayerDesc::Ptr> &input_preprocessors) {
     ITT_TASK(__FUNCTION__);
 
     if (!frame)
         throw std::invalid_argument("Invalid frame provided");
-
-    DumpImageToPng(*frame->GetImage());
 
     std::unique_lock<std::mutex> lk(requests_mutex_);
     ++requests_processing_;
