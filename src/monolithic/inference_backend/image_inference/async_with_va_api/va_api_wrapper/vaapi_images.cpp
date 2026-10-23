@@ -15,6 +15,9 @@ using namespace InferenceBackend;
 
 namespace {
 
+// Number of color planes in the RGBP/BGRP DMA-BUF used for NPU zero-copy.
+constexpr uint32_t DMA_BUF_PLANES_NUM = 3;
+
 // Creates a VA surface. When dma_buf_fd >= 0 the surface wraps the given DRM_PRIME DMA-BUF
 // (zero-copy import of RGBP/BGRP planes, each `pitch` bytes per row and `pitch * height` bytes long);
 // otherwise a plain VA-managed surface is allocated.
@@ -38,7 +41,7 @@ VASurfaceID CreateVASurface(VaDpyWrapper display, uint32_t width, uint32_t heigh
     ext_buf.pixel_format = pixel_format;
     ext_buf.width = width;
     ext_buf.height = height;
-    ext_buf.num_planes = 3;
+    ext_buf.num_planes = DMA_BUF_PLANES_NUM;
     ext_buf.num_buffers = 1;
     uintptr_t fd_handle = static_cast<uintptr_t>(dma_buf_fd);
     ext_buf.buffers = &fd_handle;
@@ -46,9 +49,9 @@ VASurfaceID CreateVASurface(VaDpyWrapper display, uint32_t width, uint32_t heigh
         throw std::invalid_argument("DMA-BUF pitch must be >= width and aligned to " +
                                     std::to_string(DMA_BUF_PITCH_ALIGNMENT) + " bytes");
     const uint32_t plane_size = pitch * height;
-    ext_buf.data_size = plane_size * 3; // RGBP/BGRP: 3 planes
+    ext_buf.data_size = plane_size * DMA_BUF_PLANES_NUM;
 
-    for (uint32_t i = 0; i < 3; i++) {
+    for (uint32_t i = 0; i < DMA_BUF_PLANES_NUM; i++) {
         ext_buf.pitches[i] = pitch;
         ext_buf.offsets[i] = i * plane_size;
     }
@@ -136,11 +139,11 @@ VaApiImage::VaApiImage(VaApiContext *context_, uint32_t width, uint32_t height, 
     if (memory_type == MemoryType::DMA_BUFFER) {
         pitch = alignDmaBufPitch(width);
         const uint32_t plane_size = pitch * height;
-        for (uint32_t i = 0; i < 3; i++) {
+        for (uint32_t i = 0; i < DMA_BUF_PLANES_NUM; i++) {
             image.stride[i] = pitch;
             image.offsets[i] = i * plane_size;
         }
-        size_t buf_size = static_cast<size_t>(plane_size) * 3; // RGBP/BGRP
+        size_t buf_size = static_cast<size_t>(plane_size) * DMA_BUF_PLANES_NUM;
         image.dma_fd = AllocateDmaBuf(buf_size);
         // DMA-BUF heap access is probed up front (image_inference.cpp) before choosing DMA_BUFFER,
         // so a failure here is unexpected. A local fallback to SYSTEM would leave the rest of the
