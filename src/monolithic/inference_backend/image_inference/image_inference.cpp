@@ -52,6 +52,8 @@ bool isNpuZeroCopyLayoutSupported(const InferenceConfig &config) {
         if (width == 0 || height == 0) {
             const std::string model_file = base_config.at(KEY_MODEL);
             std::string ov_extension_lib;
+            // Optional OpenVINO extension library (gvadetect/gvaclassify 'ov-extension-lib' property): a .so
+            // defining custom OpenVINO operations, needed to read models that contain such operations.
             auto ext_it = base_config.find(KEY_OV_EXTENSION_LIB);
             if (ext_it != base_config.end())
                 ov_extension_lib = ext_it->second;
@@ -59,10 +61,18 @@ bool isNpuZeroCopyLayoutSupported(const InferenceConfig &config) {
             for (const auto &input :
                  OpenVINOImageInference::GetModelInputShapes(model_file, ov_extension_lib.c_str())) {
                 const auto &shape = input.second;
-                // Image input is the 4D (N, C, H, W) tensor; width/height are the last two dimensions.
-                if (shape.size() == 4 && shape[shape.size() - 2] && shape[shape.size() - 1]) {
-                    height = static_cast<uint32_t>(shape[shape.size() - 2]);
-                    width = static_cast<uint32_t>(shape[shape.size() - 1]);
+                // Image input is the 4D tensor: the VA pre-processing path builds [1, C, H, W] tensors and
+                // ov::set_batch needs an 'N' axis. Other ranks leave width/height at 0, i.e. no zero-copy.
+                // Use the same heuristic as the OpenVINO backend (get_image_layout_from_shape): NHWC if the
+                // last dim looks like channels, otherwise NCHW.
+                if (shape.size() != 4)
+                    continue;
+                const bool is_nhwc = shape[3] <= 4 && shape[1] > 4;
+                const size_t h = is_nhwc ? shape[1] : shape[2];
+                const size_t w = is_nhwc ? shape[2] : shape[3];
+                if (h && w) {
+                    height = static_cast<uint32_t>(h);
+                    width = static_cast<uint32_t>(w);
                     break;
                 }
             }
