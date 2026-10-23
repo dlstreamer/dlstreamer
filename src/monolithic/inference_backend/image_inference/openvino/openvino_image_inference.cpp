@@ -8,7 +8,6 @@
 #include "inference_backend/image_inference.h"
 #include <spdlog/fmt/fmt.h>
 
-#include <cinttypes>
 #include <cstddef>
 #include <openvino/runtime/properties.hpp>
 
