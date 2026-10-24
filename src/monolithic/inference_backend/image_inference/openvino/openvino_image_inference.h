@@ -50,6 +50,9 @@ class OpenVINOImageInference : public InferenceBackend::ImageInference {
     static std::map<std::string, std::vector<size_t>> GetModelInputShapes(const std::string model_file,
                                                                           const gchar *ov_extension_lib);
 
+    // True if the NPU plugin/driver can consume strided input tensors (NPU_ENABLE_STRIDES_FOR).
+    static bool IsNpuStridedInputSupported();
+
     bool IsQueueFull() override;
 
     void Flush() override;
